@@ -97,7 +97,7 @@ describe("Admin-Cancelar (CA-ASS-30, 31, 35, 37, 38, 69)", () => {
     definirAssinaturaFalsa({
       status: "ativa",
       teste: null,
-      proxima_fatura: { vencimento: "2026-11-22", valor_centavos: 44900, descricao: "Plano Profissional" },
+      proxima_fatura: { vencimento: "2026-11-22", valor_centavos: 16000, descricao: "Plano Profissional" },
       acoes: { ...(seed.acoes as NonNullable<typeof seed.acoes>), pausar: true },
     });
     const t = texto(await pagina());

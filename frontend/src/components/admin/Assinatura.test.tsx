@@ -48,7 +48,7 @@ describe("assinatura (Admin-Assinatura)", () => {
   it("plano em teste: nome, selo, preço e dias que faltam", async () => {
     await entrar("mariana@motorapida.com.br");
     const t = texto(await pagina());
-    for (const trecho of ["Administração", "Assinatura", "Seu plano", "Teste grátis até 21 out", "Profissional", "R$ 449,00 por mês, a partir de 22 out", "Faltam 14 dias de teste grátis."]) {
+    for (const trecho of ["Administração", "Assinatura", "Seu plano", "Teste grátis até 21 out", "Profissional", "R$ 160,00 por mês, a partir de 22 out", "Faltam 14 dias de teste grátis."]) {
       expect(t, trecho).toContain(trecho);
     }
   });
@@ -73,9 +73,9 @@ describe("assinatura (Admin-Assinatura)", () => {
     await entrar("mariana@motorapida.com.br");
     const html = await pagina();
     const t = texto(html);
-    ordem(t, ["Seu plano", "Mudar de plano", "Escolher forma de pagamento", "Uso do plano", "Forma de pagamento", "Nenhuma cadastrada. Escolha até 21 out para não perder o acesso.", "Cartão de crédito", "Cobrança automática todo mês", "Pix automático", "Autoriza uma vez no app do banco", "Boleto", "Enviado por e-mail 5 dias antes", "Faturas", "Vencimento", "Descrição", "Valor", "Situação", "22 out", "Plano Profissional · 22 out a 21 nov", "R$ 449,00", "Sem forma de pagamento", "07 out", "Teste grátis de 14 dias", "R$ 0,00", "Ativo", "Dados da nota fiscal", "Editar", "Moto Rápida Locações Ltda", "CNPJ 12.345.678/0001-95", "financeiro@motorapida.com.br", "Av. Bezerra de Menezes, 1200"]);
+    ordem(t, ["Seu plano", "Mudar de plano", "Escolher forma de pagamento", "Uso do plano", "Forma de pagamento", "Nenhuma cadastrada. Escolha até 21 out para não perder o acesso.", "Cartão de crédito", "Cobrança automática todo mês", "Pix automático", "Autoriza uma vez no app do banco", "Boleto", "Enviado por e-mail 5 dias antes", "Faturas", "Vencimento", "Descrição", "Valor", "Situação", "22 out", "Plano Profissional · 22 out a 21 nov", "R$ 160,00", "Sem forma de pagamento", "07 out", "Teste grátis de 14 dias", "R$ 0,00", "Ativo", "Dados da nota fiscal", "Editar", "Moto Rápida Locações Ltda", "CNPJ 12.345.678/0001-95", "financeiro@motorapida.com.br", "Av. Bezerra de Menezes, 1200"]);
     ordem(t, ["Precisa de mais veículos ou filiais?", "O plano Completo inclui:", "Veículos, filiais e usuários sem limite", "Implantação acompanhada por chamada", "Suporte prioritário", "Comparar planos", "Cancelar assinatura", "Exportar dados antes"]);
-    expect(t).toContain("R$ 449,00 por mês, a partir de 22 out");
+    expect(t).toContain("R$ 160,00 por mês, a partir de 22 out");
     expect(t).not.toMatch(/NF-e|domínio|portal|integraç/i);
     expect(html).toContain('href="/admin/assinatura/cancelar"');
     expect(t).toContain("Exportar baixa a auditoria em CSV. O resto dos seus dados você pede à equipe Giro.");
@@ -111,11 +111,11 @@ describe("assinatura (Admin-Assinatura)", () => {
       status: "ativa",
       teste: null,
       plano_proximo: { id: 1, nome: "Essencial", ciclo: "mensal", vale_em: "2026-11-22" },
-      proxima_fatura: { vencimento: "2026-11-22", valor_centavos: 19900, descricao: "Plano Essencial · 22 nov a 21 dez" },
+      proxima_fatura: { vencimento: "2026-11-22", valor_centavos: 13000, descricao: "Plano Essencial · 22 nov a 21 dez" },
       acoes: { ...(seed.acoes as NonNullable<typeof seed.acoes>), desfazer_mudanca_plano: true },
     });
     const t = texto(await pagina());
-    expect(t).toContain("Muda para Essencial em 22 nov, a R$ 199,00.");
+    expect(t).toContain("Muda para Essencial em 22 nov, a R$ 130,00.");
     expect(t).toContain("Desfazer mudança");
     definirAssinaturaFalsa({ plano_proximo: { id: 1, nome: "Essencial", ciclo: "mensal", vale_em: "2026-11-22" } });
     expect(texto(await pagina())).not.toContain("Desfazer mudança");
@@ -169,7 +169,7 @@ describe("assinatura (Admin-Assinatura)", () => {
     expect(t).toContain("Sua fatura está atrasada.");
     expect(t).toContain("Fatura em atraso");
     expect(t).toContain("Sua empresa está só para consulta no momento.");
-    expect(t).toContain("R$ 449,00 por mês");
+    expect(t).toContain("R$ 160,00 por mês");
     expect(t).not.toContain("a partir de");
   });
 
@@ -181,14 +181,14 @@ describe("assinatura (Admin-Assinatura)", () => {
 
 describe("apoio da tela", () => {
   it("situação, preço e confirmação do nome (CA-ASS-31)", () => {
-    const plano = { id: 2, nome: "Profissional", preco_contratado_centavos: 44900, ciclo: "mensal" };
-    const prox = { vencimento: "2026-10-22", valor_centavos: 44900, descricao: "Plano Profissional" };
+    const plano = { id: 2, nome: "Profissional", preco_contratado_centavos: 16000, ciclo: "mensal" };
+    const prox = { vencimento: "2026-10-22", valor_centavos: 16000, descricao: "Plano Profissional" };
     expect(situacaoDaAssinatura({ status: "ativa", teste: null })).toEqual({ rotulo: "Ativa", tom: "sucesso" });
     expect(situacaoDaAssinatura({ status: "suspensa", teste: null }).tom).toBe("critico");
     expect(situacaoDaAssinatura({ status: "algo_novo", teste: null }).rotulo).toBe("algo_novo");
-    expect(precoDoPlano({ plano, proxima_fatura: null })).toBe("R$ 449,00 por mês");
-    expect(precoDoPlano({ plano, proxima_fatura: prox })).toBe("R$ 449,00 por mês, a partir de 22 out");
-    expect(precoDoPlano({ plano: { ...plano, ciclo: "anual" }, proxima_fatura: null })).toBe("R$ 449,00 por ano");
+    expect(precoDoPlano({ plano, proxima_fatura: null })).toBe("R$ 160,00 por mês");
+    expect(precoDoPlano({ plano, proxima_fatura: prox })).toBe("R$ 160,00 por mês, a partir de 22 out");
+    expect(precoDoPlano({ plano: { ...plano, ciclo: "anual" }, proxima_fatura: null })).toBe("R$ 160,00 por ano");
     expect(nomeConfere("  moto   rápida ", "Moto Rápida")).toBe(true);
     expect(nomeConfere("Moto Rapida", "Moto Rápida")).toBe(false);
     expect(nomeConfere("", "Moto Rápida")).toBe(false);

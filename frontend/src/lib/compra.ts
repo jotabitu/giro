@@ -22,12 +22,12 @@ export function mascararCelular(texto: string): string {
   return resto.length > corte ? `(${d.slice(0, 2)}) ${resto.slice(0, corte)}-${resto.slice(corte)}` : `(${d.slice(0, 2)}) ${resto}`;
 }
 
-/** 44900 vira "R$ 449". Valor inteiro sem centavos, como no card do plano. */
+/** 16000 vira "R$ 160". Valor inteiro sem centavos, como no card do plano. */
 export function reaisInteiros(centavos: number): string {
   return `R$ ${Math.floor(centavos / 100).toLocaleString("pt-BR")}`;
 }
 
-/** 44900 vira "R$ 449,00". */
+/** 16000 vira "R$ 160,00". */
 export function reais(centavos: number): string {
   return `R$ ${(centavos / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }

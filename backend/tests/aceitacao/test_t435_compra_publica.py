@@ -1,7 +1,7 @@
 """T-435 · Compra pública (`docs/api/compra.md`; PLT-01, PLT-11, PLT-13, PLT-16, USR-01).
 
 Moto Rápida dos dados de referência: compra em 07 out 2026, teste até 21 out, FAT-0001 de
-R$ 449,00 vencendo em 22 out (R$ 4.490,00 no anual).
+R$ 160,00 vencendo em 22 out (R$ 1.600,00 no anual).
 """
 
 import re
@@ -104,8 +104,8 @@ def test_plt_11_catalogo_publico_sem_completo(publico, relogio, planos):
     corpo = resposta.json()
     assert [p["codigo"] for p in corpo["planos"]] == ["essencial", "profissional"]
     profissional = corpo["planos"][1]
-    assert profissional["mensal_centavos"] == 44900
-    assert profissional["anual_centavos"] == 449000
+    assert profissional["mensal_centavos"] == 16000
+    assert profissional["anual_centavos"] == 160000
     assert profissional["limites"] == {"veiculos": 150, "filiais": 3, "usuarios": 10}
     assert profissional["inclui"] == [
         "Tudo do Essencial, mais despesas",
@@ -369,7 +369,7 @@ def test_plt_01_compra_publica_teste_e_primeira_fatura(
     assert (fatura.codigo, fatura.vencimento, fatura.valor_centavos) == (
         "FAT-0001",
         date(2026, 10, 22),
-        44900,
+        16000,
     )
 
     andamento = api.get(f"{BASE}pedidos/{chave}/").json()
@@ -443,7 +443,7 @@ def test_plt_16_compra_publica_sem_teste(
     fatura = FaturaAssinatura.objects.get(empresa=nova)
     assert fatura.vencimento == date(2026, 10, 7)
     passos = api.get(f"{BASE}pedidos/{chave}/").json()["passos"]
-    assert passos[3]["texto"] == "1ª fatura de R$ 449,00 vence hoje"
+    assert passos[3]["texto"] == "1ª fatura de R$ 160,00 vence hoje"
 
 
 def test_plt_16_situacao_muda_ate_a_confirmacao(

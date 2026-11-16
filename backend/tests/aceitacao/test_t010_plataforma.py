@@ -98,7 +98,7 @@ def test_plt_01_ca_010_02_moto_rapida_nasce_em_teste(
     assert empresa.status == "em_teste"
     assert (empresa.teste_inicio, empresa.teste_fim) == (date(2026, 10, 7), date(2026, 10, 21))
     assert selectors.dias_restantes(empresa) == 14
-    assert empresa.preco_contratado_centavos == 44900
+    assert empresa.preco_contratado_centavos == 16000
     assert empresa.ciclo == "mensal"
     assert empresa.schema_name == "motorapida"
     assert "motorapida" in _schemas()
@@ -171,7 +171,7 @@ def test_plt_01_ca_010_03_vencimento_da_primeira_fatura(criar_empresa):
         {
             "codigo": "FAT-0001",
             "vencimento": date(2026, 10, 22),
-            "valor_centavos": 44900,
+            "valor_centavos": 16000,
             "status": "aberta",
             "observacao": "1ª cobrança após o teste",
         }

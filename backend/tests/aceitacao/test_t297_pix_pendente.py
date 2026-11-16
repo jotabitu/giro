@@ -2,7 +2,7 @@
 "Emissão no parceiro" e `POST faturas/{codigo}/pagar/`; PLT-02, PLT-13, CA-ASS-63).
 
 Moto Rápida com o Pix automático escolhido em 10 out e ainda não autorizado no banco: a FAT-0001
-(R$ 449,00, vence em 22 out) sai em boleto com Pix em 17 out, e a forma continua esperando a
+(R$ 160,00, vence em 22 out) sai em boleto com Pix em 17 out, e a forma continua esperando a
 autorização. Autorizada em 20 out, a FAT-0001 fica no boleto; a FAT-0002 sai pela autorização em
 17 nov.
 """
@@ -53,7 +53,7 @@ def test_plt_13_pix_automatico_sem_autorizacao_sai_boleto(
 
     assert [m.to for m in mailoutbox] == [[COBRANCA], [MARIANA]]  # um por destinatário (T-306)
     assert LINHA in mailoutbox[0].body
-    assert "R$ 449,00" in mailoutbox[0].body and "22 out" in mailoutbox[0].body
+    assert "R$ 160,00" in mailoutbox[0].body and "22 out" in mailoutbox[0].body
 
     # Idempotente: rodar de novo não emite outro nem manda outro e-mail.
     assert _gerar(relogio, "2026-10-18", django_capture_on_commit_callbacks).emitidas == {}

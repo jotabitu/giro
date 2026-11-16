@@ -83,12 +83,12 @@ Catálogo à venda (`PLT-11`), para a `Compra-Planos` e o resumo "Plano escolhid
 {
   "planos": [
     { "codigo": "essencial", "nome": "Essencial", "descricao": "Para quem está começando a frota.",
-      "mensal_centavos": 19900, "anual_centavos": 199000,
+      "mensal_centavos": 13000, "anual_centavos": 130000,
       "limites": { "veiculos": 30, "filiais": 1, "usuarios": 3 },
       "inclui": ["Locação, vistoria e contas a receber", "Contrato digital, assinado pelo cliente no celular", "Sua marca e seu endereço de acesso"],
       "destaque": false },
     { "codigo": "profissional", "nome": "Profissional", "descricao": "Para locadoras com equipe e mais de uma loja.",
-      "mensal_centavos": 44900, "anual_centavos": 449000,
+      "mensal_centavos": 16000, "anual_centavos": 160000,
       "limites": { "veiculos": 150, "filiais": 3, "usuarios": 10 },
       "inclui": ["Tudo do Essencial, mais despesas", "Pix e boleto automáticos"],
       "destaque": true }
@@ -194,7 +194,7 @@ Andamento para a `Compra-Pronto` (a tela consulta a cada 2 s enquanto `status` =
 }
 ```
 - `administrador` e `empresa` só saem depois de `confirmado` (antes, quem tem a chave não vê dados). `administrador.nome` é o primeiro nome, para "Tudo pronto, Mariana".
-- O passo `assinatura` diz "Teste de 14 dias ativo, até 21 out" na compra com teste, e "1ª fatura de R$ 449,00 vence hoje" na `ja_foi_cliente` (`PLT-16`, sem teste, empresa nasce `ativa`). O texto vem pronto da API.
+- O passo `assinatura` diz "Teste de 14 dias ativo, até 21 out" na compra com teste, e "1ª fatura de R$ 160,00 vence hoje" na `ja_foi_cliente` (`PLT-16`, sem teste, empresa nasce `ativa`). O texto vem pronto da API.
 - `status` `falhou`: `{ "status": "falhou", "mensagem": "Não conseguimos criar o seu sistema agora. A equipe Giro já foi avisada e fala com você por e-mail." }`. A tarefa desfaz a transação de `criar_empresa` (nada fica pela metade: schema que nasceu é removido no mesmo rollback do django-tenants), avisa o Sentry e manda e-mail à equipe. Não há nova tentativa automática para não criar duas vezes.
 - Pedido `expirado`, ou mais de 24 h depois do `pronto`: 404 `pedido_nao_encontrado`.
 
@@ -210,7 +210,7 @@ Andamento para a `Compra-Pronto` (a tela consulta a cada 2 s enquanto `status` =
 
 Chama `criar_empresa` com os dados do pedido, sem duplicar a regra:
 
-- `situacao_cnpj` = `nova`: empresa `em_teste`, `teste_inicio` = hoje, `teste_fim` = hoje + 14, 1ª fatura `aberta` com o valor do plano e do ciclo vencendo no dia seguinte ao fim do teste (`PLT-01`; Moto Rápida, compra em 07 out: teste até 21 out, FAT-0001 de R$ 449,00 vencendo em 22 out, ou R$ 4.490,00 no anual).
+- `situacao_cnpj` = `nova`: empresa `em_teste`, `teste_inicio` = hoje, `teste_fim` = hoje + 14, 1ª fatura `aberta` com o valor do plano e do ciclo vencendo no dia seguinte ao fim do teste (`PLT-01`; Moto Rápida, compra em 07 out: teste até 21 out, FAT-0001 de R$ 160,00 vencendo em 22 out, ou R$ 1.600,00 no anual).
 - `ja_foi_cliente`: empresa `ativa`, sem teste, 1ª fatura vencendo hoje (`PLT-16`, CA-ASS-61), e os avisos da `IMP-06` não saem.
 - `em_uso` ou `fatura_em_atraso` na hora da confirmação: o pedido vira `falhou` com a mensagem da `PLT-16` correspondente no lugar da mensagem genérica.
 - O administrador nasce `convite_pendente` com o convite da `USR-01` (só por e-mail na fase 1, ADR 0034). O e-mail do administrador já está confirmado pelo código, mas o acesso continua nascendo pelo convite (senha e 2 etapas, `USR-06`).
@@ -258,7 +258,7 @@ Tudo com o que já existe: throttles do DRF no cache do Redis (como o `AcessoPor
 ## Testes que a T-432 escreve (nomes)
 
 - `test_plt_11_catalogo_publico_sem_completo`, `test_plt_11_pedido_com_completo_recusado`
-- `test_plt_01_compra_publica_teste_e_primeira_fatura` (Moto Rápida: 07 out → teste até 21 out, fatura 22 out, R$ 449,00; anual R$ 4.490,00)
+- `test_plt_01_compra_publica_teste_e_primeira_fatura` (Moto Rápida: 07 out → teste até 21 out, fatura 22 out, R$ 160,00; anual R$ 1.600,00)
 - `test_plt_16_checagem_cnpj_quatro_situacoes`, `test_plt_16_compra_publica_sem_teste`, `test_plt_16_situacao_muda_ate_a_confirmacao`
 - `test_plt_13_compra_sem_cartao` (forma opcional; campos de cartão recusados, ADR 0023)
 - `test_usr_01_convite_do_administrador_da_compra`, `test_compra_link_do_convite_sai_uma_vez`

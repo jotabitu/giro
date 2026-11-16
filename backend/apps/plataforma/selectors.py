@@ -409,7 +409,7 @@ def _pausa(empresa: Empresa) -> dict[str, Any] | None:
 
 
 def _proxima_fatura(empresa: Empresa, proxima: ProximaMensalidade | None) -> dict[str, Any] | None:
-    """O "R$ 449,00 por mês, a partir de 22 out" (PLT-01). Nula na `pausada` e na `cancelada`,
+    """O "R$ 160,00 por mês, a partir de 22 out" (PLT-01). Nula na `pausada` e na `cancelada`,
     e com o cancelamento ou a pausa marcados: nada vai ser cobrado (`cancelamento.md`)."""
     sem_proxima = empresa.status in (Empresa.Status.PAUSADA, Empresa.Status.CANCELADA)
     if proxima is None or sem_proxima or cancelamento_marcado(empresa) or pausa_marcada(empresa):

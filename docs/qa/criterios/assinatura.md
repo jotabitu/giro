@@ -7,7 +7,7 @@ As tarefas de código destes critérios ainda não têm número (propostas em `t
 ## Teste e 1ª fatura (`PLT-01`, tabela de estados)
 
 **CA-ASS-01 · 1ª fatura no dia seguinte ao fim do teste**
-Dado a Moto Rápida no seed, quando a Mariana abre a assinatura em 07 out, então a empresa está `em_teste` até 21 out e existe a FAT-0001 `aberta`, R$ 449,00, vencendo em 22 out, "Plano Profissional · 22 out a 21 nov". A tela mostra "R$ 449,00 por mês, a partir de 22 out" (não 21 out).
+Dado a Moto Rápida no seed, quando a Mariana abre a assinatura em 07 out, então a empresa está `em_teste` até 21 out e existe a FAT-0001 `aberta`, R$ 160,00, vencendo em 22 out, "Plano Profissional · 22 out a 21 nov". A tela mostra "R$ 160,00 por mês, a partir de 22 out" (não 21 out).
 
 **CA-ASS-02 · Escolher a forma não ativa a empresa**
 Dado a Moto Rápida em 10 out, quando a Mariana escolhe boleto (ou Pix automático, ou cartão), então a empresa continua `em_teste`, a faixa "Teste grátis até 21 out" continua, e os avisos da `IMP-06` continuam saindo (faltam 3 dias em 18 out).
@@ -25,13 +25,13 @@ Dado a Moto Rápida com boleto e a FAT-0001 sem pagamento, então em 23 out a em
 Dado a Moto Rápida sem forma de pagamento em 21 out, então em 22 out ela vai para `suspensa` (só ver e exportar). Quando a Mariana escolhe o boleto e paga a FAT-0001 em 24 out, a empresa volta a `ativa` na hora, e a próxima fatura continua em 22 nov.
 
 **CA-ASS-07 · Faturas seguintes no mesmo dia**
-Dado a Moto Rápida `ativa` com a FAT-0001 paga, então as faturas seguintes vencem em 22 nov ("Plano Profissional · 22 nov a 21 dez") e 22 dez, de R$ 449,00 cada.
+Dado a Moto Rápida `ativa` com a FAT-0001 paga, então as faturas seguintes vencem em 22 nov ("Plano Profissional · 22 nov a 21 dez") e 22 dez, de R$ 160,00 cada.
 
 **CA-ASS-08 · Mês sem o dia**
 Dado uma empresa com teste de 16 a 30 jan 2027 (1ª fatura em 31 jan 2027), então as faturas seguintes vencem em 28 fev 2027 (período de 28 fev a 30 mar) e 31 mar 2027.
 
 **CA-ASS-09 · Anual**
-Dado uma empresa no Profissional anual com teste até 21 out 2026, então a 1ª fatura é de R$ 4.490,00, vence em 22 out 2026 e paga de 22 out 2026 a 21 out 2027 ("Plano Profissional anual · out 2026 a out 2027"); a seguinte vence em 22 out 2027.
+Dado uma empresa no Profissional anual com teste até 21 out 2026, então a 1ª fatura é de R$ 1.600,00, vence em 22 out 2026 e paga de 22 out 2026 a 21 out 2027 ("Plano Profissional anual · out 2026 a out 2027"); a seguinte vence em 22 out 2027.
 
 ## Régua e emissão (`PLT-02`, `AUT-13`)
 
@@ -55,13 +55,13 @@ Dado a Moto Rápida no Profissional, quando a Mariana abre Mudar de plano e Comp
 Dado a Moto Rápida `em_teste`, quando a Mariana muda para o Completo em 10 out, então o plano muda na hora, nada é cobrado, a FAT-0001 passa a R$ 899,00, o teste continua até 21 out, e os limites passam a sem limite.
 
 **CA-ASS-14 · Upgrade proporcional** (fase 2: Completo)
-Dado a Moto Rápida `ativa`, FAT-0001 paga, quando a Mariana muda para o Completo em 01 nov, então o plano muda na hora e nasce uma fatura de diferença de R$ 304,84 (45000 × 21 ÷ 31 = 30483,87, arredondado uma vez), "Mudança para o plano Completo · 01 a 21 nov", vencendo em 04 nov; no cartão, cobrada na hora. O preço contratado passa a R$ 899,00, e a fatura de 22 nov vem com R$ 899,00. `test_plt_04_upgrade_proporcional`.
+Dado a Moto Rápida `ativa`, FAT-0001 paga, quando a Mariana muda para o Completo em 01 nov, então o plano muda na hora e nasce uma fatura de diferença de R$ 500,61 (73900 × 21 ÷ 31 = 50061,29, arredondado uma vez), "Mudança para o plano Completo · 01 a 21 nov", vencendo em 04 nov; no cartão, cobrada na hora. O preço contratado passa a R$ 899,00, e a fatura de 22 nov vem com R$ 899,00. `test_plt_04_upgrade_proporcional`.
 
 **CA-ASS-15 · Downgrade que não cabe**
 Dado a Moto Rápida (`em_teste` ou `ativa`), quando a Mariana tenta o Essencial, então é recusado e a tela diz o que passa: 86 de 30 veículos e 5 de 3 usuários (1 filial cabe). Diz também o que está aberto nos módulos que saem (`PLT-12`): 1 despesa aguardando aprovação (os pneus, R$ 1.200,00) e 2 despesas a pagar (IPVA ROE2A88 e conta de luz). O óleo, o aluguel e os rastreadores já estão pagos e não contam. O seed de 07 out não tem OS, venda nem comissão aberta, e esses grupos não aparecem. Nada muda. `test_plt_04_downgrade_nao_cabe`.
 
 **CA-ASS-16 · Downgrade agendado e desfeito** (fase 2: Completo)
-Dado uma empresa no Completo `ativa` com 86 veículos, 1 filial e 5 usuários, período de 22 out a 21 nov, quando o administrador muda para o Profissional em 01 nov, então nada é cobrado nem devolvido, a tela diz "O plano Profissional vale a partir de 22 nov. Até lá, você continua no Completo.", e a fatura de 22 nov vem com R$ 449,00. Quando ele desfaz em 10 nov, a fatura de 22 nov volta a R$ 899,00. Em 22 nov, sem desfazer, o plano vira Profissional.
+Dado uma empresa no Completo `ativa` com 86 veículos, 1 filial e 5 usuários, período de 22 out a 21 nov, quando o administrador muda para o Profissional em 01 nov, então nada é cobrado nem devolvido, a tela diz "O plano Profissional vale a partir de 22 nov. Até lá, você continua no Completo.", e a fatura de 22 nov vem com R$ 160,00. Quando ele desfaz em 10 nov, a fatura de 22 nov volta a R$ 899,00. Em 22 nov, sem desfazer, o plano vira Profissional.
 
 **CA-ASS-17 · Estados que não mudam de plano**
 Dado a Moto Rápida `inadimplente` (ou `suspensa`), quando a Mariana tenta mudar de plano, então é recusado com "Pague a fatura em atraso antes de mudar de plano." Em `pausada` e `cancelada`, a opção não aparece.
@@ -75,7 +75,7 @@ Dado o Rodrigo (gerente), a Lúcia (financeiro) ou o suporte Giro dentro da empr
 ## Catálogo e módulos (`PLT-11`, `PLT-12`, `PLT-03`, `AUT-03`)
 
 **CA-ASS-20 · Catálogo único**
-Quando `Compra-Planos`, Comparar planos (`Admin-Assinatura`) e `Plat-Planos` listam os planos, então os três mostram Essencial R$ 199,00 (anual R$ 1.990,00, 30/1/3) e Profissional R$ 449,00 (R$ 4.490,00, 150/3/10), com os textos da `PLT-11`. O Profissional diz "Tudo do Essencial, mais despesas; Pix e boleto automáticos e cobrança pelo WhatsApp". O Completo não aparece na fase 1 (CA-ASS-70); na fase 2, volta com R$ 899,00 (R$ 8.990,00, sem limite). O preço e os limites do Profissional esperam o dono ("Pontos em aberto" das regras); até lá, valem estes. Na fase 1, só a `Admin-Assinatura` tem tela: `Compra-Planos` e `Plat-Planos` são da fase 2. Nenhum dos três cita NF-e, assinatura digital como extra do Completo, domínio próprio, portal do cliente nem API e integrações.
+Quando `Compra-Planos`, Comparar planos (`Admin-Assinatura`) e `Plat-Planos` listam os planos, então os três mostram Essencial R$ 130,00 (anual R$ 1.300,00, 30/1/3) e Profissional R$ 160,00 (R$ 1.600,00, 150/3/10), com os textos da `PLT-11`. O Profissional diz "Tudo do Essencial, mais despesas; Pix e boleto automáticos e cobrança pelo WhatsApp". O Completo não aparece na fase 1 (CA-ASS-70); na fase 2, volta com R$ 899,00 (R$ 8.990,00, sem limite). O preço e os limites do Profissional esperam o dono ("Pontos em aberto" das regras); até lá, valem estes. Na fase 1, só a `Admin-Assinatura` tem tela: `Compra-Planos` e `Plat-Planos` são da fase 2. Nenhum dos três cita NF-e, assinatura digital como extra do Completo, domínio próprio, portal do cliente nem API e integrações.
 
 **CA-ASS-21 · Cartão do plano acima**
 Na fase 1, vale o CA-ASS-70: o cartão não aparece para o Profissional e, para o Essencial, mostra o Profissional. (Fase 2: Completo.) Dado a Moto Rápida no Profissional, então a `Admin-Assinatura` mostra o cartão "Precisa de mais veículos ou filiais?" com veículos, filiais e usuários sem limite, implantação acompanhada por chamada e suporte prioritário. Dado uma empresa no Completo, o cartão não aparece.
@@ -104,7 +104,7 @@ Dado a Moto Rápida `ativa` com boleto, quando a Mariana troca para Pix automát
 Dado a Moto Rápida `suspensa` em 22 out (sem forma), quando a Mariana escolhe a forma e paga, então as duas ações são aceitas, embora a empresa esteja só leitura, e ela volta a `ativa` na hora.
 
 **CA-ASS-28 · Lista de faturas** (a fatura de diferença: fase 2: Completo)
-Dado a Moto Rápida `ativa` em 05 nov, depois do upgrade de 01 nov, então a lista traz a fatura de diferença (R$ 304,84, vence 04 nov, conforme paga ou não) e a FAT-0001 (`paga`, "Paga em 22 out", com o recibo do parceiro); a aberta ou atrasada tem "Pagar".
+Dado a Moto Rápida `ativa` em 05 nov, depois do upgrade de 01 nov, então a lista traz a fatura de diferença (R$ 500,61, vence 04 nov, conforme paga ou não) e a FAT-0001 (`paga`, "Paga em 22 out", com o recibo do parceiro); a aberta ou atrasada tem "Pagar".
 
 **CA-ASS-29 · Nota fiscal e CNPJ**
 Dado a FAT-0001 paga, então o Giro emite a NFS-e para Moto Rápida Locações Ltda, CNPJ 12.345.678/0001-95, Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000 (CA-ASS-47), enviada ao e-mail de cobrança (enquanto o cadastro municipal do Giro não estiver pronto, este critério fica `xfail` e o bloco só guarda os dados). Até a T-197, a equipe Giro emite essa nota à mão, no portal da prefeitura, com os mesmos dados, e a cobrança da fatura não espera por ela (`PLT-15`, decisão do dono de 25 out 2026); o critério confere só que o bloco guarda e mostra os dados. Quando a Mariana troca o e-mail de cobrança para financeiro@motorapida.com.br, a próxima fatura, a régua e a nota vão para ele. Quando tenta trocar o CNPJ, é recusado com "O CNPJ não muda por aqui. Fale com o suporte."
@@ -130,10 +130,10 @@ Dado uma empresa no anual de 22 out 2026 a 21 out 2027, quando cancela em 05 nov
 Dado a Moto Rápida `inadimplente` em 25 out, com a FAT-0001 atrasada, quando a Mariana cancela, então a empresa vira `cancelada` na hora, a FAT-0001 continua `atrasada` e devida, e a régua para: nada sai em 29 out (D+7) nem em 06 nov.
 
 **CA-ASS-35 · Pausar**
-Dado a Moto Rápida `ativa`, FAT-0001 paga, quando a Mariana pausa por 2 meses em 05 nov, então a empresa continua `ativa` até 21 nov, fica `pausada` (só leitura) de 22 nov a 21 jan 2027 sem nenhuma fatura, e volta sozinha a `ativa` em 22 jan 2027 com uma fatura de R$ 449,00 vencendo nesse dia. Pausar por 4 meses é recusado.
+Dado a Moto Rápida `ativa`, FAT-0001 paga, quando a Mariana pausa por 2 meses em 05 nov, então a empresa continua `ativa` até 21 nov, fica `pausada` (só leitura) de 22 nov a 21 jan 2027 sem nenhuma fatura, e volta sozinha a `ativa` em 22 jan 2027 com uma fatura de R$ 160,00 vencendo nesse dia. Pausar por 4 meses é recusado.
 
 **CA-ASS-36 · Volta manual da pausa**
-Dado a mesma pausa, quando a Mariana volta em 10 dez, então a empresa vira `ativa` na hora, com uma fatura de R$ 449,00 vencendo em 10 dez, e as seguintes vencem todo dia 10.
+Dado a mesma pausa, quando a Mariana volta em 10 dez, então a empresa vira `ativa` na hora, com uma fatura de R$ 160,00 vencendo em 10 dez, e as seguintes vencem todo dia 10.
 
 **CA-ASS-37 · Quem não pausa**
 Dado a Moto Rápida `em_teste`, então a `Admin-Cancelar` não oferece pausar (só mudar para o Essencial). Dado a Moto Rápida `inadimplente`, pausar é recusado. Com uma pausa em andamento, outra pausa é recusada.
@@ -150,22 +150,22 @@ Dado a Moto Rápida cancelada, então os contratos já assinados com clientes fi
 Dado uma empresa no Completo `ativa` com 86 veículos, 1 filial e 5 usuários, período de 22 out a 21 nov, com o Profissional agendado em 01 nov, quando o administrador convida mais 6 pessoas em 12 nov (11 usuários), então em 17 nov, na geração da fatura de 22 nov, o downgrade não acontece: a fatura de 22 nov sai com R$ 899,00, a tela deixa de dizer "O plano Profissional vale a partir de 22 nov", a empresa continua no Completo, e o administrador e o e-mail de cobrança recebem um e-mail com o motivo (11 de 10 usuários). Auditoria do downgrade recusado, pelo sistema. `test_plt_04_downgrade_agendado_deixa_de_caber`.
 
 **CA-ASS-41 · Downgrade que cabia na geração da fatura** (fase 2: Completo)
-Dado a mesma empresa sem convidar ninguém até 17 nov, quando a fatura de 22 nov sai com R$ 449,00 e o administrador convida as 6 pessoas em 19 nov, então os convites são aceitos (o limite ainda é o do Completo), e em 22 nov o plano vira Profissional com 11 de 10 usuários: ninguém sai, e um novo convite é recusado pelo limite (`PLT-03`) até sobrar vaga.
+Dado a mesma empresa sem convidar ninguém até 17 nov, quando a fatura de 22 nov sai com R$ 160,00 e o administrador convida as 6 pessoas em 19 nov, então os convites são aceitos (o limite ainda é o do Completo), e em 22 nov o plano vira Profissional com 11 de 10 usuários: ninguém sai, e um novo convite é recusado pelo limite (`PLT-03`) até sobrar vaga.
 
 **CA-ASS-42 · Pausa com a fatura do período seguinte já emitida**
 Dado a Moto Rápida `ativa`, FAT-0001 paga, e a FAT-0002 de 22 nov emitida em 17 nov, quando a Mariana pausa por 2 meses em 19 nov, então a FAT-0002 vira `cancelada` (nada é cobrado em 22 nov), a empresa continua `ativa` até 21 nov e fica `pausada` de 22 nov a 21 jan 2027, como no CA-ASS-35. `test_plt_06_pausa_comeca_no_fim_do_periodo_pago`.
 
 **CA-ASS-43 · Desfazer o cancelamento no teste**
-Dado a Moto Rápida cancelada em 10 out, no teste (CA-ASS-30), quando a Mariana desfaz o cancelamento em 15 out pela `Admin-Assinatura`, então a FAT-0001 continua `cancelada` e nasce a FAT-0002 `aberta`, R$ 449,00, vencendo em 22 out, "Plano Profissional · 22 out a 21 nov"; a empresa continua `em_teste` até 21 out, não vira `cancelada` em 22 out, e nenhum apagamento fica marcado. O desfazer fica na auditoria. `test_plt_06_desfazer_cancelamento_no_teste`.
+Dado a Moto Rápida cancelada em 10 out, no teste (CA-ASS-30), quando a Mariana desfaz o cancelamento em 15 out pela `Admin-Assinatura`, então a FAT-0001 continua `cancelada` e nasce a FAT-0002 `aberta`, R$ 160,00, vencendo em 22 out, "Plano Profissional · 22 out a 21 nov"; a empresa continua `em_teste` até 21 out, não vira `cancelada` em 22 out, e nenhum apagamento fica marcado. O desfazer fica na auditoria. `test_plt_06_desfazer_cancelamento_no_teste`.
 
 **CA-ASS-44 · Desfazer o cancelamento na ativa**
-Dado a Moto Rápida `ativa`, FAT-0001 paga, cancelada em 05 nov, quando a Mariana desfaz em 10 nov, então a fatura de 22 nov é gerada em 17 nov, como sempre, e a empresa segue `ativa` depois de 21 nov. Dado o cancelamento em 19 nov (FAT-0002 de 22 nov `cancelada`), quando ela desfaz em 20 nov, então nasce na hora a FAT-0003 `aberta`, R$ 449,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", com o boleto por e-mail em 20 nov; a FAT-0002 continua `cancelada`.
+Dado a Moto Rápida `ativa`, FAT-0001 paga, cancelada em 05 nov, quando a Mariana desfaz em 10 nov, então a fatura de 22 nov é gerada em 17 nov, como sempre, e a empresa segue `ativa` depois de 21 nov. Dado o cancelamento em 19 nov (FAT-0002 de 22 nov `cancelada`), quando ela desfaz em 20 nov, então nasce na hora a FAT-0003 `aberta`, R$ 160,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", com o boleto por e-mail em 20 nov; a FAT-0002 continua `cancelada`.
 
 **CA-ASS-45 · Quem não desfaz**
 Dado a Moto Rápida cancelada em 05 nov (acesso até 21 nov), quando a Mariana tenta desfazer em 22 nov, então não consegue (a empresa já é `cancelada` e não entra no sistema); só a equipe Giro reativa. Dado a Moto Rápida cancelada na hora como `inadimplente` (CA-ASS-34), não há o que desfazer. O Rodrigo, a Lúcia e o suporte Giro não desfazem (403, como no CA-ASS-19).
 
 **CA-ASS-46 · Reativar a cancelada com fatura em atraso**
-Dado a Moto Rápida cancelada em 25 out como `inadimplente`, com a FAT-0001 `atrasada`, quando a equipe Giro tenta reativar em 01 dez, então é recusado com "Receba a fatura em atraso antes de reativar." e nada muda. Quando a FAT-0001 é paga em 01 dez pela 2ª via (baixa pelo webhook) e a equipe reativa, então a empresa vira `ativa`, com a FAT-0002 de R$ 449,00 vencendo em 01 dez, "Plano Profissional · 01 dez a 31 dez", e as seguintes todo dia 1; a reativação fica na auditoria da empresa e na da plataforma, com o motivo. `test_plt_06_reativar_so_com_atrasada_paga`.
+Dado a Moto Rápida cancelada em 25 out como `inadimplente`, com a FAT-0001 `atrasada`, quando a equipe Giro tenta reativar em 01 dez, então é recusado com "Receba a fatura em atraso antes de reativar." e nada muda. Quando a FAT-0001 é paga em 01 dez pela 2ª via (baixa pelo webhook) e a equipe reativa, então a empresa vira `ativa`, com a FAT-0002 de R$ 160,00 vencendo em 01 dez, "Plano Profissional · 01 dez a 31 dez", e as seguintes todo dia 1; a reativação fica na auditoria da empresa e na da plataforma, com o motivo. `test_plt_06_reativar_so_com_atrasada_paga`.
 
 **CA-ASS-47 · Endereço da nota nasce da matriz**
 Dado uma compra sem endereço (a `Compra-Checkout` não pede), antes do passo 6 os dados fiscais mostram o endereço vazio, e uma fatura paga nesse tempo não tem a nota pedida. Quando a Mariana cadastra no passo 6 a Filial Centro (matriz) em Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000, então os dados fiscais passam a ter esse endereço, e a nota que esperava é pedida (enquanto a NFS-e estiver desligada, como no CA-ASS-29, só o endereço é conferido). O seed Moto Rápida já nasce com esse endereço nos dados fiscais. `test_plt_15_endereco_nasce_da_matriz`.
@@ -176,7 +176,7 @@ Dado a Moto Rápida do seed, quando a Mariana muda o número da Filial Centro pa
 ## Reativação no período pago (T-216)
 
 **CA-ASS-49 · Reativar sem cobrar duas vezes o período pago** (fase 2: Completo; a reativação em si é da fase 1, pelo CA-ASS-46)
-Dado a Moto Rápida `ativa` com a FAT-0001 (22 out a 21 nov) paga em 22 out, upgrade para o Completo em 01 nov com a diferença de R$ 304,84 vencendo em 04 nov e não paga (`inadimplente` em 05 nov), cancelada em 10 nov (`cancelada` na hora), quando a diferença é paga em 15 nov pela 2ª via e a equipe Giro reativa em 15 nov, então a empresa vira `ativa` em 15 nov, nenhuma fatura vence em 15 nov, a fatura nova de R$ 899,00 vence em 22 nov ("Plano Completo · 22 nov a 21 dez"), e as seguintes continuam todo dia 22. Na reativação depois de 21 nov (CA-ASS-46), a fatura nova vence no dia da volta. `test_plt_06_reativar_no_periodo_pago`.
+Dado a Moto Rápida `ativa` com a FAT-0001 (22 out a 21 nov) paga em 22 out, upgrade para o Completo em 01 nov com a diferença de R$ 500,61 vencendo em 04 nov e não paga (`inadimplente` em 05 nov), cancelada em 10 nov (`cancelada` na hora), quando a diferença é paga em 15 nov pela 2ª via e a equipe Giro reativa em 15 nov, então a empresa vira `ativa` em 15 nov, nenhuma fatura vence em 15 nov, a fatura nova de R$ 899,00 vence em 22 nov ("Plano Completo · 22 nov a 21 dez"), e as seguintes continuam todo dia 22. Na reativação depois de 21 nov (CA-ASS-46), a fatura nova vence no dia da volta. `test_plt_06_reativar_no_periodo_pago`.
 
 ## Ramo e comissão nos módulos por plano (T-223)
 
@@ -221,7 +221,7 @@ Dado uma empresa no Essencial `em_teste` que aluga e vende, quando a Bruna confi
 Dado a Moto Rápida `em_teste` com a FAT-0001 (22 out a 21 nov) paga em 12 out, quando a Mariana cancela em 15 out, então nada é estornado, a empresa continua `em_teste` até 21 out e com acesso até 21 nov, nenhuma fatura sai em 22 nov, e a empresa vira `cancelada` em 22 nov, com apagamento em 20 fev 2027. Quando ela desfaz em 10 nov, então a empresa segue como se não tivesse cancelado, e a fatura de 22 nov é gerada em 17 nov. `test_plt_06_cancelar_no_teste_com_a_1a_paga`.
 
 **CA-ASS-55 · Desistir da pausa antes de começar**
-Dado a Moto Rápida `ativa`, FAT-0001 paga, que pediu em 19 nov a pausa de 2 meses (FAT-0002 de 22 nov `cancelada`, CA-ASS-42), quando a Mariana desiste em 20 nov pela `Admin-Assinatura`, então nasce a FAT-0003 `aberta`, R$ 449,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", a FAT-0002 continua `cancelada`, a empresa segue `ativa` depois de 21 nov, e a desistência fica na auditoria. Em 22 nov, já `pausada`, a opção é "Voltar da pausa" (CA-ASS-36). O Rodrigo e o suporte Giro não desistem (403). `test_plt_06_desistir_da_pausa_agendada`.
+Dado a Moto Rápida `ativa`, FAT-0001 paga, que pediu em 19 nov a pausa de 2 meses (FAT-0002 de 22 nov `cancelada`, CA-ASS-42), quando a Mariana desiste em 20 nov pela `Admin-Assinatura`, então nasce a FAT-0003 `aberta`, R$ 160,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", a FAT-0002 continua `cancelada`, a empresa segue `ativa` depois de 21 nov, e a desistência fica na auditoria. Em 22 nov, já `pausada`, a opção é "Voltar da pausa" (CA-ASS-36). O Rodrigo e o suporte Giro não desistem (403). `test_plt_06_desistir_da_pausa_agendada`.
 
 **CA-ASS-56 · Mudar de plano com o cancelamento marcado**
 Dado a Moto Rápida `ativa` cancelada em 05 nov (acesso até 21 nov), quando a Mariana tenta o Essencial, então é recusado com "Desfaça o cancelamento antes de mudar de plano.", e pausar é recusado com "Desfaça o cancelamento antes de pausar." Trocar a forma de pagamento e pagar fatura continuam. (Fase 2: Completo.) Dado a empresa do CA-ASS-16, no Completo com o Profissional agendado para 22 nov, quando o administrador cancela em 05 nov, então o agendamento continua; quando ele desfaz o cancelamento em 10 nov, o Profissional vale em 22 nov, se couber (`PLT-04`). `test_plt_06_mudar_de_plano_com_cancelamento_marcado`.
@@ -241,18 +241,18 @@ Dado a Moto Rápida `ativa` com a FAT-0001 paga em 22 out e a nota pedida com o 
 Dado a Moto Rápida `inadimplente` com a FAT-0001 `atrasada`, cancelada em 25 out (`cancelada` na hora, CA-ASS-34), com o e-mail de cobrança mariana@motorapida.com.br (dados fiscais do seed), quando o apagamento roda em 23 jan 2027 com a FAT-0001 ainda atrasada, então a linha da empresa fica só com o CNPJ, como no CA-ASS-58, e a FAT-0001 continua `atrasada`, com o tomador e o e-mail de cobrança, para a equipe Giro mandar a 2ª via. Nenhuma cobrança automática sai (a régua parou no cancelamento, `PLT-06`). Quando ela é paga (baixa pelo webhook), o e-mail de cobrança sai da fatura, e o tomador fica até o prazo de guarda (`AUD-08`). `test_aud_08_fatura_atrasada_guarda_email`.
 
 **CA-ASS-61 · Compra de novo depois do apagamento**
-Dado a Moto Rápida cancelada em teste (CA-ASS-30, apagada em 20 jan 2027), quando alguém compra o Profissional mensal com o CNPJ 12.345.678/0001-95 em 01 mar 2027, então a tela avisa "Este CNPJ já usou o teste grátis. A 1ª fatura vence hoje.", e a compra cria uma empresa nova, `ativa`, sem teste, com subdomínio novo (motorapida continua reservado), com a 1ª fatura de R$ 449,00 vencendo em 01 mar, "Plano Profissional · 01 mar a 31 mar", e as seguintes todo dia 1. Os avisos do teste (`IMP-06`) não saem. No painel da plataforma, a equipe vê que o CNPJ já foi cliente (`PLT-16`). `test_plt_16_compra_de_novo_sem_teste`.
+Dado a Moto Rápida cancelada em teste (CA-ASS-30, apagada em 20 jan 2027), quando alguém compra o Profissional mensal com o CNPJ 12.345.678/0001-95 em 01 mar 2027, então a tela avisa "Este CNPJ já usou o teste grátis. A 1ª fatura vence hoje.", e a compra cria uma empresa nova, `ativa`, sem teste, com subdomínio novo (motorapida continua reservado), com a 1ª fatura de R$ 160,00 vencendo em 01 mar, "Plano Profissional · 01 mar a 31 mar", e as seguintes todo dia 1. Os avisos do teste (`IMP-06`) não saem. No painel da plataforma, a equipe vê que o CNPJ já foi cliente (`PLT-16`). `test_plt_16_compra_de_novo_sem_teste`.
 
 **CA-ASS-62 · Compra de novo recusada**
 Dado a Moto Rápida do CA-ASS-60 (apagada em 23 jan 2027 com a FAT-0001 atrasada), quando alguém tenta comprar com o mesmo CNPJ em 01 mar 2027, então é recusado com "Há uma fatura em aberto da assinatura anterior. Fale com a equipe Giro para pagar antes de assinar de novo."; paga a FAT-0001 pela 2ª via, a compra segue como no CA-ASS-61. Dado a Moto Rápida cancelada em 05 nov e ainda não apagada, quando alguém tenta comprar com o mesmo CNPJ em 10 dez, então é recusado com "Este CNPJ já tem uma assinatura no Giro. Para voltar, fale com a equipe Giro." (a volta é pela reativação, CA-ASS-46). `test_plt_16_compra_de_novo_recusada`.
 
 ## Textos da régua da assinatura (T-299)
 
-Textos fixados pelo produto em 16 out 2026, na leitura do que o backend escreveu na T-186 parte 3 (`apps/plataforma/services.py`, `mensagem_da_regua`, `_como_pagar` e `_pedir_ligacao`). Mudança de texto passa pelo produto. A régua é do Giro com a empresa, então a marca é Giro (`PLT-02`, `AUT-13`). Exemplo: Moto Rápida, FAT-0001 de R$ 449,00, vencendo em 22 out, suspensão em 06 nov (D+15). Datas como nas telas da assinatura ("22 out").
+Textos fixados pelo produto em 16 out 2026, na leitura do que o backend escreveu na T-186 parte 3 (`apps/plataforma/services.py`, `mensagem_da_regua`, `_como_pagar` e `_pedir_ligacao`). Mudança de texto passa pelo produto. A régua é do Giro com a empresa, então a marca é Giro (`PLT-02`, `AUT-13`). Exemplo: Moto Rápida, FAT-0001 de R$ 160,00, vencendo em 22 out, suspensão em 06 nov (D+15). Datas como nas telas da assinatura ("22 out").
 
 **Partes do texto**
 
-- Fatura: "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00". Sempre "da empresa {nome}", porque o nome pode ser masculino ("da Moto Rápida", mas "do Auto Center Sul").
+- Fatura: "A fatura FAT-0001 da empresa Moto Rápida, de R$ 160,00". Sempre "da empresa {nome}", porque o nome pode ser masculino ("da Moto Rápida", mas "do Auto Center Sul").
 - Suspensão, com as palavras da tabela de estados: "a empresa fica suspensa: só ver e exportar os dados, sem criar locação, venda nem cobrança".
 - Caminho de pagar, pela cobrança viva (o que o backend já faz, com dois ajustes):
   - boleto: "Boleto: {link}" e, na linha de baixo, "Linha digitável: {linha}";
@@ -269,19 +269,19 @@ Textos fixados pelo produto em 16 out 2026, na leitura do que o backend escreveu
 
 | Marco | Assunto do e-mail | Início do texto |
 | --- | --- | --- |
-| D-3 | "Giro: a fatura FAT-0001 vence em 22 out" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, vence em 22 out." |
-| D0 | "Giro: a fatura FAT-0001 vence hoje" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, vence hoje." |
-| D+3 | "Giro: a fatura FAT-0001 está em atraso" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, venceu em 22 out e ainda não foi paga. Sem o pagamento, em 06 nov a empresa fica suspensa: só ver e exportar os dados, sem criar locação, venda nem cobrança." |
-| D+7 | "Giro: a empresa Moto Rápida fica suspensa em 06 nov" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, venceu em 22 out e ainda não foi paga. Em 06 nov, a empresa fica suspensa: só ver e exportar os dados, sem criar locação, venda nem cobrança. Pagando, o acesso volta na hora. A equipe Giro vai ligar para o responsável pela assinatura." |
+| D-3 | "Giro: a fatura FAT-0001 vence em 22 out" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 160,00, vence em 22 out." |
+| D0 | "Giro: a fatura FAT-0001 vence hoje" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 160,00, vence hoje." |
+| D+3 | "Giro: a fatura FAT-0001 está em atraso" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 160,00, venceu em 22 out e ainda não foi paga. Sem o pagamento, em 06 nov a empresa fica suspensa: só ver e exportar os dados, sem criar locação, venda nem cobrança." |
+| D+7 | "Giro: a empresa Moto Rápida fica suspensa em 06 nov" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 160,00, venceu em 22 out e ainda não foi paga. Em 06 nov, a empresa fica suspensa: só ver e exportar os dados, sem criar locação, venda nem cobrança. Pagando, o acesso volta na hora. A equipe Giro vai ligar para o responsável pela assinatura." |
 
 - O e-mail é: início, caminho de pagar, endereço da página e rodapé, um por linha.
 - **D+7 sem telefone do responsável:** sai sem a frase "A equipe Giro vai ligar para o responsável pela assinatura.", porque ninguém vai ligar. A tarefa de ligação continua saindo para a equipe (ela decide como falar com a empresa). Antes, a frase era "A equipe Giro vai ligar para ajudar." e saía sempre.
-- **WhatsApp (D0 e D+3):** começa com "Giro: " (o início segue em minúscula, como no assunto) e leva o caminho de pagar e o rodapé na mesma mensagem: "Giro: a fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, vence hoje. Boleto: {link} Se você já pagou, desconsidere esta mensagem.". No boleto, só o link (sem a linha digitável); nos outros caminhos, a mesma frase do e-mail. Antes, o WhatsApp não dizia de quem era nem como pagar.
+- **WhatsApp (D0 e D+3):** começa com "Giro: " (o início segue em minúscula, como no assunto) e leva o caminho de pagar e o rodapé na mesma mensagem: "Giro: a fatura FAT-0001 da empresa Moto Rápida, de R$ 160,00, vence hoje. Boleto: {link} Se você já pagou, desconsidere esta mensagem.". No boleto, só o link (sem a linha digitável); nos outros caminhos, a mesma frase do e-mail. Antes, o WhatsApp não dizia de quem era nem como pagar.
 
 **Tarefa de ligação (D+7, e-mail para o Dono e o Financeiro da plataforma)**
 
 - Assunto: "Ligação de cobrança: Moto Rápida, FAT-0001 com 7 dias de atraso" (antes: "Ligar para a Moto Rápida: ...", com o mesmo problema do "da").
-- Texto: "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, venceu em 22 out e ainda não foi paga. A suspensão é em 06 nov.", e na linha de baixo "Responsável: Mariana Costa, {celular}." e "E-mail de cobrança: {email_cobranca}.". Sem nome ou sem celular: "nome não cadastrado", "celular não cadastrado" (antes: "sem nome", "sem telefone").
+- Texto: "A fatura FAT-0001 da empresa Moto Rápida, de R$ 160,00, venceu em 22 out e ainda não foi paga. A suspensão é em 06 nov.", e na linha de baixo "Responsável: Mariana Costa, {celular}." e "E-mail de cobrança: {email_cobranca}.". Sem nome ou sem celular: "nome não cadastrado", "celular não cadastrado" (antes: "sem nome", "sem telefone").
 - **Fase 2:** a tarefa de ligação hoje é esse e-mail mais o evento `fatura_assinatura.pedir_ligacao` na auditoria do public, sem fila nem tela. Quando a tela `Plat-Cobranca` entrar (fase 2), a ligação vira item de uma fila com quem ligou, quando e o resultado; o ponto de troca no código é `_pedir_ligacao`.
 
 **CA-ASS-64 · Textos da régua no boleto**
@@ -291,7 +291,7 @@ Dado a Moto Rápida com boleto e a FAT-0001 emitida em 17 out, sem pagamento, qu
 Dado a Moto Rápida `ativa` com cartão Visa final 4242 guardado e a fatura de 22 nov, quando a régua roda em 19 nov (D-3), então o e-mail diz "A cobrança é automática no cartão Visa final 4242." e termina com "Não é preciso fazer nada.". Com o Pix automático autorizado, "O pagamento sai pelo Pix automático no dia do vencimento." e o mesmo rodapé. Recusado o cartão em 22 nov, o D+3 de 25 nov volta ao rodapé "Se você já pagou, desconsidere esta mensagem.". `test_aut_13_automatica_nao_pede_nada`.
 
 **CA-ASS-66 · WhatsApp com a marca e o caminho de pagar**
-Dado a Moto Rápida com boleto, a FAT-0001 sem pagamento e o celular do responsável cadastrado, quando a régua roda em 22 out (D0), então o WhatsApp é "Giro: a fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, vence hoje. Boleto: {link} Se você já pagou, desconsidere esta mensagem.". `test_aut_13_whatsapp_com_marca_e_caminho`.
+Dado a Moto Rápida com boleto, a FAT-0001 sem pagamento e o celular do responsável cadastrado, quando a régua roda em 22 out (D0), então o WhatsApp é "Giro: a fatura FAT-0001 da empresa Moto Rápida, de R$ 160,00, vence hoje. Boleto: {link} Se você já pagou, desconsidere esta mensagem.". `test_aut_13_whatsapp_com_marca_e_caminho`.
 
 **CA-ASS-67 · D+7 e a ligação**
 Dado a Moto Rápida com boleto e a FAT-0001 sem pagamento, quando a régua roda em 29 out (D+7), então o e-mail tem o assunto "Giro: a empresa Moto Rápida fica suspensa em 06 nov" e termina o início com "A equipe Giro vai ligar para o responsável pela assinatura.", e o Dono e o Financeiro da plataforma recebem "Ligação de cobrança: Moto Rápida, FAT-0001 com 7 dias de atraso" com o responsável e o e-mail de cobrança. Sem o celular do responsável, o e-mail da empresa sai sem a frase da ligação, e o da equipe diz "celular não cadastrado". `test_aut_13_d7_e_a_ligacao`.
@@ -301,5 +301,5 @@ Dado a Moto Rápida com boleto e a FAT-0001 sem pagamento, quando a régua roda 
 Decisão do dono do produto em 16 out 2026, opção B (`PLT-02`, `AUT-13`).
 
 **CA-ASS-68 · Só o D+7 é recuperado**
-Dado a Moto Rápida com boleto e a FAT-0001 (R$ 449,00, vencendo em 22 out) sem pagamento, quando a tarefa da régua não roda em 25 out (D+3) nem em 29 out (D+7) e volta a rodar em 30 out, então em 30 out sai o aviso de suspensão do D+7 (assunto "Giro: a empresa Moto Rápida fica suspensa em 06 nov") para o e-mail de cobrança e a Mariana, e a tarefa de ligação para o Dono e o Financeiro da plataforma; o D+3 não sai. Em 31 out, nada sai de novo. Se a tarefa só voltar em 06 nov (depois do D+14, 05 nov), o D+7 não sai. Com a FAT-0001 paga em 29 out, ou a empresa `cancelada`, nada sai em 30 out. `test_aut_13_d7_perdido_sai_ate_d14`.
+Dado a Moto Rápida com boleto e a FAT-0001 (R$ 160,00, vencendo em 22 out) sem pagamento, quando a tarefa da régua não roda em 25 out (D+3) nem em 29 out (D+7) e volta a rodar em 30 out, então em 30 out sai o aviso de suspensão do D+7 (assunto "Giro: a empresa Moto Rápida fica suspensa em 06 nov") para o e-mail de cobrança e a Mariana, e a tarefa de ligação para o Dono e o Financeiro da plataforma; o D+3 não sai. Em 31 out, nada sai de novo. Se a tarefa só voltar em 06 nov (depois do D+14, 05 nov), o D+7 não sai. Com a FAT-0001 paga em 29 out, ou a empresa `cancelada`, nada sai em 30 out. `test_aut_13_d7_perdido_sai_ate_d14`.
 
