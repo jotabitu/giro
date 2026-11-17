@@ -25,7 +25,7 @@ def test_plt_03_preco_anual_e_10_mensalidades(profissional):
     assert profissional.preco_anual_centavos == 160000
 
 
-def test_plt_11_precos_do_catalogo():
+def test_plt_11_precos_do_catalogo(db):
     precos = dict(Plano.objects.values_list("nome", "preco_mensal_centavos"))
     assert precos == {"Essencial": 13000, "Profissional": 16000, "Completo": 89900}
 
