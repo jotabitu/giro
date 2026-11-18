@@ -89,9 +89,9 @@ def _criar_matriz(empresa: Any, dados: dict[str, Any] = CENTRO) -> Any:
 
 
 def test_plt_01_primeira_fatura_dia_seguinte_ao_teste(moto):
-    """CA-ASS-01: Moto Rápida, teste de 07 a 21 out → FAT-0001 de R$ 449,00 vencendo em 22 out."""
+    """CA-ASS-01: Moto Rápida, teste de 07 a 21 out → FAT-0001 de R$ 160,00 vencendo em 22 out."""
     fatura = _fat_0001(moto)
-    assert (fatura.tipo, fatura.status, fatura.valor_centavos) == ("mensalidade", "aberta", 44900)
+    assert (fatura.tipo, fatura.status, fatura.valor_centavos) == ("mensalidade", "aberta", 16000)
     assert fatura.vencimento == date(2026, 10, 22)
     assert (fatura.periodo_inicio, fatura.periodo_fim) == (date(2026, 10, 22), date(2026, 11, 21))
     assert fatura.competencia == date(2026, 10, 1)
@@ -109,7 +109,7 @@ def test_plt_01_primeira_fatura_dia_seguinte_ao_teste(moto):
 def test_plt_01_primeira_fatura_do_anual(criar_empresa):
     empresa = criar_empresa(ciclo="anual")
     fatura = _fat_0001(empresa)
-    assert empresa.preco_contratado_centavos == fatura.valor_centavos == 449000  # 10 mensalidades
+    assert empresa.preco_contratado_centavos == fatura.valor_centavos == 160000  # 10 mensalidades
     assert (fatura.periodo_inicio, fatura.periodo_fim) == (date(2026, 10, 22), date(2027, 10, 21))
     assert fatura.descricao == "Plano Profissional anual · out 2026 a out 2027"
 
@@ -125,7 +125,7 @@ def test_plt_14_codigo_da_fatura_por_empresa(moto, criar_empresa):
         periodo=periodo,
         plano=moto.plano,
         ciclo="mensal",
-        valor_centavos=44900,
+        valor_centavos=16000,
     )
     assert segunda.codigo == "FAT-0002"
     assert segunda.descricao == "Plano Profissional · 22 nov a 21 dez"
@@ -141,7 +141,7 @@ def test_plt_01_uma_mensalidade_por_periodo(moto):
             periodo=periodo,
             plano=moto.plano,
             ciclo="mensal",
-            valor_centavos=44900,
+            valor_centavos=16000,
         )
 
 
@@ -152,7 +152,7 @@ def test_plt_14_faturas_recentes_so_da_empresa(moto, criar_empresa):
         {
             "codigo": "FAT-0001",
             "vencimento": date(2026, 10, 22),
-            "valor_centavos": 44900,
+            "valor_centavos": 16000,
             "status": "aberta",
             "observacao": "1ª cobrança após o teste",
         }
@@ -397,7 +397,7 @@ def test_plt_14_fatura_guarda_tomador(
         periodo=periodo,
         plano=moto.plano,
         ciclo="mensal",
-        valor_centavos=44900,
+        valor_centavos=16000,
     )
     relogio.em("2026-11-22 09:00")
     corpo = pagamentos.simular_pagamento(_emitir(fat_2), evento_id="evt_t184_9")

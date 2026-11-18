@@ -14,10 +14,10 @@ describe("compra pública", () => {
     expect(mascararCelular("85")).toBe("(85");
   });
 
-  it("mostra os valores que a API manda em centavos (Moto Rápida: R$ 449,00)", () => {
-    expect(reaisInteiros(44900)).toBe("R$ 449");
-    expect(reais(44900)).toBe("R$ 449,00");
-    expect(reais(449000)).toBe("R$ 4.490,00");
+  it("mostra os valores que a API manda em centavos (Moto Rápida: R$ 160,00)", () => {
+    expect(reaisInteiros(16000)).toBe("R$ 160");
+    expect(reais(16000)).toBe("R$ 160,00");
+    expect(reais(160000)).toBe("R$ 1.600,00");
   });
 
   it("escreve a data do teste como na tela", () => {

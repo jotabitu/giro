@@ -1,7 +1,7 @@
 """T-186 (parte 3) · Régua da assinatura `AUT-13` (`docs/api/assinatura.md`, "Faturas, cobrança e
 régua"; PLT-02).
 
-Relógio de referência (ADR 0021): Moto Rápida, FAT-0001 de R$ 449,00 vencendo em 22 out. Às
+Relógio de referência (ADR 0021): Moto Rápida, FAT-0001 de R$ 160,00 vencendo em 22 out. Às
 09:00: D-3 (19 out) lembrete por e-mail; D0 (22 out) e D+3 (25 out) e-mail e WhatsApp; D+7
 (29 out) aviso de suspensão por e-mail e a tarefa de ligação para a equipe Giro. Os e-mails vão
 para o e-mail de cobrança e os administradores; o WhatsApp, para o responsável da compra.
@@ -73,7 +73,7 @@ def test_aut_13_ca_ass_10_lembrete_d3_por_email(
     assert lembrete.subject == "Giro: a fatura FAT-0001 vence em 22 out"
     fatura = moto.fatura("FAT-0001")
     assert fatura.cobranca_boleto_url in lembrete.body
-    assert "R$ 449,00" in lembrete.body
+    assert "R$ 160,00" in lembrete.body
     assert "!" not in lembrete.body
     assert whatsapp.caixa_de_saida == []
     assert _regua(relogio, "2026-10-19") == {}

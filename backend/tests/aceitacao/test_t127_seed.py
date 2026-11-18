@@ -98,14 +98,14 @@ def test_seed_127_01_cria_a_empresa_de_exemplo(semeado):
 
 
 def test_plt_01_seed_184_fatura_e_dados_fiscais(semeado):
-    """T-184: FAT-0001 de R$ 449,00 vencendo em 22 out, sem tomador (não está paga); dados
+    """T-184: FAT-0001 de R$ 160,00 vencendo em 22 out, sem tomador (não está paga); dados
     fiscais com o e-mail da Mariana e o endereço da Filial Centro (PLT-01, PLT-15, CA-ASS-47)."""
     from apps.plataforma.models import FaturaAssinatura
 
     empresa = Empresa.objects.get(subdominio="motorapida")
     faturas = FaturaAssinatura.objects.filter(empresa=empresa)
     assert [(f.codigo, str(f.vencimento), f.valor_centavos, f.status) for f in faturas] == [
-        ("FAT-0001", "2026-10-22", 44900, "aberta")
+        ("FAT-0001", "2026-10-22", 16000, "aberta")
     ]
     assert faturas.get().tomador_gravado_em is None
     assert empresa.email_cobranca == "mariana@motorapida.com.br"

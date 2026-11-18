@@ -1088,7 +1088,7 @@ def criar_fatura(
 
 def criar_primeira_fatura(empresa: Empresa) -> FaturaAssinatura:
     """PLT-01: a 1ª fatura nasce com a empresa, `aberta`, vencendo no dia seguinte ao fim do
-    teste, pelo plano e pelo preço contratados (Moto Rápida: FAT-0001, 22 out, 44900)."""
+    teste, pelo plano e pelo preço contratados (Moto Rápida: FAT-0001, 22 out, 16000)."""
     # Sem teste (PLT-16): a empresa nasce `ativa` e a 1ª fatura vence no dia da compra.
     vencimento = empresa.primeira_cobranca or (
         relogio.hoje() if empresa.status == Empresa.Status.ATIVA else None
@@ -1692,7 +1692,7 @@ def _diferenca_do_upgrade(
     empresa: Empresa, plano: Plano, ciclo: str, preco_novo: int, hoje: date
 ) -> FaturaDaDiferenca | None:
     """(novo − contratado) × dias que faltam ÷ dias do período, contando o dia da mudança,
-    arredondada uma vez (PLT-04, ADR 0009): 45000 × 21 ÷ 31 = 30483,87 → 30484."""
+    arredondada uma vez (PLT-04, ADR 0009): 73900 × 21 ÷ 31 = 50061,29 → 50061."""
     correndo = periodo_pago_correndo(empresa, hoje)
     if correndo is None:
         return None
@@ -1908,7 +1908,7 @@ def mudar_plano(
     - No teste com a 1ª fatura em aberto: vale na hora, sem cobrança; a 1ª fatura passa ao valor
       do plano novo (CA-ASS-13).
     - Upgrade com período pago: vale na hora e cobra a diferença proporcional numa fatura avulsa
-      que vence em 3 dias (CA-ASS-14: R$ 304,84).
+      que vence em 3 dias (CA-ASS-14: R$ 500,61).
     - Downgrade: só se couber; fica agendado em `plano_proximo` e vale na próxima fatura, que já
       sai pelo plano menor (CA-ASS-16). A virada é da `virar_estados` (T-186).
 

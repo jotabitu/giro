@@ -193,17 +193,17 @@
     {"metodo": "GET", "caminho": "/payments", "consulta": ["externalReference", "status"],
      "resposta": {"status": 200, "corpo": {"object": "list", "hasMore": false, "totalCount": 0, "limit": 10, "offset": 0, "data": []}}},
     {"metodo": "POST", "caminho": "/payments",
-     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t184fat0001", "customer": "cus_000000000901", "value": 449.0, "billingType": "CREDIT_CARD", "status": "PENDING", "dueDate": "2026-10-22", "externalReference": "fatura-1", "invoiceUrl": "https://sandbox.asaas.com/i/t184fat0001", "bankSlipUrl": null, "deleted": false}}}
+     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t184fat0001", "customer": "cus_000000000901", "value": 160.0, "billingType": "CREDIT_CARD", "status": "PENDING", "dueDate": "2026-10-22", "externalReference": "fatura-1", "invoiceUrl": "https://sandbox.asaas.com/i/t184fat0001", "bankSlipUrl": null, "deleted": false}}}
   ],
 
   "t184_fatura_paga_no_cartao": [
     {"metodo": "GET", "caminho": "/payments/pay_t184fat0001",
-     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t184fat0001", "value": 449.0, "billingType": "CREDIT_CARD", "status": "CONFIRMED", "dueDate": "2026-10-22", "confirmedDate": "2026-10-07", "creditCard": {"creditCardNumber": "4242", "creditCardBrand": "VISA", "creditCardToken": "tok-ficticio-0000-t184"}, "deleted": false}}}
+     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t184fat0001", "value": 160.0, "billingType": "CREDIT_CARD", "status": "CONFIRMED", "dueDate": "2026-10-22", "confirmedDate": "2026-10-07", "creditCard": {"creditCardNumber": "4242", "creditCardBrand": "VISA", "creditCardToken": "tok-ficticio-0000-t184"}, "deleted": false}}}
   ],
 
   "t184_cartao_salvo_cobrado": [
     {"metodo": "POST", "caminho": "/payments",
-     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t184fat0002", "customer": "cus_000000000901", "value": 449.0, "billingType": "CREDIT_CARD", "status": "CONFIRMED", "dueDate": "2026-11-22", "externalReference": "fatura-2", "deleted": false}}}
+     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t184fat0002", "customer": "cus_000000000901", "value": 160.0, "billingType": "CREDIT_CARD", "status": "CONFIRMED", "dueDate": "2026-11-22", "externalReference": "fatura-2", "deleted": false}}}
   ],
 
   "t184_cartao_salvo_recusado": [
@@ -213,7 +213,7 @@
 
   "t186_autorizacao_ativa": [
     {"metodo": "GET", "caminho": "/pix/automatic/authorizations/a33047b1-0000-4000-8000-000000000901",
-     "resposta": {"status": 200, "corpo": {"id": "a33047b1-0000-4000-8000-000000000901", "contractId": "assinatura-901", "customerId": "cus_000000000901", "frequency": "MONTHLY", "startDate": "2026-10-22", "value": 449.0, "status": "ACTIVE"}}}
+     "resposta": {"status": 200, "corpo": {"id": "a33047b1-0000-4000-8000-000000000901", "contractId": "assinatura-901", "customerId": "cus_000000000901", "frequency": "MONTHLY", "startDate": "2026-10-22", "value": 160.0, "status": "ACTIVE"}}}
   ],
 
   "t186_autorizacao_nao_encontrada": [

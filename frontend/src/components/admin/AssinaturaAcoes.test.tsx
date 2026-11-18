@@ -27,7 +27,7 @@ describe("Mudar de plano e Comparar planos (PLT-04, CA-ASS-13, 15, 18)", () => {
   it("mudar: os três planos, o atual marcado e o que o Essencial não comporta, como a API disse", async () => {
     const html = await lista(true);
     const t = texto(html);
-    for (const trecho of ["Mudar de plano", "Essencial", "R$ 199,00 por mês", "Profissional", "Seu plano", "R$ 449,00 por mês", "Completo", "R$ 899,00 por mês", "Veículos, filiais e usuários sem limite"]) expect(t, trecho).toContain(trecho);
+    for (const trecho of ["Mudar de plano", "Essencial", "R$ 130,00 por mês", "Profissional", "Seu plano", "R$ 160,00 por mês", "Completo", "R$ 899,00 por mês", "Veículos, filiais e usuários sem limite"]) expect(t, trecho).toContain(trecho);
     expect(t).toContain("Seu uso não cabe neste plano hoje.");
     expect(t).toContain("86 de 30 veículos");
     expect(t).toContain("5 de 3 usuários");

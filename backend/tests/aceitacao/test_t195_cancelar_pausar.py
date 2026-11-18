@@ -1,7 +1,7 @@
 """T-195 · Cancelar, pausar e apagar a assinatura da empresa (`docs/api/cancelamento.md`; PLT-06,
 AUD-08, ADR 0025; CA-ASS-30 a 39, 42 a 46, 54 a 58, 60 e 69).
 
-Relógio de referência (ADR 0021): Moto Rápida em teste de 07 a 21 out, FAT-0001 de R$ 449,00
+Relógio de referência (ADR 0021): Moto Rápida em teste de 07 a 21 out, FAT-0001 de R$ 160,00
 vencendo em 22 out (período de 22 out a 21 nov), e as seguintes todo dia 22. Dados de referência
 "Cancelamento da Moto Rápida" (a) a (f), "Pausa da Moto Rápida" e "Desfazer o cancelamento da
 Moto Rápida".
@@ -160,7 +160,7 @@ def test_plt_06_cancelar_no_teste(moto, relogio, django_capture_on_commit_callba
         "plano": {
             "id": Plano.objects.get(nome="Essencial").pk,
             "nome": "Essencial",
-            "preco_mensal_centavos": 19900,
+            "preco_mensal_centavos": 13000,
         },
         "resumo": "Até 30 veículos, 1 filial e 3 usuários.",
         "cabe": False,
@@ -499,9 +499,9 @@ def test_plt_06_ca_ass_69_fatura_do_dia_paga_no_cartao_mantem_acesso(
 def test_plt_06_cancelar_anual_sem_devolucao(moto, relogio):
     """CA-ASS-33: anual de 22 out 2026 a 21 out 2027, cancela em 05 nov 2026: nada é devolvido e
     o acesso vai até 21 out 2027."""
-    moto.estado(ciclo="anual", preco_contratado_centavos=449000, status="ativa")
+    moto.estado(ciclo="anual", preco_contratado_centavos=160000, status="ativa")
     FaturaAssinatura.objects.filter(empresa=moto.empresa).update(
-        ciclo="anual", valor_centavos=449000, periodo_fim=date(2027, 10, 21)
+        ciclo="anual", valor_centavos=160000, periodo_fim=date(2027, 10, 21)
     )
     moto.pagar_fat_0001()
     _em(relogio, "2026-11-05")
@@ -530,7 +530,7 @@ def test_plt_06_cancelar_anual_sem_devolucao(moto, relogio):
 
 
 def test_plt_06_cancelar_ativa_com_a_diferenca_do_upgrade_em_aberto(moto, relogio):
-    """A diferença do upgrade continua devida: "nenhuma nova. A fatura FAT-0002, de R$ 304,84,
+    """A diferença do upgrade continua devida: "nenhuma nova. A fatura FAT-0002, de R$ 500,61,
     continua devida." Ela não é cancelada."""
     _ativa_com_boleto(moto)
     services.criar_fatura(
@@ -540,12 +540,12 @@ def test_plt_06_cancelar_ativa_com_a_diferenca_do_upgrade_em_aberto(moto, relogi
         periodo=Periodo(date(2026, 11, 1), date(2026, 11, 21)),
         plano=Plano.objects.get(nome="Completo"),
         ciclo="mensal",
-        valor_centavos=30484,
+        valor_centavos=50061,
     )
     _em(relogio, "2026-11-05")
     api = moto.api()
     cobrancas = api.get(CANCELAMENTO).json()["o_que_acontece"][1]["valor"]
-    assert cobrancas == "nenhuma nova. A fatura FAT-0002, de R$ 304,84, continua devida."
+    assert cobrancas == "nenhuma nova. A fatura FAT-0002, de R$ 500,61, continua devida."
     assert _cancelar(api).status_code == 200
     assert _codigos(moto) == {"FAT-0001": "paga", "FAT-0002": "aberta"}
 
@@ -627,7 +627,7 @@ def test_plt_06_suspensa_e_pausada_cancelam_na_hora(moto, relogio, status):
 
 def test_plt_06_desfazer_cancelamento_no_teste(moto, relogio, django_capture_on_commit_callbacks):
     """CA-ASS-43: cancela em 10 out e desfaz em 15 out: a FAT-0001 continua `cancelada`, nasce a
-    FAT-0002 `aberta`, R$ 449,00, vencendo em 22 out, emitida em 17 out; `em_teste` até 21 out e
+    FAT-0002 `aberta`, R$ 160,00, vencendo em 22 out, emitida em 17 out; `em_teste` até 21 out e
     não vira `cancelada` em 22 out; nenhum apagamento marcado."""
     services.escolher_forma_pagamento(moto.recarregar(), "boleto")
     _em(relogio, "2026-10-10")
@@ -640,7 +640,7 @@ def test_plt_06_desfazer_cancelamento_no_teste(moto, relogio, django_capture_on_
     assert corpo["cancelamento"] is None
     assert corpo["proxima_fatura"] == {
         "vencimento": "2026-10-22",
-        "valor_centavos": 44900,
+        "valor_centavos": 16000,
         "descricao": "Plano Profissional · 22 out a 21 nov",
     }
     assert corpo["acoes"]["cancelar"] is True
@@ -650,7 +650,7 @@ def test_plt_06_desfazer_cancelamento_no_teste(moto, relogio, django_capture_on_
     assert (nova.status, nova.tipo, nova.valor_centavos, nova.vencimento) == (
         "aberta",
         "mensalidade",
-        44900,
+        16000,
         date(2026, 10, 22),
     )
     assert (nova.periodo_inicio, nova.periodo_fim) == (date(2026, 10, 22), date(2026, 11, 21))
@@ -688,7 +688,7 @@ def test_plt_06_desfazer_cancelamento_na_ativa_com_a_fatura_emitida(
     moto, relogio, mailoutbox, django_capture_on_commit_callbacks
 ):
     """CA-ASS-44, caso (c): cancela em 19 nov (FAT-0002 de 22 nov `cancelada`) e desfaz em 20 nov:
-    nasce a FAT-0003 `aberta`, R$ 449,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21
+    nasce a FAT-0003 `aberta`, R$ 160,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21
     dez", com o boleto por e-mail em 20 nov."""
     _ativa_com_boleto(moto)
     _gerar(relogio, "2026-11-17", django_capture_on_commit_callbacks)
@@ -702,7 +702,7 @@ def test_plt_06_desfazer_cancelamento_na_ativa_com_a_fatura_emitida(
     assert resposta.status_code == 200, resposta.json()
     assert _codigos(moto) == {"FAT-0001": "paga", "FAT-0002": "cancelada", "FAT-0003": "aberta"}
     nova = moto.fatura("FAT-0003")
-    assert (nova.valor_centavos, nova.vencimento) == (44900, date(2026, 11, 22))
+    assert (nova.valor_centavos, nova.vencimento) == (16000, date(2026, 11, 22))
     assert nova.descricao == "Plano Profissional · 22 nov a 21 dez"
     assert nova.cobranca_tipo == "boleto"
     assert moto.fatura("FAT-0002").substituida_por_id == nova.pk
@@ -736,7 +736,7 @@ def test_plt_06_quem_nao_desfaz(moto, relogio):
 def test_plt_06_reativar_so_com_atrasada_paga(moto, relogio, django_capture_on_commit_callbacks):
     """CA-ASS-46: `inadimplente` com a FAT-0001 `atrasada`, cancelada em 25 out; em 01 dez a equipe
     tenta reativar e recebe 409 `fatura_em_atraso` ("Receba a fatura em atraso antes de reativar.");
-    paga a FAT-0001 pela 2ª via e reativada em 01 dez, vira `ativa`, com a FAT-0002 de R$ 449,00
+    paga a FAT-0001 pela 2ª via e reativada em 01 dez, vira `ativa`, com a FAT-0002 de R$ 160,00
     vencendo em 01 dez e as seguintes todo dia 1. A descrição segue a PLT-14 no mesmo mês
     ("Plano Profissional · 01 a 31 dez"); o CA-ASS-46 escreve "01 dez a 31 dez" ([decisão] no
     backlog)."""
@@ -762,7 +762,7 @@ def test_plt_06_reativar_so_com_atrasada_paga(moto, relogio, django_capture_on_c
     nova = moto.fatura("FAT-0002")
     assert (nova.status, nova.valor_centavos, nova.vencimento) == (
         "aberta",
-        44900,
+        16000,
         date(2026, 12, 1),
     )
     assert nova.descricao == "Plano Profissional · 01 a 31 dez"
@@ -817,7 +817,7 @@ def test_plt_06_pausar_por_ate_3_meses(moto, relogio):
 
 
 def test_plt_06_pausa_e_volta_automatica(moto, relogio, django_capture_on_commit_callbacks):
-    """CA-ASS-35: volta sozinha a `ativa` em 22 jan 2027, com uma fatura de R$ 449,00 vencendo
+    """CA-ASS-35: volta sozinha a `ativa` em 22 jan 2027, com uma fatura de R$ 160,00 vencendo
     nesse dia."""
     _pausada_desde_22_nov(moto, relogio)
     assert _gerar(relogio, "2026-12-17", django_capture_on_commit_callbacks).faturas == 0
@@ -829,7 +829,7 @@ def test_plt_06_pausa_e_volta_automatica(moto, relogio, django_capture_on_commit
     assert (empresa.status, empresa.pausa_inicio, empresa.pausada_ate) == ("ativa", None, None)
     assert empresa.dia_vencimento == 22
     fatura = moto.fatura("FAT-0002")
-    assert (fatura.tipo, fatura.status, fatura.valor_centavos) == ("mensalidade", "aberta", 44900)
+    assert (fatura.tipo, fatura.status, fatura.valor_centavos) == ("mensalidade", "aberta", 16000)
     assert (fatura.vencimento, fatura.periodo_fim) == (date(2027, 1, 22), date(2027, 2, 21))
     assert fatura.cobranca_tipo == "boleto"  # a cobrança sai na hora
     evento = _eventos("empresa.voltar_pausa", "public")[-1]
@@ -838,7 +838,7 @@ def test_plt_06_pausa_e_volta_automatica(moto, relogio, django_capture_on_commit
 
 
 def test_plt_06_volta_manual_da_pausa(moto, relogio, django_capture_on_commit_callbacks):
-    """CA-ASS-36: voltando em 10 dez, `ativa` na hora, com a fatura de R$ 449,00 vencendo em 10
+    """CA-ASS-36: voltando em 10 dez, `ativa` na hora, com a fatura de R$ 160,00 vencendo em 10
     dez ("Plano Profissional · 10 dez a 09 jan"), e as seguintes todo dia 10."""
     _pausada_desde_22_nov(moto, relogio)
     _em(relogio, "2026-12-10")
@@ -849,7 +849,7 @@ def test_plt_06_volta_manual_da_pausa(moto, relogio, django_capture_on_commit_ca
     corpo = resposta.json()
     assert (corpo["status"], corpo["pausa"], corpo["faixa_aviso"]) == ("ativa", None, None)
     fatura = moto.fatura("FAT-0002")
-    assert (fatura.vencimento, fatura.valor_centavos) == (date(2026, 12, 10), 44900)
+    assert (fatura.vencimento, fatura.valor_centavos) == (date(2026, 12, 10), 16000)
     assert fatura.descricao == "Plano Profissional · 10 dez a 09 jan"
     assert fatura.cobranca_tipo == "boleto"
     assert moto.recarregar().dia_vencimento == 10
@@ -917,7 +917,7 @@ def test_plt_06_desistir_da_pausa_agendada(
     moto, relogio, mailoutbox, django_capture_on_commit_callbacks
 ):
     """CA-ASS-55: pausa pedida em 19 nov (FAT-0002 de 22 nov `cancelada`) e desistida em 20 nov:
-    nasce a FAT-0003 `aberta`, R$ 449,00, vencendo em 22 nov, com o boleto por e-mail em 20 nov;
+    nasce a FAT-0003 `aberta`, R$ 160,00, vencendo em 22 nov, com o boleto por e-mail em 20 nov;
     a empresa segue `ativa`. O Rodrigo e o suporte não desistem."""
     _ativa_com_boleto(moto)
     _gerar(relogio, "2026-11-17", django_capture_on_commit_callbacks)
@@ -936,7 +936,7 @@ def test_plt_06_desistir_da_pausa_agendada(
     assert (corpo["status"], corpo["pausa"]) == ("ativa", None)
     assert _codigos(moto) == {"FAT-0001": "paga", "FAT-0002": "cancelada", "FAT-0003": "aberta"}
     nova = moto.fatura("FAT-0003")
-    assert (nova.vencimento, nova.valor_centavos) == (date(2026, 11, 22), 44900)
+    assert (nova.vencimento, nova.valor_centavos) == (date(2026, 11, 22), 16000)
     assert nova.descricao == "Plano Profissional · 22 nov a 21 dez"
     assert [m.subject for m in mailoutbox] == ["Giro: boleto da fatura FAT-0003, vence em 22 nov"]
     for schema in ("public", moto.empresa.schema_name):
@@ -985,7 +985,7 @@ def test_plt_06_mudar_de_plano_com_cancelamento_marcado(
     connection.set_schema_to_public()
     _gerar(relogio, "2026-11-17", django_capture_on_commit_callbacks)
     fatura = moto.fatura("FAT-0002")
-    assert (fatura.plano.nome, fatura.valor_centavos) == ("Profissional", 44900)
+    assert (fatura.plano.nome, fatura.valor_centavos) == ("Profissional", 16000)
 
 
 def test_plt_06_diferenca_em_aberto_na_pausa(moto, relogio, django_capture_on_commit_callbacks):

@@ -1,7 +1,7 @@
 """T-186 (parte 1) · Estados da empresa e virada do dia (`docs/api/assinatura.md`, "Transições da
 empresa" e "Downgrade agendado: conferência e virada"; PLT-01, PLT-02, PLT-04).
 
-Relógio de referência (ADR 0021): Moto Rápida em teste de 07 a 21 out, FAT-0001 de R$ 449,00
+Relógio de referência (ADR 0021): Moto Rápida em teste de 07 a 21 out, FAT-0001 de R$ 160,00
 vencendo em 22 out. Com forma e sem pagar: `inadimplente` em 23 out e `suspensa` em 06 nov; sem
 forma: `suspensa` em 22 out; paga: `ativa` em 22 out, ou na hora se paga depois do fim do teste.
 A geração das faturas seguintes (5 dias antes) é da parte 2: aqui a fatura do período seguinte
@@ -166,7 +166,7 @@ def test_plt_02_paga_uma_mas_outra_atrasada_continua_inadimplente(moto, relogio)
         periodo=proximo_periodo(22, "mensal", date(2026, 10, 22)),
         plano=Plano.objects.get(nome="Completo"),
         ciclo="mensal",
-        valor_centavos=45000,
+        valor_centavos=73900,
     )
     _virar(relogio, "2026-10-26")
     assert _status(moto) == "inadimplente"
@@ -192,7 +192,7 @@ def test_plt_02_ativa_vira_inadimplente_em_d1(moto, relogio):
         periodo=proximo_periodo(22, "mensal", date(2026, 11, 22)),
         plano=empresa.plano,
         ciclo="mensal",
-        valor_centavos=44900,
+        valor_centavos=16000,
     )
     _virar(relogio, "2026-11-22")
     assert _status(moto) == "ativa"
@@ -225,7 +225,7 @@ def test_plt_02_estados_isolados_por_empresa(moto, relogio, criar_empresa):
 
 def test_plt_04_downgrade_agendado_vira_no_dia_do_vencimento(moto, relogio):
     """Completo `ativa` (22 out a 21 nov), Profissional agendado em 01 nov; a fatura de 22 nov
-    saiu pelo Profissional (R$ 449,00). Em 21 nov nada muda; em 22 nov o plano vira, com o
+    saiu pelo Profissional (R$ 160,00). Em 21 nov nada muda; em 22 nov o plano vira, com o
     preço de tabela, sem conferir o uso de novo, e com o ator do sistema nos dois lugares."""
     moto.no_completo()
     moto.pagar_fat_0001()
@@ -240,7 +240,7 @@ def test_plt_04_downgrade_agendado_vira_no_dia_do_vencimento(moto, relogio):
         periodo=proximo_periodo(22, "mensal", date(2026, 11, 22)),
         plano=profissional,
         ciclo="mensal",
-        valor_centavos=44900,
+        valor_centavos=16000,
     )
     assert _virar(relogio, "2026-11-21").mudancas_de_plano == 0
     assert moto.recarregar().plano.nome == "Completo"
@@ -249,7 +249,7 @@ def test_plt_04_downgrade_agendado_vira_no_dia_do_vencimento(moto, relogio):
     assert (empresa.plano.nome, empresa.ciclo, empresa.preco_contratado_centavos) == (
         "Profissional",
         "mensal",
-        44900,
+        16000,
     )
     assert (empresa.plano_proximo, empresa.ciclo_proximo) == (None, "")
     for schema in ("public", moto.empresa.schema_name):

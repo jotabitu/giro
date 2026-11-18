@@ -2,7 +2,7 @@
 reativação pela equipe"; PLT-06, AUD-08; CA-ASS-46 e 49; B-02 da T-199).
 
 O CA-ASS-46 (`test_plt_06_reativar_so_com_atrasada_paga`) fica no arquivo da T-195, onde era
-`xfail`. Relógio de referência: Moto Rápida em teste de 07 a 21 out, FAT-0001 de R$ 449,00
+`xfail`. Relógio de referência: Moto Rápida em teste de 07 a 21 out, FAT-0001 de R$ 160,00
 vencendo em 22 out (período de 22 out a 21 nov), e as seguintes todo dia 22.
 """
 
@@ -65,16 +65,16 @@ def _recusa(moto: MotoRapida, motivo: str = MOTIVO) -> tuple[str, str]:
 
 def test_plt_06_reativar_no_periodo_pago(moto, relogio, django_capture_on_commit_callbacks):
     """CA-ASS-49: `ativa`, FAT-0001 (22 out a 21 nov) paga; upgrade para o Completo em 01 nov,
-    com a diferença de R$ 304,84 vencendo em 04 nov e não paga (`inadimplente` em 05 nov);
+    com a diferença de R$ 500,61 vencendo em 04 nov e não paga (`inadimplente` em 05 nov);
     cancela em 10 nov (`cancelada` na hora); a diferença é paga em 15 nov pela 2ª via, e a equipe
     reativa em 15 nov → `ativa`, sem fatura de 15 nov; a nova, de R$ 899,00, vence em 22 nov,
     "Plano Completo · 22 nov a 21 dez", e as seguintes continuam todo dia 22."""
     _ativa_com_boleto(moto)
     _em(relogio, "2026-11-01")
-    assert _mudar(moto.api(), "Completo", valor=30484).status_code == 200
+    assert _mudar(moto.api(), "Completo", valor=50061).status_code == 200
     connection.set_schema_to_public()
     diferenca = moto.fatura("FAT-0002")
-    assert (diferenca.valor_centavos, diferenca.vencimento) == (30484, date(2026, 11, 4))
+    assert (diferenca.valor_centavos, diferenca.vencimento) == (50061, date(2026, 11, 4))
     _virar(relogio, "2026-11-05")
     assert _status(moto) == "inadimplente"
     _em(relogio, "2026-11-10")

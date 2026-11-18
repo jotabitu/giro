@@ -20,8 +20,8 @@ const CATALOGO: CatalogoDaCompra = {
       codigo: "essencial",
       nome: "Essencial",
       descricao: "Para quem está começando a frota.",
-      mensal_centavos: 19900,
-      anual_centavos: 199000,
+      mensal_centavos: 13000,
+      anual_centavos: 130000,
       limites: { veiculos: 30, filiais: 1, usuarios: 3 },
       inclui: ["Locação, vistoria e contas a receber"],
       destaque: false,
@@ -30,8 +30,8 @@ const CATALOGO: CatalogoDaCompra = {
       codigo: "profissional",
       nome: "Profissional",
       descricao: "Para locadoras com equipe e mais de uma loja.",
-      mensal_centavos: 44900,
-      anual_centavos: 449000,
+      mensal_centavos: 16000,
+      anual_centavos: 160000,
       limites: { veiculos: 150, filiais: 3, usuarios: 10 },
       inclui: ["Tudo do Essencial, mais despesas", "Pix e boleto automáticos"],
       destaque: true,
@@ -45,16 +45,16 @@ describe("compra pública", () => {
     const mensal = render(<EscolhaDoPlano catalogo={CATALOGO} ciclo="mensal" aoMudarCiclo={() => {}} aoEscolher={() => {}} />);
     expect(mensal).toContain("14 dias grátis · sem cartão");
     expect(mensal).toContain("Mais escolhido");
-    expect(mensal).toContain("R$ 449| /mês");
+    expect(mensal).toContain("R$ 160| /mês");
     expect(mensal).toContain("Até 150 veículos");
     expect(mensal).not.toContain("Completo");
     const anual = render(<EscolhaDoPlano catalogo={CATALOGO} ciclo="anual" aoMudarCiclo={() => {}} aoEscolher={() => {}} />);
-    expect(anual).toContain("R$ 4.490| /ano");
+    expect(anual).toContain("R$ 1.600| /ano");
   });
 
   it("checkout mostra o plano escolhido e o teste com as datas da API (PLT-01)", () => {
     const t = render(<Checkout catalogo={CATALOGO} plano={CATALOGO.planos[1]!} ciclo="mensal" aoTrocarPlano={() => {}} aoCriar={() => {}} />);
-    for (const p of ["Crie sua conta", "Endereço de acesso", "Profissional", "R$ 449,00 por mês", "19 out", "primeira fatura vence em 22 out", "Criar minha conta"]) {
+    for (const p of ["Crie sua conta", "Endereço de acesso", "Profissional", "R$ 160,00 por mês", "19 out", "primeira fatura vence em 22 out", "Criar minha conta"]) {
       expect(t, p).toContain(p);
     }
     expect(t).not.toContain("Tamanho da frota");
