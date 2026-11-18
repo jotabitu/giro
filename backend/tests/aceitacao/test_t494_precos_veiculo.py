@@ -20,6 +20,7 @@ from apps.plataforma.models import Empresa
 from apps.veiculos import selectors, services
 from apps.veiculos.models import (
     HistoricoPrecoVeiculo,
+    HistoricoStatusVeiculo,
     PlanoCompraVeiculo,
     PlanoVeiculo,
     PrecoCategoria,
@@ -486,13 +487,55 @@ def test_vei_15_indisponivel_direto_de_alugado_ou_manutencao_continua_recusado(
         services.bloquear(veiculo, "Retrovisor quebrado")
 
 
-def test_vei_15_desbloquear_sem_plano(moto, frota) -> None:
+def test_vei_15_desbloquear_sem_plano_fica_sem_preco(moto, frota) -> None:
+    """VEI-15 vale em todo retorno (PR #630): o desbloqueio do veículo sem plano ligado tira o
+    bloqueio, e o veículo fica `indisponivel` "sem preço"; o motivo do bloqueio deixa de
+    aparecer. Ligar um plano depois o leva a `disponivel`."""
     sak = frota.veiculos["SAK1D39"]
     services.bloquear(sak, "Pneu furado")
     _desligar_todos(moto, sak)
     resposta = moto.api("Rodrigo").post(f"{VEICULOS}{sak.pk}/desbloquear/", {}, format="json")
-    assert resposta.status_code == 409
-    assert resposta.json()["codigo"] == "VEI-15"
+    assert resposta.status_code == 200, resposta.json()
+    assert (resposta.json()["status"], resposta.json()["motivo_status"]) == (
+        "indisponivel",
+        services.MOTIVO_SEM_PRECO,
+    )
+    ultimo = HistoricoStatusVeiculo.objects.filter(veiculo=sak).order_by("-em", "-id").first()
+    assert ultimo is not None
+    assert (ultimo.de, ultimo.para, ultimo.motivo) == (
+        "indisponivel",
+        "indisponivel",
+        services.MOTIVO_SEM_PRECO,
+    )
+    assert EventoAuditoria.objects.filter(acao="veiculo.sem_preco", objeto_id=sak.pk).exists()
+
+    assert _ligado(moto, sak, _plano(sak, "semanal"), True).status_code == 200
+    sak.refresh_from_db()
+    assert (sak.status, sak.motivo_status) == ("disponivel", "")
+
+
+def test_vei_15_voltar_para_a_frota_sem_plano_fica_sem_preco(moto, frota) -> None:
+    """VEI-15 (PR #630): o veículo à venda que perdeu o último plano volta da venda para
+    `indisponivel` "sem preço", e não para `disponivel`. Bloquear o veículo à venda continua
+    recusado: a ida `a_venda` → `indisponivel` existe só pela volta sem preço."""
+    sak = frota.veiculos["SAK1D39"]
+    venda = {"valor_venda_centavos": 1650000}
+    resposta = moto.api("Rodrigo").post(
+        f"{VEICULOS}{sak.pk}/colocar-a-venda/", venda, format="json"
+    )
+    assert resposta.status_code == 200, resposta.json()
+    _desligar_todos(moto, sak)
+    sak.refresh_from_db()
+    assert sak.status == "a_venda"
+    with pytest.raises(TransicaoInvalida):
+        services.bloquear(sak, "Retrovisor quebrado")
+
+    resposta = moto.api("Rodrigo").post(f"{VEICULOS}{sak.pk}/voltar-para-frota/", {}, format="json")
+    assert resposta.status_code == 200, resposta.json()
+    assert (resposta.json()["status"], resposta.json()["motivo_status"]) == (
+        "indisponivel",
+        services.MOTIVO_SEM_PRECO,
+    )
 
 
 def test_vei_15_compra_ligada_conta_como_preco(moto, frota) -> None:

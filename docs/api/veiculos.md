@@ -746,7 +746,11 @@ O mesmo corpo do `PUT` (o `confirmar_juros` é ignorado), sem gravar nada (ADR 0
 ### Sem preço (`VEI-15`)
 
 - O veículo `disponivel` que fica sem nenhum plano ligado (nem a compra) vai para `indisponivel` com `motivo_status` "Sem preço · ligue um plano", na mesma gravação. Ligar um plano o devolve a `disponivel`, desde que o motivo seja esse e nenhum CRLV ou seguro tenha vencido; bloqueio ou documento vencido não voltam sozinhos.
-- `reservado`, `alugado`, `em_manutencao` e `em_movimentacao` mantêm o status. Na volta (`transicionar(..., "disponivel")`: devolução, reserva cancelada, fim de OS, chegada da movimentação), o veículo sem plano ligado vai para `indisponivel` "sem preço" (`acao` `veiculo.sem_preco`). Desbloquear ou "Voltar para a frota" um veículo sem plano responde 409 `VEI-15`.
+- `reservado`, `alugado`, `em_manutencao` e `em_movimentacao` mantêm o status. Na volta (`transicionar(..., "disponivel")`: devolução, reserva cancelada, fim de OS, chegada da movimentação), o veículo sem plano ligado vai para `indisponivel` "sem preço" (`acao` `veiculo.sem_preco`).
+- Vale em todo retorno (PR #630), inclusive o desbloqueio e o "Voltar para a frota":
+  - **`desbloquear` sem plano ligado:** responde 200 com o veículo `indisponivel` e `motivo_status` "Sem preço · ligue um plano". O bloqueio sai e o motivo dele deixa de aparecer. O histórico de status ganha uma linha de `indisponivel` para `indisponivel` com o motivo novo, e a auditoria um evento `veiculo.sem_preco`. CRLV ou seguro vencido continua respondendo 422 `VEI-03` antes disso.
+  - **`voltar-para-frota` sem plano ligado:** `a_venda` vai para `indisponivel` "sem preço".
+  - **As idas a `indisponivel` a partir de `alugado`, `reservado`, `em_manutencao` e `a_venda`** existem só por essa volta. Bloquear um veículo nesses status continua 409 `transicao_veiculo`.
 - "Colocar à venda" sem plano ligado: 409 `{ "codigo": "VEI-15", "mensagem": "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda." }` (`VEN-01`).
 
 ### Preço agendado

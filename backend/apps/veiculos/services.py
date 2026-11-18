@@ -182,15 +182,16 @@ def transicionar(
         if novo_status not in TRANSICOES_VEICULO.get(de, set()) or (
             novo_status == S.INDISPONIVEL and de in SO_PELA_VOLTA_SEM_PRECO
         ):
-            # `alugado`/`reservado` → `indisponivel` só pela volta sem preço, abaixo: nunca
-            # pedido direto (bloquear um alugado continua recusado).
+            # `alugado`, `reservado`, `em_manutencao` e `a_venda` → `indisponivel` só pela volta
+            # sem preço, abaixo: nunca pedido direto (bloquear um alugado continua recusado).
             raise transicao_invalida(de, novo_status)
         if novo_status == S.DISPONIVEL and not tem_plano_ligado(travado):
-            # VEI-15 (ADR 0041, item 4): a volta do veículo sem plano ligado vai para
-            # `indisponivel` "sem preço"; de onde não há essa ida (desbloquear, voltar da
-            # venda), a ação é recusada com o aviso.
-            if S.INDISPONIVEL not in TRANSICOES_VEICULO.get(de, set()):
-                raise sem_preco()
+            # VEI-15 (ADR 0041, item 4; PR #630): todo retorno do veículo sem plano ligado vai
+            # para `indisponivel` "sem preço", inclusive o desbloqueio e o "Voltar para a frota".
+            if de == S.INDISPONIVEL:
+                _trocar_motivo_para_sem_preco(travado, origem)
+                _recarregar(veiculo)
+                return veiculo
             novo_status, motivo, acao = S.INDISPONIVEL, MOTIVO_SEM_PRECO, "sem_preco"
         travado.motivo_status = (motivo or "")[:200]
         estados.transicionar(
@@ -216,6 +217,26 @@ def transicionar(
             atualizar_uso("veiculos", 1)
     _recarregar(veiculo)
     return veiculo
+
+
+def _trocar_motivo_para_sem_preco(travado: Veiculo, origem: OrigemDaMudanca) -> None:
+    """VEI-15: o desbloqueio do veículo sem plano ligado o deixa `indisponivel`, mas o bloqueio
+    sai: o motivo passa a ser "sem preço", com o histórico (de e para `indisponivel`) e o
+    evento `veiculo.sem_preco`."""
+    with auditar(
+        travado, "veiculo.sem_preco", CategoriaAuditoria.OPERACAO, motivo=MOTIVO_SEM_PRECO
+    ):
+        travado.motivo_status = MOTIVO_SEM_PRECO
+        travado.save(update_fields=["motivo_status", "atualizado_em"])
+    HistoricoStatusVeiculo.objects.create(
+        veiculo=travado,
+        de=S.INDISPONIVEL,
+        para=S.INDISPONIVEL,
+        em=relogio.agora(),
+        por_id=_quem(),
+        motivo=MOTIVO_SEM_PRECO,
+        **_origem(origem),
+    )
 
 
 def _exigir_motivo(motivo: str | None, campo: str = "motivo") -> str:
