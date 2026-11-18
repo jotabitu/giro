@@ -420,9 +420,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Leva da T-420** (decisão do dono de 03 nov 2026, CA-420-12): se esta tarefa fizer a tela `Vendas`, a venda da quitação aparece nela com o rótulo "Quitação de locação" (`origem_rotulo`), e o funil, a conversão e a meta não a contam (`origem = "balcao"`, `vendas.md`). Se a tela `Vendas` ficar para outra tarefa, o critério vai junto.
 
 #### T-419 · Vitrine pública de vendas
-- **Agentes:** produto, arquiteto, segurança, design-system, backend, frontend · **Depende de:** T-418 · **Regras:** `VEN`, `PLT-11` (só aparece no plano que tiver a função, quando ela existir) · **Origem:** mesma nota.
-- **O que é:** a página pública da locadora com os veículos à venda, a página do veículo e o pedido de proposta (`docs/plano.md`, "Site de vendas").
-- **Decidido pelo dono em 30 out 2026:** a vitrine entra só no plano Completo; fica pronta e liga quando o Completo for à venda (T-378). Começa no subdomínio da locadora no Giro (`/vendas`), e a locadora pode apontar um domínio próprio depois.
+- **Juntada à T-483** (decisão do dono de 18 nov 2026). As decisões de 30 out e a dependência da T-418 passaram para lá.
 
 #### T-420 · Locação com intenção de compra
 - **Agentes:** produto (regras), arquiteto (modelo e contrato), backend, frontend, design-system · **Regras:** novas em `LOC` e `VEN` · **Origem:** nota "Novo tipo de Contrato de locação". Já citado em `docs/plano.md` ("Locação com opção de compra") e no toggle "Oferecer opção de compra no fim do contrato" da `Onboarding-Contrato`.
@@ -630,7 +628,10 @@ Saíram da comparação com um sistema de gestão de revenda de motos, feita em 
 
 #### T-483 · Site de vendas da empresa (vitrine pública)
 - **Agente:** produto → design-system → arquiteto → backend e frontend · **Regras:** `VEI` (finalidade venda, `a_venda`), `PLT` (plano Completo), white label · **Origem:** já planejada em `docs/plano.md` ("Site de vendas") e nas telas que faltam (`docs/regras/pontos-em-aberto.md`).
+- **Depende de:** T-418 (catálogo de vendas interno). **Substitui a T-419** (decisão do dono de 18 nov 2026).
 - **O caso:** a revenda quer mostrar o estoque à venda num site público com a marca dela, sem cadastrar em outro lugar.
+- **Decidido pelo dono em 30 out 2026 (vindo da T-419):** a vitrine entra só no plano Completo (`PLT-11`); fica pronta e liga quando o Completo for à venda (T-378). Começa no subdomínio da locadora no Giro (`/vendas`), e a locadora pode apontar um domínio próprio depois.
+- **Contato:** a T-419 previa o pedido de proposta (`docs/plano.md`, "Site de vendas"); esta prevê o interesse pelo WhatsApp. O produto escolhe um dos dois, ou os dois, e registra em `docs/regras/pontos-em-aberto.md` se precisar do dono.
 - **Pronto quando:** existem regras para o que aparece (só veículo `a_venda`, liga e desliga a publicação por veículo, quais campos e fotos saem, preço), para o contato (botão de interesse que abre o WhatsApp da filial ou do vendedor e registra o interesse) e para o endereço (subdomínio da empresa); telas da vitrine, da página do veículo e do pedido de interesse; ADR do arquiteto (página pública, cache, SEO, isolamento entre empresas); API pública só de leitura sem dado pessoal; testes. Revisão da segurança antes de ligar.
 
 #### T-484 · Canal de origem da venda
