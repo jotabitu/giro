@@ -95,6 +95,8 @@ export type Veiculo = {
   filial: { id: number; nome: string };
   status: StatusVeiculo;
   motivo_status: string | null;
+  /** VEI-15 (T-494): o texto pronto de "tabela de preços não preenchida" quando não há plano ligado, em qualquer status; senão `null`. */
+  aviso_preco?: string | null;
   km_atual: number;
   km_atualizado_em: string;
   capacidade_tanque_litros: string | null;

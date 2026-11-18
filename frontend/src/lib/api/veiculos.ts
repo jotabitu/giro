@@ -1,6 +1,7 @@
 // Veículos na API real (docs/api/veiculos.md).
 import { http } from "./http";
 import type { ListaLocacoes } from "./tipos-locacoes";
+import type { PrecosDoVeiculo, PrecosEntrada } from "./tipos-precos-veiculo";
 import type {
   CorrecaoDeIdentificacao,
   CrlvDoCadastro,
@@ -96,6 +97,26 @@ export const veiculosApi = {
 
   listar(f: FiltroVeiculos = {}): Promise<ListaVeiculos> {
     return http.get<ListaVeiculos>("/api/veiculos/", { status: f.status && f.status !== "todos" ? f.status : undefined, tipo_veiculo: f.tipo_veiculo, busca: f.busca, cursor: f.cursor });
+  },
+
+  /** VEI-12 a VEI-17: planos, regras, custos e compra do veículo, com tudo que a API calcula (margem, parcela, juros, alertas). */
+  precos(id: number): Promise<PrecosDoVeiculo> {
+    return http.get<PrecosDoVeiculo>(`/api/veiculos/${id}/precos/`);
+  },
+
+  /** Salva o documento inteiro ou só os blocos mandados. 400 traz os campos pontuados (`planos.0.valor_centavos`); 409 `VEI-16` pede a confirmação dos juros. */
+  salvarPrecos(id: number, corpo: PrecosEntrada): Promise<PrecosDoVeiculo> {
+    return http.put<PrecosDoVeiculo>(`/api/veiculos/${id}/precos/`, corpo);
+  },
+
+  /** O mesmo corpo do salvar, sem gravar: devolve os resultados calculados e `pede_confirmacao_juros` (ADR 0005). */
+  simularPrecos(id: number, corpo: PrecosEntrada): Promise<PrecosDoVeiculo> {
+    return http.post<PrecosDoVeiculo>(`/api/veiculos/${id}/precos/simular/`, corpo);
+  },
+
+  /** O liga e desliga do cartão da ficha. Ligar sem valor, forma ou caução volta 400 com o campo. */
+  ligarPlano(id: number, planoId: number, ligado: boolean): Promise<PrecosDoVeiculo> {
+    return http.post<PrecosDoVeiculo>(`/api/veiculos/${id}/precos/planos/${planoId}/ligado/`, { ligado });
   },
 
   obter(id: number): Promise<VeiculoDetalhe> {
