@@ -77,6 +77,7 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;"><div><h2 class="h2">Custo e venda</h2><p class="sub" style="margin-top: 2px;">Base de todas as margens desta moto.</p></div><button class="wl-btn wl-btn--quiet wl-btn--sm" style="flex: none;">Editar custos mensais</button></div>
 <div class="stat"><small>Pago na moto</small><b>R$ 13.800,00</b><span class="lbl">compra R$ 13.490,00 + despesas R$ 310,00 · <a href="Despesas-Mobile.dc.html" style="color: var(--ink-muted);">ver</a></span></div>
 <label class="stat"><small>Valor de venda</small><input class="wl-input" value="R$ 15.900,00"><span class="lbl">FIPE R$ 13.900,00</span></label>
+<label class="stat"><small>Revenda estimada em 24 meses</small><input class="wl-input" value="R$ 8.900,00"><span class="lbl">Quanto você espera vender a moto daqui a 24 meses. Vazio: sem desvalorização no custo.</span></label>
 <div class="two"><div class="stat"><small>Custos por mês</small><b>R$ 284,00</b></div><div class="stat"><small>Ocupação esperada</small><b>85%</b></div></div>
 <span class="lbl">Custos: manutenção, seguro, IPVA e rastreador. Frota nos últimos 90 dias: 84%.</span>
 </section>
@@ -205,6 +206,26 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <p>Este é o último plano ligado. Sem nenhum plano ligado, esta moto fica indisponível, com o motivo sem preço, e não aparece na Nova locação. As locações já confirmadas continuam com o preço delas.</p>
 <div class="acts"><button class="wl-btn wl-btn--solid">Desligar plano</button><button class="wl-btn wl-btn--quiet">Continuar ligado</button></div>
 </div></div>
+
+<div class="est"><h3>Liga e desliga confirmado: ligar um plano</h3>
+<div class="dlg" role="dialog" aria-label="Ligar o plano diário?">
+<h4>Ligar o plano diário?</h4>
+<p>Este plano passa a aparecer na Nova locação, com o valor, a caução e a franquia definidos para esta moto.</p>
+<div class="acts"><button class="wl-btn wl-btn--solid">Ligar plano</button><button class="wl-btn wl-btn--quiet">Continuar desligado</button></div>
+</div></div>
+
+<div class="est"><h3>Liga e desliga confirmado: locação com compra</h3>
+<div class="dlg" role="dialog" aria-label="Desligar a locação com compra?">
+<h4>Desligar a locação com compra?</h4>
+<p>A locação com compra deixa de aparecer na Nova locação. As locações já confirmadas continuam com o preço e as parcelas delas.</p>
+<div class="acts"><button class="wl-btn wl-btn--solid">Desligar locação com compra</button><button class="wl-btn wl-btn--quiet">Continuar ligada</button></div>
+</div>
+<div class="dlg" role="dialog" aria-label="Ligar a locação com compra?">
+<h4>Ligar a locação com compra?</h4>
+<p>A locação com compra passa a aparecer na Nova locação, com o valor de venda, as parcelas e os juros definidos para esta moto.</p>
+<div class="acts"><button class="wl-btn wl-btn--solid">Ligar locação com compra</button><button class="wl-btn wl-btn--quiet">Continuar desligada</button></div>
+</div>
+<span class="lbl">Se a locação com compra for o último plano ligado, vale o texto do último plano.</span></div>
 
 <div class="est"><h3>Liga e desliga recusado pela API: ligar sem os dados do plano</h3>
 <div class="pl off"><div class="ph"><b style="color: var(--ink-muted);">Entregador</b><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer entregador"></button></div>
