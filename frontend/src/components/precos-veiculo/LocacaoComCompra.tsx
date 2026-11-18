@@ -132,7 +132,7 @@ export function LocacaoComCompra({
             <Campo rotulo="Adicional por parcela" erro={e("adicional_centavos")} dica="Seguro e rastreador seguem com a locadora">
               <input className="wl-input" inputMode="decimal" value={c.adicional} disabled={somenteLeitura} onChange={(ev) => aoEditar({ adicional: ev.target.value })} />
             </Campo>
-            <Campo rotulo="Caução" erro={e("caucao_centavos")} dica="Abatida das últimas parcelas">
+            <Campo rotulo="Caução" erro={e("caucao_centavos")} dica="Abatida da última parcela">
               <input className="wl-input" inputMode="decimal" value={c.caucao} disabled={somenteLeitura} onChange={(ev) => aoEditar({ caucao: ev.target.value })} />
             </Campo>
           </div>
