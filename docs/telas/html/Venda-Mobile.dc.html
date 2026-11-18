@@ -53,6 +53,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .wl-field{width:auto;min-width:0}
 .wl-input{width:100%;box-sizing:border-box}
 .f2 .wl-input,.wl-field .ta{width:100%;box-sizing:border-box}
+.pend{margin:0;padding-left:20px;color:var(--ink);font-size:15px;line-height:24px}
 .ta{height:auto;min-height:88px;padding-top:12px;resize:vertical;font:inherit}
 .wl-steps__acts .wl-btn{height:44px}
 
@@ -145,6 +146,37 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <div class="wl-note wl-note--critical" role="alert">Só o gerente ou o administrador marca como perdida uma venda com a entrada paga.</div>
 </div></div>
 
+<div class="est"><h3>Etapa 2 · Documentos: cadastro do cliente incompleto</h3>
+<div class="cx">
+<div class="wl-note" role="note">Falta completar o cadastro de Diego Martins para preparar a assinatura.</div>
+<ul class="pend"><li>E-mail</li><li>Endereço</li><li>CNH</li></ul>
+<div class="acts"><button class="wl-btn">Completar cadastro</button><button class="wl-btn wl-btn--solid" disabled>Preparar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 2 · Documentos: cadastro completo</h3>
+<div class="cx">
+<div class="vrow"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Diego Martins</div><div class="lbl">CPF 456.789.123-00 · cadastro completo</div></div></div>
+<div class="acts"><button class="wl-btn wl-btn--solid">Preparar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 2 · Documentos: cliente bloqueado (para o vendedor)</h3>
+<div class="cx">
+<div class="wl-note wl-note--critical" role="alert">Diego Martins está bloqueado e não pode comprar. A assinatura fica liberada depois do desbloqueio. Peça o desbloqueio ao gerente.</div>
+<div class="acts"><button class="wl-btn wl-btn--solid" disabled>Preparar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 2 · Documentos: cliente bloqueado (para o gerente e o administrador)</h3>
+<div class="cx">
+<div class="wl-note wl-note--critical" role="alert">Diego Martins está bloqueado e não pode comprar. A assinatura fica liberada depois do desbloqueio.</div>
+<div class="acts"><button class="wl-btn wl-btn--solid" disabled>Preparar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 2 · Documentos: cliente inativo</h3>
+<div class="cx">
+<div class="wl-note wl-note--critical" role="alert">Diego Martins está inativo e não pode comprar. O gerente ou o administrador reativa o cadastro.</div>
+<div class="acts"><button class="wl-btn wl-btn--solid" disabled>Preparar assinatura</button></div>
+</div></div>
+
 <div class="est"><h3>Etapa 3 · Assinatura: contrato enviado, falta assinar e pagar a entrada</h3>
 <div class="cx">
 <ol class="wl-steps" aria-label="Assinatura e entrada">
@@ -164,7 +196,6 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <li aria-current="step"><span class="wl-steps__title">Entrada de R$ 5.000,00</span><span class="wl-steps__text">Aguardando pagamento · vence hoje</span><div class="wl-steps__acts"><button class="wl-btn wl-btn--sm">Gerar Pix</button><button class="wl-btn wl-btn--sm">Gerar boleto</button><button class="wl-btn wl-btn--sm">Receber no caixa</button></div></li>
 <li><span class="wl-steps__title">Venda concluída</span><span class="wl-steps__text">Com o contrato assinado e a entrada paga, em qualquer ordem, a venda é concluída sozinha.</span></li>
 </ol>
-<div class="acts"><button class="wl-btn wl-btn--quiet">Cancelar assinatura</button></div>
 </div></div>
 
 <div class="est"><h3>Etapa 3 · Assinatura: concluída</h3>
@@ -190,13 +221,6 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <h4>Cancelar a assinatura?</h4>
 <p>O contrato e a cobrança da entrada são cancelados, e você pode mudar a proposta.</p>
 <div class="acts"><button class="wl-btn wl-btn--quiet">Manter assinatura</button><button class="wl-btn wl-btn--solid">Cancelar assinatura</button></div>
-</div></div>
-
-<div class="est"><h3>Cancelar assinatura com a entrada paga</h3>
-<div class="dlg" role="dialog" aria-label="Cancelar a assinatura">
-<h4>Cancelar a assinatura?</h4>
-<div class="wl-note wl-note--critical" role="alert">A entrada já foi paga. Para desfazer, marque a venda como perdida.</div>
-<div class="acts"><button class="wl-btn wl-btn--solid">Entendi</button></div>
 </div></div>
 
 <div class="est"><h3>Fase 2, sem desenho agora</h3>
