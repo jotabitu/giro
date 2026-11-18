@@ -10,37 +10,54 @@ from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, Exists, OuterRef, Q, QuerySet
 from django.utils import timezone
 
+from apps.empresas import selectors as empresas_selectors
 from comum import arquivos, leituras, relogio
 from comum.autenticacao import suporte_so_ver
 from comum.documentos import placa_com_hifen
 from comum.empresa import tem_recurso
 from comum.permissoes import filiais_permitidas
 
+from . import precos
 from .models import (
     FORA_DA_FROTA,
     LIMITE_DA_GALERIA,
     MOVIMENTAVEIS,
+    TIPOS_FIXOS,
     TRANSICOES_VEICULO,
     Categoria,
+    ComoPaga,
     DocumentoVeiculo,
     Extra,
     FotoVeiculo,
     HistoricoStatusVeiculo,
+    PlanoCompraVeiculo,
+    PlanoVeiculo,
     PrecoCategoria,
     StatusVeiculo,
+    TipoPlano,
     TipoVeiculo,
     Veiculo,
 )
 from .services import (
+    AVISO_PRECO,
+    CAMPOS_DAS_REGRAS,
+    CAMPOS_DOS_CUSTOS,
+    DocumentoDePrecos,
     SituacaoDocumento,
+    chave_do_plano,
+    despesas_do_veiculo,
+    montar_documento,
     motivo_da_galeria_so_para_ver,
     motivo_de_nao_trocar_tipo,
     normalizar_chassi,
     normalizar_placa,
+    pago_na_moto,
+    plano_novo,
     situacao_do_documento,
+    tem_plano_ligado,
     valores_pontuados,
 )
 
@@ -490,6 +507,8 @@ def representacao(
         "documentos_resumo": documentos.get(veiculo.pk),
         "movimentacao_aberta": blocos.get("movimentacao_aberta"),
         "acoes": acoes(veiculo, usuario, blocos),
+        # VEI-15: em qualquer status; não é status (decisão do dono de 18 nov 2026).
+        "aviso_preco": aviso_preco(veiculo),
     }
     if detalhe or com_dados_do_documento:
         dados.update(dados_do_documento(veiculo, gestao))
@@ -521,6 +540,214 @@ def representacao(
         # O suporte em "só ver" recebe a galeria sem os links (ADR 0013, item 2).
         dados["galeria"] = bloco_galeria(veiculo, com_links=not suporte_so_ver(usuario))
         dados["acoes"]["editar_fotos"] = pode_editar_fotos(veiculo, usuario)
+    return dados
+
+
+# --- Preços por veículo (VEI-12 a VEI-17, ADR 0041) ---
+
+
+def anotar_tem_plano_ligado(queryset: QuerySet[Veiculo]) -> QuerySet[Veiculo]:
+    """`tem_plano_ligado` numa query para a lista (o índice parcial `plano_veiculo_ligado`)."""
+    return queryset.annotate(
+        tem_plano_ligado=Exists(
+            PlanoVeiculo.objects.filter(veiculo_id=OuterRef("pk"), ativo=True, ligado=True)
+        )
+        | Exists(PlanoCompraVeiculo.objects.filter(veiculo_id=OuterRef("pk"), ligado=True))
+    )
+
+
+def aviso_preco(veiculo: Veiculo) -> str | None:
+    """O aviso da tabela não preenchida (VEI-15), ou `None`."""
+    tem = getattr(veiculo, "tem_plano_ligado", None)
+    if tem is None:
+        tem = tem_plano_ligado(veiculo)
+    return None if tem else AVISO_PRECO
+
+
+def _dividir(valor: int, partes: int) -> dict[str, int]:
+    """Convenção de arredondamento: a diferença de centavos vai para a última parcela."""
+    parcela = valor // partes
+    return {
+        "parcelas": partes,
+        "parcela_centavos": parcela,
+        "ultima_parcela_centavos": valor - parcela * (partes - 1),
+    }
+
+
+def _parcela_do_mes(valor: int, como_paga: str) -> dict[str, int] | None:
+    """VEI-12: o mensal dividido, "4 semanais de R$ 247,50"."""
+    partes = {ComoPaga.MES_DUAS_QUINZENAIS.value: 2, ComoPaga.MES_QUATRO_SEMANAIS.value: 4}.get(
+        como_paga
+    )
+    return _dividir(valor, partes) if partes else None
+
+
+def _caucao_parcelada(caucao: int | None, parcelas: int) -> dict[str, int] | None:
+    """VEI-12, LOC-04: a caução em mais de uma parcela, "2 × R$ 250,00"; à vista ou sem caução
+    preenchida, `None`."""
+    if caucao is None or parcelas <= 1:
+        return None
+    return _dividir(caucao, parcelas)
+
+
+def _plano(plano: PlanoVeiculo, hoje: date) -> dict[str, Any]:
+    """O valor e a caução efetivos do dia; o agendado só enquanto é futuro (ADR 0041, risco 3)."""
+    futuro = plano.agendado_para is not None and plano.agendado_para > hoje
+    valor = plano.valor_em(hoje)
+    caucao = plano.caucao_em(hoje)
+    return {
+        "id": plano.pk,
+        "tipo": plano.tipo,
+        "nome": plano.nome or None,
+        "rotulo": plano.rotulo,
+        "periodo": plano.periodo or None,
+        "ligado": plano.ligado,
+        "valor_centavos": valor,
+        "como_paga": plano.como_paga or None,
+        "formas_aceitas": list(plano.formas_aceitas),
+        "caucao_centavos": caucao,
+        "caucao_parcelas": plano.caucao_parcelas,
+        "caucao_parcelada": _caucao_parcelada(caucao, plano.caucao_parcelas),
+        "franquia_km": plano.franquia_km,
+        "prazo_minimo_periodos": plano.prazo_minimo_periodos,
+        "agendado": (
+            {
+                "valor_centavos": plano.valor_agendado_centavos,
+                "caucao_centavos": plano.caucao_agendada_centavos,
+                "a_partir_de": plano.agendado_para,
+            }
+            if futuro
+            else None
+        ),
+        "parcela_do_mes": _parcela_do_mes(valor, plano.como_paga),
+    }
+
+
+def _planos_da_tela(veiculo: Veiculo, planos: list[PlanoVeiculo]) -> list[PlanoVeiculo]:
+    """Os ativos, com os tipos fixos que ainda não existem (desligados, sem id), na ordem da
+    tela: diária, semanal, mensal, entregador e os `outro`."""
+    por_tipo = {p.tipo: p for p in planos if p.tipo != TipoPlano.OUTRO}
+    fixos = [por_tipo.get(tipo) or plano_novo(veiculo, tipo) for tipo in TIPOS_FIXOS]
+    return fixos + [p for p in planos if p.tipo == TipoPlano.OUTRO]
+
+
+def _margem(valor: precos.Margem | None) -> dict[str, Any] | None:
+    if valor is None:
+        return None
+    return {
+        "receita_mes_centavos": valor.receita_mes_centavos,
+        "lucro_mes_centavos": valor.lucro_mes_centavos,
+        "margem_pct": valor.margem_pct,
+        "abaixo_da_minima": valor.abaixo_da_minima,
+    }
+
+
+def _compra(
+    compra: PlanoCompraVeiculo | None, resultado: precos.ResultadoCompra | None, custo: bool
+) -> dict[str, Any] | None:
+    if compra is None:
+        return None
+    dados: dict[str, Any] = {
+        "ligado": compra.ligado,
+        "periodicidade": compra.periodicidade,
+        "parcelas": compra.parcelas,
+        "entrada_centavos": compra.entrada_centavos,
+        "juros_mes_pct": compra.juros_mes_pct,
+        "modo": compra.modo,
+        "parcela_moto_centavos": compra.parcela_moto_centavos,
+        "adicional_centavos": compra.adicional_centavos,
+        "caucao_centavos": compra.caucao_centavos,
+        "resultado": None,
+    }
+    if resultado is not None:
+        calculo: dict[str, Any] = {
+            "financiado_centavos": resultado.financiado_centavos,
+            "meses_do_prazo": resultado.meses_do_prazo,
+            "taxa_periodo_pct": resultado.taxa_periodo_pct,
+            "juros_mes_pct": resultado.juros_mes_pct,
+            "parcela_moto_centavos": resultado.parcela_moto_centavos,
+            "adicional_centavos": resultado.adicional_centavos,
+            "parcela_cliente_centavos": resultado.parcela_cliente_centavos,
+            "recebe_pela_moto_centavos": resultado.recebe_pela_moto_centavos,
+            "juros_no_prazo_centavos": resultado.juros_no_prazo_centavos,
+            "venda_abaixo_do_pago": resultado.venda_abaixo_do_pago,
+            "nas_periodicidades": [
+                {
+                    "periodicidade": item.periodicidade,
+                    "parcelas": item.parcelas,
+                    "parcela_cliente_centavos": item.parcela_cliente_centavos,
+                }
+                for item in resultado.nas_periodicidades
+            ],
+        }
+        if custo:  # VEI-13: lucro e margem só para quem vê custo (USR-09)
+            calculo["lucro_centavos"] = resultado.lucro_centavos
+            calculo["margem_sobre_pago_pct"] = resultado.margem_sobre_pago_pct
+            calculo["pago_sobre_recebe_pct"] = resultado.pago_sobre_recebe_pct
+            calculo["lucro_sobre_recebe_pct"] = resultado.lucro_sobre_recebe_pct
+        dados["resultado"] = calculo
+    return dados
+
+
+def precos_do_veiculo(
+    veiculo: Veiculo,
+    usuario: Any,
+    documento: DocumentoDePrecos | None = None,
+    *,
+    pede_confirmacao: bool = False,
+) -> dict[str, Any]:
+    """O corpo do `GET`, do `PUT` e do `simular` de `/api/veiculos/{id}/precos/` (ADR 0041,
+    item 4). `custos`, `pago_na_moto`, lucro e margem só para `VEEM_CUSTO`: para os outros, as
+    chaves não vêm."""
+    hoje = relogio.hoje()
+    if documento is None:
+        documento = montar_documento(veiculo, {}, hoje)
+    perfil = getattr(usuario, "perfil", "")
+    custo = perfil in VEEM_CUSTO
+    resultado = documento.resultado
+    planos = _planos_da_tela(veiculo, [p for p in documento.planos if p.ativo])
+    lista = []
+    for plano in planos:
+        item = _plano(plano, hoje)
+        if custo:
+            item["margem"] = _margem(resultado.margens.get(chave_do_plano(plano)))
+        lista.append(item)
+    tem = any(p.ligado for p in planos) or bool(documento.compra and documento.compra.ligado)
+    regras = documento.regras
+    dados: dict[str, Any] = {
+        "veiculo": {
+            "id": veiculo.pk,
+            "placa": veiculo.placa,
+            "marca": veiculo.marca,
+            "modelo": veiculo.modelo,
+            "status": veiculo.status,
+        },
+        "valor_venda_centavos": documento.valor_venda_centavos,
+        "fipe_centavos": veiculo.referencia_fipe_centavos,
+        "ocupacao_real_90d_pct": ocupacao(veiculo)["pct"],
+        "margem_minima_pct": empresas_selectors.margem_minima_pct(),
+        "planos": lista,
+        "regras": {campo: getattr(regras, campo) for campo in CAMPOS_DAS_REGRAS},
+        "plano_compra": _compra(documento.compra, resultado.compra, custo),
+        "alertas": resultado.alertas,
+        "aviso_preco": None if tem else AVISO_PRECO,
+        "pede_confirmacao_juros": pede_confirmacao,
+        # VEI-12: o suporte Giro só vê, nos dois modos (o `PUT` é `suporte_proibido`).
+        "pode_editar": perfil == "administrador" and not getattr(usuario, "e_suporte", False),
+    }
+    if custo:
+        dados["pago_na_moto"] = {
+            "total_centavos": pago_na_moto(veiculo),
+            "compra_centavos": veiculo.valor_compra_centavos,
+            "despesas_centavos": despesas_do_veiculo(veiculo),
+        }
+        custos = documento.custos
+        dados["custos"] = {
+            **{campo: getattr(custos, campo) for campo in CAMPOS_DOS_CUSTOS},
+            # VEI-13: o IPVA entra no custo ÷ 12; a tela mostra "R$ 39,00 por mês".
+            "ipva_mes_centavos": precos.centavos(Decimal(custos.ipva_ano_centavos) / 12),
+            "custo_mes_centavos": resultado.custo_mes_centavos,
+        }
     return dados
 
 
