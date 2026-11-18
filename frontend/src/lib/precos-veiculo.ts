@@ -176,7 +176,7 @@ export type CompraRascunho = {
 
 export type RegrasRascunho = { kmExcedente: string; diaAtraso: string; descontoPct: string; prazoCaucao: string; multaMinima: string };
 
-export type Rascunho = { valorVenda: string; planos: PlanoRascunho[]; regras: RegrasRascunho; compra: CompraRascunho };
+export type Rascunho = { valorVenda: string; revenda: string; planos: PlanoRascunho[]; regras: RegrasRascunho; compra: CompraRascunho };
 
 const PERIODO_DO_TIPO: Record<TipoDePlano, PeriodoDoPlano> = { diaria: "dia", semanal: "semana", mensal: "mes", entregador: "semana", outro: "dia" };
 
@@ -219,6 +219,7 @@ export function compraParaRascunho(c: PrecosDoVeiculo["plano_compra"]): CompraRa
 export function rascunhoDoDocumento(d: PrecosDoVeiculo): Rascunho {
   return {
     valorVenda: textoDoDinheiro(d.valor_venda_centavos),
+    revenda: textoDoDinheiro(d.custos?.revenda_estimada_centavos),
     planos: d.planos.map(planoParaRascunho),
     regras: {
       kmExcedente: `${dinheiro(d.regras.km_excedente_centavos)} por km`,
@@ -340,6 +341,10 @@ export function corpoDaDiferenca(r: Rascunho, base: Rascunho, opcoes: { confirma
     corpo.valor_venda_centavos = dinheiroOu(a, "valor_venda_centavos", r.valorVenda, null);
     mudou = true;
   }
+  if (r.revenda !== base.revenda) {
+    corpo.custos = { revenda_estimada_centavos: dinheiroOu(a, "custos.revenda_estimada_centavos", r.revenda, null) };
+    mudou = true;
+  }
   const planos: PlanoEntrada[] = [];
   for (const p of r.planos) {
     const antes = base.planos.find((b) => b.chave === p.chave);
@@ -403,7 +408,7 @@ export function custosParaRascunho(c: CustosDoVeiculo | undefined): CustosRascun
   };
 }
 
-/** A revenda estimada não tem campo na tela de referência: vai o valor que já estava. */
+/** O modal não edita a revenda estimada (ela fica em "Custo e venda"): vai o valor que já estava. */
 export function custosParaCorpo(r: CustosRascunho, atual: CustosDoVeiculo | undefined): { custos: CustosEntrada; erros: ErrosDeCampo } {
   const a: Acumulador = { erros: {} };
   const custos: CustosEntrada = {
@@ -428,3 +433,20 @@ export function ehOUltimoLigado(d: PrecosDoVeiculo, planoChave: string | "compra
 
 /** "56.26" da API em "56,3%": uma casa, só para a exibição. */
 export const textoDaMargem = (pct: string): string => `${Number(pct).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+
+export type TextosDaConfirmacao = { titulo: string; texto: string; confirmar: string; cancelar: string };
+
+/** Confirmações de ligar e desligar (VEI-12, VEI-15, VEI-16), com os textos aprovados pelo Produto em 18 nov 2026. `nome` é o do plano ("Semanal"). */
+export function textosDaConfirmacao(c: { alvo: "plano" | "compra"; nome: string; ligar: boolean; ultimo: boolean }): TextosDaConfirmacao {
+  if (c.alvo === "plano") {
+    if (c.ligar) return { titulo: `Ligar o plano ${c.nome}?`, texto: "Este plano passa a aparecer na Nova locação, com o valor, a caução e a franquia definidos para esta moto.", confirmar: "Ligar plano", cancelar: "Continuar desligado" };
+    return { titulo: c.ultimo ? "Desligar o último plano?" : `Desligar o plano ${c.nome}?`, texto: c.ultimo ? TEXTO_DESLIGAR_O_ULTIMO : TEXTO_DESLIGAR, confirmar: "Desligar plano", cancelar: "Continuar ligado" };
+  }
+  if (c.ligar) return { titulo: "Ligar a locação com compra?", texto: "A locação com compra passa a aparecer na Nova locação, com o valor de venda, as parcelas e os juros definidos para esta moto.", confirmar: "Ligar locação com compra", cancelar: "Continuar desligada" };
+  return {
+    titulo: c.ultimo ? "Desligar o último plano?" : "Desligar a locação com compra?",
+    texto: c.ultimo ? TEXTO_DESLIGAR_O_ULTIMO : "A locação com compra deixa de aparecer na Nova locação. As locações já confirmadas continuam com o preço e as parcelas delas.",
+    confirmar: "Desligar locação com compra",
+    cancelar: "Continuar ligada",
+  };
+}

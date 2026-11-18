@@ -55,6 +55,8 @@ describe("tela de preços do veículo", () => {
     expect(t).toContain("compra R$ 13.490,00 + despesas R$ 310,00");
     expect(t).toContain("FIPE R$ 13.900,00");
     expect(t).toContain("R$ 530,00");
+    expect(t).toContain("Revenda estimada em 24 meses");
+    expect(h).toContain('value="R$ 9.000,00"');
     expect(t).toContain("85%");
     expect(t).toContain("frota nos últimos 90 dias: 84%");
     expect(h).toContain("Editar custos mensais");

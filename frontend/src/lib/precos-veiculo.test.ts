@@ -16,6 +16,7 @@ import {
   textoDasFormas,
   textoDoAgendado,
   textoDoPagamento,
+  textosDaConfirmacao,
 } from "./precos-veiculo";
 
 describe("leitura do que se digita", () => {
@@ -148,5 +149,21 @@ describe("textos e o último plano", () => {
     expect(textoDoPagamento("mes_quatro_semanais", { parcelas: 4, parcela_centavos: 24750, ultima_parcela_centavos: 24750 })).toBe("4 semanais de R$ 247,50");
     expect(textoDoPagamento("mes_uma_parcela")).toBe("1 parcela no mês");
     expect(textoDoAgendado({ valor_centavos: 28900, a_partir_de: "2026-12-01" })).toBe("R$ 289,00 a partir de 01 dez");
+  });
+});
+
+describe("revenda estimada e textos de confirmação", () => {
+  it("vei_13_revenda_estimada_vai_em_custos_so_quando_muda", () => {
+    const base = rascunhoDoDocumento(PRECOS_POP);
+    expect(base.revenda).toBe("R$ 9.000,00");
+    expect(corpoDaDiferenca(base, base).mudou).toBe(false);
+    expect(corpoDaDiferenca({ ...base, revenda: "R$ 8.900,00" }, base).corpo.custos).toEqual({ revenda_estimada_centavos: 890000 });
+    expect(corpoDaDiferenca({ ...base, revenda: "" }, base).corpo.custos).toEqual({ revenda_estimada_centavos: null });
+  });
+  it("vei_12_textos_aprovados_de_ligar_e_desligar", () => {
+    expect(textosDaConfirmacao({ alvo: "plano", nome: "Semanal", ligar: true, ultimo: false })).toMatchObject({ titulo: "Ligar o plano Semanal?", confirmar: "Ligar plano", cancelar: "Continuar desligado" });
+    expect(textosDaConfirmacao({ alvo: "compra", nome: "", ligar: false, ultimo: false })).toMatchObject({ titulo: "Desligar a locação com compra?", confirmar: "Desligar locação com compra", cancelar: "Continuar ligada" });
+    expect(textosDaConfirmacao({ alvo: "compra", nome: "", ligar: true, ultimo: false }).confirmar).toBe("Ligar locação com compra");
+    expect(textosDaConfirmacao({ alvo: "plano", nome: "Mensal", ligar: false, ultimo: true }).titulo).toBe("Desligar o último plano?");
   });
 });

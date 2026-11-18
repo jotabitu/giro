@@ -10,8 +10,8 @@ import { useAtrasado, useCelular } from "@/lib/atrasado";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, placa as placaComHifen } from "@/lib/formatos";
 import {
-  TEXTO_DESLIGAR,
-  TEXTO_DESLIGAR_O_ULTIMO,
+
+  textosDaConfirmacao,
   centavosDoCampo,
   chaveDoPlano,
   compraParaRascunho,
@@ -52,7 +52,8 @@ function Quadro({ rotulo, children, apoio }: { rotulo: string; children: ReactNo
 
 const NUMERO_GRANDE = "text-[22px] font-semibold leading-7 tracking-[-0.01em]";
 
-type Confirmacao = { tipo: "plano" | "compra"; chave: string; nome: string; ultimo: boolean };
+type Confirmacao = { tipo: "plano" | "compra"; chave: string; nome: string; ligar: boolean; ultimo: boolean };
+const textos = (c: Confirmacao) => textosDaConfirmacao({ alvo: c.tipo, nome: c.nome, ligar: c.ligar, ultimo: c.ultimo });
 type Juros = { mensagem: string; aoConfirmar: () => void };
 
 function Tela({ id, dados }: { id: number; dados: Precos }) {
@@ -183,10 +184,9 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
     await gravarLiga("compra", m, (resposta) => setRascunho((r) => ({ ...r, compra: compraParaRascunho(resposta.plano_compra) })), () => void mudarLigadoDaCompra(ligado, true));
   }
 
-  function pedirParaLigar(chave: string, ligado: boolean) {
-    if (ligado) return void mudarLigadoDoPlano(chave, true);
+  function pedirParaLigar(chave: string, ligar: boolean) {
     const p = rascunho.planos.find((x) => x.chave === chave);
-    setConfirmando({ tipo: "plano", chave, nome: p?.rotulo.toLowerCase() ?? "", ultimo: ehOUltimoLigado(dados, chave) });
+    setConfirmando({ tipo: "plano", chave, nome: p?.rotulo ?? "", ligar, ultimo: !ligar && ehOUltimoLigado(dados, chave) });
   }
 
   async function mudarAgendado(chave: string, agendado: { valor: string; data: string } | null) {
@@ -311,7 +311,7 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
           ) : undefined
         }
       >
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
           {exibido.pago_na_moto && (
             <Quadro
               rotulo="Pago na moto"
@@ -351,6 +351,27 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
             <span className={`text-[13px] ${venda ? "text-critical-ink" : "text-ink-muted"}`}>{venda ?? (exibido.fipe_centavos != null ? `FIPE ${dinheiro(exibido.fipe_centavos)}` : "")}</span>
           </label>
           {exibido.custos && (
+            <label className={`flex min-w-0 flex-col gap-[2px] rounded-md bg-surface-sunken px-4 py-[14px] ${erros["custos.revenda_estimada_centavos"] ? "wl-field--error" : ""}`}>
+              <span className="text-[13px] text-ink-muted">Revenda estimada em 24 meses</span>
+              <input
+                className="wl-input w-full bg-surface text-[18px] font-semibold"
+                inputMode="decimal"
+                placeholder="R$ 0,00"
+                value={rascunho.revenda}
+                disabled={somenteLeitura}
+                aria-invalid={erros["custos.revenda_estimada_centavos"] ? true : undefined}
+                onChange={(e) => {
+                  setRascunho((r) => ({ ...r, revenda: e.target.value }));
+                  setAviso(null);
+                  setErrosSalvar((x) => Object.fromEntries(Object.entries(x).filter(([k]) => k !== "custos.revenda_estimada_centavos")));
+                }}
+              />
+              <span className={`text-[13px] ${erros["custos.revenda_estimada_centavos"] ? "text-critical-ink" : "text-ink-muted"}`}>
+                {erros["custos.revenda_estimada_centavos"] ?? "Quanto você espera vender a moto daqui a 24 meses. Vazio: sem desvalorização no custo."}
+              </span>
+            </label>
+          )}
+          {exibido.custos && (
             <Quadro rotulo="Custos por mês" apoio="manutenção, seguro, IPVA, rastreador">
               <b className={NUMERO_GRANDE}>{dinheiro(exibido.custos.custo_mes_centavos)}</b>
             </Quadro>
@@ -384,7 +405,7 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
         somenteLeitura={somenteLeitura}
         ocupado={ocupado === "compra"}
         aoEditar={editarCompra}
-        aoLigar={(ligado) => (ligado ? void mudarLigadoDaCompra(true) : setConfirmando({ tipo: "compra", chave: "compra", nome: "locação com compra", ultimo: ehOUltimoLigado(dados, "compra") }))}
+        aoLigar={(ligar) => setConfirmando({ tipo: "compra", chave: "compra", nome: "", ligar, ultimo: !ligar && ehOUltimoLigado(dados, "compra") })}
       />
 
       <Panel titulo="Regras desta moto">
@@ -419,12 +440,12 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
         aberto={confirmando !== null}
         aoFechar={() => setConfirmando(null)}
         tamanho="pequeno"
-        titulo={confirmando?.ultimo ? "Desligar o último plano?" : confirmando?.tipo === "compra" ? "Desligar a locação com compra?" : `Desligar o plano ${confirmando?.nome ?? ""}?`}
-        descricao={confirmando?.ultimo ? TEXTO_DESLIGAR_O_ULTIMO : TEXTO_DESLIGAR}
+        titulo={confirmando ? textos(confirmando).titulo : ""}
+        descricao={confirmando ? textos(confirmando).texto : undefined}
         acoes={
           <>
             <Button variante="quieto" onClick={() => setConfirmando(null)}>
-              Continuar ligado
+              {confirmando ? textos(confirmando).cancelar : ""}
             </Button>
             <Button
               variante="solido"
@@ -432,11 +453,11 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
                 const c = confirmando;
                 setConfirmando(null);
                 if (!c) return;
-                if (c.tipo === "compra") void mudarLigadoDaCompra(false);
-                else void mudarLigadoDoPlano(c.chave, false);
+                if (c.tipo === "compra") void mudarLigadoDaCompra(c.ligar);
+                else void mudarLigadoDoPlano(c.chave, c.ligar);
               }}
             >
-              Desligar plano
+              {confirmando ? textos(confirmando).confirmar : ""}
             </Button>
           </>
         }

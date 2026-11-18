@@ -8,8 +8,7 @@ import { ErroApi, veiculos, type PlanoCompraEntrada, type PlanoDoVeiculo, type P
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, placa } from "@/lib/formatos";
 import {
-  TEXTO_DESLIGAR,
-  TEXTO_DESLIGAR_O_ULTIMO,
+  textosDaConfirmacao,
   chaveDoPlano,
   ehOUltimoLigado,
   porPeriodo,
@@ -251,7 +250,7 @@ export function PrecosNaFicha({ id }: { id: number }) {
 
   const ligados = d.planos.filter((p) => p.ligado);
   const desligados = d.planos.filter((p) => !p.ligado);
-  const nomeDe = (q: "compra" | PlanoDoVeiculo) => (q === "compra" ? "a locação com compra" : `o plano ${q.rotulo.toLowerCase()}`);
+  const textos = (c: Confirmar) => textosDaConfirmacao({ alvo: c.quem === "compra" ? "compra" : "plano", nome: c.quem === "compra" ? "" : c.quem.rotulo, ligar: c.ligar, ultimo: c.ultimo });
   const custoMes = d.custos?.custo_mes_centavos;
 
   return (
@@ -298,12 +297,12 @@ export function PrecosNaFicha({ id }: { id: number }) {
         aberto={confirmar !== null}
         aoFechar={() => setConfirmar(null)}
         tamanho="pequeno"
-        titulo={confirmar ? (confirmar.ligar ? `Ligar ${nomeDe(confirmar.quem)}?` : confirmar.ultimo ? "Desligar o último plano?" : `Desligar ${nomeDe(confirmar.quem)}?`) : ""}
-        descricao={confirmar ? (confirmar.ligar ? "Este plano passa a aparecer na Nova locação, com o valor, a caução e a franquia definidos para esta moto." : confirmar.ultimo ? TEXTO_DESLIGAR_O_ULTIMO : TEXTO_DESLIGAR) : undefined}
+        titulo={confirmar ? textos(confirmar).titulo : ""}
+        descricao={confirmar ? textos(confirmar).texto : undefined}
         acoes={
           <>
             <Button variante="quieto" onClick={() => setConfirmar(null)}>
-              {confirmar?.ligar ? "Cancelar" : "Continuar ligado"}
+              {confirmar ? textos(confirmar).cancelar : ""}
             </Button>
             <Button
               variante="solido"
@@ -313,7 +312,7 @@ export function PrecosNaFicha({ id }: { id: number }) {
                 if (c) void executar(c);
               }}
             >
-              {confirmar?.ligar ? "Ligar plano" : "Desligar plano"}
+              {confirmar ? textos(confirmar).confirmar : ""}
             </Button>
           </>
         }
