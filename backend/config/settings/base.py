@@ -311,6 +311,14 @@ SPECTACULAR_SETTINGS = {
         "PeriodicidadeEnum": "apps.locacoes.models.Periodicidade",
         "PeriodicidadeCompraEnum": "apps.locacoes.models.PlanoCompra.PeriodicidadeCompra",
         "TipoLocacaoEnum": "apps.locacoes.models.TipoLocacao",
+        # Preços por veículo (T-494, ADR 0041): o tipo do plano e a periodicidade da compra
+        # do veículo, que ganha `quinzenal`.
+        "TipoPlanoVeiculoEnum": "apps.veiculos.models.TipoPlano",
+        "PeriodicidadeCompraVeiculoEnum": "apps.veiculos.models.Periodicidade",
+        "PeriodoPlanoEnum": "apps.veiculos.models.PeriodoPlano",
+        "ComoPagaEnum": "apps.veiculos.models.ComoPaga",
+        "FormaAceitaEnum": "apps.veiculos.models.FormaAceita",
+        "ModoParcelaEnum": "apps.veiculos.models.ModoParcela",
         # Nomes que veículos já publicava, antes de clientes ter outro `motivo` e `situacao`.
         "MotivoEnum": ["perda_total", "roubo", "sucata", "outro"],
         "SituacaoEnum": ["em_dia", "vence_em_breve", "vencido"],

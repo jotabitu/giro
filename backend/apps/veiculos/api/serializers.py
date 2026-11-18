@@ -790,7 +790,7 @@ class CustosEntradaSerializer(serializers.Serializer[Any]):
     ocupacao_esperada_pct = _pct(required=False, allow_null=True)
 
 
-class PlanoCompraEntradaSerializer(serializers.Serializer[Any]):
+class PlanoCompraDoVeiculoEntradaSerializer(serializers.Serializer[Any]):
     ligado = serializers.BooleanField(default=False)
     periodicidade = serializers.ChoiceField(choices=Periodicidade.choices)
     parcelas = serializers.IntegerField(min_value=2, max_value=1000)
@@ -812,7 +812,7 @@ class PrecosEntradaSerializer(serializers.Serializer[Any]):
     custos = CustosEntradaSerializer(required=False)
     planos = PlanoEntradaSerializer(many=True, required=False)
     regras = RegrasEntradaSerializer(required=False)
-    plano_compra = PlanoCompraEntradaSerializer(required=False, allow_null=True)
+    plano_compra = PlanoCompraDoVeiculoEntradaSerializer(required=False, allow_null=True)
     confirmar_juros = serializers.BooleanField(default=False)
 
 

@@ -7070,6 +7070,141 @@ paths:
               schema:
                 $ref: '#/components/schemas/LeituraCrlvNoEditar'
           description: ''
+  /api/veiculos/{id}/precos/:
+    get:
+      operationId: veiculos_precos_retrieve
+      description: |-
+        Planos e preços do veículo (VEI-12 a VEI-17, ADR 0041). Ler: quem vê valores, nas suas
+        filiais (o vistoriador não vê dinheiro, USR-09); salvar: o administrador (o gerente recebe
+        403, padrão A de "quem edita"; o suporte em "só ver", 403 `PLT-07`).
+      summary: Planos e preços do veículo (VEI-12 a VEI-17)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecosDoVeiculo'
+          description: ''
+    put:
+      operationId: veiculos_precos_update
+      description: |-
+        Planos e preços do veículo (VEI-12 a VEI-17, ADR 0041). Ler: quem vê valores, nas suas
+        filiais (o vistoriador não vê dinheiro, USR-09); salvar: o administrador (o gerente recebe
+        403, padrão A de "quem edita"; o suporte em "só ver", 403 `PLT-07`).
+      summary: Salvar os preços do veículo (VEI-12 a VEI-17)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecosDoVeiculo'
+          description: ''
+  /api/veiculos/{id}/precos/planos/{plano_id}/ligado/:
+    post:
+      operationId: veiculos_precos_planos_ligado_create
+      description: |-
+        O liga e desliga do cartão "Preços desta moto" da ficha (VEI-12), com confirmação na
+        tela.
+      summary: Ligar ou desligar um plano do veículo (VEI-12, VEI-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: plano_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LigarPlano'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LigarPlano'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LigarPlano'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecosDoVeiculo'
+          description: ''
+  /api/veiculos/{id}/precos/simular/:
+    post:
+      operationId: veiculos_precos_simular_create
+      description: O mesmo corpo do `PUT`, sem gravar (ADR 0005); o frontend chama
+        a cada mudança.
+      summary: Simular os preços do veículo, sem gravar (VEI-13, VEI-16)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecosDoVeiculo'
+          description: ''
   /api/veiculos/{id}/voltar-para-frota/:
     post:
       operationId: veiculos_voltar_para_frota_create
@@ -8163,6 +8298,47 @@ components:
       - proxima
       - resultados
       - resumo
+    Agendado:
+      type: object
+      properties:
+        valor_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+          nullable: true
+        a_partir_de:
+          type: string
+          format: date
+      required:
+      - a_partir_de
+      - caucao_centavos
+      - valor_centavos
+    AgendadoEntrada:
+      type: object
+      properties:
+        valor_centavos:
+          type: integer
+          minimum: 0
+        caucao_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        a_partir_de:
+          type: string
+          format: date
+      required:
+      - a_partir_de
+      - valor_centavos
+    AlertaDePreco:
+      type: object
+      properties:
+        codigo:
+          type: string
+        mensagem:
+          type: string
+      required:
+      - codigo
+      - mensagem
     AlternativaEssencial:
       type: object
       properties:
@@ -9954,6 +10130,20 @@ components:
         * `diesel` - Diesel
         * `eletrico` - Elétrico
         * `hibrido` - Híbrido
+    ComoPagaEnum:
+      enum:
+      - tudo_na_retirada
+      - semana_adiantado
+      - mes_uma_parcela
+      - mes_duas_quinzenais
+      - mes_quatro_semanais
+      type: string
+      description: |-
+        * `tudo_na_retirada` - Tudo na retirada
+        * `semana_adiantado` - Toda semana, adiantado
+        * `mes_uma_parcela` - 1 parcela no mês
+        * `mes_duas_quinzenais` - 2 quinzenais
+        * `mes_quatro_semanais` - 4 semanais
     Comparacao:
       type: object
       properties:
@@ -10977,6 +11167,59 @@ components:
       - saida
       type: string
       description: '* `saida` - Saída'
+    CustosDoVeiculo:
+      type: object
+      properties:
+        manutencao_mes_centavos:
+          type: integer
+        seguro_mes_centavos:
+          type: integer
+        rastreador_mes_centavos:
+          type: integer
+        ipva_ano_centavos:
+          type: integer
+        revenda_estimada_centavos:
+          type: integer
+          nullable: true
+        ocupacao_esperada_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        custo_mes_centavos:
+          type: integer
+      required:
+      - custo_mes_centavos
+      - ipva_ano_centavos
+      - manutencao_mes_centavos
+      - ocupacao_esperada_pct
+      - rastreador_mes_centavos
+      - revenda_estimada_centavos
+      - seguro_mes_centavos
+    CustosEntrada:
+      type: object
+      properties:
+        manutencao_mes_centavos:
+          type: integer
+          minimum: 0
+        seguro_mes_centavos:
+          type: integer
+          minimum: 0
+        rastreador_mes_centavos:
+          type: integer
+          minimum: 0
+        ipva_ano_centavos:
+          type: integer
+          minimum: 0
+        revenda_estimada_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        ocupacao_esperada_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
     DadosDoCnpj:
       type: object
       properties:
@@ -13062,6 +13305,18 @@ components:
         * `locacao` - Locação
         * `locacao_compra` - Locação com intenção de compra
         * `venda` - Venda
+    FormaAceitaEnum:
+      enum:
+      - pix
+      - boleto
+      - cartao
+      - dinheiro
+      type: string
+      description: |-
+        * `pix` - Pix
+        * `boleto` - Boleto
+        * `cartao` - Cartão
+        * `dinheiro` - Dinheiro
     FormaAssinaturaEnum:
       enum:
       - cartao
@@ -14633,6 +14888,13 @@ components:
       required:
       - em
       - km
+    LigarPlano:
+      type: object
+      properties:
+        ligado:
+          type: boolean
+      required:
+      - ligado
     LimiteExcedido:
       type: object
       properties:
@@ -15920,6 +16182,25 @@ components:
       - exemplo
       - finalidade
       - rotulo
+    MargemDoPlano:
+      type: object
+      properties:
+        receita_mes_centavos:
+          type: integer
+        lucro_mes_centavos:
+          type: integer
+        margem_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+          nullable: true
+        abaixo_da_minima:
+          type: boolean
+      required:
+      - abaixo_da_minima
+      - lucro_mes_centavos
+      - margem_pct
+      - receita_mes_centavos
     MeioDePagarEnum:
       enum:
       - cartao
@@ -16142,6 +16423,14 @@ components:
       - status
       - tem_rascunho
       - versao_publicada
+    ModoParcelaEnum:
+      enum:
+      - calcular
+      - digitar
+      type: string
+      description: |-
+        * `calcular` - Calcular pelos juros
+        * `digitar` - Digitar a parcela
     Motivo:
       type: object
       properties:
@@ -16896,6 +17185,21 @@ components:
       required:
       - forma
       - pago_em
+    PagoNaMoto:
+      type: object
+      properties:
+        total_centavos:
+          type: integer
+          nullable: true
+        compra_centavos:
+          type: integer
+          nullable: true
+        despesas_centavos:
+          type: integer
+      required:
+      - compra_centavos
+      - despesas_centavos
+      - total_centavos
     PainelEnum:
       enum:
       - todas_filiais
@@ -17007,6 +17311,19 @@ components:
       - locacao
       - valor_centavos
       - vencimento
+    ParcelaDoMes:
+      type: object
+      properties:
+        parcelas:
+          type: integer
+        parcela_centavos:
+          type: integer
+        ultima_parcela_centavos:
+          type: integer
+      required:
+      - parcela_centavos
+      - parcelas
+      - ultima_parcela_centavos
     ParcelaLocacao:
       type: object
       properties:
@@ -17073,6 +17390,19 @@ components:
       - valor_centavos
       - valor_hoje_centavos
       - vencimento
+    ParcelaNaPeriodicidade:
+      type: object
+      properties:
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeCompraVeiculoEnum'
+        parcelas:
+          type: integer
+        parcela_cliente_centavos:
+          type: integer
+      required:
+      - parcela_cliente_centavos
+      - parcelas
+      - periodicidade
     ParcelaPrevista:
       type: object
       properties:
@@ -18002,6 +18332,18 @@ components:
       description: |-
         * `semanal` - Semanal
         * `mensal` - Mensal
+    PeriodicidadeCompraVeiculoEnum:
+      enum:
+      - diaria
+      - semanal
+      - quinzenal
+      - mensal
+      type: string
+      description: |-
+        * `diaria` - Diária
+        * `semanal` - Semanal
+        * `quinzenal` - Quinzenal
+        * `mensal` - Mensal
     PeriodicidadeEnum:
       enum:
       - diaria
@@ -18051,6 +18393,16 @@ components:
       required:
       - fim
       - inicio
+    PeriodoPlanoEnum:
+      enum:
+      - dia
+      - semana
+      - mes
+      type: string
+      description: |-
+        * `dia` - Dia
+        * `semana` - Semana
+        * `mes` - Mês
     PermissaoExtraDoUsuario:
       type: object
       properties:
@@ -18268,6 +18620,84 @@ components:
       - periodicidade
       - ultima_parcela_centavos
       - valor_parcela_centavos
+    PlanoCompraDoVeiculo:
+      type: object
+      properties:
+        ligado:
+          type: boolean
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeCompraVeiculoEnum'
+        parcelas:
+          type: integer
+        entrada_centavos:
+          type: integer
+        juros_mes_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        modo:
+          $ref: '#/components/schemas/ModoParcelaEnum'
+        parcela_moto_centavos:
+          type: integer
+        adicional_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+        resultado:
+          allOf:
+          - $ref: '#/components/schemas/ResultadoCompra'
+          nullable: true
+      required:
+      - adicional_centavos
+      - caucao_centavos
+      - entrada_centavos
+      - juros_mes_pct
+      - ligado
+      - modo
+      - parcela_moto_centavos
+      - parcelas
+      - periodicidade
+      - resultado
+    PlanoCompraDoVeiculoEntrada:
+      type: object
+      properties:
+        ligado:
+          type: boolean
+          default: false
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeCompraVeiculoEnum'
+        parcelas:
+          type: integer
+          maximum: 1000
+          minimum: 2
+        entrada_centavos:
+          type: integer
+          minimum: 0
+          default: 0
+        juros_mes_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          default: '0.00'
+        modo:
+          allOf:
+          - $ref: '#/components/schemas/ModoParcelaEnum'
+          default: calcular
+        parcela_moto_centavos:
+          type: integer
+          minimum: 0
+          default: 0
+        adicional_centavos:
+          type: integer
+          minimum: 0
+          default: 0
+        caucao_centavos:
+          type: integer
+          minimum: 0
+          default: 0
+      required:
+      - parcelas
+      - periodicidade
     PlanoCompraEntrada:
       type: object
       description: 'LOC-16 (padrão A): nome, categoria, periodicidade, parcelas (2
@@ -18388,6 +18818,129 @@ components:
       - bloqueado
       - limite
       - usado
+    PlanoDoVeiculo:
+      type: object
+      description: |-
+        As chaves de custo (`AUSENTES_SEM_CUSTO`) que o selector não mandou ficam ausentes, não
+        nulas (VEI-13, USR-09): o DRF preencheria `null` num campo que aceita nulo.
+      properties:
+        id:
+          type: integer
+          nullable: true
+        tipo:
+          $ref: '#/components/schemas/TipoPlanoVeiculoEnum'
+        nome:
+          type: string
+          nullable: true
+        rotulo:
+          type: string
+        periodo:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/PeriodoPlanoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        ligado:
+          type: boolean
+        valor_centavos:
+          type: integer
+        como_paga:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/ComoPagaEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        formas_aceitas:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormaAceitaEnum'
+        caucao_centavos:
+          type: integer
+          nullable: true
+        caucao_parcelas:
+          type: integer
+        franquia_km:
+          type: integer
+          nullable: true
+        prazo_minimo_periodos:
+          type: integer
+          nullable: true
+        agendado:
+          allOf:
+          - $ref: '#/components/schemas/Agendado'
+          nullable: true
+        parcela_do_mes:
+          allOf:
+          - $ref: '#/components/schemas/ParcelaDoMes'
+          nullable: true
+        margem:
+          allOf:
+          - $ref: '#/components/schemas/MargemDoPlano'
+          nullable: true
+      required:
+      - agendado
+      - caucao_centavos
+      - caucao_parcelas
+      - como_paga
+      - formas_aceitas
+      - franquia_km
+      - id
+      - ligado
+      - nome
+      - parcela_do_mes
+      - periodo
+      - prazo_minimo_periodos
+      - rotulo
+      - tipo
+      - valor_centavos
+    PlanoEntrada:
+      type: object
+      description: |-
+        Um plano de `planos[]`: `id` nulo cria (`outro` novo, ou o tipo fixo que ainda não existe);
+        `ativo: false` retira o `outro`. Campo ausente fica como está.
+      properties:
+        id:
+          type: integer
+          nullable: true
+        tipo:
+          $ref: '#/components/schemas/TipoPlanoVeiculoEnum'
+        nome:
+          type: string
+          maxLength: 40
+        periodo:
+          $ref: '#/components/schemas/PeriodoPlanoEnum'
+        ligado:
+          type: boolean
+        valor_centavos:
+          type: integer
+          minimum: 0
+        como_paga:
+          $ref: '#/components/schemas/ComoPagaEnum'
+        formas_aceitas:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormaAceitaEnum'
+        caucao_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        caucao_parcelas:
+          type: integer
+          maximum: 12
+          minimum: 1
+        franquia_km:
+          type: integer
+          minimum: 1
+          nullable: true
+        prazo_minimo_periodos:
+          type: integer
+          maximum: 32767
+          minimum: 1
+          nullable: true
+        agendado:
+          allOf:
+          - $ref: '#/components/schemas/AgendadoEntrada'
+          nullable: true
+        ativo:
+          type: boolean
     PlanoEspecial:
       type: object
       properties:
@@ -18853,6 +19406,88 @@ components:
       - mensal_centavos
       - semanal_centavos
       - vigente_desde
+    PrecosDoVeiculo:
+      type: object
+      properties:
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDosPrecos'
+        valor_venda_centavos:
+          type: integer
+          nullable: true
+        fipe_centavos:
+          type: integer
+          nullable: true
+        ocupacao_real_90d_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        margem_minima_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        planos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanoDoVeiculo'
+        regras:
+          $ref: '#/components/schemas/RegrasDoVeiculo'
+        plano_compra:
+          allOf:
+          - $ref: '#/components/schemas/PlanoCompraDoVeiculo'
+          nullable: true
+        alertas:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertaDePreco'
+        aviso_preco:
+          type: string
+          nullable: true
+        pede_confirmacao_juros:
+          type: boolean
+        pode_editar:
+          type: boolean
+        pago_na_moto:
+          $ref: '#/components/schemas/PagoNaMoto'
+        custos:
+          $ref: '#/components/schemas/CustosDoVeiculo'
+      required:
+      - alertas
+      - aviso_preco
+      - fipe_centavos
+      - margem_minima_pct
+      - ocupacao_real_90d_pct
+      - pede_confirmacao_juros
+      - plano_compra
+      - planos
+      - pode_editar
+      - regras
+      - valor_venda_centavos
+      - veiculo
+    PrecosEntrada:
+      type: object
+      description: O documento inteiro da tela de preços (`PUT` e `simular`). Bloco
+        ausente fica como está.
+      properties:
+        valor_venda_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        custos:
+          $ref: '#/components/schemas/CustosEntrada'
+        planos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanoEntrada'
+        regras:
+          $ref: '#/components/schemas/RegrasEntrada'
+        plano_compra:
+          allOf:
+          - $ref: '#/components/schemas/PlanoCompraDoVeiculoEntrada'
+          nullable: true
+        confirmar_juros:
+          type: boolean
+          default: false
     PrecosLocacao:
       type: object
       properties:
@@ -19386,6 +20021,49 @@ components:
       description: |-
         * `preco_fixo` - Preço fixo
         * `desconto` - Desconto
+    RegrasDoVeiculo:
+      type: object
+      properties:
+        km_excedente_centavos:
+          type: integer
+        dia_atraso_centavos:
+          type: integer
+        multa_minima_centavos:
+          type: integer
+        desconto_sem_aprovacao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        prazo_devolucao_caucao_dias:
+          type: integer
+          nullable: true
+      required:
+      - desconto_sem_aprovacao_pct
+      - dia_atraso_centavos
+      - km_excedente_centavos
+      - multa_minima_centavos
+      - prazo_devolucao_caucao_dias
+    RegrasEntrada:
+      type: object
+      properties:
+        km_excedente_centavos:
+          type: integer
+          minimum: 0
+        dia_atraso_centavos:
+          type: integer
+          minimum: 0
+        multa_minima_centavos:
+          type: integer
+          minimum: 0
+        desconto_sem_aprovacao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        prazo_devolucao_caucao_dias:
+          type: integer
+          maximum: 365
+          minimum: 0
+          nullable: true
     Renegociar:
       type: object
       properties:
@@ -19565,6 +20243,62 @@ components:
       - texto
       - tipo
       - valor_centavos
+    ResultadoCompra:
+      type: object
+      description: |-
+        As chaves de custo (`AUSENTES_SEM_CUSTO`) que o selector não mandou ficam ausentes, não
+        nulas (VEI-13, USR-09): o DRF preencheria `null` num campo que aceita nulo.
+      properties:
+        financiado_centavos:
+          type: integer
+        meses_do_prazo:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+        taxa_periodo_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+        juros_mes_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        parcela_moto_centavos:
+          type: integer
+        adicional_centavos:
+          type: integer
+        parcela_cliente_centavos:
+          type: integer
+        recebe_pela_moto_centavos:
+          type: integer
+        juros_no_prazo_centavos:
+          type: integer
+        venda_abaixo_do_pago:
+          type: boolean
+        nas_periodicidades:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParcelaNaPeriodicidade'
+        lucro_centavos:
+          type: integer
+          nullable: true
+        margem_sobre_pago_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+          nullable: true
+      required:
+      - adicional_centavos
+      - financiado_centavos
+      - juros_mes_pct
+      - juros_no_prazo_centavos
+      - meses_do_prazo
+      - nas_periodicidades
+      - parcela_cliente_centavos
+      - parcela_moto_centavos
+      - recebe_pela_moto_centavos
+      - taxa_periodo_pct
+      - venda_abaixo_do_pago
     ResumoCaixa:
       type: object
       properties:
@@ -20539,6 +21273,20 @@ components:
       description: |-
         * `reembolso` - reembolso
         * `despesa` - despesa
+    TipoPlanoVeiculoEnum:
+      enum:
+      - diaria
+      - semanal
+      - mensal
+      - entregador
+      - outro
+      type: string
+      description: |-
+        * `diaria` - Diária
+        * `semanal` - Semanal
+        * `mensal` - Mensal
+        * `entregador` - Entregador
+        * `outro` - Outro
     TipoSessaoEnum:
       enum:
       - desktop
@@ -21161,10 +21909,14 @@ components:
           nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDoVeiculo'
+        aviso_preco:
+          type: string
+          nullable: true
       required:
       - acoes
       - ano_fabricacao
       - ano_modelo
+      - aviso_preco
       - capacidade_tanque_litros
       - categoria
       - chassi
@@ -21366,6 +22118,9 @@ components:
           nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDoVeiculo'
+        aviso_preco:
+          type: string
+          nullable: true
         documento:
           $ref: '#/components/schemas/DocumentoDoVeiculo'
         rastreador:
@@ -21378,6 +22133,7 @@ components:
       - ano_fabricacao
       - ano_modelo
       - anotacoes
+      - aviso_preco
       - capacidade_tanque_litros
       - categoria
       - chassi
@@ -21565,6 +22321,9 @@ components:
           nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDaFicha'
+        aviso_preco:
+          type: string
+          nullable: true
         documento:
           $ref: '#/components/schemas/DocumentoDoVeiculo'
         rastreador:
@@ -21595,6 +22354,7 @@ components:
       - ano_fabricacao
       - ano_modelo
       - anotacoes
+      - aviso_preco
       - capacidade_tanque_litros
       - categoria
       - chassi
@@ -21623,6 +22383,25 @@ components:
       - situacao
       - status
       - tipo_veiculo
+    VeiculoDosPrecos:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        marca:
+          type: string
+        modelo:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusVeiculoEnum'
+      required:
+      - id
+      - marca
+      - modelo
+      - placa
+      - status
     VeiculoEntrada:
       type: object
       description: |-

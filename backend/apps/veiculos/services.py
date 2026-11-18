@@ -2314,7 +2314,9 @@ def _gravar_documento(veiculo: Veiculo, documento: DocumentoDePrecos, lote: _Lot
     for plano in documento.planos:
         antes = salvos.get(plano.pk, {}) if plano.pk else {}
         plano.save()
-        lote.comparar(AlvoPreco.PLANO, antes, plano, CAMPOS_DO_PLANO_VEICULO, plano.pk, plano.rotulo)
+        lote.comparar(
+            AlvoPreco.PLANO, antes, plano, CAMPOS_DO_PLANO_VEICULO, plano.pk, plano.rotulo
+        )
     regras_antes = _valores(
         RegrasVeiculo.objects.filter(veiculo_id=veiculo.pk).first(), CAMPOS_DAS_REGRAS
     )

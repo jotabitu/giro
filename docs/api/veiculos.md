@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 05 nov 2026 (T-422, referência FIPE, ADR 0038); 03 nov 2026 (T-414, fotos do veículo, `VEI-10`, ADR 0036; T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-10, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026, 0036, 0038 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
+**Dono:** arquiteto · **Versão:** 18 nov 2026 (T-494, preços do veículo, `VEI-12` a `VEI-17`, ADR 0041); 05 nov 2026 (T-422, referência FIPE, ADR 0038); 03 nov 2026 (T-414, fotos do veículo, `VEI-10`, ADR 0036; T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-10, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026, 0036, 0038 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -15,6 +15,8 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`Prec
 | Bloquear, desbloquear, colocar à venda, voltar para a frota | sim | sim | — | — | — |
 | Baixar | sim | — | — | — | — |
 | Categorias, preços e extras | sim | — | — | — | — |
+| Ver os preços do veículo (`GET .../precos/`) | sim | sim | sim | — | sim |
+| Salvar e simular os preços do veículo, ligar e desligar plano | sim | — | — | — | — |
 
 Ver é liberado a todos os perfis no escopo das suas filiais porque toda a operação (nova locação, vistoria, caixa) consulta o veículo; dados de compra (`valor_compra_centavos`) só saem para administrador e gerente. Rendimento e custo de manutenção (`indicadores_financeiros`, `VEI-05`) só saem para administrador, gerente e financeiro; para vendedor e vistoriador a chave vem ausente, não `null` (`USR-09`, T-156). O vistoriador recebe a frota, a ficha e as categorias sem valor em dinheiro: sem nenhum campo `_centavos`, sem `preco_vigente`, `proximo_preco`, `indicadores_financeiros` e `data_compra` (as chaves vêm ausentes); o histórico de preços da categoria e os extras respondem 403 para ele (`USR-09`, T-136).
 
@@ -44,9 +46,12 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   "acoes": { "editar": true, "colocar_a_venda": true, "voltar_para_frota": false, "bloquear": true,
              "desbloquear": false, "transferir": true, "baixar": false, "registrar_km": true, "corrigir_km": true,
              "movimentar": true, "motivo_movimentar": null },
-  "movimentacao_aberta": null
+  "movimentacao_aberta": null,
+  "aviso_preco": null
 }
 ```
+
+- `aviso_preco` (T-494, `VEI-15`, ADR 0041): na lista e na ficha, em qualquer status, `"A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda."` quando o veículo não tem nenhum plano ligado (de aluguel ou a locação com compra); senão `null`. Não é status: o veículo `disponivel` sem plano vai para `indisponivel` com `motivo_status` "Sem preço · ligue um plano" (seção "Preços do veículo").
 
 - `placa` sai sem hífen no campo, e a tela põe o hífen; dentro de um texto montado pela API, sai com hífen (`docs/api/README.md`, Convenções, T-340). Aceita padrão antigo (`ABC1234`) e Mercosul (`ABC1D23`). `chassi` com 17 letras e números.
 - `preco_vigente`: preço da categoria vigente hoje (`LOC-15`). A coluna "Diária" da Frota usa `diaria_centavos`; veículo `a_venda` mostra `valor_venda_centavos`.
@@ -600,6 +605,165 @@ A tela guarda os dois ids com a escolha e manda no bloco `fipe`. Linha com ids `
 
 - O seed não ganha código FIPE: os 86 veículos ficam `sem_versao`, e com `GIRO_PROVEDOR_FIPE=falso` a primeira rodada casa pelo catálogo e precifica pelo provedor falso. O provedor falso responde as referências "outubro/2026" e "novembro/2026" e os preços dos modelos do seed, com números fictícios fixos, para os testes; não muda nenhum número das regras.
 - Testes `test_ven_01_*` e `test_vei_08_*` com o provedor falso e com respostas gravadas da Parallelum (sem chamada real no CI): parada no 429 e retomada no dia seguinte, orçamento do dia, um pedido por código e ano com dois veículos de empresas diferentes, último valor quando a API cai, casamento com uma, várias e nenhuma versão, consulta por placa com cota esgotada.
+
+---
+
+## Preços do veículo (`VEI-12` a `VEI-17`, T-494, ADR 0041)
+
+Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços desta moto" da ficha (`Veiculo-Componente-PrecosDaMoto`). O preço é de cada veículo: planos de aluguel, regras, custos e a locação com compra. A API calcula tudo (margem, parcela, juros, alertas); a tela só mostra e chama o `simular` a cada mudança, com debounce. A locação ainda lê a tabela da categoria até a T-495 (ADR 0041, tarefa 2).
+
+### Quem pode
+
+- `GET`: administrador, gerente, vendedor e financeiro, no veículo das suas filiais (fora delas, 404). O vistoriador recebe 403 (não vê dinheiro, `USR-09`). O suporte Giro em "só ver" lê.
+- `PUT`, `simular` e o liga e desliga: só o administrador. O gerente recebe 403 (padrão A de "quem edita"); o suporte em "só ver", 403 `PLT-07`.
+- `custos`, `pago_na_moto`, `planos[].margem` e o lucro e a margem da compra só saem para administrador, gerente e financeiro; para o vendedor, as chaves vêm **ausentes**, não `null` (`VEI-13`, `USR-09`).
+
+### GET /api/veiculos/{id}/precos/
+
+```json
+{
+  "veiculo": { "id": 900, "placa": "TBC5H21", "marca": "Honda", "modelo": "Pop 110i", "status": "disponivel" },
+  "valor_venda_centavos": 1590000,
+  "fipe_centavos": 1390000,
+  "ocupacao_real_90d_pct": "84.00",
+  "margem_minima_pct": null,
+  "pago_na_moto": { "total_centavos": 1380000, "compra_centavos": 1349000, "despesas_centavos": 31000 },
+  "custos": {
+    "manutencao_mes_centavos": 10000, "seguro_mes_centavos": 8000, "rastreador_mes_centavos": 5000,
+    "ipva_ano_centavos": 120000, "revenda_estimada_centavos": 900000, "ocupacao_esperada_pct": "85.00",
+    "custo_mes_centavos": 53000
+  },
+  "planos": [
+    {
+      "id": 31, "tipo": "semanal", "nome": null, "rotulo": "Semanal", "periodo": "semana", "ligado": true,
+      "valor_centavos": 32900, "como_paga": "semana_adiantado", "formas_aceitas": ["pix", "boleto", "cartao", "dinheiro"],
+      "caucao_centavos": 30000, "caucao_parcelas": 1, "franquia_km": 1000, "prazo_minimo_periodos": null,
+      "agendado": { "valor_centavos": 34900, "caucao_centavos": null, "a_partir_de": "2026-12-01" },
+      "parcela_do_mes": null,
+      "margem": { "receita_mes_centavos": 121182, "lucro_mes_centavos": 68182, "margem_pct": "56.26", "abaixo_da_minima": false }
+    },
+    { "id": null, "tipo": "entregador", "nome": null, "rotulo": "Entregador", "periodo": null, "ligado": false, "valor_centavos": 0, "...": "..." }
+  ],
+  "regras": {
+    "km_excedente_centavos": 35, "dia_atraso_centavos": 5500, "multa_minima_centavos": 5490,
+    "desconto_sem_aprovacao_pct": "10.00", "prazo_devolucao_caucao_dias": 3
+  },
+  "plano_compra": {
+    "ligado": true, "periodicidade": "semanal", "parcelas": 104, "entrada_centavos": 100000, "juros_mes_pct": "1.00",
+    "modo": "calcular", "parcela_moto_centavos": 16124, "adicional_centavos": 2977, "caucao_centavos": 30000,
+    "resultado": {
+      "financiado_centavos": 1490000, "meses_do_prazo": "24.00", "taxa_periodo_pct": "0.23", "juros_mes_pct": "1.00",
+      "parcela_moto_centavos": 16124, "adicional_centavos": 2977, "parcela_cliente_centavos": 19101,
+      "recebe_pela_moto_centavos": 1776896, "juros_no_prazo_centavos": 186896, "venda_abaixo_do_pago": false,
+      "lucro_centavos": 396896, "margem_sobre_pago_pct": "28.76",
+      "nas_periodicidades": [
+        { "periodicidade": "diaria", "parcelas": 730, "parcela_cliente_centavos": 2719 },
+        { "periodicidade": "semanal", "parcelas": 104, "parcela_cliente_centavos": 19101 },
+        { "periodicidade": "quinzenal", "parcelas": 52, "parcela_cliente_centavos": 38239 },
+        { "periodicidade": "mensal", "parcelas": 24, "parcela_cliente_centavos": 83039 }
+      ]
+    }
+  },
+  "alertas": [],
+  "aviso_preco": null,
+  "pede_confirmacao_juros": false,
+  "pode_editar": true
+}
+```
+
+- `planos`: sempre os quatro tipos fixos, nesta ordem (`diaria`, `semanal`, `mensal`, `entregador`), e depois os `outro` ativos. Tipo fixo que o veículo ainda não tem vem com `id` `null`, desligado e valor 0 ("Ligue para definir valor, prazo mínimo e caução").
+- `valor_centavos` e `caucao_centavos` são os **efetivos de hoje**: com o preço agendado já na data, vêm os agendados e `agendado` vem `null`, mesmo antes da rotina das 00:05 (ADR 0041, risco 3). `agendado` só aparece enquanto a data é futura ("R$ 349,00 a partir de 01 dez").
+- `periodo`: `dia`, `semana` ou `mes`. `como_paga`: `tudo_na_retirada` (dia), `semana_adiantado` (semana), `mes_uma_parcela`, `mes_duas_quinzenais` ou `mes_quatro_semanais` (mês). `parcela_do_mes` só no mês dividido: `{ "parcelas": 4, "parcela_centavos": 24750, "ultima_parcela_centavos": 24750 }` (a diferença de centavos vai para a última).
+- `franquia_km` `null` = livre; `prazo_minimo_periodos` `null` = sem mínimo; `caucao_centavos` `null` = não preenchida (R$ 0,00 é válido).
+- `margem` `null` sem `ocupacao_esperada_pct` ("Informe a ocupação"). `margem_pct` `null` com receita zero. `abaixo_da_minima` pinta a faixa de amarelo (`margem_minima_pct` da empresa; nula = nunca).
+- `pago_na_moto.total_centavos` = compra + despesas do veículo sem as recusadas (`FIN-17`); `null` sem valor de compra (aí `lucro_centavos` e `margem_sobre_pago_pct` também vêm `null`).
+- `plano_compra` `null` enquanto o veículo não tem um; `resultado` `null` sem valor de venda ou com entrada maior ou igual a ele. O "recebe pela moto" usa a parcela arredondada × `n` + entrada (padrão A: Pop R$ 17.768,96). A parcela nas 4 periodicidades usa o mesmo prazo em meses; a parcela da moto e o adicional se arredondam cada um.
+- `alertas`: `{ "codigo": "venda_abaixo_do_pago", "mensagem": "Valor de venda abaixo do que foi pago: o lucro vem só dos juros." }` e, com juros acima de 1% ao mês, `{ "codigo": "VEI-16", "mensagem": "Locadora não é financeira: juros acima de 1% ao mês (12% ao ano) pedem confirmação. Valide o contrato com seu advogado." }`.
+- `aviso_preco`: o mesmo da representação do veículo, calculado sobre o documento mostrado.
+- `pode_editar`: `true` só para o administrador (fora do suporte em "só ver").
+
+### PUT /api/veiculos/{id}/precos/
+
+Corpo com o documento da tela; bloco ausente fica como está, e campo ausente dentro de um plano também. Devolve o mesmo corpo do `GET`.
+
+```json
+{
+  "valor_venda_centavos": 1590000,
+  "custos": { "manutencao_mes_centavos": 10000, "seguro_mes_centavos": 8000, "rastreador_mes_centavos": 5000,
+              "ipva_ano_centavos": 120000, "revenda_estimada_centavos": 900000, "ocupacao_esperada_pct": "85.00" },
+  "planos": [
+    { "id": 31, "valor_centavos": 32900, "ligado": true, "franquia_km": 1000,
+      "agendado": { "valor_centavos": 34900, "caucao_centavos": null, "a_partir_de": "2026-12-01" } },
+    { "tipo": "entregador", "periodo": "semana", "ligado": true, "valor_centavos": 27900, "formas_aceitas": ["pix"],
+      "caucao_centavos": 0, "caucao_parcelas": 3, "prazo_minimo_periodos": 12 },
+    { "id": null, "tipo": "outro", "nome": "Fim de semana", "periodo": "dia", "valor_centavos": 9900 },
+    { "id": 44, "ativo": false }
+  ],
+  "regras": { "km_excedente_centavos": 35, "dia_atraso_centavos": 5500, "multa_minima_centavos": 5490,
+              "desconto_sem_aprovacao_pct": "10.00", "prazo_devolucao_caucao_dias": 3 },
+  "plano_compra": { "ligado": true, "periodicidade": "semanal", "parcelas": 104, "entrada_centavos": 100000,
+                    "juros_mes_pct": "1.00", "modo": "calcular", "parcela_moto_centavos": 0,
+                    "adicional_centavos": 2977, "caucao_centavos": 30000 },
+  "confirmar_juros": false
+}
+```
+
+- O plano se acha pelo `id`, ou pelo `tipo` nos tipos fixos sem `id` (cria o que ainda não existe). `outro` com `id` `null` cria um novo; precisa de `nome` (até 40), único entre os `outro` ativos sem diferenciar maiúsculas. `entregador` e `outro` precisam de `periodo`.
+- `ativo: false` retira só o `outro` (fica `ativo=false`, nada se apaga); nos tipos fixos responde 400 "Este plano não se retira. Desligue o plano.".
+- `agendado: null` desfaz o agendado; um objeto troca o anterior. `a_partir_de` a partir de amanhã (data sem hora, `America/Sao_Paulo`).
+- `plano_compra`: `periodicidade` (`diaria`, `semanal`, `quinzenal`, `mensal`), `parcelas` de 2 a 1000. No `calcular`, a API calcula a parcela pelos juros e ignora `parcela_moto_centavos`; no `digitar`, grava a parcela digitada e acha os juros por bisseção, gravados com 2 casas.
+- 400 `validacao`, com os campos pontuados (`planos.0.valor_centavos`, `plano_compra.entrada_centavos`):
+
+| Campo | Mensagem |
+| --- | --- |
+| `planos.N.valor_centavos` | Informe um valor maior que zero para ligar o plano. |
+| `planos.N.formas_aceitas` | Escolha ao menos uma forma de pagamento para ligar o plano. |
+| `planos.N.caucao_centavos` | Informe a caução para ligar o plano. Pode ser R$ 0,00. |
+| `planos.N.como_paga` | Escolha como o cliente paga neste período. |
+| `planos.N.nome` | Dê um nome ao plano. |
+| `planos.N.agendado.a_partir_de` | Escolha uma data a partir de amanhã. |
+| `valor_venda_centavos` | Informe o valor de venda para ligar a locação com compra. |
+| `plano_compra.entrada_centavos` | A entrada precisa ser menor que o valor de venda. |
+| `plano_compra.parcela_moto_centavos` | A parcela não cobre o valor de venda. |
+
+- 409 `VEI-16` quando a compra fica ligada com juros acima de 1,00% ao mês (o digitado no `calcular`, o achado no `digitar`), mudados desde a última gravação ou com a compra ligada agora, sem `confirmar_juros: true`:
+  `{ "codigo": "VEI-16", "mensagem": "Locadora não é financeira: juros acima de 1% ao mês (12% ao ano) pedem confirmação. Valide o contrato com seu advogado.", "detalhes": { "juros_mes_pct": "1.46" } }`. A tela confirma e reenvia com `confirmar_juros: true`; o evento de auditoria grava `juros_confirmados: { pct, por, em }`.
+- A gravação é uma transação com o veículo travado. Cada campo mudado vira uma linha do histórico de preços (`VEI-17`, origem `tela_precos`), e a gravação inteira um evento de auditoria `veiculo.precos_salvar` ("Mudou os preços do veículo TBC-5H21"), com o `lote`.
+- Depois de gravar, o "sem preço" se alinha (abaixo).
+
+### POST /api/veiculos/{id}/precos/simular/
+
+O mesmo corpo do `PUT` (o `confirmar_juros` é ignorado), sem gravar nada (ADR 0005). Devolve o corpo do `GET` com o documento simulado e `pede_confirmacao_juros` `true` quando salvar pediria a confirmação. Os mesmos 400.
+
+### POST /api/veiculos/{id}/precos/planos/{plano_id}/ligado/
+
+`{ "ligado": false }`: o liga e desliga do cartão da ficha, com confirmação na tela. Mesmo histórico (origem `ficha`), auditoria e "sem preço" do `PUT`. Ligar sem valor, forma ou caução: 400 com `valor_centavos`, `formas_aceitas` ou `caucao_centavos`. Plano de outro veículo ou retirado: 404. Devolve o corpo do `GET`.
+
+### Sem preço (`VEI-15`)
+
+- O veículo `disponivel` que fica sem nenhum plano ligado (nem a compra) vai para `indisponivel` com `motivo_status` "Sem preço · ligue um plano", na mesma gravação. Ligar um plano o devolve a `disponivel`, desde que o motivo seja esse e nenhum CRLV ou seguro tenha vencido; bloqueio ou documento vencido não voltam sozinhos.
+- `reservado`, `alugado`, `em_manutencao` e `em_movimentacao` mantêm o status. Na volta (`transicionar(..., "disponivel")`: devolução, reserva cancelada, fim de OS, chegada da movimentação), o veículo sem plano ligado vai para `indisponivel` "sem preço" (`acao` `veiculo.sem_preco`). Desbloquear ou "Voltar para a frota" um veículo sem plano responde 409 `VEI-15`.
+- "Colocar à venda" sem plano ligado: 409 `{ "codigo": "VEI-15", "mensagem": "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda." }` (`VEN-01`).
+
+### Preço agendado
+
+Um por plano. Quem lê o preço pergunta pelo dia: o agendado vale a partir de `a_partir_de`. A rotina `consolidar_precos_agendados` (Celery Beat, 00:05, uma por empresa, idempotente) passa o agendado vencido a vigente e limpa os campos, com histórico (origem `agendamento`, sem pessoa) e o evento `veiculo.precos_agendado_vigente` do Sistema. O plano que nasceu sem preço na migração e só com o agendado liga no dia, se tiver forma e caução.
+
+### Veículo novo e migração
+
+- O veículo cadastrado (tela, CRLV, importação, troca) nasce com `diaria`, `semanal` e `mensal` pelo preço vigente da categoria (`veiculos.services.aplicar_modelo_de_preco`), ligados quando há valor e caução; o primeiro preço futuro da categoria vira o agendado; regras com dia de atraso e multa mínima iguais à diária e 5% sem aprovação.
+- A migration `veiculos 0010` faz o mesmo para os veículos que já existem (origem `migracao`), uma vez por veículo (sem `RegrasVeiculo`); um segundo preço futuro da categoria não cabe e sai listado no `migrate`.
+
+### Interface interna
+
+| Item | Uso |
+| --- | --- |
+| `veiculos.services.tem_plano_ligado(veiculo)` | algum plano ativo e ligado, ou a compra ligada |
+| `veiculos.services.sem_preco()` | o `Conflito` 409 `VEI-15` com o aviso, para a Nova locação e a troca (T-495) |
+| `veiculos.services.MOTIVO_SEM_PRECO`, `AVISO_PRECO` | os textos |
+| `PlanoVeiculo.valor_em(dia)`, `caucao_em(dia)` | o preço do dia, com o agendado |
+| `veiculos.precos` | o cálculo puro (`simular`, `simular_compra`, `pmt`, `juros_por_bissecao`, `margem`) |
+| `financeiro` registra o contador `("veiculos.Veiculo", "despesas_centavos")` | as despesas do veículo sem as recusadas, para o "pago na moto" (ADR 0015) |
 
 ---
 
