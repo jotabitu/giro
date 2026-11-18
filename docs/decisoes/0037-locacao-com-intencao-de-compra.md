@@ -1,6 +1,6 @@
 # Locação com intenção de compra: tipo da locação, plano de compra, quitação por evento e a venda mínima
 
-**Status:** aceita · 03 nov 2026 · T-420 (regras: `LOC-16`, `VEN-11`, tabela de transições do veículo `alugado` → `vendido`, `LOC-04`, `LOC-05`, `LOC-10`, `LOC-12`, `LOC-15`, `VEN-06`, `VEN-07`, `FIN-09`, `FIL-02`; critérios CA-420-01 a 17; decisões do dono de 29 e 30 out 2026) · detalha a 0011, a 0012 e a 0015 · vale com o padrão A dos dois pontos em aberto da `LOC-16` (plano de compra em `Precos`; encerramento sem multa)
+**Status:** aceita, **substituída em parte pela [0041](0041-precos-por-veiculo.md)** (18 nov 2026: o item 2 e a origem do valor e da caução no item 1; o plano de compra passa a ser do veículo) · 03 nov 2026 · T-420 (regras: `LOC-16`, `VEN-11`, tabela de transições do veículo `alugado` → `vendido`, `LOC-04`, `LOC-05`, `LOC-10`, `LOC-12`, `LOC-15`, `VEN-06`, `VEN-07`, `FIN-09`, `FIL-02`; critérios CA-420-01 a 17; decisões do dono de 29 e 30 out 2026) · detalha a 0011, a 0012 e a 0015 · vale com o padrão A dos dois pontos em aberto da `LOC-16` (plano de compra em `Precos`; encerramento sem multa)
 
 ## Contexto
 

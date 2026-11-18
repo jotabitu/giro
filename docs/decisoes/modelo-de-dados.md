@@ -1,7 +1,7 @@
 # Modelo de dados
 
 **Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), locação com intenção de compra e venda da quitação em 03 nov 2026 (T-420, ADR 0037), referência FIPE em 05 nov 2026 (T-422, ADR 0038) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
-**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), foto do veículo em 03 nov 2026 (T-414, ADR 0036) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), foto do veículo em 03 nov 2026 (T-414, ADR 0036), preços por veículo em 18 nov 2026 (T-492, ADR 0041) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
 
@@ -233,6 +233,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 ### 8. Categoria de veículo · `veiculos.Categoria` · ativável
 
+> **Desde a ADR 0041 (18 nov 2026):** a categoria é o "Tipo de veículo" (nome e moto ou carro). Nenhuma locação, ficha ou Frota lê preço dela. `PrecoCategoria` fica, sem ser apagado, só como modelo de preço do cadastro, da importação e do assistente; a `filial` deixa de ter efeito no preço. O preço é do veículo (9b).
+
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `nome` | texto(60) | Urbana 110–125 |
@@ -294,6 +296,17 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Apoio `HistoricoStatusVeiculo`: `veiculo` FK, `de`, `para`, `em` momento, `origem` genérica, `por` FK nulo. Base de `VEI-06` (ocupação). Índice `(veiculo, em)`.
 - Apoio `LeituraKm`: `veiculo`, `km`, `lido_em`, `origem` genérica (vistoria, OS, correção), `motivo` (correção para baixo, `APR-06`).
 - Apoio `TransferenciaVeiculo`: `veiculo`, `filial_origem`, `filial_destino`, `em`, `por` (`VEI-04`), origem genérica nula (`movimentacao` na transferência pela chegada, `MOV-06`, T-286).
+
+### 9b. Preços do veículo · `veiculos.PlanoVeiculo`, `RegrasVeiculo`, `CustosVeiculo`, `PlanoCompraVeiculo`, `HistoricoPrecoVeiculo`
+
+T-492, `VEI-12` a `VEI-17`, ADR 0041 (campos, `CHECK`, únicos e enums completos estão lá, item 1).
+
+- `PlanoVeiculo` (ativável): `veiculo` FK, `tipo` enum `diaria`, `semanal`, `mensal`, `entregador`, `outro`, `nome` texto(40), `periodo` enum `dia`, `semana`, `mes`, `ligado`, `valor_centavos`, `como_paga` enum, `formas_aceitas` array de `pix`, `boleto`, `cartao`, `dinheiro`, `caucao_centavos` nulo, `caucao_parcelas` 1..12, `franquia_km` nulo (livre), `prazo_minimo_periodos` nulo. Únicos parciais `(veiculo, tipo)` fora do `outro` e `(veiculo, lower(nome))` no `outro`, com `ativo`.
+- `RegrasVeiculo` (1:1): `km_excedente_centavos`, `dia_atraso_centavos`, `desconto_sem_aprovacao_pct` (5.00), `prazo_devolucao_caucao_dias` nulo.
+- `CustosVeiculo` (1:1): manutenção, seguro e rastreador por mês, `ipva_ano_centavos`, `revenda_estimada_centavos` nulo, `ocupacao_esperada_pct` nulo. Valor de venda = `Veiculo.valor_venda_centavos`; pago na moto = compra + despesas (calculado).
+- `PlanoCompraVeiculo` (1:1): `ligado`, `periodicidade` enum `diaria`, `semanal`, `quinzenal`, `mensal`, `parcelas` 2..1000, `entrada_centavos`, `juros_mes_pct`, `modo` enum `calcular`, `digitar`, `parcela_moto_centavos`, `adicional_centavos`, `caucao_centavos`.
+- `HistoricoPrecoVeiculo` (imutável): `veiculo`, `em`, `por` nulo, `origem`, `alvo`, `alvo_id`, `alvo_nome`, `campo`, `de`, `para` json, `lote` UUID. Índice `(veiculo, em)`.
+- Sem plano ligado: `indisponivel` com `motivo_status` "Sem preço · ligue um plano", pelo serviço (`VEI-15`).
 
 ### 9a. Foto do veículo · `veiculos.FotoVeiculo` · ativável
 
@@ -359,6 +372,8 @@ T-414, `VEI-10`, ADR 0036. A galeria do veículo (fotos de cadastro, para a fich
 
 ### 12. Plano de locação especial · `locacoes.PlanoEspecial` · ativável
 
+> **Desde a ADR 0041:** fora da Nova locação (o Entregador é tipo de plano do veículo); fica para as locações antigas, cadastro novo responde 410.
+
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `nome` | texto(60), único | Entregador, Mensal fidelidade |
@@ -373,6 +388,8 @@ T-414, `VEI-10`, ADR 0036. A galeria do veículo (fotos de cadastro, para a fich
 - `CHECK` de que só o campo da `regra` escolhida está preenchido.
 
 ### 12a. Plano de compra · `locacoes.PlanoCompra` · ativável
+
+> **Desde a ADR 0041:** substituído pelo `veiculos.PlanoCompraVeiculo` (9b); fica para as locações antigas, cadastro novo responde 410. `Locacao` ganha `plano_compra_veiculo`, `quinzenal` e os campos congelados do item 5 da ADR 0041.
 
 T-420, `LOC-16`, ADR 0037 (padrão A do ponto em aberto 1). Cadastro do administrador na tela `Precos`.
 
