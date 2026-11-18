@@ -1,4 +1,4 @@
-import { LINK_TESTE_GRATIS } from "./links";
+import { IrParaPlanos } from "./IrParaPlanos";
 import { LogoGiro } from "./Logo";
 
 export function Nav() {
@@ -17,7 +17,7 @@ export function Nav() {
             <li><a className="ulink" href="#perguntas">Perguntas</a></li>
           </ul>
         </nav>
-        <a className="wl-btn wl-btn--brand wl-btn--sm" href={LINK_TESTE_GRATIS}>Começar teste grátis</a>
+        <IrParaPlanos className="wl-btn wl-btn--brand wl-btn--sm">Começar teste grátis</IrParaPlanos>
       </div>
     </header>
   );

@@ -9,7 +9,8 @@ vi.mock("@/lib/api/compra", () => ({ compraApi: {} }));
 
 import { AmbientePronto } from "./AmbientePronto";
 import { Checkout } from "./Checkout";
-import { EscolhaDoPlano } from "./EscolhaDoPlano";
+import { planoDaUrl } from "./CompraPublica";
+import { CartoesDosPlanos, EscolhaDoPlano } from "./EscolhaDoPlano";
 
 const texto = (h: string) => h.replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
 const render = (no: ReactNode) => texto(renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}>{no}</QueryClientProvider>));
@@ -53,11 +54,38 @@ describe("compra pública", () => {
   });
 
   it("checkout mostra o plano escolhido e o teste com as datas da API (PLT-01)", () => {
-    const t = render(<Checkout catalogo={CATALOGO} plano={CATALOGO.planos[1]!} ciclo="mensal" aoTrocarPlano={() => {}} aoCriar={() => {}} />);
+    const t = render(<Checkout catalogo={CATALOGO} plano={CATALOGO.planos[1]!} ciclo="mensal" aoMudarPlano={() => {}} aoMudarCiclo={() => {}} aoCriar={() => {}} />);
     for (const p of ["Crie sua conta", "Endereço de acesso", "Profissional", "R$ 160,00 por mês", "19 out", "primeira fatura vence em 22 out", "Criar minha conta"]) {
       expect(t, p).toContain(p);
     }
     expect(t).not.toContain("Tamanho da frota");
+  });
+
+  it("Trocar abre um pop-up com os planos e benefícios da API, marcando o escolhido (T-490, PLT-11)", () => {
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={new QueryClient()}>
+        <Checkout catalogo={CATALOGO} plano={CATALOGO.planos[1]!} ciclo="anual" aoMudarPlano={() => {}} aoMudarCiclo={() => {}} aoCriar={() => {}} />
+      </QueryClientProvider>,
+    );
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toMatch(/<dialog[^>]*class="wl-modal wl-dialogo wl-dialogo--amplo"/);
+    expect(texto(html)).toContain("Trocar o plano");
+    // Conteúdo do pop-up (só montado aberto): os mesmos cartões da escolha, com o plano atual marcado.
+    const cartoes = renderToStaticMarkup(<CartoesDosPlanos catalogo={CATALOGO} ciclo="anual" atual="profissional" rotuloDoBotao="Escolher este plano" aoEscolher={() => {}} />);
+    const t = texto(cartoes);
+    expect(t).toContain("Locação, vistoria e contas a receber");
+    expect(t).toContain("Pix e boleto automáticos");
+    expect(t).toContain("R$ 1.300| /ano");
+    expect(t).toContain("Escolher este plano");
+    expect(cartoes).toMatch(/<button[^>]*disabled[^>]*>Plano escolhido<\/button>/);
+  });
+
+  it("?plano= escolhe só um plano à venda do catálogo da API (T-490)", () => {
+    expect(planoDaUrl("?plano=essencial", CATALOGO)?.nome).toBe("Essencial");
+    expect(planoDaUrl("?plano=Profissional", CATALOGO)?.nome).toBe("Profissional");
+    expect(planoDaUrl("?plano=completo", CATALOGO)).toBeNull();
+    expect(planoDaUrl("?plano=", CATALOGO)).toBeNull();
+    expect(planoDaUrl("", CATALOGO)).toBeNull();
   });
 
   const PRONTO: AndamentoDoPedido = {
