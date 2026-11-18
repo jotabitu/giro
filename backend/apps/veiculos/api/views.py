@@ -49,6 +49,7 @@ from .serializers import (
     LeituraCrlvEntradaSerializer,
     LeituraCrlvNoEditarSerializer,
     LeituraCrlvSerializer,
+    LigarPlanoSerializer,
     ListaDeCategoriasSerializer,
     ListaDeDocumentosSerializer,
     ListaDeExtrasSerializer,
@@ -62,6 +63,8 @@ from .serializers import (
     PrecoCriadoSerializer,
     PrecoEntradaSerializer,
     PrecoHistoricoSerializer,
+    PrecosDoVeiculoSerializer,
+    PrecosEntradaSerializer,
     VeiculoComCrlvEntradaSerializer,
     VeiculoComDadosDoDocumentoSerializer,
     VeiculoDetalheSerializer,
@@ -151,7 +154,7 @@ class VeiculosView(APIView):
         da_filial = selectors.do_tipo(da_filial, parametros.get("tipo_veiculo"))
         contagens = selectors.contagens(da_filial)
         qs = selectors.filtrar(
-            da_filial.select_related("categoria", "filial"),
+            selectors.anotar_tem_plano_ligado(da_filial.select_related("categoria", "filial")),
             status=parametros.get("status"),
             categoria=parametros.get("categoria"),
             busca=parametros.get("busca"),
@@ -367,6 +370,88 @@ class ColocarAVendaView(APIView):
             dados.get("referencia_fipe_centavos"),
         )
         return _representacao(veiculo, request)
+
+
+class PrecosDoVeiculoView(APIView):
+    """Planos e preços do veículo (VEI-12 a VEI-17, ADR 0041). Ler: quem vê valores, nas suas
+    filiais (o vistoriador não vê dinheiro, USR-09); salvar: o administrador (o gerente recebe
+    403, padrão A de "quem edita"; o suporte em "só ver", 403 `PLT-07`)."""
+
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+
+    def get_permissions(self) -> Any:
+        permissoes = SO_ADMINISTRADOR if self.request.method == "PUT" else VEEM_VALORES
+        return [permissao() for permissao in permissoes]
+
+    @extend_schema(
+        responses=PrecosDoVeiculoSerializer,
+        operation_id="veiculos_precos_retrieve",
+        summary="Planos e preços do veículo (VEI-12 a VEI-17)",
+    )
+    def get(self, request: Request, pk: int) -> Response:
+        veiculo = _veiculo(request, pk)
+        return Response(
+            PrecosDoVeiculoSerializer(selectors.precos_do_veiculo(veiculo, request.user)).data
+        )
+
+    @extend_schema(
+        request=PrecosEntradaSerializer,
+        responses=PrecosDoVeiculoSerializer,
+        operation_id="veiculos_precos_update",
+        summary="Salvar os preços do veículo (VEI-12 a VEI-17)",
+    )
+    def put(self, request: Request, pk: int) -> Response:
+        dados = _entrada(PrecosEntradaSerializer, request)
+        confirmar = dados.pop("confirmar_juros", False)
+        services.salvar_precos(
+            _veiculo(request, pk), dados, por=request.user, confirmar_juros=confirmar
+        )
+        veiculo = _veiculo(request, pk)
+        return Response(
+            PrecosDoVeiculoSerializer(selectors.precos_do_veiculo(veiculo, request.user)).data
+        )
+
+
+class SimularPrecosView(APIView):
+    """O mesmo corpo do `PUT`, sem gravar (ADR 0005); o frontend chama a cada mudança."""
+
+    permission_classes = SO_ADMINISTRADOR
+
+    @extend_schema(
+        request=PrecosEntradaSerializer,
+        responses=PrecosDoVeiculoSerializer,
+        operation_id="veiculos_precos_simular_create",
+        summary="Simular os preços do veículo, sem gravar (VEI-13, VEI-16)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(PrecosEntradaSerializer, request)
+        dados.pop("confirmar_juros", None)
+        veiculo = _veiculo(request, pk)
+        documento = services.simular_precos(veiculo, dados)
+        pede = services.pede_confirmacao_juros(veiculo, documento.compra)
+        corpo = selectors.precos_do_veiculo(veiculo, request.user, documento, pede_confirmacao=pede)
+        return Response(PrecosDoVeiculoSerializer(corpo).data)
+
+
+class LigarPlanoView(APIView):
+    """O liga e desliga do cartão "Preços desta moto" da ficha (VEI-12), com confirmação na
+    tela."""
+
+    permission_classes = SO_ADMINISTRADOR
+
+    @extend_schema(
+        request=LigarPlanoSerializer,
+        responses=PrecosDoVeiculoSerializer,
+        operation_id="veiculos_precos_planos_ligado_create",
+        summary="Ligar ou desligar um plano do veículo (VEI-12, VEI-15)",
+    )
+    def post(self, request: Request, pk: int, plano_id: int) -> Response:
+        dados = _entrada(LigarPlanoSerializer, request)
+        services.ligar_plano(_veiculo(request, pk), plano_id, dados["ligado"], por=request.user)
+        veiculo = _veiculo(request, pk)
+        return Response(
+            PrecosDoVeiculoSerializer(selectors.precos_do_veiculo(veiculo, request.user)).data
+        )
 
 
 class VoltarParaFrotaView(APIView):

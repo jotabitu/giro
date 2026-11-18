@@ -433,6 +433,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "aut_06_vencimento_de_documentos_de_todas",
         "schedule": crontab(hour=7, minute=0),
     },
+    # VEI-12 (ADR 0041): o preço agendado do plano do veículo vira o vigente, às 00:05.
+    "consolidar_precos_agendados": {
+        "task": "consolidar_precos_agendados_de_todas",
+        "schedule": crontab(hour=0, minute=5),
+    },
     # AUT-01: lembrete de devolução ao cliente, às 08:00.
     "aut_01_lembrete_de_devolucao": {
         "task": "aut_01_lembrete_de_devolucao_de_todas",

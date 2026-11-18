@@ -212,6 +212,16 @@ def montar_veiculo(veiculo: Any) -> dict[str, Any]:
     return selectors.custos_do_veiculo_no_ano(veiculo.pk, relogio.hoje().year)
 
 
+def despesas_do_veiculo(veiculo_id: int) -> int:
+    """VEI-13 (ADR 0041): todas as despesas do veículo, sem as recusadas, para o "pago na moto"."""
+    total = (
+        Despesa.objects.filter(veiculo_id=veiculo_id)
+        .exclude(status=StatusDespesa.RECUSADA)
+        .aggregate(total=Sum("valor_centavos"))["total"]
+    )
+    return int(total or 0)
+
+
 def registrar() -> None:
     leituras.registrar_anotacao(CLIENTE, "financeiro", anotar_cliente, montar_cliente)
     leituras.registrar_anotacao(CLIENTE, "historico", _sem_anotacao, montar_historico)
@@ -223,3 +233,4 @@ def registrar() -> None:
     leituras.registrar_total(CLIENTE, "em_aberto_centavos", total_em_aberto)
     leituras.registrar_contador(FILIAL, "caixas", selectors.caixas_abertos_da_filial)
     leituras.registrar_anotacao(VEICULO, "indicadores_financeiros", anotar_veiculo, montar_veiculo)
+    leituras.registrar_contador(VEICULO, "despesas_centavos", despesas_do_veiculo)  # VEI-13

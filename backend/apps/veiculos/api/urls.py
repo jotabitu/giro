@@ -32,6 +32,18 @@ urlpatterns: list[URLPattern] = [
     path(
         "veiculos/<int:pk>/documentos/", views.DocumentosView.as_view(), name="veiculo-documentos"
     ),
+    # Preços por veículo (VEI-12 a VEI-17, ADR 0041).
+    path("veiculos/<int:pk>/precos/", views.PrecosDoVeiculoView.as_view(), name="veiculo-precos"),
+    path(
+        "veiculos/<int:pk>/precos/simular/",
+        views.SimularPrecosView.as_view(),
+        name="veiculo-precos-simular",
+    ),
+    path(
+        "veiculos/<int:pk>/precos/planos/<int:plano_id>/ligado/",
+        views.LigarPlanoView.as_view(),
+        name="veiculo-precos-plano-ligado",
+    ),
     path("veiculos/<int:pk>/fotos/", views.FotosView.as_view(), name="veiculo-fotos"),
     path(
         "veiculos/<int:pk>/fotos/<int:foto_id>/trocar/",

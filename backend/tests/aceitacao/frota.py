@@ -10,7 +10,7 @@ from typing import Any
 from apps.filiais.models import Filial
 from apps.plataforma.services import recalcular_uso
 from apps.veiculos.models import Categoria, PrecoCategoria, Veiculo
-from apps.veiculos.services import dados_da_vei_09
+from apps.veiculos.services import aplicar_modelo_de_preco, dados_da_vei_09
 from seed.frota import (
     DISTRIBUICAO,
     NOMEADOS,
@@ -90,5 +90,7 @@ def montar_frota(moto: Any) -> Frota:
                 numero += 1
                 marca, modelo = modelos[numero % len(modelos)]
                 criar_veiculo(numero, categoria, centro, status, marca=marca, modelo=modelo)
+    # ADR 0041, risco 4: os veículos nascem com os planos do modelo (o preço da categoria).
+    aplicar_modelo_de_preco(list(Veiculo.objects.all()), "cadastro")
     recalcular_uso(moto.empresa)
     return frota
