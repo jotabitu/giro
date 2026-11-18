@@ -839,7 +839,23 @@ class MargemDoPlanoSerializer(serializers.Serializer[Any]):
     abaixo_da_minima = serializers.BooleanField()
 
 
-class PlanoDoVeiculoSerializer(serializers.Serializer[Any]):
+class SemAsChavesAusentes(serializers.Serializer[Any]):
+    """As chaves de custo (`AUSENTES_SEM_CUSTO`) que o selector não mandou ficam ausentes, não
+    nulas (VEI-13, USR-09): o DRF preencheria `null` num campo que aceita nulo."""
+
+    AUSENTES_SEM_CUSTO: tuple[str, ...] = ()
+
+    def to_representation(self, instance: Any) -> Any:
+        dados = super().to_representation(instance)
+        for chave in self.AUSENTES_SEM_CUSTO:
+            if chave not in instance:
+                dados.pop(chave, None)
+        return dados
+
+
+class PlanoDoVeiculoSerializer(SemAsChavesAusentes):
+    AUSENTES_SEM_CUSTO = ("margem",)
+
     id = serializers.IntegerField(allow_null=True)
     tipo = serializers.ChoiceField(choices=TipoPlano.choices)
     nome = serializers.CharField(allow_null=True)
@@ -865,7 +881,9 @@ class ParcelaNaPeriodicidadeSerializer(serializers.Serializer[Any]):
     parcela_cliente_centavos = serializers.IntegerField()
 
 
-class ResultadoCompraSerializer(serializers.Serializer[Any]):
+class ResultadoCompraSerializer(SemAsChavesAusentes):
+    AUSENTES_SEM_CUSTO = ("lucro_centavos", "margem_sobre_pago_pct")
+
     financiado_centavos = serializers.IntegerField()
     meses_do_prazo = serializers.DecimalField(max_digits=9, decimal_places=2)
     taxa_periodo_pct = serializers.DecimalField(max_digits=9, decimal_places=2)

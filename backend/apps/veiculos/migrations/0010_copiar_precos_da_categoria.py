@@ -59,10 +59,19 @@ def copiar(apps, schema_editor):  # type: ignore[no-untyped-def]
         lote = uuid.uuid4()
         linhas = []
 
-        def mudou(alvo, campo, para, alvo_id=None, alvo_nome="", lote=lote, linhas=linhas):  # type: ignore[no-untyped-def]
+        def mudou(  # type: ignore[no-untyped-def]
+            alvo,
+            campo,
+            para,
+            alvo_id=None,
+            alvo_nome="",
+            lote=lote,
+            linhas=linhas,
+            veiculo_id=veiculo.pk,
+        ):
             linhas.append(
                 historico_model(
-                    veiculo_id=veiculo.pk,
+                    veiculo_id=veiculo_id,
                     em=agora,
                     por=None,
                     origem="migracao",

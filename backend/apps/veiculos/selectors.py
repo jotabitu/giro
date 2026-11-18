@@ -50,14 +50,14 @@ from .services import (
     chave_do_plano,
     despesas_do_veiculo,
     montar_documento,
-    pago_na_moto,
-    plano_novo,
-    tem_plano_ligado,
     motivo_da_galeria_so_para_ver,
     motivo_de_nao_trocar_tipo,
     normalizar_chassi,
     normalizar_placa,
+    pago_na_moto,
+    plano_novo,
     situacao_do_documento,
+    tem_plano_ligado,
     valores_pontuados,
 )
 

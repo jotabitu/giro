@@ -1709,7 +1709,7 @@ MENSAGEM_VENDA_PARA_COMPRA = "Informe o valor de venda para ligar a locação co
 MENSAGEM_ENTRADA = "A entrada precisa ser menor que o valor de venda."
 MENSAGEM_AGENDADO_DATA = "Escolha uma data a partir de amanhã."
 FORMAS_TODAS = [forma.value for forma in FormaAceita]
-CAMPOS_DO_PLANO = (
+CAMPOS_DO_PLANO_VEICULO = (
     "ligado",
     "valor_centavos",
     "como_paga",
@@ -2228,11 +2228,7 @@ def montar_documento(
     for campo, valor in (dados.get("custos") or {}).items():
         if campo in CAMPOS_DOS_CUSTOS:
             setattr(custos, campo, valor)
-    valor_venda = (
-        dados["valor_venda_centavos"]
-        if "valor_venda_centavos" in dados
-        else veiculo.valor_venda_centavos
-    )
+    valor_venda = dados.get("valor_venda_centavos", veiculo.valor_venda_centavos)
     compra = _aplicar_compra(veiculo, dados.get("plano_compra"), erros)
     if compra is not None:
         if compra.ligado and not valor_venda:
@@ -2292,9 +2288,9 @@ def salvar_precos(
         travado = _travar(veiculo)
         documento = montar_documento(travado, dados)
         juros_confirmados: dict[str, Any] | None = None
-        if pede_confirmacao_juros(travado, documento.compra):
-            assert documento.compra is not None
-            juros = str(documento.compra.juros_mes_pct)
+        compra = documento.compra
+        if compra is not None and pede_confirmacao_juros(travado, compra):
+            juros = str(compra.juros_mes_pct)
             if not confirmar_juros:
                 raise Conflito("VEI-16", precos.ALERTA_JUROS, {"juros_mes_pct": juros})
             juros_confirmados = {
@@ -2314,11 +2310,11 @@ def salvar_precos(
 
 
 def _gravar_documento(veiculo: Veiculo, documento: DocumentoDePrecos, lote: _Lote) -> None:
-    salvos = {p.pk: _valores(p, CAMPOS_DO_PLANO) for p in planos_ativos(veiculo)}
+    salvos = {p.pk: _valores(p, CAMPOS_DO_PLANO_VEICULO) for p in planos_ativos(veiculo)}
     for plano in documento.planos:
         antes = salvos.get(plano.pk, {}) if plano.pk else {}
         plano.save()
-        lote.comparar(AlvoPreco.PLANO, antes, plano, CAMPOS_DO_PLANO, plano.pk, plano.rotulo)
+        lote.comparar(AlvoPreco.PLANO, antes, plano, CAMPOS_DO_PLANO_VEICULO, plano.pk, plano.rotulo)
     regras_antes = _valores(
         RegrasVeiculo.objects.filter(veiculo_id=veiculo.pk).first(), CAMPOS_DAS_REGRAS
     )
@@ -2358,14 +2354,14 @@ def ligar_plano(
     por_id = getattr(por, "pk", None) if por is not None else _quem()
     with transaction.atomic():
         travado = _travar(veiculo)
-        plano = (
+        plano: PlanoVeiculo | None = (
             PlanoVeiculo.ativos.select_for_update()
             .filter(veiculo_id=travado.pk, pk=plano_id)
             .first()
         )
         if plano is None:
             raise NaoEncontrado("nao_encontrado", "Plano não encontrado neste veículo.")
-        antes = _valores(plano, CAMPOS_DO_PLANO)
+        antes = _valores(plano, CAMPOS_DO_PLANO_VEICULO)
         plano.ligado = ligado
         if ligado:
             erros: dict[str, list[str]] = {}
@@ -2403,7 +2399,7 @@ def consolidar_precos_agendados(hoje: date) -> dict[str, int]:
             for plano in PlanoVeiculo.objects.select_for_update().filter(
                 veiculo_id=veiculo_id, agendado_para__lte=hoje
             ):
-                antes = _valores(plano, CAMPOS_DO_PLANO)
+                antes = _valores(plano, CAMPOS_DO_PLANO_VEICULO)
                 sem_preco_antes = not plano.valor_centavos
                 plano.valor_centavos = int(plano.valor_agendado_centavos or 0)
                 if plano.caucao_agendada_centavos is not None:
@@ -2422,7 +2418,7 @@ def consolidar_precos_agendados(hoje: date) -> dict[str, int]:
                     plano.ligado = True
                 plano.save()
                 lote.comparar(
-                    AlvoPreco.PLANO, antes, plano, CAMPOS_DO_PLANO, plano.pk, plano.rotulo
+                    AlvoPreco.PLANO, antes, plano, CAMPOS_DO_PLANO_VEICULO, plano.pk, plano.rotulo
                 )
                 contagem["planos"] += 1
             lote.gravar("veiculo.precos_agendado_vigente")
