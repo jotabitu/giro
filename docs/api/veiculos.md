@@ -614,8 +614,8 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
 
 ### Quem pode
 
-- `GET`: administrador, gerente, vendedor e financeiro, no veículo das suas filiais (fora delas, 404). O vistoriador recebe 403 (não vê dinheiro, `USR-09`). O suporte Giro em "só ver" lê.
-- `PUT`, `simular` e o liga e desliga: só o administrador. O gerente recebe 403 (padrão A de "quem edita"); o suporte em "só ver", 403 `PLT-07`.
+- `GET`: administrador, gerente, vendedor e financeiro, no veículo das suas filiais (fora delas, 404). O vistoriador recebe 403 (não vê dinheiro, `USR-09`). O suporte Giro lê nos dois modos ("só ver" e "ver e editar"); a rota está na lista do `PLT-07`.
+- `PUT`, `simular` e o liga e desliga: só o administrador. O gerente recebe 403 (padrão A de "quem edita"). O suporte Giro só vê (`VEI-12`): recebe 403 `PLT-07` mesmo com "ver e editar" (`suporte_proibido`).
 - `custos`, `pago_na_moto`, `planos[].margem` e o lucro e a margem da compra só saem para administrador, gerente e financeiro; para o vendedor, as chaves vêm **ausentes**, não `null` (`VEI-13`, `USR-09`).
 
 ### GET /api/veiculos/{id}/precos/
@@ -684,7 +684,7 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
 - `plano_compra` `null` enquanto o veículo não tem um; `resultado` `null` sem valor de venda ou com entrada maior ou igual a ele. O "recebe pela moto" usa a parcela arredondada × `n` + entrada (padrão A: Pop R$ 17.768,96). A parcela nas 4 periodicidades usa o mesmo prazo em meses; a parcela da moto e o adicional se arredondam cada um.
 - `alertas`: `{ "codigo": "venda_abaixo_do_pago", "mensagem": "Valor de venda abaixo do que foi pago: o lucro vem só dos juros." }` e, com juros acima de 1% ao mês, `{ "codigo": "VEI-16", "mensagem": "Locadora não é financeira: juros acima de 1% ao mês (12% ao ano) pedem confirmação. Valide o contrato com seu advogado." }`.
 - `aviso_preco`: o mesmo da representação do veículo, calculado sobre o documento mostrado.
-- `pode_editar`: `true` só para o administrador (fora do suporte em "só ver").
+- `pode_editar`: `true` só para o administrador; `false` para o suporte Giro, nos dois modos.
 
 ### PUT /api/veiculos/{id}/precos/
 

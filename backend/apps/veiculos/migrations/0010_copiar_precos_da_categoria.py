@@ -7,7 +7,8 @@ primeiro preço futuro da categoria vira o agendado de cada plano (um segundo n�
 regras com o dia de atraso e a multa mínima iguais à diária, 5% sem aprovação; custos vazios; o
 histórico com `origem = migracao`, um lote por veículo. Idempotente: a chave é "o veículo já tem
 regras", e o `get_or_create` por `(veiculo, tipo)` protege uma rodada interrompida. A reversa não
-faz nada (nada de negócio se apaga).
+faz nada (nada de negócio se apaga). Na empresa nova (schema vazio), não há veículo e nada é
+copiado.
 """
 
 import sys
@@ -32,6 +33,11 @@ def copiar(apps, schema_editor):  # type: ignore[no-untyped-def]
     regras_model = apps.get_model("veiculos", "RegrasVeiculo")
     custos_model = apps.get_model("veiculos", "CustosVeiculo")
     historico_model = apps.get_model("veiculos", "HistoricoPrecoVeiculo")
+    # A conexão da migração, não a `default`: a empresa nova é migrada pela conexão do papel de
+    # migração, no schema dela (ADR 0040, `plataforma.banco.criar_schema`); a `default` fica em
+    # outro schema e não tem as tabelas. Sem `schema_editor` (chamada direta nos testes), a
+    # `default`.
+    db = schema_editor.connection.alias if schema_editor is not None else "default"
 
     agora = timezone.now()
     hoje = timezone.localdate(agora, ZoneInfo("America/Sao_Paulo"))
@@ -40,7 +46,7 @@ def copiar(apps, schema_editor):  # type: ignore[no-untyped-def]
 
     def precos_da(categoria_id: int) -> tuple[object, object]:
         if categoria_id not in por_categoria:
-            precos = preco_model.objects.filter(categoria_id=categoria_id)
+            precos = preco_model.objects.using(db).filter(categoria_id=categoria_id)
             vigente = precos.filter(vigente_desde__lte=hoje).order_by("-vigente_desde").first()
             futuros = list(precos.filter(vigente_desde__gt=hoje).order_by("vigente_desde")[:2])
             if len(futuros) > 1:
@@ -50,9 +56,11 @@ def copiar(apps, schema_editor):  # type: ignore[no-untyped-def]
             por_categoria[categoria_id] = (vigente, futuros[0] if futuros else None)
         return por_categoria[categoria_id]
 
-    sem_regras = veiculo_model.objects.exclude(
-        pk__in=regras_model.objects.values("veiculo_id")
-    ).order_by("pk")
+    sem_regras = (
+        veiculo_model.objects.using(db)
+        .exclude(pk__in=regras_model.objects.using(db).values("veiculo_id"))
+        .order_by("pk")
+    )
     for veiculo in sem_regras.iterator():
         vigente, futuro = precos_da(veiculo.categoria_id)
         caucao = vigente.caucao_centavos if vigente is not None else None
@@ -87,7 +95,7 @@ def copiar(apps, schema_editor):  # type: ignore[no-untyped-def]
 
         for tipo, periodo, como_paga, campo, rotulo in PLANOS:
             valor = getattr(vigente, campo) if vigente is not None else 0
-            plano, criado = plano_model.objects.get_or_create(
+            plano, criado = plano_model.objects.using(db).get_or_create(
                 veiculo_id=veiculo.pk,
                 tipo=tipo,
                 ativo=True,
@@ -116,14 +124,14 @@ def copiar(apps, schema_editor):  # type: ignore[no-untyped-def]
                         "plano", "agendado_para", futuro.vigente_desde.isoformat(), plano.pk, rotulo
                     )
         diaria = vigente.diaria_centavos if vigente is not None else 0
-        custos_model.objects.get_or_create(veiculo_id=veiculo.pk)
-        regras_model.objects.create(
+        custos_model.objects.using(db).get_or_create(veiculo_id=veiculo.pk)
+        regras_model.objects.using(db).create(
             veiculo_id=veiculo.pk, dia_atraso_centavos=diaria, multa_minima_centavos=diaria
         )
         mudou("regras", "dia_atraso_centavos", diaria)
         mudou("regras", "multa_minima_centavos", diaria)
         mudou("regras", "desconto_sem_aprovacao_pct", "5.00")
-        historico_model.objects.bulk_create(linhas)
+        historico_model.objects.using(db).bulk_create(linhas)
 
     for linha in nao_couberam:  # ADR 0041, risco 2: um agendado por plano
         sys.stdout.write(f"\n  [veiculos 0010] {linha}")

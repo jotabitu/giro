@@ -7076,7 +7076,8 @@ paths:
       description: |-
         Planos e preços do veículo (VEI-12 a VEI-17, ADR 0041). Ler: quem vê valores, nas suas
         filiais (o vistoriador não vê dinheiro, USR-09); salvar: o administrador (o gerente recebe
-        403, padrão A de "quem edita"; o suporte em "só ver", 403 `PLT-07`).
+        403, padrão A de "quem edita"). O suporte Giro só vê (VEI-12): lê nos dois modos, e o `PUT`
+        responde 403 `PLT-07` mesmo com "ver e editar".
       summary: Planos e preços do veículo (VEI-12 a VEI-17)
       parameters:
       - in: path
@@ -7100,7 +7101,8 @@ paths:
       description: |-
         Planos e preços do veículo (VEI-12 a VEI-17, ADR 0041). Ler: quem vê valores, nas suas
         filiais (o vistoriador não vê dinheiro, USR-09); salvar: o administrador (o gerente recebe
-        403, padrão A de "quem edita"; o suporte em "só ver", 403 `PLT-07`).
+        403, padrão A de "quem edita"). O suporte Giro só vê (VEI-12): lê nos dois modos, e o `PUT`
+        responde 403 `PLT-07` mesmo com "ver e editar".
       summary: Salvar os preços do veículo (VEI-12 a VEI-17)
       parameters:
       - in: path
@@ -7135,7 +7137,7 @@ paths:
       operationId: veiculos_precos_planos_ligado_create
       description: |-
         O liga e desliga do cartão "Preços desta moto" da ficha (VEI-12), com confirmação na
-        tela.
+        tela. O suporte Giro só vê (VEI-12): 403 `PLT-07`.
       summary: Ligar ou desligar um plano do veículo (VEI-12, VEI-15)
       parameters:
       - in: path
@@ -7174,8 +7176,9 @@ paths:
   /api/veiculos/{id}/precos/simular/:
     post:
       operationId: veiculos_precos_simular_create
-      description: O mesmo corpo do `PUT`, sem gravar (ADR 0005); o frontend chama
-        a cada mudança.
+      description: |-
+        O mesmo corpo do `PUT`, sem gravar (ADR 0005); o frontend chama a cada mudança. É parte de
+        editar: o suporte Giro, que só vê (VEI-12), recebe 403 `PLT-07`.
       summary: Simular os preços do veículo, sem gravar (VEI-13, VEI-16)
       parameters:
       - in: path

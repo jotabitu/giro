@@ -13,10 +13,13 @@ from typing import Any
 import pytest
 from django.apps import apps as django_apps
 from django.db import connection
+from django_tenants.utils import schema_context
 
 from apps.auditoria.models import EventoAuditoria
+from apps.contas.models import Usuario
 from apps.financeiro.models import Despesa
 from apps.plataforma.models import Empresa
+from apps.plataforma.services import abrir_acesso_suporte
 from apps.veiculos import selectors, services
 from apps.veiculos.models import (
     HistoricoPrecoVeiculo,
@@ -29,8 +32,9 @@ from apps.veiculos.models import (
 )
 from comum.erros import TransicaoInvalida
 
+from .conftest import cliente as cliente_http
 from .frota import Frota, criar_veiculo, montar_frota
-from .test_t012_filiais import MotoRapida
+from .test_t012_filiais import HOST, MotoRapida
 
 VEICULOS = "/api/veiculos/"
 AVISO = services.AVISO_PRECO
@@ -603,6 +607,52 @@ def test_vei_12_consolidacao_liga_plano_que_so_tinha_o_agendado(moto, frota) -> 
     services.consolidar_precos_agendados(date(2099, 1, 1))
     semanal = _plano(novo, "semanal")
     assert (semanal.ligado, semanal.valor_centavos, semanal.caucao_centavos) == (True, 34900, 35000)
+
+
+# --- Suporte Giro (VEI-12, PLT-07) ---
+
+
+def _suporte(moto: MotoRapida, frota: Frota, permissao: str) -> Any:
+    with schema_context("public"):
+        diego = Usuario.objects.filter(email="diego@girolocadoras.com.br").first()
+        if diego is None:
+            diego = Usuario.objects.create_user(
+                "diego@girolocadoras.com.br",
+                "senha-forte-123",
+                nome="Diego Santos",
+                funcao_plataforma="suporte",
+            )
+    _, token = abrir_acesso_suporte(
+        Empresa.objects.get(pk=moto.empresa.pk),
+        diego,
+        motivo="Chamado #1042",
+        duracao_minutos=30,
+        permissao=permissao,
+    )
+    connection.set_tenant(moto.empresa)
+    api = cliente_http(HOST, str(token))
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {token}", HTTP_X_FILIAL=str(frota.centro.pk))
+    return api
+
+
+@pytest.mark.parametrize("permissao", ["ver", "ver_editar"])
+def test_vei_12_suporte_so_ve_os_precos(moto, frota, permissao) -> None:
+    """VEI-12: o suporte Giro lê os preços nos dois modos; salvar, simular e ligar ou desligar
+    respondem 403 `PLT-07`, mesmo com "ver e editar"."""
+    sak = frota.veiculos["SAK1D39"]
+    api = _suporte(moto, frota, permissao)
+    base = f"{VEICULOS}{sak.pk}/precos/"
+    lido = api.get(base)
+    assert lido.status_code == 200
+    assert lido.json()["pode_editar"] is False
+    plano = _plano(sak, "semanal")
+    recusadas = [
+        api.put(base, {"planos": [{"tipo": "semanal", "valor_centavos": 1}]}, format="json"),
+        api.post(f"{base}simular/", {}, format="json"),
+        api.post(f"{base}planos/{plano.pk}/ligado/", {"ligado": False}, format="json"),
+    ]
+    assert [(r.status_code, r.json()["codigo"]) for r in recusadas] == [(403, "PLT-07")] * 3
+    assert _plano(sak, "semanal").valor_centavos == 32900
 
 
 # --- Isolamento entre empresas ---

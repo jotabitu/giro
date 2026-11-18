@@ -361,6 +361,9 @@ class PlanoVeiculo(ModeloBase, ModeloAtivavel):
     caucao_agendada_centavos = CentavosField(null=True, blank=True)
     agendado_para = models.DateField(null=True, blank=True)
 
+    # Nome de plano dado pela locadora ("Fim de semana"), não de pessoa: vai inteiro.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome"]}
+
     class Meta:
         verbose_name = "plano do veículo"
         verbose_name_plural = "planos do veículo"
@@ -584,6 +587,9 @@ class HistoricoPrecoVeiculo(ModeloBase):
     de = models.JSONField(null=True, blank=True)
     para = models.JSONField(null=True, blank=True)
     lote = models.UUIDField(default=uuid.uuid4)
+
+    # O nome do plano copiado ("Semanal", "Entregador", o do `outro`), não de pessoa: vai inteiro.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["alvo_nome"]}
 
     class Meta:
         verbose_name = "histórico de preço do veículo"

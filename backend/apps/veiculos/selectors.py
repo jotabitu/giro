@@ -732,7 +732,8 @@ def precos_do_veiculo(
         "alertas": resultado.alertas,
         "aviso_preco": None if tem else AVISO_PRECO,
         "pede_confirmacao_juros": pede_confirmacao,
-        "pode_editar": perfil == "administrador" and not suporte_so_ver(usuario),
+        # VEI-12: o suporte Giro só vê, nos dois modos (o `PUT` é `suporte_proibido`).
+        "pode_editar": perfil == "administrador" and not getattr(usuario, "e_suporte", False),
     }
     if custo:
         dados["pago_na_moto"] = {

@@ -375,9 +375,11 @@ class ColocarAVendaView(APIView):
 class PrecosDoVeiculoView(APIView):
     """Planos e preços do veículo (VEI-12 a VEI-17, ADR 0041). Ler: quem vê valores, nas suas
     filiais (o vistoriador não vê dinheiro, USR-09); salvar: o administrador (o gerente recebe
-    403, padrão A de "quem edita"; o suporte em "só ver", 403 `PLT-07`)."""
+    403, padrão A de "quem edita"). O suporte Giro só vê (VEI-12): lê nos dois modos, e o `PUT`
+    responde 403 `PLT-07` mesmo com "ver e editar"."""
 
     suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+    suporte_proibido = frozenset({"PUT"})  # VEI-12: o suporte Giro só vê
 
     def get_permissions(self) -> Any:
         permissoes = SO_ADMINISTRADOR if self.request.method == "PUT" else VEEM_VALORES
@@ -413,9 +415,11 @@ class PrecosDoVeiculoView(APIView):
 
 
 class SimularPrecosView(APIView):
-    """O mesmo corpo do `PUT`, sem gravar (ADR 0005); o frontend chama a cada mudança."""
+    """O mesmo corpo do `PUT`, sem gravar (ADR 0005); o frontend chama a cada mudança. É parte de
+    editar: o suporte Giro, que só vê (VEI-12), recebe 403 `PLT-07`."""
 
     permission_classes = SO_ADMINISTRADOR
+    suporte_proibido = True
 
     @extend_schema(
         request=PrecosEntradaSerializer,
@@ -435,9 +439,10 @@ class SimularPrecosView(APIView):
 
 class LigarPlanoView(APIView):
     """O liga e desliga do cartão "Preços desta moto" da ficha (VEI-12), com confirmação na
-    tela."""
+    tela. O suporte Giro só vê (VEI-12): 403 `PLT-07`."""
 
     permission_classes = SO_ADMINISTRADOR
+    suporte_proibido = True
 
     @extend_schema(
         request=LigarPlanoSerializer,
