@@ -1,0 +1,268 @@
+<!doctype html>
+<!-- origem: repositório, 18/11/2026, T-496 (celular da Veiculo-Precos-Desktop) -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Planos e preços do veículo · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.card{display:flex;flex-direction:column;gap:14px;padding:18px 16px;border-radius:var(--radius-lg);background:var(--surface)}
+.h2{margin:0;font-size:18px;line-height:24px;font-weight:600}
+.sub{margin:0;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.wl-field{width:100%}
+.wl-input{width:100%;box-sizing:border-box}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.two .wl-field{min-width:0}
+.col{display:flex;flex-direction:column;gap:12px}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-muted)}
+.kv span:last-child{font-weight:500;text-align:right}
+.stat{padding:12px 14px;border-radius:var(--radius-md);background:var(--surface-sunken);display:flex;flex-direction:column;gap:2px}
+.stat small{font-size:13px;color:var(--ink-muted)}
+.stat b{font-size:22px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+.stat .wl-input{background:var(--surface);font-size:18px;font-weight:600;margin-top:2px}
+.pl{display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:var(--radius-md);background:var(--surface-sunken)}
+.pl.off{background:var(--surface);border:1.5px dashed var(--line)}
+.pl .ph{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.pl .ph b{font-size:17px}
+.pl .wl-input{background:var(--surface)}
+.pl .mg{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--radius-md);background:var(--surface);font-size:13px}
+.chk{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:15px}
+.chk input{width:22px;height:22px;accent-color:var(--solid)}
+.agenda{display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid var(--line)}
+.res{padding:16px;border-radius:var(--radius-lg);background:var(--surface-sunken);display:flex;flex-direction:column;gap:4px}
+.res .big{font-size:32px;line-height:38px;font-weight:600;letter-spacing:-.02em}
+.res .big small{font-size:14px;font-weight:400;letter-spacing:0;color:var(--ink-muted)}
+.bar{display:flex;height:12px;border-radius:999px;overflow:hidden;margin:10px 0 4px}
+.bar i{display:block;height:100%}
+.cmp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.cmp>div{padding:10px 12px;border-radius:var(--radius-md);border:1.5px solid var(--line);font-size:13px;display:flex;flex-direction:column;gap:2px}
+.cmp>div.on{border-color:var(--ink)}
+.cmp b{font-size:15px}
+.est{display:flex;flex-direction:column;gap:12px}
+.est h3{margin:0;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)}
+.sheet{box-sizing:border-box;display:flex;flex-direction:column;gap:14px;padding:20px 16px 24px;border-radius:var(--radius-xl) var(--radius-xl) 0 0;background:var(--surface);box-shadow:var(--shadow-pop)}
+.dlg{box-sizing:border-box;display:flex;flex-direction:column;gap:14px;padding:20px 16px;border-radius:var(--radius-xl);background:var(--surface);box-shadow:var(--shadow-pop)}
+.dlg h4,.sheet h4{margin:0;font-size:22px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+.dlg p,.sheet p{margin:0;font-size:15px;line-height:22px;color:var(--ink-muted)}
+.acts{display:flex;flex-direction:column;gap:10px}
+.acts .wl-btn{width:100%;box-sizing:border-box;height:52px}
+.frow{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:var(--radius-md);background:var(--surface-sunken)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; width: 390px; box-sizing: border-box; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<div style="position: relative; box-sizing: border-box; padding: 16px 16px 150px; display: flex; flex-direction: column; gap: 14px;">
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
+<a href="Veiculo-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
+<div style="flex: 1; min-width: 0;">
+<div style="font-size: 20px; line-height: 24px; font-weight: 600;">Planos e preços</div>
+<div class="lbl">Honda Pop 110i ES · <span class="wl-mono">TBC-5H21</span></div>
+</div>
+</header>
+
+<section class="card">
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;"><div><h2 class="h2">Custo e venda</h2><p class="sub" style="margin-top: 2px;">Base de todas as margens desta moto.</p></div><button class="wl-btn wl-btn--quiet wl-btn--sm" style="flex: none;">Editar custos mensais</button></div>
+<div class="stat"><small>Pago na moto</small><b>R$ 13.800,00</b><span class="lbl">compra R$ 13.490,00 + despesas R$ 310,00 · <a href="Despesas-Mobile.dc.html" style="color: var(--ink-muted);">ver</a></span></div>
+<label class="stat"><small>Valor de venda</small><input class="wl-input" value="R$ 15.900,00"><span class="lbl">FIPE R$ 13.900,00</span></label>
+<label class="stat"><small>Revenda estimada em 24 meses</small><input class="wl-input" value="R$ 8.900,00"><span class="lbl">Quanto você espera vender a moto daqui a 24 meses. Vazio: sem desvalorização no custo.</span></label>
+<div class="two"><div class="stat"><small>Custos por mês</small><b>R$ 284,00</b></div><div class="stat"><small>Ocupação esperada</small><b>85%</b></div></div>
+<span class="lbl">Custos: manutenção, seguro, IPVA e rastreador. Frota nos últimos 90 dias: 84%.</span>
+</section>
+
+<section class="card">
+<div><h2 class="h2">Aluguel</h2><p class="sub" style="margin-top: 2px;">Ligue os planos que esta moto oferece. Margem = lucro por mês ÷ receita, já com a desvalorização até a venda.</p></div>
+
+<div class="pl"><div class="ph"><b>Diária</b><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer diária"></button></div>
+<div class="lbl" style="margin-top: -8px;">150 km por dia</div>
+<div class="two"><label class="wl-field"><span class="wl-field__label">Valor</span><input class="wl-input" value="R$ 44,90" aria-label="Valor da diária"></label><label class="wl-field"><span class="wl-field__label">Caução</span><input class="wl-input" value="R$ 300,00" aria-label="Caução da diária"></label></div>
+<div class="col"><label class="wl-field"><span class="wl-field__label">Como o cliente paga</span><select class="wl-input" aria-label="Pagamento da diária"><option>Tudo na retirada</option></select></label><label class="wl-field"><span class="wl-field__label">Caução em</span><select class="wl-input" aria-label="Parcelas da caução da diária"><option>À vista</option></select></label></div>
+<div class="mg"><span class="lbl">R$ 656,78/mês</span><span class="wl-badge wl-badge--sm wl-badge--success">margem 57,4%</span></div></div>
+
+<div class="pl"><div class="ph"><b>Semanal</b><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer semanal"></button></div>
+<div class="lbl" style="margin-top: -8px;">1.000 km por semana</div>
+<div class="two"><label class="wl-field"><span class="wl-field__label">Valor</span><input class="wl-input" value="R$ 269,00" aria-label="Valor semanal"></label><label class="wl-field"><span class="wl-field__label">Caução</span><input class="wl-input" value="R$ 300,00" aria-label="Caução semanal"></label></div>
+<span class="wl-badge wl-badge--sm wl-badge--info" style="align-self: flex-start;">R$ 289,00 a partir de 01 dez</span>
+<div class="col"><label class="wl-field"><span class="wl-field__label">Como o cliente paga</span><select class="wl-input" aria-label="Pagamento semanal"><option>Toda semana, adiantado</option></select></label><label class="wl-field"><span class="wl-field__label">Caução em</span><select class="wl-input" aria-label="Parcelas da caução semanal"><option>À vista</option></select></label></div>
+<div class="mg"><span class="lbl">R$ 502,65/mês</span><span class="wl-badge wl-badge--sm wl-badge--success">margem 50,7%</span></div>
+<div style="display: flex; flex-direction: column; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line);">
+<div><span class="wl-field__label" style="display: block;">Formas aceitas</span><div style="display: flex; flex-wrap: wrap; gap: 0 20px;"><label class="chk"><input type="checkbox" checked>Pix</label><label class="chk"><input type="checkbox" checked>Boleto</label><label class="chk"><input type="checkbox">Cartão</label><label class="chk"><input type="checkbox">Dinheiro</label></div><span class="wl-field__hint">Pelo menos uma.</span></div>
+<div class="two"><label class="wl-field"><span class="wl-field__label">Franquia por semana</span><input class="wl-input" value="1.000 km"><span class="wl-field__hint">Ou "livre"</span></label><label class="wl-field"><span class="wl-field__label">Prazo mínimo</span><input class="wl-input" placeholder="Sem mínimo"><span class="wl-field__hint">Em semanas</span></label></div>
+<div class="agenda"><div><span class="wl-field__label" style="display: block;">Preço agendado</span><span class="lbl">Entra em vigor no começo do dia marcado, a partir de amanhã. Até lá, vale o preço de hoje.</span></div>
+<div class="two"><label class="wl-field"><span class="wl-field__label">Novo valor por semana</span><input class="wl-input" value="R$ 289,00"></label><label class="wl-field"><span class="wl-field__label">A partir de</span><input class="wl-input" value="01/12/2026"></label></div>
+<div class="acts"><button class="wl-btn">Agendar preço</button><button class="wl-btn wl-btn--quiet">Desfazer agendamento</button></div></div>
+</div></div>
+
+<div class="pl"><div class="ph"><b>Mensal</b><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer mensal"></button></div>
+<div class="lbl" style="margin-top: -8px;">4.000 km por mês</div>
+<div class="two"><label class="wl-field"><span class="wl-field__label">Valor</span><input class="wl-input" value="R$ 990,00" aria-label="Valor mensal"></label><label class="wl-field"><span class="wl-field__label">Caução</span><input class="wl-input" value="R$ 500,00" aria-label="Caução mensal"></label></div>
+<div class="col"><label class="wl-field"><span class="wl-field__label">Como o cliente paga</span><select class="wl-input" aria-label="Pagamento mensal"><option>4 semanais de R$ 247,50</option><option>1 parcela no mês</option><option>2 quinzenais</option></select></label><label class="wl-field"><span class="wl-field__label">Caução em</span><select class="wl-input" aria-label="Parcelas da caução mensal"><option>2 × R$ 250,00</option></select></label></div>
+<div class="mg"><span class="lbl">R$ 353,33/mês</span><span class="wl-badge wl-badge--sm wl-badge--success">margem 42,0%</span></div></div>
+
+<div class="pl off"><div class="ph"><b style="color: var(--ink-muted);">Entregador</b><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer entregador"></button></div>
+<span class="lbl" style="font-size: 14px; line-height: 20px;">Desligado. Ligue para definir valor, prazo mínimo e caução.</span></div>
+
+<span class="lbl">Mudar um preço vale só para as próximas locações.</span>
+</section>
+
+<section class="card">
+<div style="display: flex; align-items: center; gap: 12px;"><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer locação com compra"></button><div><h2 class="h2">Locação com compra</h2><p class="sub" style="margin-top: 2px;">O cliente paga o valor de venda em parcelas e a moto é dele no fim.</p></div></div>
+<div><span class="wl-field__label" style="display: block; margin-bottom: 6px;">Parcelas</span><div class="wl-seg" role="group" aria-label="Periodicidade" style="display: flex;"><button aria-pressed="false" style="flex: 1; padding: 0 4px;">Diárias</button><button aria-pressed="true" style="flex: 1; padding: 0 4px;">Semanais</button><button aria-pressed="false" style="flex: 1; padding: 0 4px;">Quinzenais</button><button aria-pressed="false" style="flex: 1; padding: 0 4px;">Mensais</button></div></div>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Quantidade de parcelas</span><input class="wl-input" value="104"><span class="wl-field__hint">104 semanas = 24 meses</span></label>
+<label class="wl-field"><span class="wl-field__label">Entrada</span><input class="wl-input" value="R$ 1.000,00"><span class="wl-field__hint">Financia R$ 14.900,00</span></label>
+<label class="wl-field"><span class="wl-field__label">Juros ao mês</span><input class="wl-input" value="1,00%"><span class="wl-field__hint">0,23% por semana · Price</span></label>
+<label class="wl-field"><span class="wl-field__label">Valor da parcela</span><input class="wl-input" value="R$ 161,24"><span class="wl-field__hint">Calculado pelos juros</span></label>
+</div>
+<div class="wl-seg" role="group" aria-label="Como definir a parcela" style="display: flex;"><button aria-pressed="true" style="flex: 1; padding: 0 4px;">Calcular pelos juros</button><button aria-pressed="false" style="flex: 1; padding: 0 4px;">Digitar a parcela</button></div>
+<p class="sub">Digitando a parcela, o sistema mostra os juros que ela representa. Ex.: R$ 170,00 por semana = 1,46% ao mês.</p>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Adicional por parcela</span><input class="wl-input" value="R$ 29,77"><span class="wl-field__hint">Seguro e rastreador seguem com a locadora</span></label>
+<label class="wl-field"><span class="wl-field__label">Caução</span><input class="wl-input" value="R$ 300,00"><span class="wl-field__hint">Abatida da última parcela</span></label>
+</div>
+<div class="res">
+<span class="lbl" style="font-size: 14px;">O cliente paga</span>
+<div class="big">R$ 191,01 <small>por semana · 104×</small></div>
+<span class="lbl">R$ 161,24 da moto + R$ 29,77 de adicional</span>
+<div class="bar" role="img" aria-label="Pago na moto R$ 13.800,00 e lucro R$ 3.968,96 do total recebido"><i style="width: 77.7%; background: var(--line);"></i><i style="width: 22.3%; background: var(--solid);"></i></div>
+<div class="kv"><span>Recebe pela moto</span><span>R$ 17.768,96</span></div>
+<div class="kv"><span>Pago na moto</span><span>R$ 13.800,00</span></div>
+<div class="kv"><span>Lucro</span><span>R$ 3.968,96</span></div>
+<div class="kv"><span>Margem sobre o pago</span><span><span class="wl-badge wl-badge--sm wl-badge--success">28,8%</span></span></div>
+<div class="kv"><span>Juros no prazo</span><span>R$ 1.868,96</span></div>
+<div class="wl-note" role="note">Locadora não é financeira: juros acima de 1% ao mês (12% ao ano) pedem confirmação. Valide o contrato com seu advogado.</div>
+</div>
+<div class="cmp" aria-label="Mesma condição em outras periodicidades">
+<div><span class="lbl">Diárias · 730×</span><b>R$ 27,19</b></div>
+<div class="on"><span class="lbl">Semanais · 104×</span><b>R$ 191,01</b></div>
+<div><span class="lbl">Quinzenais · 52×</span><b>R$ 382,39</b></div>
+<div><span class="lbl">Mensais · 24×</span><b>R$ 830,39</b></div>
+</div>
+</section>
+
+<section class="card">
+<h2 class="h2">Regras desta moto</h2>
+<label class="wl-field"><span class="wl-field__label">Km excedente</span><input class="wl-input" value="R$ 0,35 por km"></label>
+<label class="wl-field"><span class="wl-field__label">Atraso na devolução</span><input class="wl-input" value="R$ 44,90 por dia"></label>
+<label class="wl-field"><span class="wl-field__label">Desconto sem aprovação</span><input class="wl-input" value="até 10%"></label>
+<label class="wl-field"><span class="wl-field__label">Devolver a caução em</span><input class="wl-input" value="até 3 dias"></label>
+<label class="wl-field"><span class="wl-field__label">Multa mínima da devolução antecipada</span><input class="wl-input" value="R$ 44,90"><span class="wl-field__hint">Mínimo da multa ao encerrar antes do fim</span></label>
+</section>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
+<a class="wl-btn wl-btn--solid" href="Veiculo-Mobile.dc.html" style="width: 100%; box-sizing: border-box; height: 56px; text-decoration: none;">Salvar preços</a>
+<a class="wl-btn wl-btn--quiet" href="Veiculo-Mobile.dc.html" style="width: 100%; box-sizing: border-box; height: 48px; text-decoration: none;">Cancelar</a>
+</div>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 28px; padding: 24px 16px 40px; border-top: 1px solid var(--line);">
+<div><h2 class="h2">Estados desta tela</h2><p class="sub" style="margin-top: 4px;">Referência dos casos da VEI-12, VEI-15 e VEI-16. Na tela real, aparece um de cada vez. Tudo que é número vem da API; a tela só mostra.</p></div>
+
+<div class="est"><h3>Custos mensais (gaveta de baixo)</h3>
+<div class="sheet" role="dialog" aria-label="Custos mensais">
+<h4>Custos mensais</h4>
+<p>Base das margens desta moto. O IPVA se digita pelo valor do ano e entra dividido por 12.</p>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Manutenção por mês</span><input class="wl-input" value="R$ 90,00"></label>
+<label class="wl-field"><span class="wl-field__label">Seguro por mês</span><input class="wl-input" value="R$ 85,00"></label>
+<label class="wl-field"><span class="wl-field__label">IPVA do ano</span><input class="wl-input" value="R$ 468,00"><span class="wl-field__hint">R$ 39,00 por mês</span></label>
+<label class="wl-field"><span class="wl-field__label">Rastreador por mês</span><input class="wl-input" value="R$ 70,00"></label>
+</div>
+<label class="wl-field"><span class="wl-field__label">Ocupação esperada</span><input class="wl-input" value="85,00%"><span class="wl-field__hint">Frota nos últimos 90 dias: 84%</span></label>
+<div class="kv"><span>Custos por mês</span><span>R$ 284,00</span></div>
+<div class="acts"><button class="wl-btn wl-btn--solid">Salvar custos</button><button class="wl-btn wl-btn--quiet">Cancelar</button></div>
+</div></div>
+
+<div class="est"><h3>Preço agendado no plano</h3>
+<div class="pl"><div class="ph"><b>Semanal</b><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer semanal"></button></div>
+<div><b style="font-size: 20px;">R$ 269,00</b> <span class="lbl">por semana</span></div>
+<span class="wl-badge wl-badge--sm wl-badge--info" style="align-self: flex-start;">R$ 289,00 a partir de 01 dez</span>
+<span class="lbl">Até lá, a Nova locação usa R$ 269,00.</span>
+<div style="display: flex; gap: 8px;"><button class="wl-btn wl-btn--quiet wl-btn--sm">Trocar</button><button class="wl-btn wl-btn--quiet wl-btn--sm">Desfazer</button></div></div>
+<span class="lbl">A data é a partir de amanhã. Trocar ou desfazer antes da data grava o histórico de preços, como o agendamento.</span></div>
+
+<div class="est"><h3>Liga e desliga confirmado: desligar um plano</h3>
+<div class="dlg" role="dialog" aria-label="Desligar plano Mensal">
+<h4>Desligar o plano Mensal?</h4>
+<p>Este plano deixa de aparecer na Nova locação. As locações já confirmadas continuam com o preço delas.</p>
+<div class="acts"><button class="wl-btn wl-btn--solid">Desligar plano</button><button class="wl-btn wl-btn--quiet">Continuar ligado</button></div>
+</div></div>
+
+<div class="est"><h3>Liga e desliga confirmado: desligar o último plano</h3>
+<div class="dlg" role="dialog" aria-label="Desligar o último plano">
+<h4>Desligar o último plano?</h4>
+<p>Este é o último plano ligado. Sem nenhum plano ligado, esta moto fica indisponível, com o motivo sem preço, e não aparece na Nova locação. As locações já confirmadas continuam com o preço delas.</p>
+<div class="acts"><button class="wl-btn wl-btn--solid">Desligar plano</button><button class="wl-btn wl-btn--quiet">Continuar ligado</button></div>
+</div></div>
+
+<div class="est"><h3>Liga e desliga confirmado: ligar um plano</h3>
+<div class="dlg" role="dialog" aria-label="Ligar o plano Diária?">
+<h4>Ligar o plano Diária?</h4>
+<p>Este plano passa a aparecer na Nova locação, com o valor, a caução e a franquia definidos para esta moto.</p>
+<div class="acts"><button class="wl-btn wl-btn--solid">Ligar plano</button><button class="wl-btn wl-btn--quiet">Continuar desligado</button></div>
+</div></div>
+
+<div class="est"><h3>Liga e desliga confirmado: locação com compra</h3>
+<div class="dlg" role="dialog" aria-label="Desligar a locação com compra?">
+<h4>Desligar a locação com compra?</h4>
+<p>A locação com compra deixa de aparecer na Nova locação. As locações já confirmadas continuam com o preço e as parcelas delas.</p>
+<div class="acts"><button class="wl-btn wl-btn--solid">Desligar locação com compra</button><button class="wl-btn wl-btn--quiet">Continuar ligada</button></div>
+</div>
+<div class="dlg" role="dialog" aria-label="Ligar a locação com compra?">
+<h4>Ligar a locação com compra?</h4>
+<p>A locação com compra passa a aparecer na Nova locação, com o valor de venda, as parcelas e os juros definidos para esta moto.</p>
+<div class="acts"><button class="wl-btn wl-btn--solid">Ligar locação com compra</button><button class="wl-btn wl-btn--quiet">Continuar desligada</button></div>
+</div>
+<span class="lbl">Se a locação com compra for o último plano ligado, vale o texto do último plano.</span></div>
+
+<div class="est"><h3>Liga e desliga recusado pela API: ligar sem os dados do plano</h3>
+<div class="pl off"><div class="ph"><b style="color: var(--ink-muted);">Entregador</b><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer entregador"></button></div>
+<label class="wl-field"><span class="wl-field__label">Valor</span><input class="wl-input" placeholder="R$ 0,00" aria-invalid="true"><span class="wl-field__hint" style="color: var(--critical-ink);">Informe um valor maior que zero.</span></label>
+<div class="wl-note wl-note--critical" role="alert">Informe o valor, uma forma aceita e a caução para ligar o plano.</div>
+<span class="lbl">No campo: "Escolha ao menos uma forma." ou "Informe a caução. Pode ser R$ 0,00."</span></div></div>
+
+<div class="est"><h3>Aviso de tabela não preenchida, no alto desta tela</h3>
+<div class="wl-note" role="note">A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda.</div>
+<span class="lbl">Aparece sempre que a moto não tem plano ligado, em qualquer status. Some quando um plano é ligado.</span></div>
+
+<div class="est"><h3>Aviso na Frota (cartão do veículo)</h3>
+<div class="frow"><div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;"><div><b>Honda CG 160 Fan</b><div class="lbl"><span class="wl-mono">SAK-1D39</span> · Filial Centro</div></div><span class="wl-badge wl-badge--sm">Indisponível</span></div>
+<div class="lbl">Sem preço · ligue um plano</div>
+<div class="wl-note" role="note">A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda.</div>
+<a href="Veiculo-Precos-Mobile.dc.html" class="wl-btn wl-btn--sm" style="text-decoration: none; align-self: flex-start;">Preencher preços</a></div>
+<span class="lbl">Moto alugada ou em manutenção sem plano mostra o aviso e mantém o status; ao voltar, vai para Indisponível, "Sem preço · ligue um plano".</span></div>
+
+<div class="est"><h3>Só leitura: gerente e demais perfis</h3>
+<span class="lbl">O gerente vê os planos, as regras e a compra, sem campos editáveis, sem "Salvar preços" e com os interruptores desabilitados. Custos, lucro e margem só aparecem para administrador, gerente e financeiro; para os outros perfis, a tela não mostra esses blocos.</span></div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":5200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

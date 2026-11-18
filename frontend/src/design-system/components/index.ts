@@ -1,11 +1,13 @@
 export { AlertCard, type ItemAlerta } from "./AlertCard/AlertCard";
 export { Button, IconButton, type BotaoIconeProps, type BotaoProps, type VarianteBotao } from "./Button/Button";
 export { CodigoVerificacao, type CodigoVerificacaoProps } from "./CodigoVerificacao/CodigoVerificacao";
+export { Aviso, type TomAviso } from "./Aviso/Aviso";
 export { Dialogo, type DialogoProps } from "./Dialogo/Dialogo";
 export { Cover } from "./Cover/Cover";
 export { CelulaDupla, DataTable, type ColunaTabela } from "./DataTable/DataTable";
 export { Gaveta, type GavetaProps, type LadoDaGaveta } from "./Gaveta/Gaveta";
 export { FleetBar, type SegmentoFrota } from "./FleetBar/FleetBar";
+export { LigaDesliga, type LigaDesligaProps } from "./LigaDesliga/LigaDesliga";
 export { LinhaDeLista, ListaDeLinhas } from "./LinhaDeLista/LinhaDeLista";
 export { KpiGrid, KpiTile, KpiVariacao } from "./KpiTile/KpiTile";
 export { Panel } from "./Panel/Panel";

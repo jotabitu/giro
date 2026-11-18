@@ -1,12 +1,14 @@
 <!doctype html>
+<!-- origem: canvas, 18/11/2026, T-491 -->
+<!-- ajustada no repositório: 18/11/2026, T-496 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <title>Ficha do veículo · componente "Preços desta moto" (referência)</title>
 <!-- Recorte da tela Veiculo-Desktop do canvas: só a seção "Preços desta moto".
      Inserir na ficha do veículo existente sem mudar as outras seções. -->
-<link rel="stylesheet" href="wl-theme.css">
-<link rel="stylesheet" href="ds/wl/components/bundle.css">
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
 <style>
 .lbl{font-size:13px;color:var(--ink-muted)}
 .kv{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
@@ -14,31 +16,89 @@
 .kv span:first-child{color:var(--ink-muted)}
 .kv span:last-child{font-weight:500;text-align:right}
 .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
-.plan{padding:18px;border-radius:22px;background:var(--surface-sunken);display:flex;flex-direction:column;gap:4px}
+.plan{padding:18px;border-radius:var(--radius-lg);background:var(--surface-sunken);display:flex;flex-direction:column;gap:4px}
 .plan.off{background:var(--surface);border:1.5px dashed var(--line)}
 .plan .ph{display:flex;justify-content:space-between;align-items:center;font-weight:600}
 .plan .pp{font-size:28px;line-height:34px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px}
 .plan .pp small{font-size:14px;font-weight:400;letter-spacing:0;color:var(--ink-muted)}
 .plan .kv{padding:7px 0;font-size:14px}
-.tg{position:relative;width:40px;height:24px;flex:none;border-radius:999px;background:var(--solid)}
-.tg::after{content:"";position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:var(--on-solid)}
-.tg.off{background:var(--line)}
-.tg.off::after{right:auto;left:3px;background:var(--surface)}
-.plan .mgn{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;padding:8px 12px;border-radius:14px;background:var(--surface);font-size:13px}
+.plan .mgn{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;padding:8px 12px;border-radius:var(--radius-md);background:var(--surface);font-size:13px}
+.plan .agd{margin-top:2px}
+@media (max-width:520px){
+body{padding:16px !important}
+.wl-panel__head{flex-wrap:wrap;gap:12px}
+.dlg{padding:20px 16px}
+.dlg .acts{flex-direction:column-reverse}
+.dlg .acts .wl-btn{width:100%;box-sizing:border-box;height:52px}
+}
+.est{display:flex;flex-direction:column;gap:12px;margin-top:24px}
+.est h3{margin:0;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)}
+.dlg{box-sizing:border-box;max-width:560px;padding:24px;border-radius:var(--radius-xl);background:var(--surface);box-shadow:var(--shadow-pop);display:flex;flex-direction:column;gap:16px}
+.dlg h4{margin:0;font-size:24px;line-height:30px;font-weight:600;letter-spacing:-.01em}
+.dlg p{margin:0;color:var(--ink-muted)}
+.dlg .acts{display:flex;justify-content:flex-end;gap:12px}
 .rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));column-gap:24px;margin-top:12px}
 </style>
 </head>
 <body style="margin:0;padding:24px;background:var(--canvas);color:var(--ink);font-family:var(--font-sans);">
 <section class="wl-panel"><div class="wl-panel__head"><div><h2 class="wl-panel__title">Preços desta moto</h2><p class="wl-panel__sub" style="margin: 4px 0 0;">Você escolhe os planos, o valor, como o cliente paga e a caução. Vale só para a QXA-4B21. Margem calculada sobre o custo desta moto: R$ 390,67 por mês, com ocupação de 86%.</p></div><a href="Veiculo-Precos-Desktop.dc.html" class="wl-btn wl-btn--sm" style="text-decoration: none;">Editar preços</a></div>
 <div class="plans">
-<div class="plan"><div class="ph"><span>Semanal</span><span class="tg" role="switch" aria-checked="true" aria-label="Oferecer plano semanal"></span></div><div class="pp">R$ 329,00 <small>por semana</small></div><div class="kv"><span>Pagamento</span><span>toda semana, adiantado</span></div><div class="kv"><span>Formas</span><span>Pix ou boleto</span></div><div class="kv"><span>Caução</span><span>R$ 500,00 à vista</span></div><div class="kv"><span>Franquia</span><span>1.000 km por semana</span></div><div class="mgn"><span class="lbl">Lucro R$ 835,41 por mês</span><span class="wl-badge wl-badge--sm wl-badge--success">margem 68,1%</span></div></div>
-<div class="plan"><div class="ph"><span>Mensal</span><span class="tg" role="switch" aria-checked="true" aria-label="Oferecer plano mensal"></span></div><div class="pp">R$ 1.190,00 <small>por mês</small></div><div class="kv"><span>Pagamento</span><span>4 parcelas semanais de R$ 297,50</span></div><div class="kv"><span>Formas</span><span>Pix ou cartão</span></div><div class="kv"><span>Caução</span><span>R$ 800,00 em 2x</span></div><div class="kv"><span>Franquia</span><span>4.000 km por mês</span></div><div class="mgn"><span class="lbl">Lucro R$ 632,73 por mês</span><span class="wl-badge wl-badge--sm wl-badge--success">margem 61,8%</span></div></div>
-<div class="plan"><div class="ph"><span>Entregador</span><span class="tg" role="switch" aria-checked="true" aria-label="Oferecer plano entregador"></span></div><div class="pp">R$ 279,00 <small>por semana</small></div><div class="kv"><span>Pagamento</span><span>toda segunda, Pix automático</span></div><div class="kv"><span>Prazo mínimo</span><span>12 semanas</span></div><div class="kv"><span>Caução</span><span>R$ 600,00 em 4x de R$ 150,00</span></div><div class="kv"><span>Franquia</span><span>livre</span></div><div class="mgn"><span class="lbl">Lucro R$ 649,07 por mês</span><span class="wl-badge wl-badge--sm wl-badge--success">margem 62,4%</span></div></div>
-<div class="plan" style="grid-column: 1/-1;"><div class="ph"><span>Locação com compra <span class="wl-badge wl-badge--sm" style="margin-left: 6px;">a moto vira do cliente</span></span><span class="tg" role="switch" aria-checked="true" aria-label="Oferecer locação com compra"></span></div><div class="pp">R$ 135,05 <small>por semana · 104× · juros 1,00% ao mês</small></div><div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;"><div class="kv" style="flex-direction: column; gap: 2px;"><span>Valor de venda</span><span style="text-align: left;">R$ 12.480,00</span></div><div class="kv" style="flex-direction: column; gap: 2px;"><span>Pago na moto</span><span style="text-align: left;">R$ 13.900,00</span></div><div class="kv" style="flex-direction: column; gap: 2px;"><span>Recebe no contrato</span><span style="text-align: left;">R$ 14.045,20</span></div><div class="kv" style="flex-direction: column; gap: 2px;"><span>Lucro</span><span style="text-align: left;">R$ 145,20</span></div></div><div class="mgn"><span class="lbl">Valor de venda abaixo do que foi pago: o lucro vem só dos juros.</span><span class="wl-badge wl-badge--sm wl-badge--warning">margem 1,0%</span></div><div style="display: flex; gap: 16px; margin-top: 8px;"><a href="Veiculo-Precos-Desktop.dc.html" class="lbl" style="font-size: 14px;">Ajustar venda, parcelas e juros</a><a href="Locacao-Compra-Desktop.dc.html" class="lbl" style="font-size: 14px;">Ver um contrato em andamento</a></div></div>
-<div class="plan off"><div class="ph"><span>Diária</span><span class="tg off" role="switch" aria-checked="false" aria-label="Oferecer plano diário"></span></div><div class="pp" style="color: var(--ink-muted);">Desligado</div><div class="lbl" style="font-size: 14px; line-height: 20px;">Esta moto não aparece para locação por dia. Ligue e defina valor, caução e franquia só para ela.</div></div>
+<div class="plan"><div class="ph"><span>Semanal</span><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer plano semanal"></button></div><div class="pp">R$ 329,00 <small>por semana</small></div><div class="agd"><span class="wl-badge wl-badge--sm wl-badge--info">R$ 359,00 a partir de 01 dez</span></div><div class="kv"><span>Pagamento</span><span>toda semana, adiantado</span></div><div class="kv"><span>Formas</span><span>Pix ou boleto</span></div><div class="kv"><span>Caução</span><span>R$ 500,00 à vista</span></div><div class="kv"><span>Franquia</span><span>1.000 km por semana</span></div><div class="mgn"><span class="lbl">Lucro R$ 835,41 por mês</span><span class="wl-badge wl-badge--sm wl-badge--success">margem 68,1%</span></div></div>
+<div class="plan"><div class="ph"><span>Mensal</span><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer plano mensal"></button></div><div class="pp">R$ 1.190,00 <small>por mês</small></div><div class="kv"><span>Pagamento</span><span>4 parcelas semanais de R$ 297,50</span></div><div class="kv"><span>Formas</span><span>Pix ou cartão</span></div><div class="kv"><span>Caução</span><span>R$ 800,00 em 2x</span></div><div class="kv"><span>Franquia</span><span>4.000 km por mês</span></div><div class="mgn"><span class="lbl">Lucro R$ 632,73 por mês</span><span class="wl-badge wl-badge--sm wl-badge--success">margem 61,8%</span></div></div>
+<div class="plan"><div class="ph"><span>Entregador</span><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer plano entregador"></button></div><div class="pp">R$ 279,00 <small>por semana</small></div><div class="kv"><span>Pagamento</span><span>toda segunda, Pix automático</span></div><div class="kv"><span>Prazo mínimo</span><span>12 semanas</span></div><div class="kv"><span>Caução</span><span>R$ 600,00 em 4x de R$ 150,00</span></div><div class="kv"><span>Franquia</span><span>livre</span></div><div class="mgn"><span class="lbl">Lucro R$ 649,07 por mês</span><span class="wl-badge wl-badge--sm wl-badge--success">margem 62,4%</span></div></div>
+<div class="plan" style="grid-column: 1/-1;"><div class="ph"><span>Locação com compra <span class="wl-badge wl-badge--sm" style="margin-left: 6px;">a moto vira do cliente</span></span><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer locação com compra"></button></div><div class="pp">R$ 135,05 <small>por semana · 104× · juros 1,00% ao mês</small></div><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;"><div class="kv" style="flex-direction: column; gap: 2px;"><span>Valor de venda</span><span style="text-align: left;">R$ 12.480,00</span></div><div class="kv" style="flex-direction: column; gap: 2px;"><span>Pago na moto</span><span style="text-align: left;">R$ 13.900,00</span></div><div class="kv" style="flex-direction: column; gap: 2px;"><span>Recebe pela moto</span><span style="text-align: left;">R$ 14.045,20</span></div><div class="kv" style="flex-direction: column; gap: 2px;"><span>Lucro</span><span style="text-align: left;">R$ 145,20</span></div></div><div class="mgn"><span class="lbl">Valor de venda abaixo do que foi pago: o lucro vem só dos juros.</span><span class="wl-badge wl-badge--sm wl-badge--warning">margem 1,0%</span></div><div style="display: flex; gap: 16px; margin-top: 8px;"><a href="Veiculo-Precos-Desktop.dc.html" class="lbl" style="font-size: 14px;">Ajustar venda, parcelas e juros</a><a href="Locacao-Compra-Desktop.dc.html" class="lbl" style="font-size: 14px;">Ver um contrato em andamento</a></div></div>
+<div class="plan off"><div class="ph"><span>Diária</span><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer plano diário"></button></div><div class="pp" style="color: var(--ink-muted);">Desligado</div><div class="lbl" style="font-size: 14px; line-height: 20px;">Não aparece na nova locação. Ligue e defina valor, caução e franquia só para esta moto.</div></div>
 </div>
-<div class="rules"><div class="kv"><span>Km excedente</span><span>R$ 0,35 por km</span></div><div class="kv"><span>Atraso na devolução</span><span>R$ 55,00 por dia</span></div><div class="kv"><span>Desconto sem aprovação</span><span>até 10%</span></div><div class="kv"><span>Devolução da caução</span><span>até 3 dias após a devolução</span></div></div>
+<div class="rules"><div class="kv"><span>Km excedente</span><span>R$ 0,35 por km</span></div><div class="kv"><span>Atraso na devolução</span><span>R$ 55,00 por dia</span></div><div class="kv"><span>Desconto sem aprovação</span><span>até 10%</span></div><div class="kv"><span>Devolução da caução</span><span>até 3 dias após a devolução</span></div><div class="kv"><span>Multa mínima da devolução antecipada</span><span>R$ 55,00</span></div></div>
 <div class="lbl" style="font-size: 13px; margin-top: 10px;">Mudar um preço vale para as próximas locações. A LOC-2841 continua com R$ 299,40 por semana, o valor combinado em 30 set.</div>
+</section>
+<section class="wl-panel" style="margin-top: 24px;">
+<div class="wl-panel__head"><div><h2 class="wl-panel__title">Estados do componente</h2><p class="wl-panel__sub" style="margin: 4px 0 0;">Referência dos casos da VEI-12 e da VEI-15. Na ficha real, aparece um de cada vez. Tudo que é número vem da API.</p></div></div>
+
+<div class="est" style="margin-top: 0;"><h3>Tabela não preenchida: nenhum plano ligado</h3>
+<div class="wl-note" role="note">A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda.</div>
+<div class="plans">
+<div class="plan off"><div class="ph"><span>Diária</span><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer plano diário"></button></div><div class="pp" style="color: var(--ink-muted);">Desligado</div><div class="lbl" style="font-size: 14px; line-height: 20px;">Não aparece na nova locação. Ligue e defina valor, caução e franquia só para esta moto.</div></div>
+<div class="plan off"><div class="ph"><span>Semanal</span><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer plano semanal"></button></div><div class="pp" style="color: var(--ink-muted);">Desligado</div><div class="lbl" style="font-size: 14px; line-height: 20px;">Não aparece na nova locação. Ligue e defina valor, caução e franquia só para esta moto.</div></div>
+<div class="plan off"><div class="ph"><span>Mensal</span><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer plano mensal"></button></div><div class="pp" style="color: var(--ink-muted);">Desligado</div><div class="lbl" style="font-size: 14px; line-height: 20px;">Não aparece na nova locação. Ligue e defina valor, caução e franquia só para esta moto.</div></div>
+</div>
+<div class="lbl">No cabeçalho da ficha, o status mostra "Indisponível" com o motivo "Sem preço · ligue um plano", quando a moto estaria disponível. Alugada ou em manutenção, o status fica e o aviso aparece.</div>
+</div>
+
+<div class="est"><h3>Ligar um plano pelo cartão</h3>
+<div class="dlg" role="dialog" aria-label="Ligar o plano Diária?">
+<h4>Ligar o plano Diária?</h4>
+<p>Este plano passa a aparecer na Nova locação, com o valor, a caução e a franquia definidos para esta moto.</p>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Continuar desligado</button><button class="wl-btn wl-btn--solid">Ligar plano</button></div>
+</div>
+<div class="lbl">Se a API recusar (valor, forma aceita ou caução), o erro aparece no cartão e o interruptor fica desligado.</div>
+</div>
+
+<div class="est"><h3>Locação com compra pelo cartão</h3>
+<div class="dlg" role="dialog" aria-label="Desligar a locação com compra?">
+<h4>Desligar a locação com compra?</h4>
+<p>A locação com compra deixa de aparecer na Nova locação. As locações já confirmadas continuam com o preço e as parcelas delas.</p>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Continuar ligada</button><button class="wl-btn wl-btn--solid">Desligar locação com compra</button></div>
+</div>
+<div class="dlg" role="dialog" aria-label="Ligar a locação com compra?">
+<h4>Ligar a locação com compra?</h4>
+<p>A locação com compra passa a aparecer na Nova locação, com o valor de venda, as parcelas e os juros definidos para esta moto.</p>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Continuar desligada</button><button class="wl-btn wl-btn--solid">Ligar locação com compra</button></div>
+</div>
+</div>
+
+<div class="est"><h3>Desligar um plano pelo cartão</h3>
+<div class="dlg" role="dialog" aria-label="Desligar plano Semanal">
+<h4>Desligar o plano Semanal?</h4>
+<p>Este plano deixa de aparecer na Nova locação. As locações já confirmadas continuam com o preço delas.</p>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Continuar ligado</button><button class="wl-btn wl-btn--solid">Desligar plano</button></div>
+</div>
+<div class="lbl">Ao desligar o último plano, o texto é: "Este é o último plano ligado. Sem nenhum plano ligado, esta moto fica indisponível, com o motivo sem preço, e não aparece na Nova locação. As locações já confirmadas continuam com o preço delas." Ligar também pede confirmação e, se a API recusar (valor, forma aceita ou caução), mostra o erro no cartão e o interruptor fica desligado.</div>
+</div>
+
+<div class="est"><h3>Só leitura: gerente e demais perfis</h3>
+<div class="lbl">Sem "Editar preços" e com os interruptores desabilitados. Lucro e margem de cada plano só aparecem para administrador, gerente e financeiro; para os outros perfis, o cartão não mostra a linha de margem.</div>
+</div>
 </section>
 </body>
 </html>
