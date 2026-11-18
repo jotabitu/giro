@@ -24,6 +24,15 @@ test("cartão do plano na landing abre a criação da conta com o plano escolhid
   await expect(page.getByText("R$ 130,00 por mês")).toBeVisible();
 });
 
+test("botão geral desce para os planos da página, com o foco no título, sem abrir a /compra", async ({ page }) => {
+  await simularApi(page);
+  await page.goto("/");
+  await page.locator("header").getByRole("link", { name: "Começar teste grátis" }).click();
+  await expect(page).toHaveURL(/\/#planos$/);
+  await expect(page.locator("#planos-titulo")).toBeFocused();
+  await expect(page.locator("#planos-titulo")).toBeInViewport();
+});
+
 test("plano inválido na URL volta para a escolha dos planos", async ({ page }) => {
   await simularApi(page);
   await page.goto("/compra?plano=completo");

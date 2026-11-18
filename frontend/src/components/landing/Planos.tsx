@@ -7,6 +7,7 @@ import { Icone } from "@/design-system/Icone";
 import { compraApi } from "@/lib/api/compra";
 import type { CatalogoDaCompra } from "@/lib/api/tipos-compra";
 import { reaisInteiros } from "@/lib/compra";
+import { ID_TITULO_PLANOS } from "./IrParaPlanos";
 import { LINK_TESTE_GRATIS, linkDoPlano } from "./links";
 
 /**
@@ -39,7 +40,7 @@ export function Planos() {
       <div className="wrap">
         <div className="head">
           <p className="over">Planos</p>
-          <h2 className="h2">Comece grátis e escolha o plano depois.</h2>
+          <h2 className="h2" id={ID_TITULO_PLANOS} tabIndex={-1}>Comece grátis e escolha o plano depois.</h2>
         </div>
         {catalogo.data ? (
           <CartoesDaLanding catalogo={catalogo.data} />

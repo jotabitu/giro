@@ -59,8 +59,12 @@ describe("landing pública (T-489, T-490)", () => {
     expect(html).not.toContain("fonts.googleapis.com");
   });
 
-  it("botões gerais vão para a escolha dos planos e o WhatsApp fica sem número", () => {
-    expect(html).toContain('href="/compra"');
+  it("botões gerais descem para a seção Planos, não abrem a /compra, e o WhatsApp fica sem número (T-490)", () => {
+    const gerais = html.match(/<a class="wl-btn wl-btn--brand[^"]*" href="([^"]+)">Começar teste grátis/g) ?? [];
+    expect(gerais).toHaveLength(3);
+    for (const a of gerais) expect(a).toContain('href="#planos"');
+    expect(html).not.toContain('href="/compra"');
+    expect(html).toMatch(/<h2 class="h2" id="planos-titulo" tabindex="-1">/);
     expect(html).toContain('href="https://wa.me/"');
   });
 

@@ -1,6 +1,7 @@
 import { ArrowRight, Bell, Check, MessageCircle } from "lucide-react";
 import { Icone } from "@/design-system/Icone";
-import { LINK_TESTE_GRATIS, LINK_WHATSAPP } from "./links";
+import { IrParaPlanos } from "./IrParaPlanos";
+import { LINK_WHATSAPP } from "./links";
 
 export function Hero() {
   return (
@@ -11,7 +12,7 @@ export function Hero() {
           <h1 className="h1">Sua locadora de motos e carros fora do caderno.</h1>
           <p className="lead">O Giro junta frota, contratos, vistoria e cobrança num sistema só, com a cor, o logo e o nome da sua empresa.</p>
           <div className="actions">
-            <a className="wl-btn wl-btn--brand" href={LINK_TESTE_GRATIS}>Começar teste grátis <Icone de={ArrowRight} /></a>
+            <IrParaPlanos className="wl-btn wl-btn--brand">Começar teste grátis <Icone de={ArrowRight} /></IrParaPlanos>
             <a className="wl-btn" href={LINK_WHATSAPP} rel="noopener"><Icone de={MessageCircle} /> Falar com a gente</a>
           </div>
           <div className="hero-note">
