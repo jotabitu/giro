@@ -11,6 +11,7 @@ import {
   Dialogo,
   Gaveta,
   SeletorDeFilial,
+  Aviso,
   Contador,
   Cover,
   DataTable,
@@ -20,6 +21,7 @@ import {
   KpiGrid,
   KpiTile,
   KpiVariacao,
+  LigaDesliga,
   LinhaDeLista,
   ListaDeLinhas,
   Panel,
@@ -203,6 +205,37 @@ function ExemploFleetBar() {
         { chave: "a-venda", rotulo: "À venda", contagem: 12, destaque: "solido" },
       ]}
     />
+  );
+}
+
+function ExemploLigaDesliga() {
+  const [semanal, setSemanal] = useState(true);
+  const [diaria, setDiaria] = useState(false);
+  return (
+    <div className="flex flex-col gap-3">
+      <Linha>
+        <LigaDesliga ligado={semanal} aoMudar={setSemanal} rotulo="Oferecer plano semanal" />
+        <span>Semanal</span>
+      </Linha>
+      <Linha>
+        <LigaDesliga ligado={diaria} aoMudar={setDiaria} rotulo="Oferecer plano diário" />
+        <span>Diária</span>
+      </Linha>
+      <Linha>
+        <LigaDesliga ligado rotulo="Oferecer plano mensal (só leitura)" aoMudar={() => {}} desabilitado />
+        <span>Mensal, só leitura</span>
+      </Linha>
+    </div>
+  );
+}
+
+function ExemploAviso() {
+  return (
+    <div className="flex max-w-xl flex-col gap-3">
+      <Aviso>A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda.</Aviso>
+      <Aviso tom="info">Mudar um preço vale para as próximas locações.</Aviso>
+      <Aviso tom="critico">A parcela não cobre o valor de venda.</Aviso>
+    </div>
   );
 }
 
@@ -541,6 +574,7 @@ function ExemploSidebar() {
 
 const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "alert-card": ExemploAlertCard,
+  "aviso": ExemploAviso,
   "button": ExemploButton,
   "codigo-verificacao": ExemploCodigoVerificacao,
   "dialogo": ExemploDialogo,
@@ -550,6 +584,7 @@ const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "data-table": ExemploDataTable,
   "fleet-bar": ExemploFleetBar,
   "kpi-tile": ExemploKpiTile,
+  "liga-desliga": ExemploLigaDesliga,
   "linha-de-lista": ExemploLinhaDeLista,
   "progress-bar": ExemploProgressBar,
   "search-field": ExemploSearchField,

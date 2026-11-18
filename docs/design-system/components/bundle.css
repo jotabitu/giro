@@ -74,6 +74,19 @@ body { margin: 0; font-family: var(--font-sans); font-size: 15px; line-height: 2
 .wl-seg button { height: 40px; padding: 0 18px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--ink); font: inherit; font-size: 15px; cursor: pointer; }
 .wl-seg button[aria-pressed="true"] { background: var(--solid); color: var(--on-solid); }
 
+/* LigaDesliga: interruptor de um plano ou de uma opção; ligado em solid, desligado em line */
+.wl-toggle { position: relative; display: inline-block; flex: none; width: 44px; height: 26px; padding: 0; border: 0; border-radius: var(--radius-pill); background: var(--line); cursor: pointer; }
+.wl-toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); }
+.wl-toggle[aria-checked="true"] { background: var(--solid); }
+.wl-toggle[aria-checked="true"]::after { background: var(--on-solid); transform: translateX(18px); }
+.wl-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wl-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Aviso: nota curta dentro de um painel; o tom reforça o texto, que carrega o significado */
+.wl-note { box-sizing: border-box; padding: 10px 12px; border-radius: var(--radius-md); background: var(--warning-soft); color: var(--warning-ink); font-size: 13px; line-height: 18px; }
+.wl-note--info { background: var(--info-soft); color: var(--info-ink); }
+.wl-note--critical { background: var(--critical-soft); color: var(--critical-ink); }
+
 /* Search and fields */
 .wl-search { display: flex; align-items: center; gap: 10px; width: 360px; height: 56px; box-sizing: border-box; padding: 0 8px 0 20px; border-radius: var(--radius-pill); background: var(--surface); color: var(--ink-muted); }
 .wl-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; }
