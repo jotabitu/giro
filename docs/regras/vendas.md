@@ -16,7 +16,7 @@ A venda tem 7 estados (o funil da tela mostra os 4 principais) e só vende veíc
 
 **Regras**
 
-- `VEN-01` Preço de tabela = valor de venda definido ao colocar o veículo à venda (referência FIPE exibida ao lado).
+- `VEN-01` Preço de tabela = valor de venda definido ao colocar o veículo à venda (referência FIPE exibida ao lado). Desde 18 nov 2026 (decisão do dono), "Colocar à venda" é recusado para o veículo sem plano ligado, com o aviso "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda." (`VEI-15`); antes, a venda não pedia preço de aluguel.
   - **Textos da referência FIPE** (T-422, fase 2; montados pela API, a tela mostra como vêm):
     - **Rótulo:** "Referência FIPE · outubro de 2026", com o mês do preço; informada em "Colocar à venda", sem versão: "Referência FIPE · informada à mão".
     - **Valor antigo** (a API fora do ar ou a versão fora da tabela): o último valor fica, com o mês dele no rótulo. Atraso de um mês é normal, porque a tabela vira no começo do mês e a rotina leva alguns dias. Com o mês do preço dois ou mais meses antes do mês corrente, aparece o aviso "Esta referência é de agosto de 2026 e não foi atualizada.".

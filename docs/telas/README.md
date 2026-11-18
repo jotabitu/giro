@@ -58,6 +58,8 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | Locações | [desktop](html/Locacoes-Desktop.dc.html) · [celular](html/Locacoes-Mobile.dc.html) | `(empresa)/locacoes` | `locacoes` | LOC |
 | Manutenções | [desktop](html/Manutencao-Desktop.dc.html) · [celular](html/Manutencao-Mobile.dc.html) | `(empresa)/manutencoes` | `manutencao` | MAN |
 | Ficha do veículo | [desktop](html/Veiculo-Desktop.dc.html) · [celular](html/Veiculo-Mobile.dc.html) | `(empresa)/veiculos/[id]` | `veiculos` | VEI, VEI-10, VIS-01 |
+| Planos e preços do veículo | [desktop](html/Veiculo-Precos-Desktop.dc.html) | `(empresa)/veiculos/[id]/precos` | `veiculos` | VEI-12 a VEI-17, LOC-16 |
+| Ficha do veículo · "Preços desta moto" (componente) | [desktop](html/Veiculo-Componente-PrecosDaMoto.dc.html) | `(empresa)/veiculos/[id]` (seção da ficha) | `veiculos` | VEI-12 a VEI-17 |
 | Nova venda | [desktop](html/Venda-Desktop.dc.html) · [celular](html/Venda-Mobile.dc.html) | `(empresa)/vendas` | `vendas` | VEN, APR |
 | Menu Mais | [celular](html/Menu-Mobile.dc.html) | `(empresa)/inicio` | `relatorios (agregados)` | USR, AUT |
 | Vendas | [desktop](html/Vendas-Desktop.dc.html) · [celular](html/Vendas-Mobile.dc.html) | `(empresa)/vendas` | `vendas` | VEN, APR |
@@ -92,6 +94,8 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | Cadastrar veículo | [desktop](html/Veiculo-Novo-Desktop.dc.html) · [celular](html/Veiculo-Novo-Mobile.dc.html) | `(empresa)/veiculos/novo` | `veiculos` | VEI |
 | Editar veículo | [desktop](html/Veiculo-Editar-Desktop.dc.html) · [celular](html/Veiculo-Editar-Mobile.dc.html) | `(empresa)/veiculos/[id]/editar` | `veiculos` | VEI-01, VEI-10 |
 | Ficha do veículo | [desktop](html/Veiculo-Desktop.dc.html) · [celular](html/Veiculo-Mobile.dc.html) | `(empresa)/veiculos/[id]` | `veiculos` | VEI, VEI-10, VIS-01 |
+| Planos e preços do veículo | [desktop](html/Veiculo-Precos-Desktop.dc.html) | `(empresa)/veiculos/[id]/precos` | `veiculos` | VEI-12 a VEI-17, LOC-16 |
+| Ficha do veículo · "Preços desta moto" (componente) | [desktop](html/Veiculo-Componente-PrecosDaMoto.dc.html) | `(empresa)/veiculos/[id]` (seção da ficha) | `veiculos` | VEI-12 a VEI-17 |
 | Visualizador de fotos | [desktop](html/Veiculo-Visualizador-Desktop.dc.html) · [celular](html/Veiculo-Visualizador-Mobile.dc.html) | `(empresa)/veiculos/[id]` (modal) | `veiculos`, `vistorias` | VEI-10, AUD-05 |
 | Movimentações | [desktop](html/Movimentacoes-Desktop.dc.html) · [celular](html/Movimentacoes-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes` | `movimentacoes` | MOV-01 a MOV-06 |
 | Nova movimentação | [desktop](html/Movimentacao-Nova-Desktop.dc.html) · [celular](html/Movimentacao-Nova-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/nova` | `movimentacoes` | MOV-01 a MOV-06 |
