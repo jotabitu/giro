@@ -47,6 +47,8 @@
 .lp .wl-table td { padding:12px 16px; }
 .lp .wl-pipe__row { flex-wrap:nowrap; gap:6px; }
 .lp .wl-pipe__col { min-width:0; }
+/* "Em vistoria": neutro como na referência (decisão do dono no PR #608). */
+.lp .wl-badge--attention { background: var(--surface-sunken); color: var(--ink); }
 
 /* ===== Página ===== */
 .lp, .lp *, .lp *::before, .lp *::after { box-sizing:border-box; }
