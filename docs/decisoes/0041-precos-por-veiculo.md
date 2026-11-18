@@ -1,6 +1,6 @@
 # Preços por veículo: planos, regras, custos e compra no app `veiculos`, a categoria como tipo e a migração da tabela
 
-**Status:** aceita · 18 nov 2026 · T-492 (regras: `VEI-12` a `VEI-17`, `LOC-01`, `LOC-03`, `LOC-04`, `LOC-10`, `LOC-15`, `LOC-16`, tabela de transições do veículo; decisão do dono de 18 nov 2026; regras no PR #612, T-491) · detalha a 0011, a 0012 e a 0015 · **substitui em parte a 0037** (item 2 inteiro e a origem do valor no item 1) · vale com os padrões dos 11 pontos em aberto da T-491
+**Status:** aceita · 18 nov 2026 · T-492 (regras: `VEI-12` a `VEI-17`, `LOC-01`, `LOC-03`, `LOC-04`, `LOC-10`, `LOC-15`, `LOC-16`, tabela de transições do veículo; decisão do dono de 18 nov 2026; regras no PR #612, T-491) · detalha a 0011, a 0012 e a 0015 · **substitui em parte a 0037** (item 2 inteiro e a origem do valor no item 1) · vale com os padrões dos 11 pontos em aberto da T-491 e as decisões do dono de 18 nov 2026 sobre esta ADR (multa mínima própria, aviso de tabela não preenchida, preço agendado)
 
 ## Contexto
 
@@ -37,6 +37,12 @@ Todos herdam `ModeloBase`. Tipos como em `modelo-de-dados.md` (`centavos`, `pct`
 | `caucao_parcelas` | smallint, padrão 1, `CHECK 1..12` | 1 = à vista |
 | `franquia_km` | int, nulo, `CHECK > 0` | nulo = livre |
 | `prazo_minimo_periodos` | smallint, nulo, `CHECK > 0` | nulo = sem mínimo |
+| `valor_agendado_centavos` | centavos, nulo | preço com vigência futura (decisão do dono de 18 nov 2026, item 4) |
+| `caucao_agendada_centavos` | centavos, nulo | caução que entra junto; nula = a caução não muda |
+| `agendado_para` | data, nula | dia em que o agendado passa a valer (data local da filial) |
+
+- **Preço agendado: um por plano, em campos, sem tabela de vigências.** A tela agenda um valor por vez ("R$ 329,00 a partir de 01 out"); uma tabela de vigências daria a mesma resposta com mais junções em toda leitura. `CHECK`: `agendado_para` nula ↔ `valor_agendado_centavos` nulo e `caucao_agendada_centavos` nula; `agendado_para` só se grava no futuro (serviço). Agendar de novo substitui o anterior, com histórico.
+- **Como entra na data: leitura por data, com consolidação pelo Celery Beat.** Quem lê o preço pergunta pelo dia: `valor_em(dia)` = `valor_agendado_centavos` se `agendado_para <= dia`, senão `valor_centavos` (o mesmo para a caução). Assim a confirmação, a renovação e a troca de um dia qualquer pegam o preço certo mesmo que a rotina atrase, e o `LOC-15` continua igual: a locação congela o valor do dia da confirmação, e o agendado nunca muda locação confirmada. A rotina `veiculos.consolidar_precos_agendados`, diária às 00:05 por schema (ADR 0012), passa o agendado vencido para `valor_centavos`/`caucao_centavos`, limpa os três campos e grava histórico (`origem = agendamento`, `por` nulo) e auditoria do Sistema. Ela é idempotente e só arruma a tabela; a regra é a leitura por data.
 
 - `CHECK` do período: `diaria` ↔ `dia`, `semanal` ↔ `semana`, `mensal` ↔ `mes`; `como_paga` compatível com o `periodo` (`dia` só `tudo_na_retirada`, `semana` só `semana_adiantado`, `mes` um dos três `mes_*`).
 - `CHECK` do ligar: `ligado` exige `valor_centavos > 0`, `cardinality(formas_aceitas) >= 1` e `caucao_centavos IS NOT NULL`. O serviço recusa antes, no campo (400), com o texto da `VEI-12`; o `CHECK` é a rede.
@@ -51,6 +57,7 @@ Todos herdam `ModeloBase`. Tipos como em `modelo-de-dados.md` (`centavos`, `pct`
 | `veiculo` | `OneToOneField` → `Veiculo` | `related_name="regras"` |
 | `km_excedente_centavos` | centavos, padrão 0 | por km; só guardado (ponto em aberto, padrão B) |
 | `dia_atraso_centavos` | centavos, padrão 0 | o valor da `LOC-10` |
+| `multa_minima_centavos` | centavos, padrão 0 | mínimo da multa da devolução antecipada (`LOC-12`), separado do dia de atraso |
 | `desconto_sem_aprovacao_pct` | pct, padrão 5.00, `CHECK 0..100` | o limite da `LOC-03` e da `APR-01` |
 | `prazo_devolucao_caucao_dias` | smallint, nulo | nulo = sem prazo (padrão A) |
 
@@ -91,7 +98,7 @@ Todos herdam `ModeloBase`. Tipos como em `modelo-de-dados.md` (`centavos`, `pct`
 | `veiculo` | FK → `Veiculo` | |
 | `em` | momento | relógio do domínio |
 | `por` | FK → `Usuario`, nulo | nulo = Sistema ou migração |
-| `origem` | enum `tela_precos`, `ficha`, `cadastro`, `importacao`, `migracao` | |
+| `origem` | enum `tela_precos`, `ficha`, `cadastro`, `importacao`, `migracao`, `agendamento` | |
 | `alvo` | enum `plano`, `regras`, `custos`, `plano_compra`, `valor_venda` | |
 | `alvo_id` | bigint, nulo | o `PlanoVeiculo` mudado |
 | `alvo_nome` | texto(60) | "Semanal", "Entregador", nome do `outro` (copiado) |
@@ -108,7 +115,7 @@ Todos herdam `ModeloBase`. Tipos como em `modelo-de-dados.md` (`centavos`, `pct`
 - **`Categoria.filial` (a tabela da filial)** fica na tabela, sem leitura de preço. As categorias por filial continuam valendo como tipo (e na regra `IMP-08`); juntar categorias de mesmo nome entre filiais é decisão de "Preços da frota", não desta ADR.
 - **`PrecoCategoria`** não se apaga (as locações antigas guardam `precos_de`, e "nada de negócio é apagado"). Deixa de ser lido por `locacoes`, pela ficha e pela Frota. A tela antiga `Precos` fica só na Administração, com aviso, e continua gravando nela; o único uso do valor dali é de **modelo de preço**: o cadastro, a importação e o assistente (passo 8) pré-preenchem os planos do veículo novo com o preço vigente da categoria escolhida, por `veiculos.services.planos_do_modelo(categoria)`, na criação do veículo e só nela. A tela do veículo não aplica modelo.
 - **`locacoes.PlanoCompra`** para de receber cadastro: `POST`/`PUT` respondem 410 com `{"codigo": "VEI-16", "mensagem": "O plano de compra agora é de cada veículo. Use Planos e preços do veículo."}`; o `GET` continua (as locações antigas apontam para ele). A FK `Locacao.plano_compra` fica.
-- **`locacoes.PlanoEspecial`** some da `LOC-01` nova: a Nova locação não oferece mais plano especial (o "Entregador" virou tipo de plano do veículo). O model e a FK `Locacao.plano_especial` ficam para as locações antigas; cadastro novo responde 410 como o `PlanoCompra`. As regras do PR #612 não dizem se o plano especial de preço fixo deve virar plano `entregador` dos veículos na migração; **até o produto responder, a migração não o converte** (risco 3).
+- **`locacoes.PlanoEspecial`** some da `LOC-01` nova: a Nova locação não oferece mais plano especial (o "Entregador" virou tipo de plano do veículo). O model e a FK `Locacao.plano_especial` ficam para as locações antigas; cadastro novo responde 410 como o `PlanoCompra`. As regras do PR #612 não dizem se o plano especial de preço fixo deve virar plano `entregador` dos veículos na migração; **a migração não o converte** (decisão do dono de 18 nov 2026): o veículo que fica sem plano ligado mostra o aviso de tabela não preenchida (item 4).
 
 #### O que deixa de valer na ADR 0037
 
@@ -126,10 +133,11 @@ Ordem (cada passo roda por schema no `migrate_schemas`; nenhuma migration de `ve
 3. **`veiculos` 0010 (dados, `RunPython`, reversa = `noop`):** para cada `Veiculo` sem `RegrasVeiculo`:
    - acha o `PrecoCategoria` vigente da categoria na data de hoje em `America/Sao_Paulo` (a migration não tem o relógio do domínio; usa `timezone.now()`, e o `GIRO_DATA_REFERENCIA` não vale aqui);
    - cria `PlanoVeiculo` `diaria`, `semanal` e `mensal` com o valor da categoria, `caucao_centavos` da categoria, `caucao_parcelas = 1`, `como_paga` padrão do período (`tudo_na_retirada`, `semana_adiantado`, `mes_uma_parcela`), `formas_aceitas` = as quatro, franquia livre, sem prazo mínimo e `ligado = valor > 0`;
-   - cria `RegrasVeiculo` com `dia_atraso_centavos` = diária da categoria, 5.00, km excedente 0 e prazo nulo; cria `CustosVeiculo` vazio;
+   - o primeiro `PrecoCategoria` com `vigente_desde` no futuro vira o agendado de cada plano (`valor_agendado_centavos`, `caucao_agendada_centavos`, `agendado_para = vigente_desde`); um segundo preço futuro, se houver, não cabe (um agendado por plano) e a migration o lista;
+   - cria `RegrasVeiculo` com `dia_atraso_centavos` e `multa_minima_centavos` = diária da categoria, 5.00, km excedente 0 e prazo nulo; cria `CustosVeiculo` vazio;
    - grava `HistoricoPrecoVeiculo` com `origem = migracao`, `por` nulo, um `lote` por veículo;
    - **idempotência:** a chave é "o veículo já tem `RegrasVeiculo`"; o `get_or_create` por `(veiculo, tipo)` protege uma rodada interrompida no meio. Rodar de novo não duplica nem sobrescreve o que a locadora já editou.
-   - Categoria sem preço vigente: os planos nascem desligados com valor 0; preço com `vigente_desde` no futuro (como a Street de 01 out no seed antes da data) **não vira plano agendado** (não há vigência no plano): a migration imprime a lista por empresa (risco 4).
+   - Categoria sem preço vigente (nem futuro): os planos nascem desligados com valor 0, e o veículo fica com o aviso de tabela não preenchida (item 4). Só com preço futuro: os planos nascem desligados com o agendado preenchido, e o comando do passo 6 os liga no dia, pela consolidação.
 4. **`locacoes` 00NN (dados, `RunPython`, depende da `veiculos` 0010):** copia o `PlanoCompra` ativo mais recente de cada categoria para o `PlanoCompraVeiculo` de cada veículo dela que ainda não tem um: desligado, `modo = digitar`, `parcela_moto_centavos` = `valor_parcela_centavos`, periodicidade e parcelas do antigo, entrada 0, adicional 0, caução = a da categoria (padrão A); imprime os outros planos da categoria que não foram. Escreve num model de `veiculos` de dentro de uma migration de `locacoes`: é a única exceção ao "só por serviço", porque migration não chama serviço e a dependência vai no sentido permitido.
 5. **`locacoes` 00NN+1 (schema):** campos novos da `Locacao` (item 5), `quinzenal` no enum, o `CHECK` novo do tipo. Todos nulos ou com padrão: as locações confirmadas não mudam (`LOC-15`); `valor_periodo_centavos`, `diaria_centavos`, `caucao_centavos`, `compra_*` e `precos_de` delas ficam como estão.
 6. **Depois do `migrate_schemas`, comando `alinhar_veiculos_sem_preco`** (idempotente, no deploy e no `make seed`): pelo serviço do item 4, leva a `indisponivel` "sem preço" os veículos `disponivel` sem plano ligado, com histórico de status e auditoria do Sistema. Fica fora da migration porque a mudança de status só sai por serviço e gera evento (padrão do repositório).
@@ -151,7 +159,8 @@ Nenhum campo de preço é removido nesta leva. Tirar `PrecoCategoria`, `PlanoCom
 
 - `disponivel` e sem plano → `transicionar(veiculo, INDISPONIVEL, origem=MANUAL, motivo=MOTIVO_SEM_PRECO, acao="sem_preco")` na mesma transação.
 - `indisponivel` com `motivo_status == MOTIVO_SEM_PRECO` e com plano → `disponivel`. Outro motivo (bloqueio, documento vencido) não volta sozinho.
-- `reservado` ou `alugado`: nada agora. Na volta, `veiculos.services.transicionar(..., DISPONIVEL)` passa a conferir `tem_plano_ligado`: sem plano, o destino vira `INDISPONIVEL` com o motivo. A conferência fica dentro de `transicionar`, num lugar só, e cobre todos os caminhos que devolvem o veículo à frota (devolução, fim de manutenção, chegada de movimentação). A tabela de transições já tem `alugado` → `indisponivel`; as outras origens (`em_manutencao`, `em_movimentacao`) já permitem `indisponivel`.
+- **Aviso de tabela não preenchida** (decisão do dono de 18 nov 2026; `VEI-15`, `LOC-09`, `VEN-01`): não é status. `veiculos.selectors` anota `tem_plano_ligado` (`Exists` no índice parcial) na Frota, nas listas e na ficha, e o serializer devolve `aviso_preco: "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda."` ou `null`, em qualquer status. Três ações recusam o veículo sem plano ligado com 409 `{"codigo": "VEI-15", "mensagem": <o aviso>}`: entrar na Nova locação (rascunho e confirmação), ser o veículo novo da troca (`LOC-09`, sem plano ligado **do mesmo tipo** do contratado) e "Colocar à venda" (`veiculos.services.colocar_a_venda`, `VEN-01`). A lista de veículos da Nova locação já os tira pelo filtro.
+- `reservado`, `alugado` ou `em_manutencao`: o status fica, o aviso aparece. Na volta, `veiculos.services.transicionar(..., DISPONIVEL)` passa a conferir `tem_plano_ligado`: sem plano, o destino vira `INDISPONIVEL` com o motivo. A conferência fica dentro de `transicionar`, num lugar só, e cobre todos os caminhos que devolvem o veículo à frota (devolução, fim de manutenção, chegada de movimentação). A tabela de transições já tem `alugado` → `indisponivel`; as outras origens (`em_manutencao`, `em_movimentacao`) já permitem `indisponivel`.
 
 **Rotas** (em `apps/veiculos/api`, sob o recurso do veículo; contrato em `docs/api/veiculos.md`, seção "Preços", escrito pelo backend na primeira tarefa a partir daqui):
 
@@ -167,8 +176,8 @@ Nenhum campo de preço é removido nesta leva. Tirar `PrecoCategoria`, `PlanoCom
 
 **Como a nova locação lê o preço.** `veiculos.selectors` ganha a interface para os outros apps, no lugar de `preco_vigente`:
 
-- `planos_para_locacao(veiculo) -> list[PrecoDoPlano]` (só ativos e ligados) e `plano_para_locacao(veiculo, plano_id) -> PrecoDoPlano` (levanta `ErroDeRegra("VEI-15")` se desligado);
-- `PrecoDoPlano` é um `dataclass(frozen=True)` com `plano_id`, `tipo`, `nome`, `periodo`, `valor_centavos`, `como_paga`, `formas_aceitas`, `caucao_centavos`, `caucao_parcelas`, `franquia_km`, `prazo_minimo_periodos`, mais as regras do veículo (`dia_atraso_centavos`, `desconto_sem_aprovacao_pct`, `km_excedente_centavos`, `prazo_devolucao_caucao_dias`);
+- `planos_para_locacao(veiculo, dia) -> list[PrecoDoPlano]` (só ativos e ligados) e `plano_para_locacao(veiculo, plano_id, dia) -> PrecoDoPlano` (levanta `ErroDeRegra("VEI-15")` se desligado);
+- `PrecoDoPlano` é um `dataclass(frozen=True)` com `plano_id`, `tipo`, `nome`, `periodo`, `valor_centavos`, `como_paga`, `formas_aceitas`, `caucao_centavos`, `caucao_parcelas`, `franquia_km`, `prazo_minimo_periodos`, com valor e caução já resolvidos para o dia pedido (`valor_em(dia)`, item 1), mais as regras do veículo (`dia_atraso_centavos`, `multa_minima_centavos`, `desconto_sem_aprovacao_pct`, `km_excedente_centavos`, `prazo_devolucao_caucao_dias`);
 - `plano_compra_para_locacao(veiculo) -> PrecoDaCompra` (parcela do cliente, parcelas, periodicidade, entrada, caução, valor de venda, juros).
 
 `locacoes` deixa de receber `periodicidade` e `plano_especial` no rascunho e passa a receber `plano_veiculo_id` (comum) ou nada além do veículo (compra). A `periodicidade` da locação sai do `periodo` do plano, e `parcelamento_mensal` do `como_paga` (`mes_quatro_semanais` → `quatro_semanais`; `mes_duas_quinzenais` é valor novo do enum). A Nova locação lista veículos com `tem_plano_ligado` (só com compra ligada: aparece só no tipo compra).
@@ -185,12 +194,13 @@ Nenhum campo de preço é removido nesta leva. Tirar `PrecoCategoria`, `PlanoCom
 | `franquia_km` | int, nulo | `VEI-12` |
 | `km_excedente_centavos` | centavos, padrão 0 | guardado para a tarefa da cobrança (padrão B) |
 | `desconto_sem_aprovacao_pct` | pct, nulo | `LOC-03`; nulo nas antigas = 5.00 |
+| `multa_minima_centavos` | centavos, nulo | `LOC-12`; nulo nas antigas = `diaria_centavos` (o comportamento de antes) |
 | `prazo_devolucao_caucao_dias` | smallint, nulo | `DEV-02` |
 | `compra_entrada_centavos`, `compra_adicional_centavos` | centavos, nulo | `LOC-16` |
 | `compra_valor_venda_centavos` | centavos, nulo | `VEI-16` |
 | `compra_juros_mes_pct` | pct, nulo | `VEI-16` |
 
-- `valor_periodo_centavos` = valor do plano; `caucao_centavos` = caução do plano; `diaria_centavos` passa a guardar o **dia de atraso** do veículo (é a base da `LOC-10`); `compra_valor_parcela_centavos` = parcela do cliente; `precos_de` = data da confirmação.
+- `valor_periodo_centavos` = valor do plano; `caucao_centavos` = caução do plano; `diaria_centavos` passa a guardar o **dia de atraso** do veículo (base só da `LOC-10`; a multa mínima tem o campo próprio acima); `compra_valor_parcela_centavos` = parcela do cliente; `precos_de` = data da confirmação.
 - Renovação (`LOC-08`) usa o plano do mesmo `plano_veiculo`, com o valor novo; desligado ou retirado, 409 `VEI-15`.
 
 ## Pontos em aberto da T-491: os padrões adotados
@@ -213,16 +223,15 @@ Todos adotados como estão. Os que mexem no desenho:
 
 ### Riscos
 
-1. **Multa mínima do encerramento (`LOC-12`).** Ela usa a "diária" congelada, e `diaria_centavos` passa a guardar o dia de atraso. Para os migrados é a mesma coisa (dia de atraso = diária da categoria); para um veículo cujo dia de atraso a locadora mudar, a multa mínima muda junto. Perguntar ao produto se a multa mínima segue o dia de atraso ou a diária do plano `diaria`.
-2. **Troca de veículo (`LOC-09`).** A diferença de caução e o preço do dia saem do plano do veículo novo de mesmo tipo. Veículo novo sem plano desse tipo ligado: a troca é recusada (409 `VEI-15`) até o produto dizer outra coisa.
-3. **Plano especial "Entregador" das empresas.** Não é convertido na migração (as regras não dizem). Uma empresa com plano especial em uso perde a oferta na Nova locação até cadastrar o `entregador` nos veículos. Levar ao produto antes da T-494 entrar no ar.
-4. **Preço futuro da categoria** não vira plano agendado; a migration lista os casos e a locadora ajusta na mão. Com várias empresas em produção (giro.ceo), rodar a migração com a lista revisada antes do deploy.
-5. **`transicionar` com a conferência do sem preço** muda o destino de todo caminho que devolve o veículo. Os testes de devolução, manutenção e movimentação precisam de veículo com plano ligado no `factory`.
+1. **Empresas com plano especial em uso** (Entregador) perdem a oferta na Nova locação até cadastrar o plano `entregador` nos veículos; o aviso da tabela não preenchida só aparece se o veículo ficar sem nenhum plano ligado. Avisar as empresas em produção (giro.ceo) antes do deploy da tarefa 2.
+2. **Segundo preço futuro da categoria** não cabe no agendado único do plano; a migration lista os casos. Raro (a tela antiga agenda um por vez).
+3. **Rotina de consolidação parada** não erra preço (a leitura é por data), mas deixa o agendado vencido na tela de edição: a tela mostra o valor efetivo pela API, nunca o campo cru.
+4. **`transicionar` com a conferência do sem preço** muda o destino de todo caminho que devolve o veículo. Os testes de devolução, manutenção e movimentação precisam de veículo com plano ligado no `factory`.
 
 ## Divisão das tarefas seguintes (rascunho; o orquestrador decide números e ordem)
 
-1. **Backend: preços do veículo** (`veiculos`, `empresas`, `financeiro.leituras`): models, migrations 1 a 3, `precos.py` com os casos de teste, `salvar_precos`, sem preço em `transicionar`, rotas do item 4, `docs/api/veiculos.md`, OpenAPI. Regras `VEI-12` a `VEI-17`.
-2. **Backend: locação lê o plano do veículo** (`locacoes`, `financeiro`): migrations 4 e 5, interface `planos_para_locacao`, rascunho, confirmação, renovação, troca, `LOC-03`, `LOC-04` (caução parcelada), `LOC-10`, `LOC-16` pelo `PlanoCompraVeiculo`, quinzenal e `mes_duas_quinzenais` no calendário; 410 no cadastro de `PlanoCompra` e `PlanoEspecial`; comando `alinhar_veiculos_sem_preco` e seed. Depende da 1.
+1. **Backend: preços do veículo** (`veiculos`, `empresas`, `financeiro.leituras`): models (com o preço agendado e a multa mínima), migrations 1 a 3 (com o agendado vindo do preço futuro), `precos.py` com os casos de teste, `salvar_precos`, sem preço em `transicionar`, `aviso_preco` na leitura do veículo, 409 `VEI-15` no "Colocar à venda" (`VEN-01`), rotina `consolidar_precos_agendados` no Beat, rotas do item 4, `docs/api/veiculos.md`, OpenAPI. Regras `VEI-12` a `VEI-17`.
+2. **Backend: locação lê o plano do veículo** (`locacoes`, `financeiro`): migrations 4 e 5, interface `planos_para_locacao`, rascunho, confirmação, renovação e troca lendo `valor_em(dia)` e recusando sem plano ligado (troca: do mesmo tipo, `LOC-09`), `LOC-03`, `LOC-12` pela multa mínima congelada, `LOC-04` (caução parcelada), `LOC-10`, `LOC-16` pelo `PlanoCompraVeiculo`, quinzenal e `mes_duas_quinzenais` no calendário; 410 no cadastro de `PlanoCompra` e `PlanoEspecial`; comando `alinhar_veiculos_sem_preco` e seed. Depende da 1.
 3. **Design system + frontend: tela e componente** (`/veiculos/[id]/precos` e "Preços desta moto" na ficha), sobre o contrato da 1, com o `simular` e o 409 dos juros. Pode começar com o contrato escrito, antes do merge da 1.
 4. **Frontend: Nova locação e cadastro** (planos do veículo na Nova locação, "Tipo de veículo" no cadastro, editar e importação, a tela antiga `Precos` só na Administração com aviso). Depende da 2.
 5. **Desvinculação da tabela antiga** (backend e frontend): tirar `preco_vigente` da ficha, da Frota, da importação e do assistente (no lugar, `planos_do_modelo`), conferir com `grep` que nada de locação lê `PrecoCategoria`, `PlanoCompra` ou `PlanoEspecial`; QA com os casos da `dados-de-teste.md`. Fecha a decisão.

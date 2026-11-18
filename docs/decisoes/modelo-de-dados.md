@@ -301,12 +301,12 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 T-492, `VEI-12` a `VEI-17`, ADR 0041 (campos, `CHECK`, únicos e enums completos estão lá, item 1).
 
-- `PlanoVeiculo` (ativável): `veiculo` FK, `tipo` enum `diaria`, `semanal`, `mensal`, `entregador`, `outro`, `nome` texto(40), `periodo` enum `dia`, `semana`, `mes`, `ligado`, `valor_centavos`, `como_paga` enum, `formas_aceitas` array de `pix`, `boleto`, `cartao`, `dinheiro`, `caucao_centavos` nulo, `caucao_parcelas` 1..12, `franquia_km` nulo (livre), `prazo_minimo_periodos` nulo. Únicos parciais `(veiculo, tipo)` fora do `outro` e `(veiculo, lower(nome))` no `outro`, com `ativo`.
-- `RegrasVeiculo` (1:1): `km_excedente_centavos`, `dia_atraso_centavos`, `desconto_sem_aprovacao_pct` (5.00), `prazo_devolucao_caucao_dias` nulo.
+- `PlanoVeiculo` (ativável): `veiculo` FK, `tipo` enum `diaria`, `semanal`, `mensal`, `entregador`, `outro`, `nome` texto(40), `periodo` enum `dia`, `semana`, `mes`, `ligado`, `valor_centavos`, `como_paga` enum, `formas_aceitas` array de `pix`, `boleto`, `cartao`, `dinheiro`, `caucao_centavos` nulo, `caucao_parcelas` 1..12, `franquia_km` nulo (livre), `prazo_minimo_periodos` nulo. Preço agendado: `valor_agendado_centavos`, `caucao_agendada_centavos`, `agendado_para` (lido por data; consolidado pelo Beat às 00:05). Únicos parciais `(veiculo, tipo)` fora do `outro` e `(veiculo, lower(nome))` no `outro`, com `ativo`.
+- `RegrasVeiculo` (1:1): `km_excedente_centavos`, `dia_atraso_centavos`, `multa_minima_centavos` (`LOC-12`), `desconto_sem_aprovacao_pct` (5.00), `prazo_devolucao_caucao_dias` nulo.
 - `CustosVeiculo` (1:1): manutenção, seguro e rastreador por mês, `ipva_ano_centavos`, `revenda_estimada_centavos` nulo, `ocupacao_esperada_pct` nulo. Valor de venda = `Veiculo.valor_venda_centavos`; pago na moto = compra + despesas (calculado).
 - `PlanoCompraVeiculo` (1:1): `ligado`, `periodicidade` enum `diaria`, `semanal`, `quinzenal`, `mensal`, `parcelas` 2..1000, `entrada_centavos`, `juros_mes_pct`, `modo` enum `calcular`, `digitar`, `parcela_moto_centavos`, `adicional_centavos`, `caucao_centavos`.
 - `HistoricoPrecoVeiculo` (imutável): `veiculo`, `em`, `por` nulo, `origem`, `alvo`, `alvo_id`, `alvo_nome`, `campo`, `de`, `para` json, `lote` UUID. Índice `(veiculo, em)`.
-- Sem plano ligado: `indisponivel` com `motivo_status` "Sem preço · ligue um plano", pelo serviço (`VEI-15`).
+- Sem plano ligado: aviso `aviso_preco` em qualquer status (recusa Nova locação, troca e colocar à venda, 409 `VEI-15`) e, se estava `disponivel`, com `motivo_status` "Sem preço · ligue um plano", pelo serviço (`VEI-15`).
 
 ### 9a. Foto do veículo · `veiculos.FotoVeiculo` · ativável
 
