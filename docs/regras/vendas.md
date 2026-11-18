@@ -14,6 +14,8 @@ A venda tem 7 estados (o funil da tela mostra os 4 principais) e só vende veíc
 | `perdida` | cliente desistiu ou proposta venceu (7 dias sem resposta) |
 | `cancelada` | venda concluída desfeita (`VEN-07`); só a partir de `vendida` |
 
+O fluxo da `VEN-01` à `VEN-10` tem pontos em aberto da T-501 (passagens entre estados, quando vira `vendida`, contrato, troca, parcelas, cancelamento, vencimento, funil, meta, comissão, financiamento) em [`pontos-em-aberto.md`](pontos-em-aberto.md). Até a resposta do dono, vale o padrão de cada um.
+
 **Regras**
 
 - `VEN-01` Preço de tabela = valor de venda definido ao colocar o veículo à venda (referência FIPE exibida ao lado). Desde 18 nov 2026 (decisão do dono), "Colocar à venda" é recusado para o veículo sem plano ligado, com o aviso "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda." (`VEI-15`); antes, a venda não pedia preço de aluguel.
