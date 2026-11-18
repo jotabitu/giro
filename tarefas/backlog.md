@@ -652,3 +652,27 @@ Saíram da comparação com um sistema de gestão de revenda de motos, feita em 
 - **Agente:** produto → fullstack · **Regras:** `VEI` (custos de aquisição e preparação), `VEN`, `FIN` · **Origem:** comparação de 13 nov 2026.
 - **O caso:** o dono quer saber quanto dinheiro está parado no estoque e quanto pode ganhar com ele.
 - **Pronto quando:** a API calcula, para os veículos à venda, o capital imobilizado (soma do custo: compra mais despesas), o custo médio por unidade e a margem potencial (preço de venda menos custo, em R$ e %), e, para as vendas do mês, o ticket médio e a comparação com o mês anterior; o início do administrador e do gerente mostram esses números; o vendedor não vê custo nem margem; tudo em centavos; regra com código e testes.
+
+### Preços por veículo (decisões do dono de 18 nov 2026)
+
+Regras `VEI-12` a `VEI-17` e ajustes em `LOC-01`, `LOC-03`, `LOC-04`, `LOC-09`, `LOC-10`, `LOC-12`, `LOC-16` e `VEN-01` (PR #612); desenho na ADR 0041 (PR #613); telas `Veiculo-Precos-Desktop` e `Veiculo-Componente-PrecosDaMoto`. Na tela nova, implementar idêntico ao canvas; na ficha, só o componente "Preços desta moto", sem mexer no resto.
+
+#### T-494 · Backend: preços do veículo
+- **Agente:** backend · **Regras:** `VEI-12` a `VEI-17`, `LOC-15` · **ADR:** 0041.
+- **Pronto quando:** os cinco models (com o preço agendado e a multa mínima) e as migrations 1 a 3 da ADR, com a cópia idempotente da categoria; `aviso_preco` na leitura do veículo; 409 `VEI-15` no "Colocar à venda"; rotina `consolidar_precos_agendados`; `precos.py` com os casos da Pop TBC-5H21 e da CG QXA-4B21 de `dados-de-teste.md`; `salvar_precos` com histórico, auditoria e confirmação acima de 1% ao mês; "sem preço" em `transicionar`; `GET`/`PUT` `veiculos/{id}/precos/`, `POST .../simular/` e o liga e desliga do plano; `docs/api/veiculos.md` e OpenAPI.
+
+#### T-495 · Backend: a locação lê o plano do veículo
+- **Agente:** backend · **Regras:** `LOC-01`, `LOC-04`, `LOC-09`, `LOC-10`, `LOC-12`, `LOC-15`, `LOC-16` · **ADR:** 0041 · **Depende de:** T-494.
+- **Pronto quando:** migrations 4 e 5; rascunho, confirmação, renovação e troca leem o preço do dia e recusam veículo sem plano; multa mínima congelada; caução parcelada; compra pelo `PlanoCompraVeiculo`; 410 no cadastro antigo de `PlanoCompra` e `PlanoEspecial`; comando `alinhar_veiculos_sem_preco`; seed Moto Rápida atualizado; testes.
+
+#### T-496 · Design system e frontend: tela de preços e componente na ficha
+- **Agente:** design-system → frontend · **Regras:** `VEI-12` a `VEI-17` · **Pode começar:** pelo contrato da T-494.
+- **Pronto quando:** `/veiculos/[id]/precos` idêntica ao canvas (com agendar preço e o modal de custos mensais); "Preços desta moto" na ficha, com liga e desliga confirmado; aviso de tabela não preenchida na Frota e na ficha; componentes que faltarem (controle segmentado, liga e desliga) no design system; o front só exibe o que a API calcula; testes e capturas.
+
+#### T-497 · Frontend: Nova locação e cadastro pelos planos do veículo
+- **Agente:** frontend · **Regras:** `LOC-01`, `VEI-01`, `VEI-15` · **Depende de:** T-495.
+- **Pronto quando:** a Nova locação oferece os planos do veículo e mostra o aviso do veículo sem plano; "Tipo de veículo" no cadastro e na importação; a tela antiga de preços só pela Administração, com o aviso de que os preços ficam em cada veículo; testes.
+
+#### T-498 · Desvinculação da tabela antiga e conferência
+- **Agente:** fullstack → qa · **Regras:** `VEI-12` a `VEI-17`, `LOC-15` · **Depende de:** T-495 e T-497.
+- **Pronto quando:** nenhuma leitura de `preco_vigente` da categoria na ficha, na Frota, na importação e no assistente; QA com os casos de `dados-de-teste.md`; lista dos veículos sem preço migrável, dos agendados não migrados e das empresas com plano Entregador, para avisar antes do deploy em giro.ceo.
