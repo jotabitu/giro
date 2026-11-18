@@ -52,6 +52,7 @@ from .models import (
     LIMITE_DA_GALERIA,
     MOVIMENTAVEIS,
     PERIODO_DO_TIPO,
+    SO_PELA_VOLTA_SEM_PRECO,
     TRANSICOES_VEICULO,
     AlvoPreco,
     Categoria,
@@ -178,7 +179,11 @@ def transicionar(
     with transaction.atomic():
         travado = _travar(veiculo)
         de = travado.status
-        if novo_status not in TRANSICOES_VEICULO.get(de, set()):
+        if novo_status not in TRANSICOES_VEICULO.get(de, set()) or (
+            novo_status == S.INDISPONIVEL and de in SO_PELA_VOLTA_SEM_PRECO
+        ):
+            # `alugado`/`reservado` → `indisponivel` só pela volta sem preço, abaixo: nunca
+            # pedido direto (bloquear um alugado continua recusado).
             raise transicao_invalida(de, novo_status)
         if novo_status == S.DISPONIVEL and not tem_plano_ligado(travado):
             # VEI-15 (ADR 0041, item 4): a volta do veículo sem plano ligado vai para

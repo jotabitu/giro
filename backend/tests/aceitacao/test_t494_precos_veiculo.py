@@ -26,6 +26,7 @@ from apps.veiculos.models import (
     RegrasVeiculo,
     Veiculo,
 )
+from comum.erros import TransicaoInvalida
 
 from .frota import Frota, criar_veiculo, montar_frota
 from .test_t012_filiais import MotoRapida
@@ -464,6 +465,25 @@ def test_vei_15_volta_do_alugado_sem_plano_vai_para_indisponivel(moto, frota) ->
         qxa, "disponivel", origem=services.OrigemDaMudanca("locacao", 2841, "LOC-2841")
     )
     assert (qxa.status, qxa.motivo_status) == ("indisponivel", services.MOTIVO_SEM_PRECO)
+
+
+def test_vei_15_os_concluida_sem_plano_vai_para_indisponivel(moto, frota) -> None:
+    """MAN-05: o PMZ-3E17 em manutenção, sem plano ligado, sai da OS para `indisponivel`."""
+    pmz = frota.veiculos["PMZ3E17"]
+    _desligar_todos(moto, pmz)
+    services.transicionar(pmz, "disponivel", origem=services.OrigemDaMudanca("ordem_servico", 1))
+    assert (pmz.status, pmz.motivo_status) == ("indisponivel", services.MOTIVO_SEM_PRECO)
+
+
+@pytest.mark.parametrize("placa", ["QXA4B21", "PMZ3E17"])
+def test_vei_15_indisponivel_direto_de_alugado_ou_manutencao_continua_recusado(
+    moto, frota, placa
+) -> None:
+    """A ida a `indisponivel` aberta para o "sem preço" não vira um bloqueio de alugado ou de
+    veículo na oficina: o pedido direto continua 409 `transicao_veiculo`."""
+    veiculo = frota.veiculos[placa]
+    with pytest.raises(TransicaoInvalida):
+        services.bloquear(veiculo, "Retrovisor quebrado")
 
 
 def test_vei_15_desbloquear_sem_plano(moto, frota) -> None:

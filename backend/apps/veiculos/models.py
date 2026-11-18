@@ -134,7 +134,8 @@ TRANSICOES_VEICULO: dict[str, set[str]] = {
     # VENDIDO: quitação da locação com intenção de compra (LOC-16, VEN-11), só por `vendas`.
     # INDISPONIVEL: a volta do veículo sem plano ligado, "sem preço" (VEI-15, ADR 0041, item 4).
     S.ALUGADO: {S.DISPONIVEL, S.EM_MANUTENCAO, S.VENDIDO, S.INDISPONIVEL},
-    S.EM_MANUTENCAO: {S.DISPONIVEL, *_BAIXAR},
+    # INDISPONIVEL: a OS concluída do veículo sem plano ligado (VEI-15, "vale em todo retorno").
+    S.EM_MANUTENCAO: {S.DISPONIVEL, S.INDISPONIVEL, *_BAIXAR},
     S.INDISPONIVEL: {S.DISPONIVEL, *_BAIXAR},
     S.A_VENDA: {S.DISPONIVEL, S.VENDIDO, *_BAIXAR},
     S.VENDIDO: {S.A_VENDA, S.INDISPONIVEL, *_BAIXAR},
@@ -142,6 +143,9 @@ TRANSICOES_VEICULO: dict[str, set[str]] = {
     # Volta pela chegada da movimentação: `indisponivel` com documento vencido (MOV-05).
     S.EM_MOVIMENTACAO: {S.DISPONIVEL, S.INDISPONIVEL, *_BAIXAR},
 }
+# VEI-15: destes, `indisponivel` só pela volta "sem preço" que `services.transicionar` decide;
+# pedido direto (bloquear um alugado, por exemplo) continua recusado com 409.
+SO_PELA_VOLTA_SEM_PRECO = frozenset({S.ALUGADO, S.RESERVADO, S.EM_MANUTENCAO})
 
 
 class Combustivel(models.TextChoices):
