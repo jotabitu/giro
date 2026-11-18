@@ -37,7 +37,7 @@ from apps.plataforma.services import Administrador, criar_empresa, registrar_pas
 from apps.veiculos.models import Categoria, Veiculo
 from comum.estados import transicionar
 
-from . import carteira, fotos, frota
+from . import carteira, estoque, fotos, frota
 from . import financeiro as financeiro_do_seed
 from .relogio import RelogioDoSeed
 
@@ -298,6 +298,10 @@ def carregar_negocio(
         with transaction.atomic():
             if frota.garantir_dados_do_crlv():
                 criado.append("dados do CRLV-e do QXA-4B21")
+    with transaction.atomic():
+        categorias = {c.nome: c for c in Categoria.objects.all()}
+        if estoque.garantir_estoque_parado(empresa, centro, categorias, pessoas, relogio):
+            criado.append("estoque à venda parado")
     _configuracao(criado)
     if not Caixa.objects.exists():
         with transaction.atomic():

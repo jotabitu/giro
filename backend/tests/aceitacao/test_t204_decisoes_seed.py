@@ -99,7 +99,11 @@ def test_apr_12_seed_tempo_medio_de_90_minutos(seed: Any):
 def test_apr_12_seed_pendentes_sao_pneus_e_loc_2812(seed: Any):
     pendentes = PedidoAprovacao.objects.filter(status="pendente")
     assert sorted(p.solicitante.nome for p in pendentes) == ["Bruna Alves", "João Silva"]
-    assert PedidoAprovacao.objects.exclude(status__in=["aprovado", "pendente"]).count() == 0
+    # Fora o pedido de setembro da despesa recusada do estoque parado (T-499, `VEI-20`), que não
+    # entra na janela de outubro da `APR-12`.
+    fora = list(PedidoAprovacao.objects.exclude(status__in=["aprovado", "pendente"]))
+    assert [(p.status, p.titulo) for p in fora] == [("recusado", "Despesa de R$ 600,00")]
+    assert _sp(fora[0].decidido_em)[:7] == "2026-09"
     # O pedido não é recriado nem muda de hora ao ser decidido: `criado_em` fica no pedido.
     pneus = _pedido_da_despesa("Pneus (2)")
     assert _sp(pneus.criado_em) == "2026-10-07 09:00"
