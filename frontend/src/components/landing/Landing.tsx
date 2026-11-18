@@ -6,11 +6,10 @@ import { Nav } from "./Nav";
 import { Perguntas } from "./Perguntas";
 import { Planos } from "./Planos";
 import { Problema } from "./Problema";
-import { QuemUsa } from "./QuemUsa";
 import { WhiteLabel } from "./WhiteLabel";
 import "./landing.css";
 
-/** Landing pública do Giro (T-489), porta de giro-landing/index.html: 10 seções nesta ordem. */
+/** Landing pública do Giro (T-489), porta de giro-landing/index.html: 9 seções nesta ordem ("Quem usa" oculta, T-490). */
 export function Landing() {
   return (
     <div className="lp">
@@ -22,7 +21,8 @@ export function Landing() {
         <ComoFunciona />
         <Modulos />
         <WhiteLabel />
-        <QuemUsa />
+        {/* TODO(landing): "Quem usa" oculta por decisão do dono (T-490) até haver depoimentos reais. Para voltar,
+            renderize <QuemUsa /> aqui, entre WhiteLabel e Planos. */}
         <Planos />
         <Perguntas />
       </main>

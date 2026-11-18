@@ -2,14 +2,14 @@
 
 import { CircleCheck, Info } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Button, TextField } from "@/design-system/components";
+import { Button, Dialogo, SegmentedControl, TextField } from "@/design-system/components";
 import { Icone } from "@/design-system/Icone";
 import { compraApi } from "@/lib/api/compra";
 import { ErroApi } from "@/lib/api/tipos";
 import type { CatalogoDaCompra, PedidoCriado, PlanoAVenda, SituacaoDoCnpj } from "@/lib/api/tipos-compra";
 import { diaEMes, mascararCelular, mascararCnpj, reais, soDigitos } from "@/lib/compra";
 import { mensagemDoErro } from "@/lib/erros";
-import type { Ciclo } from "./EscolhaDoPlano";
+import { CartoesDosPlanos, CICLOS, type Ciclo } from "./EscolhaDoPlano";
 
 const UFS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 const FORMAS = [
@@ -43,15 +43,18 @@ export function Checkout({
   catalogo,
   plano,
   ciclo,
-  aoTrocarPlano,
+  aoMudarPlano,
+  aoMudarCiclo,
   aoCriar,
 }: {
   catalogo: CatalogoDaCompra;
   plano: PlanoAVenda;
   ciclo: Ciclo;
-  aoTrocarPlano: () => void;
+  aoMudarPlano: (plano: PlanoAVenda) => void;
+  aoMudarCiclo: (ciclo: Ciclo) => void;
   aoCriar: (pedido: PedidoCriado) => void;
 }) {
+  const [trocando, setTrocando] = useState(false);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [celular, setCelular] = useState("");
@@ -280,7 +283,7 @@ export function Checkout({
         <section className="wl-panel">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ color: "var(--ink-muted)" }}>Plano escolhido</span>
-            <Button variante="quieto" compacto onClick={aoTrocarPlano}>
+            <Button variante="quieto" compacto onClick={() => setTrocando(true)} aria-haspopup="dialog">
               Trocar
             </Button>
           </div>
@@ -319,6 +322,31 @@ export function Checkout({
           )}
         </section>
       </aside>
+
+      {/* Trocar o plano sem sair do formulário: o Checkout continua montado, e nenhum campo se perde. O <dialog>
+          nativo prende o foco, fecha no Esc e devolve o foco ao botão "Trocar". */}
+      <Dialogo
+        aberto={trocando}
+        aoFechar={() => setTrocando(false)}
+        titulo="Trocar o plano"
+        descricao="Os dados que você preencheu continuam aqui."
+        tamanho="amplo"
+      >
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, overflowY: "auto", paddingBottom: 4 }}>
+          <SegmentedControl rotulo="Ciclo de cobrança" opcoes={CICLOS} valor={ciclo} aoMudar={aoMudarCiclo} />
+          <CartoesDosPlanos
+            catalogo={catalogo}
+            ciclo={ciclo}
+            atual={plano.codigo}
+            rotuloDoBotao="Escolher este plano"
+            rebaixados
+            aoEscolher={(novo) => {
+              aoMudarPlano(novo);
+              setTrocando(false);
+            }}
+          />
+        </div>
+      </Dialogo>
     </div>
   );
 }

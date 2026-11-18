@@ -40,5 +40,11 @@ export default defineConfig({
       testMatch: ["**/celular.spec.ts", "**/fechamento-visual.spec.ts"],
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
     },
+    {
+      // Compra pública a partir da landing (T-490): a API da compra é simulada com page.route, sem banco nem relógio.
+      name: "compra",
+      testMatch: ["**/compra-plano.spec.ts"],
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, baseURL: `http://localhost:${porta}` },
+    },
   ],
 });
