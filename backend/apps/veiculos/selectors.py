@@ -564,14 +564,8 @@ def aviso_preco(veiculo: Veiculo) -> str | None:
     return None if tem else AVISO_PRECO
 
 
-def _parcela_do_mes(valor: int, como_paga: str) -> dict[str, int] | None:
-    """VEI-12: "4 semanais de R$ 247,50", "2 × R$ 250,00"; a diferença de centavos vai para a
-    última parcela do mês."""
-    partes = {ComoPaga.MES_DUAS_QUINZENAIS.value: 2, ComoPaga.MES_QUATRO_SEMANAIS.value: 4}.get(
-        como_paga
-    )
-    if not partes:
-        return None
+def _dividir(valor: int, partes: int) -> dict[str, int]:
+    """Convenção de arredondamento: a diferença de centavos vai para a última parcela."""
     parcela = valor // partes
     return {
         "parcelas": partes,
@@ -580,10 +574,27 @@ def _parcela_do_mes(valor: int, como_paga: str) -> dict[str, int] | None:
     }
 
 
+def _parcela_do_mes(valor: int, como_paga: str) -> dict[str, int] | None:
+    """VEI-12: o mensal dividido, "4 semanais de R$ 247,50"."""
+    partes = {ComoPaga.MES_DUAS_QUINZENAIS.value: 2, ComoPaga.MES_QUATRO_SEMANAIS.value: 4}.get(
+        como_paga
+    )
+    return _dividir(valor, partes) if partes else None
+
+
+def _caucao_parcelada(caucao: int | None, parcelas: int) -> dict[str, int] | None:
+    """VEI-12, LOC-04: a caução em mais de uma parcela, "2 × R$ 250,00"; à vista ou sem caução
+    preenchida, `None`."""
+    if caucao is None or parcelas <= 1:
+        return None
+    return _dividir(caucao, parcelas)
+
+
 def _plano(plano: PlanoVeiculo, hoje: date) -> dict[str, Any]:
     """O valor e a caução efetivos do dia; o agendado só enquanto é futuro (ADR 0041, risco 3)."""
     futuro = plano.agendado_para is not None and plano.agendado_para > hoje
     valor = plano.valor_em(hoje)
+    caucao = plano.caucao_em(hoje)
     return {
         "id": plano.pk,
         "tipo": plano.tipo,
@@ -594,8 +605,9 @@ def _plano(plano: PlanoVeiculo, hoje: date) -> dict[str, Any]:
         "valor_centavos": valor,
         "como_paga": plano.como_paga or None,
         "formas_aceitas": list(plano.formas_aceitas),
-        "caucao_centavos": plano.caucao_em(hoje),
+        "caucao_centavos": caucao,
         "caucao_parcelas": plano.caucao_parcelas,
+        "caucao_parcelada": _caucao_parcelada(caucao, plano.caucao_parcelas),
         "franquia_km": plano.franquia_km,
         "prazo_minimo_periodos": plano.prazo_minimo_periodos,
         "agendado": (
@@ -671,6 +683,8 @@ def _compra(
         if custo:  # VEI-13: lucro e margem só para quem vê custo (USR-09)
             calculo["lucro_centavos"] = resultado.lucro_centavos
             calculo["margem_sobre_pago_pct"] = resultado.margem_sobre_pago_pct
+            calculo["pago_sobre_recebe_pct"] = resultado.pago_sobre_recebe_pct
+            calculo["lucro_sobre_recebe_pct"] = resultado.lucro_sobre_recebe_pct
         dados["resultado"] = calculo
     return dados
 
@@ -729,6 +743,8 @@ def precos_do_veiculo(
         custos = documento.custos
         dados["custos"] = {
             **{campo: getattr(custos, campo) for campo in CAMPOS_DOS_CUSTOS},
+            # VEI-13: o IPVA entra no custo ÷ 12; a tela mostra "R$ 39,00 por mês".
+            "ipva_mes_centavos": precos.centavos(Decimal(custos.ipva_ano_centavos) / 12),
             "custo_mes_centavos": resultado.custo_mes_centavos,
         }
     return dados

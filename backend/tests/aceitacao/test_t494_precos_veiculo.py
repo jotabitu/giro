@@ -236,6 +236,29 @@ def test_vei_12_mensal_em_4_semanais(moto, frota) -> None:
     }
 
 
+def test_vei_12_caucao_em_parcelas_e_ipva_por_mes(moto, frota) -> None:
+    """A API divide para a tela: caução de R$ 500,01 em 2 = R$ 250,00 + R$ 250,01 (a diferença
+    vai para a última); IPVA de R$ 468,00 no ano = R$ 39,00 por mês, como entra no custo. O
+    `simular` devolve os mesmos números sem gravar."""
+    sak = frota.veiculos["SAK1D39"]
+    corpo = {
+        "planos": [{"tipo": "mensal", "caucao_centavos": 50001, "caucao_parcelas": 2}],
+        "custos": {"ipva_ano_centavos": 46800},
+    }
+    simulado = moto.api("Mariana").post(f"{VEICULOS}{sak.pk}/precos/simular/", corpo, format="json")
+    assert simulado.status_code == 200, simulado.json()
+    for resposta in (simulado, _put(moto, sak, corpo)):
+        dados = resposta.json()
+        assert dados["planos"][2]["caucao_parcelada"] == {
+            "parcelas": 2,
+            "parcela_centavos": 25000,
+            "ultima_parcela_centavos": 25001,
+        }
+        assert dados["planos"][1]["caucao_parcelada"] is None  # à vista
+        assert dados["custos"]["ipva_mes_centavos"] == 3900
+    assert "custos" not in _precos(moto, sak, "Bruna").json()
+
+
 # --- Salvar (VEI-12, VEI-16, VEI-17) ---
 
 
@@ -335,6 +358,10 @@ def test_vei_16_pop_simular_sem_gravar(moto, frota) -> None:
     assert resultado["recebe_pela_moto_centavos"] == 1776896
     assert resultado["lucro_centavos"] == 396896
     assert resultado["margem_sobre_pago_pct"] == "28.76"
+    assert (resultado["pago_sobre_recebe_pct"], resultado["lucro_sobre_recebe_pct"]) == (
+        "77.66",
+        "22.34",
+    )
     assert resposta.json()["pede_confirmacao_juros"] is False
     assert not PlanoCompraVeiculo.objects.filter(veiculo=pop).exists()
 

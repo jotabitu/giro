@@ -630,14 +630,14 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
   "pago_na_moto": { "total_centavos": 1380000, "compra_centavos": 1349000, "despesas_centavos": 31000 },
   "custos": {
     "manutencao_mes_centavos": 10000, "seguro_mes_centavos": 8000, "rastreador_mes_centavos": 5000,
-    "ipva_ano_centavos": 120000, "revenda_estimada_centavos": 900000, "ocupacao_esperada_pct": "85.00",
-    "custo_mes_centavos": 53000
+    "ipva_ano_centavos": 120000, "ipva_mes_centavos": 10000, "revenda_estimada_centavos": 900000,
+    "ocupacao_esperada_pct": "85.00", "custo_mes_centavos": 53000
   },
   "planos": [
     {
       "id": 31, "tipo": "semanal", "nome": null, "rotulo": "Semanal", "periodo": "semana", "ligado": true,
       "valor_centavos": 32900, "como_paga": "semana_adiantado", "formas_aceitas": ["pix", "boleto", "cartao", "dinheiro"],
-      "caucao_centavos": 30000, "caucao_parcelas": 1, "franquia_km": 1000, "prazo_minimo_periodos": null,
+      "caucao_centavos": 30000, "caucao_parcelas": 1, "caucao_parcelada": null, "franquia_km": 1000, "prazo_minimo_periodos": null,
       "agendado": { "valor_centavos": 34900, "caucao_centavos": null, "a_partir_de": "2026-12-01" },
       "parcela_do_mes": null,
       "margem": { "receita_mes_centavos": 121182, "lucro_mes_centavos": 68182, "margem_pct": "56.26", "abaixo_da_minima": false }
@@ -656,6 +656,7 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
       "parcela_moto_centavos": 16124, "adicional_centavos": 2977, "parcela_cliente_centavos": 19101,
       "recebe_pela_moto_centavos": 1776896, "juros_no_prazo_centavos": 186896, "venda_abaixo_do_pago": false,
       "lucro_centavos": 396896, "margem_sobre_pago_pct": "28.76",
+      "pago_sobre_recebe_pct": "77.66", "lucro_sobre_recebe_pct": "22.34",
       "nas_periodicidades": [
         { "periodicidade": "diaria", "parcelas": 730, "parcela_cliente_centavos": 2719 },
         { "periodicidade": "semanal", "parcelas": 104, "parcela_cliente_centavos": 19101 },
@@ -675,6 +676,9 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
 - `valor_centavos` e `caucao_centavos` são os **efetivos de hoje**: com o preço agendado já na data, vêm os agendados e `agendado` vem `null`, mesmo antes da rotina das 00:05 (ADR 0041, risco 3). `agendado` só aparece enquanto a data é futura ("R$ 349,00 a partir de 01 dez").
 - `periodo`: `dia`, `semana` ou `mes`. `como_paga`: `tudo_na_retirada` (dia), `semana_adiantado` (semana), `mes_uma_parcela`, `mes_duas_quinzenais` ou `mes_quatro_semanais` (mês). `parcela_do_mes` só no mês dividido: `{ "parcelas": 4, "parcela_centavos": 24750, "ultima_parcela_centavos": 24750 }` (a diferença de centavos vai para a última).
 - `franquia_km` `null` = livre; `prazo_minimo_periodos` `null` = sem mínimo; `caucao_centavos` `null` = não preenchida (R$ 0,00 é válido).
+- `caucao_parcelada` (`LOC-04`): a caução de hoje dividida em `caucao_parcelas`, no mesmo formato do `parcela_do_mes`, com a diferença de centavos na última: R$ 500,00 em 2 → `{ "parcelas": 2, "parcela_centavos": 25000, "ultima_parcela_centavos": 25000 }` ("2 × R$ 250,00"). `null` à vista (`caucao_parcelas` 1) ou sem caução preenchida.
+- `custos.ipva_mes_centavos`: o IPVA do ano ÷ 12, arredondado ao centavo (`ROUND_HALF_UP`), só para mostrar ("R$ 39,00 por mês"); o custo por mês usa o valor sem arredondar.
+- `plano_compra.resultado.pago_sobre_recebe_pct` e `lucro_sobre_recebe_pct`: a divisão da barra do "recebe pela moto", com 2 casas e somando 100,00 (o do lucro é 100 − o do pago). Pop: 77,66% e 22,34%. Com lucro negativo (venda abaixo do pago e juros que não cobrem), o do pago passa de 100 e o do lucro fica negativo. Só para administrador, gerente e financeiro; nulos sem valor de compra.
 - `margem` `null` sem `ocupacao_esperada_pct` ("Informe a ocupação"). `margem_pct` `null` com receita zero. `abaixo_da_minima` pinta a faixa de amarelo (`margem_minima_pct` da empresa; nula = nunca).
 - `pago_na_moto.total_centavos` = compra + despesas do veículo sem as recusadas (`FIN-17`); `null` sem valor de compra (aí `lucro_centavos` e `margem_sobre_pago_pct` também vêm `null`).
 - `plano_compra` `null` enquanto o veículo não tem um; `resultado` `null` sem valor de venda ou com entrada maior ou igual a ele. O "recebe pela moto" usa a parcela arredondada × `n` + entrada (padrão A: Pop R$ 17.768,96). A parcela nas 4 periodicidades usa o mesmo prazo em meses; a parcela da moto e o adicional se arredondam cada um.

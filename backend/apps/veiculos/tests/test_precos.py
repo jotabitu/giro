@@ -36,6 +36,9 @@ def test_vei_16_pop_semanal_104() -> None:
     assert resultado.lucro_centavos == 396896
     assert resultado.juros_no_prazo_centavos == 186896
     assert resultado.margem_sobre_pago_pct == Decimal("28.76")  # 28,8% na tela
+    # A barra do recebe pela moto: 13.800,00 ÷ 17.768,96 = 77,66% pago e 22,34% lucro.
+    assert resultado.pago_sobre_recebe_pct == Decimal("77.66")
+    assert resultado.lucro_sobre_recebe_pct == Decimal("22.34")
     assert resultado.venda_abaixo_do_pago is False
     assert resultado.pede_confirmacao_juros is False
 

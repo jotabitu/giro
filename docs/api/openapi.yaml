@@ -11178,6 +11178,8 @@ components:
           type: integer
         ipva_ano_centavos:
           type: integer
+        ipva_mes_centavos:
+          type: integer
         revenda_estimada_centavos:
           type: integer
           nullable: true
@@ -11191,6 +11193,7 @@ components:
       required:
       - custo_mes_centavos
       - ipva_ano_centavos
+      - ipva_mes_centavos
       - manutencao_mes_centavos
       - ocupacao_esperada_pct
       - rastreador_mes_centavos
@@ -18857,6 +18860,10 @@ components:
           nullable: true
         caucao_parcelas:
           type: integer
+        caucao_parcelada:
+          allOf:
+          - $ref: '#/components/schemas/ParcelaDoMes'
+          nullable: true
         franquia_km:
           type: integer
           nullable: true
@@ -18878,6 +18885,7 @@ components:
       required:
       - agendado
       - caucao_centavos
+      - caucao_parcelada
       - caucao_parcelas
       - como_paga
       - formas_aceitas
@@ -20283,6 +20291,16 @@ components:
           type: integer
           nullable: true
         margem_sobre_pago_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+          nullable: true
+        pago_sobre_recebe_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+          nullable: true
+        lucro_sobre_recebe_pct:
           type: string
           format: decimal
           pattern: ^-?\d{0,7}(?:\.\d{0,2})?$

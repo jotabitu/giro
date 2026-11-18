@@ -867,6 +867,8 @@ class PlanoDoVeiculoSerializer(SemAsChavesAusentes):
     formas_aceitas = serializers.ListField(child=serializers.ChoiceField(FormaAceita.choices))
     caucao_centavos = serializers.IntegerField(allow_null=True)
     caucao_parcelas = serializers.IntegerField()
+    # "2 × R$ 250,00"; nula à vista ou sem caução preenchida.
+    caucao_parcelada = ParcelaDoMesSerializer(allow_null=True)
     franquia_km = serializers.IntegerField(allow_null=True)
     prazo_minimo_periodos = serializers.IntegerField(allow_null=True)
     agendado = AgendadoSerializer(allow_null=True)
@@ -882,7 +884,12 @@ class ParcelaNaPeriodicidadeSerializer(serializers.Serializer[Any]):
 
 
 class ResultadoCompraSerializer(SemAsChavesAusentes):
-    AUSENTES_SEM_CUSTO = ("lucro_centavos", "margem_sobre_pago_pct")
+    AUSENTES_SEM_CUSTO = (
+        "lucro_centavos",
+        "margem_sobre_pago_pct",
+        "pago_sobre_recebe_pct",
+        "lucro_sobre_recebe_pct",
+    )
 
     financiado_centavos = serializers.IntegerField()
     meses_do_prazo = serializers.DecimalField(max_digits=9, decimal_places=2)
@@ -898,6 +905,13 @@ class ResultadoCompraSerializer(SemAsChavesAusentes):
     # Só para administrador, gerente e financeiro (VEI-13); nulos sem o valor de compra.
     lucro_centavos = serializers.IntegerField(allow_null=True, required=False)
     margem_sobre_pago_pct = serializers.DecimalField(
+        max_digits=9, decimal_places=2, allow_null=True, required=False
+    )
+    # A barra do "recebe pela moto": pago e lucro sobre o recebe, somando 100,00.
+    pago_sobre_recebe_pct = serializers.DecimalField(
+        max_digits=9, decimal_places=2, allow_null=True, required=False
+    )
+    lucro_sobre_recebe_pct = serializers.DecimalField(
         max_digits=9, decimal_places=2, allow_null=True, required=False
     )
 
@@ -928,6 +942,7 @@ class CustosDoVeiculoSerializer(serializers.Serializer[Any]):
     seguro_mes_centavos = serializers.IntegerField()
     rastreador_mes_centavos = serializers.IntegerField()
     ipva_ano_centavos = serializers.IntegerField()
+    ipva_mes_centavos = serializers.IntegerField()  # ÷ 12, como entra no custo
     revenda_estimada_centavos = serializers.IntegerField(allow_null=True)
     ocupacao_esperada_pct = serializers.DecimalField(
         max_digits=5, decimal_places=2, allow_null=True

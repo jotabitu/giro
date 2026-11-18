@@ -175,6 +175,9 @@ class ResultadoCompra:
     juros_no_prazo_centavos: int
     lucro_centavos: int | None  # sem o pago na moto (sem valor de compra), `None`
     margem_sobre_pago_pct: Decimal | None
+    # A barra do "recebe pela moto": a parte do pago e a do lucro, somando 100,00.
+    pago_sobre_recebe_pct: Decimal | None
+    lucro_sobre_recebe_pct: Decimal | None
     venda_abaixo_do_pago: bool
     pede_confirmacao_juros: bool
     nas_periodicidades: list[ParcelaNaPeriodicidade] = field(default_factory=list)
@@ -230,6 +233,12 @@ def simular_compra(
         if lucro is not None and pago_na_moto
         else None
     )
+    # O lucro é recebe − pago: a parte dele é o que falta para 100, e a barra sempre fecha.
+    pago_recebe = (
+        pct(Decimal(pago_na_moto) / Decimal(recebe) * CEM)
+        if pago_na_moto is not None and recebe > 0
+        else None
+    )
     return ResultadoCompra(
         financiado_centavos=financiado,
         meses_do_prazo=pct(meses),
@@ -242,6 +251,8 @@ def simular_compra(
         juros_no_prazo_centavos=recebe - valor_venda,
         lucro_centavos=lucro,
         margem_sobre_pago_pct=margem_pago,
+        pago_sobre_recebe_pct=pago_recebe,
+        lucro_sobre_recebe_pct=CEM - pago_recebe if pago_recebe is not None else None,
         venda_abaixo_do_pago=pago_na_moto is not None and valor_venda < pago_na_moto,
         pede_confirmacao_juros=juros > JUROS_SEM_CONFIRMACAO_PCT,
         nas_periodicidades=_nas_periodicidades(financiado, meses, parcelas, adicional, juros),
