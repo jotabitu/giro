@@ -1,7 +1,7 @@
 """T-186 (parte 2) · Geração, emissão e cartão guardado (`docs/api/assinatura.md`, "Faturas,
 cobrança e régua" e "Downgrade agendado: conferência e virada"; PLT-02, PLT-04, PLT-13).
 
-Relógio de referência (ADR 0021): Moto Rápida em teste de 07 a 21 out, FAT-0001 de R$ 449,00
+Relógio de referência (ADR 0021): Moto Rápida em teste de 07 a 21 out, FAT-0001 de R$ 160,00
 vencendo em 22 out, e as seguintes todo dia 22. A tarefa `gerar_faturas` roda às 06:00: gera a
 fatura do período seguinte 5 dias antes do vencimento (17 nov para a de 22 nov), emite no
 parceiro o que vence em até 5 dias e cobra o cartão guardado no vencimento.
@@ -136,7 +136,7 @@ def test_plt_02_ca_ass_10_boleto_cinco_dias_antes(
     assert fatura.cobranca_boleto_url and fatura.cobranca_linha_digitavel
     assert [m.to for m in mailoutbox] == [[COBRANCA], [MARIANA]]  # um por destinatário (T-306)
     assert "FAT-0001" in mailoutbox[0].subject
-    assert "R$ 449,00" in mailoutbox[0].body and "22 out" in mailoutbox[0].body
+    assert "R$ 160,00" in mailoutbox[0].body and "22 out" in mailoutbox[0].body
     evento = _eventos("fatura_assinatura.emitir_cobranca", "public")[-1]
     assert evento.regra == "PLT-14"
 
@@ -229,14 +229,14 @@ def test_plt_13_aviso_de_autorizacao_confere_no_parceiro(
 def test_plt_02_gera_a_fatura_do_periodo_seguinte_cinco_dias_antes(
     moto, relogio, mailoutbox, django_capture_on_commit_callbacks
 ):
-    """FAT-0001 paga e ativa: a FAT-0002 (22 nov a 21 dez, R$ 449,00) nasce em 17 nov, com o
+    """FAT-0001 paga e ativa: a FAT-0002 (22 nov a 21 dez, R$ 160,00) nasce em 17 nov, com o
     boleto; em 16 nov ainda não. Uma por período: rodar de novo não gera outra."""
     _ativa_com_boleto(moto)
     assert _gerar(relogio, "2026-11-16", django_capture_on_commit_callbacks).faturas == 0
     geracao = _gerar(relogio, "2026-11-17", django_capture_on_commit_callbacks)
     assert (geracao.faturas, geracao.emitidas) == (1, {"boleto": 1})
     fatura = moto.fatura("FAT-0002")
-    assert (fatura.tipo, fatura.status, fatura.valor_centavos) == ("mensalidade", "aberta", 44900)
+    assert (fatura.tipo, fatura.status, fatura.valor_centavos) == ("mensalidade", "aberta", 16000)
     assert (fatura.vencimento, fatura.periodo_inicio, fatura.periodo_fim) == (
         date(2026, 11, 22),
         date(2026, 11, 22),
@@ -392,7 +392,7 @@ def test_plt_04_email_do_downgrade_recusado(moto, mailoutbox, excede, primeira_l
 
 
 def test_plt_04_downgrade_cabia_na_geracao(moto, relogio, django_capture_on_commit_callbacks):
-    """CA-ASS-41: sem convidar ninguém até 17 nov, a FAT-0002 sai pelo Profissional (R$ 449,00,
+    """CA-ASS-41: sem convidar ninguém até 17 nov, a FAT-0002 sai pelo Profissional (R$ 160,00,
     "Plano Profissional · 22 nov a 21 dez") e o agendamento fica. Os convites de 19 nov entram
     (o limite ainda é o do Completo), e em 22 nov o plano vira com 11 de 10: ninguém sai, e um
     novo convite é recusado pelo limite (PLT-03)."""
@@ -400,7 +400,7 @@ def test_plt_04_downgrade_cabia_na_geracao(moto, relogio, django_capture_on_comm
 
     assert _gerar(relogio, "2026-11-17", django_capture_on_commit_callbacks).faturas == 1
     fatura = moto.fatura("FAT-0002")
-    assert (fatura.plano.nome, fatura.valor_centavos) == ("Profissional", 44900)
+    assert (fatura.plano.nome, fatura.valor_centavos) == ("Profissional", 16000)
     proxima = services.proxima_mensalidade(moto.recarregar())
     assert proxima is not None
     assert proxima.descricao == ("Plano Profissional · 22 nov a 21 dez")
@@ -426,7 +426,7 @@ def test_plt_04_downgrade_cabia_na_geracao(moto, relogio, django_capture_on_comm
 
     assert _virar(relogio, "2026-11-22").mudancas_de_plano == 1
     empresa = moto.recarregar()
-    assert (empresa.plano.nome, empresa.preco_contratado_centavos) == ("Profissional", 44900)
+    assert (empresa.plano.nome, empresa.preco_contratado_centavos) == ("Profissional", 16000)
     assert UsoEmpresa.objects.get(empresa=moto.empresa).usuarios == 11  # ninguém sai
     uso_usuarios = moto.api().get("/api/assinatura/").json()["uso"]["usuarios"]
     assert uso_usuarios == {
@@ -517,15 +517,15 @@ def test_plt_04_diferenca_do_upgrade_no_cartao_guardado_na_hora(
     moto, relogio, django_capture_on_commit_callbacks
 ):
     """CA-ASS-14 com cartão guardado: Profissional para Completo em 01 nov, a diferença de
-    R$ 304,84 é cobrada no cartão na hora, sem esperar a geração."""
+    R$ 500,61 é cobrada no cartão na hora, sem esperar a geração."""
     _ativa_com_cartao(moto, relogio)
     relogio.em("2026-11-01 09:00")
     with django_capture_on_commit_callbacks(execute=True):
-        resposta = _mudar(moto.api(), "Completo", 30484)
+        resposta = _mudar(moto.api(), "Completo", 50061)
     connection.set_schema_to_public()
     assert resposta.status_code == 200
     diferenca = moto.fatura("FAT-0002")
-    assert (diferenca.tipo, diferenca.valor_centavos) == (TipoFatura.DIFERENCA_PLANO, 30484)
+    assert (diferenca.tipo, diferenca.valor_centavos) == (TipoFatura.DIFERENCA_PLANO, 50061)
     assert diferenca.cobranca_tipo == "cartao"
     assert diferenca.vencimento == date(2026, 11, 4)
 
@@ -540,7 +540,7 @@ def test_plt_04_diferenca_do_upgrade_no_boleto_sai_na_geracao(
     """Com boleto, a diferença (vence em 04 nov) é emitida na geração das 06:00 seguinte."""
     _ativa_com_boleto(moto)
     relogio.em("2026-11-01 09:00")
-    assert _mudar(moto.api(), "Completo", 30484).status_code == 200
+    assert _mudar(moto.api(), "Completo", 50061).status_code == 200
     assert not moto.fatura("FAT-0002").cobranca_externa_id
     assert _gerar(relogio, "2026-11-02", django_capture_on_commit_callbacks).emitidas == {
         "boleto": 1

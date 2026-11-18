@@ -29,10 +29,10 @@ def pendente(**esperado) -> None:
 
 # Plano e preços (PLT-03): centavos; None = ilimitado.
 PLANOS_SEED = {
-    "Essencial": {"mensal": 19900, "anual": 199000, "veiculos": 30, "filiais": 1, "usuarios": 3},
+    "Essencial": {"mensal": 13000, "anual": 130000, "veiculos": 30, "filiais": 1, "usuarios": 3},
     "Profissional": {
-        "mensal": 44900,
-        "anual": 449000,
+        "mensal": 16000,
+        "anual": 160000,
         "veiculos": 150,
         "filiais": 3,
         "usuarios": 10,

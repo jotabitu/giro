@@ -215,7 +215,7 @@ def test_plt_14_ca_ass_01_lista_da_moto_rapida_em_07_out(moto):
         "vencimento": "2026-10-22",
         "descricao": "Plano Profissional · 22 out a 21 nov",
         "periodo": {"inicio": "2026-10-22", "fim": "2026-11-21"},
-        "valor_centavos": 44900,
+        "valor_centavos": 16000,
         "status": "aberta",
         "forma": None,
         "pago_em": None,
@@ -252,13 +252,13 @@ def test_plt_14_ca_ass_28_lista_depois_do_upgrade(moto, relogio):
     assert _baixar(moto.fatura("FAT-0001").cobranca_externa_id, "evt_t185_1") == "baixada"
     moto.estado(status="ativa")
     relogio.em("2026-11-01 09:00")
-    assert _mudar(moto.api(), "Completo", valor=30484).status_code == 200
+    assert _mudar(moto.api(), "Completo", valor=50061).status_code == 200
     relogio.em("2026-11-05 09:00")
     api = moto.api()
     diferenca, paga, teste = api.get(FATURAS).json()["resultados"]
     assert (diferenca["codigo"], diferenca["valor_centavos"], diferenca["status"]) == (
         "FAT-0002",
-        30484,
+        50061,
         "aberta",
     )
     assert diferenca["descricao"] == "Mudança para o plano Completo · 01 a 21 nov"

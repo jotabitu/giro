@@ -1,5 +1,5 @@
 // DADOS FALSOS da assinatura nos testes (docs/api/assinatura.md e docs/api/cancelamento.md). Só api-falsa.ts importa este arquivo.
-// Seed: Moto Rápida em teste (07 a 21 out, 14 dias), plano Profissional R$ 449,00; uso 86/150, 1/3 e 5/10, sem aviso (PLT-03);
+// Seed: Moto Rápida em teste (07 a 21 out, 14 dias), plano Profissional R$ 160,00; uso 86/150, 1/3 e 5/10, sem aviso (PLT-03);
 // sem forma de pagamento, FAT-0001 aberta (vence 22 out) e a linha do teste. Os números e as mensagens são os do contrato.
 import { ErroApi } from "@/lib/api/tipos";
 import type {
@@ -49,10 +49,10 @@ const MOTIVOS: { codigo: MotivoCancelamento; rotulo: string }[] = [
 ];
 
 const SEED: Assinatura = {
-  plano: { id: 2, nome: "Profissional", preco_contratado_centavos: 44900, ciclo: "mensal" },
+  plano: { id: 2, nome: "Profissional", preco_contratado_centavos: 16000, ciclo: "mensal" },
   status: "em_teste",
   teste: { inicio: "2026-10-07", fim: "2026-10-21", dias_restantes: 14 },
-  proxima_fatura: { vencimento: "2026-10-22", valor_centavos: 44900, descricao: "Plano Profissional · 22 out a 21 nov" },
+  proxima_fatura: { vencimento: "2026-10-22", valor_centavos: 16000, descricao: "Plano Profissional · 22 out a 21 nov" },
   plano_proximo: null,
   cancelamento: null,
   pausa: null,
@@ -89,8 +89,8 @@ const PLANOS: PlanoParaMudar[] = [
     nome: "Essencial",
     ordem: 1,
     atual: false,
-    preco_mensal_centavos: 19900,
-    preco_anual_centavos: 199000,
+    preco_mensal_centavos: 13000,
+    preco_anual_centavos: 130000,
     limite_veiculos: 30,
     limite_filiais: 1,
     limite_usuarios: 3,
@@ -112,9 +112,9 @@ const PLANOS: PlanoParaMudar[] = [
     nome: "Profissional",
     ordem: 2,
     atual: true,
-    preco_mensal_centavos: 44900,
-    preco_anual_centavos: 449000,
-    preco_contratado_centavos: 44900,
+    preco_mensal_centavos: 16000,
+    preco_anual_centavos: 160000,
+    preco_contratado_centavos: 16000,
     limite_veiculos: 150,
     limite_filiais: 3,
     limite_usuarios: 10,
@@ -147,7 +147,7 @@ function faturaAberta(forma: FormaDaAssinatura | null): FaturaDaAssinatura {
     vencimento: "2026-10-22",
     descricao: "Plano Profissional · 22 out a 21 nov",
     periodo: { inicio: "2026-10-22", fim: "2026-11-21" },
-    valor_centavos: 44900,
+    valor_centavos: 16000,
     status: "aberta",
     forma: null,
     pago_em: null,
@@ -265,7 +265,7 @@ function montarTelaCancelamento(): TelaDoCancelamento {
       pausar: podePausar ? { meses: [1, 2, 3], inicio: "2026-11-22", texto: "A pausa começa em 22 nov, no fim do período pago." } : null,
       mudar_para_essencial: podeMudar
         ? {
-            plano: { id: 1, nome: "Essencial", preco_mensal_centavos: 19900 },
+            plano: { id: 1, nome: "Essencial", preco_mensal_centavos: 13000 },
             resumo: "Até 30 veículos, 1 filial e 3 usuários.",
             cabe: PLANOS[0]?.cabe ?? false,
             excede: structuredClone(PLANOS[0]?.excede ?? {}),

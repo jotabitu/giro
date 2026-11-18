@@ -17,7 +17,7 @@ export function situacaoDaAssinatura(a: Pick<Assinatura, "status" | "teste">): {
   return SITUACAO[a.status] ?? { rotulo: a.status, tom: "neutro" };
 }
 
-/** "R$ 449,00 por mês, a partir de 22 out": a data é o vencimento da `proxima_fatura` que a API manda (PLT-01); sem ela, só o preço. */
+/** "R$ 160,00 por mês, a partir de 22 out": a data é o vencimento da `proxima_fatura` que a API manda (PLT-01); sem ela, só o preço. */
 export function precoDoPlano(a: Pick<Assinatura, "plano" | "proxima_fatura">): string {
   const ciclo = a.plano.ciclo === "anual" ? "por ano" : "por mês";
   const preco = `${dinheiro(a.plano.preco_contratado_centavos)} ${ciclo}`;

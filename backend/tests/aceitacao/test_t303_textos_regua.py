@@ -3,7 +3,7 @@
 
 Textos fixados pelo produto na T-299 (`docs/qa/criterios/assinatura.md`, CA-ASS-64 a 67), o D+7
 perdido da decisão B de 16 out (CA-ASS-68) e os achados M-01 e M-02 da segurança na T-304
-(`docs/seguranca/2026-10-16-t304-destinatarios-regua.md`). Moto Rápida, FAT-0001 de R$ 449,00
+(`docs/seguranca/2026-10-16-t304-destinatarios-regua.md`). Moto Rápida, FAT-0001 de R$ 160,00
 vencendo em 22 out, suspensão em 06 nov.
 """
 
@@ -33,7 +33,7 @@ from .test_t186c_regua_assinatura import (
     moto,  # noqa: F401
 )
 
-INICIO = "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00"
+INICIO = "A fatura FAT-0001 da empresa Moto Rápida, de R$ 160,00"
 SUSPENSA = (
     "a empresa fica suspensa: só ver e exportar os dados, sem criar locação, venda nem cobrança"
 )
@@ -142,7 +142,7 @@ def test_aut_13_whatsapp_com_marca_e_caminho(
     [mensagem] = whatsapp.caixa_de_saida
     assert mensagem.celular == CELULAR
     assert mensagem.texto == (
-        "Giro: a fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, vence hoje. "
+        "Giro: a fatura FAT-0001 da empresa Moto Rápida, de R$ 160,00, vence hoje. "
         f"Boleto: {link} {JA_PAGOU}"
     )
 
@@ -298,7 +298,7 @@ def test_aut_13_falha_numa_fatura_nao_para_as_outras(
     assert [m.to for m in mailoutbox] == [["ana@outra.com.br"]]
     assert [e.depois["marco"] for e in _eventos("fatura_assinatura.regua")][-2:] == ["D0", "D0"]
     assert "SMTPException" in caplog.text
-    assert "R$ 449,00" not in caplog.text and "FAT-0001 da empresa" not in caplog.text
+    assert "R$ 160,00" not in caplog.text and "FAT-0001 da empresa" not in caplog.text
 
 
 def test_aut_13_whatsapp_que_falha_nao_repete_o_email(

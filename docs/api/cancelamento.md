@@ -97,7 +97,7 @@ Administrador. Tudo o que a `Admin-Cancelar` mostra, montado pela API para o est
   "alternativas": {
     "pausar": null,
     "mudar_para_essencial": {
-      "plano": { "id": 1, "nome": "Essencial", "preco_mensal_centavos": 19900 },
+      "plano": { "id": 1, "nome": "Essencial", "preco_mensal_centavos": 13000 },
       "resumo": "Até 30 veículos, 1 filial e 3 usuários.",
       "cabe": false,
       "excede": { "veiculos": { "usado": 86, "limite": 30 }, "usuarios": { "usado": 5, "limite": 3 } }
@@ -129,7 +129,7 @@ Administrador. Tudo o que a `Admin-Cancelar` mostra, montado pela API para o est
   | `em_teste` (1ª fatura paga) | como a `ativa`: "continua até 21 nov" (fim do período da 1ª fatura); no anual, "continua até 21 out 2027", sem devolução | como a `ativa` |
   | `ativa` mensal | "continua até 21 nov" (fim do período pago) | "nenhuma" |
   | `ativa` anual | "continua até 21 out 2027", sem devolução | "nenhuma. Os meses que faltam não são devolvidos." |
-  | `ativa` com fatura de diferença do upgrade em aberto | como a `ativa` | "nenhuma nova. A fatura FAT-0003, de R$ 304,84, continua devida." |
+  | `ativa` com fatura de diferença do upgrade em aberto | como a `ativa` | "nenhuma nova. A fatura FAT-0003, de R$ 500,61, continua devida." |
   | `inadimplente`, `suspensa` | "termina agora" | "nenhuma nova. A fatura em atraso continua devida." |
   | `pausada` | "termina agora" | "nenhuma" |
 
@@ -187,9 +187,9 @@ Serviço `plataforma.services.desfazer_cancelamento(empresa, por)`, numa transa�
 - Auditoria `empresa.desfazer_cancelamento` nos dois lugares, com as faturas novas. Testes `test_plt_06_desfazer_cancelamento_no_teste` (CA-ASS-43), `test_plt_06_desfazer_cancelamento_na_ativa` (CA-ASS-44), `test_plt_06_quem_nao_desfaz` (CA-ASS-45).
 
 Exemplos (dados de referência "Desfazer o cancelamento da Moto Rápida"):
-- Em teste, cancela em 10 out e desfaz em 15 out: FAT-0001 continua `cancelada`; nasce a FAT-0002 `aberta`, R$ 449,00, vencendo em 22 out, "Plano Profissional · 22 out a 21 nov" (emitida em 17 out pela `gerar_faturas`); `em_teste` até 21 out; nenhum apagamento marcado.
+- Em teste, cancela em 10 out e desfaz em 15 out: FAT-0001 continua `cancelada`; nasce a FAT-0002 `aberta`, R$ 160,00, vencendo em 22 out, "Plano Profissional · 22 out a 21 nov" (emitida em 17 out pela `gerar_faturas`); `em_teste` até 21 out; nenhum apagamento marcado.
 - Ativa, cancela em 05 nov e desfaz em 10 nov: nada nasce; a fatura de 22 nov é gerada em 17 nov.
-- Ativa, cancela em 19 nov (FAT-0002 de 22 nov `cancelada`) e desfaz em 20 nov: nasce a FAT-0003 `aberta`, R$ 449,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", com o boleto por e-mail em 20 nov.
+- Ativa, cancela em 19 nov (FAT-0002 de 22 nov `cancelada`) e desfaz em 20 nov: nasce a FAT-0003 `aberta`, R$ 160,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", com o boleto por e-mail em 20 nov.
 
 Erros:
 - 409 `{ "codigo": "transicao_empresa", "mensagem": "Não há cancelamento para desfazer." }` sem cancelamento marcado (inclusive na empresa que virou `cancelada` na hora, CA-ASS-45).
@@ -225,10 +225,10 @@ Administrador. **Voltar da pausa** (`PLT-06`, CA-ASS-36). Sem corpo. Entra na li
 - `status` → `ativa` na hora; limpa `pausa_inicio` e `pausada_ate`.
 - Fatura nova `mensalidade`, `aberta`, com o `preco_contratado_centavos`, vencendo **hoje**, período de hoje até a véspera do mesmo dia no mês (ou ano) seguinte; `dia_vencimento` passa ao dia de hoje (`PLT-01`, `PLT-06`). A cobrança é emitida na hora pela forma cadastrada (boleto com Pix e e-mail; cobrança do Pix automático; cartão guardado cobrado na hora). A régua conta o D0 hoje.
 - Com downgrade agendado (`plano_proximo`), a fatura da volta é a "próxima fatura" do downgrade: passa pela conferência de `assinatura.md` ("Downgrade agendado: conferência e virada") e, cabendo, sai pelo plano menor, que vale já na volta.
-- Moto Rápida, de volta em 10 dez: `ativa`, fatura de R$ 449,00 vencendo em 10 dez ("Plano Profissional · 10 dez a 09 jan"), e as seguintes todo dia 10.
+- Moto Rápida, de volta em 10 dez: `ativa`, fatura de R$ 160,00 vencendo em 10 dez ("Plano Profissional · 10 dez a 09 jan"), e as seguintes todo dia 10.
 - Auditoria `empresa.voltar_pausa` nos dois lugares. Teste `test_plt_06_volta_manual_da_pausa`.
 
-**Agendada** (`ativa`, hoje < `pausa_inicio`): **desiste da pausa** (`PLT-06`, decisão do dono de 15 out 2026, T-229, opção A; CA-ASS-55), pelo botão "Desistir da pausa" (`acoes.desistir_pausa`), até o último dia do período pago (a véspera de `pausa_inicio`). Serviço `plataforma.services.desistir_da_pausa(empresa, por)`, com a `Empresa` travada: limpa `pausa_inicio` e `pausada_ate`, e a fatura que a pausa cancelou (motivo `pausa`, sem `substituida_por`) nasce de novo como no desfazer do cancelamento: mesmo valor, vencimento e período, `aberta`, próximo código `FAT-`, a cancelada aponta para ela (`substituida_por`), e a cobrança sai pela forma cadastrada como na emissão (`PLT-02`). Se a pausa não cancelou nada (a fatura ainda não tinha sido gerada), nada nasce, e a `gerar_faturas` gera no dia certo. `status`, plano, `plano_proximo` e `dia_vencimento` não mudam. Moto Rápida, pausa pedida em 19 nov (FAT-0002 de 22 nov `cancelada`) e desistida em 20 nov: nasce a FAT-0003 `aberta`, R$ 449,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", com o boleto por e-mail em 20 nov; a empresa segue `ativa`. A partir de `pausa_inicio` a empresa já é `pausada`, e a mesma rota é a volta (acima). Auditoria `empresa.desistir_pausa` nos dois lugares, com a fatura nova. Teste `test_plt_06_desistir_da_pausa_agendada` (inclui o 403 do Rodrigo e do suporte).
+**Agendada** (`ativa`, hoje < `pausa_inicio`): **desiste da pausa** (`PLT-06`, decisão do dono de 15 out 2026, T-229, opção A; CA-ASS-55), pelo botão "Desistir da pausa" (`acoes.desistir_pausa`), até o último dia do período pago (a véspera de `pausa_inicio`). Serviço `plataforma.services.desistir_da_pausa(empresa, por)`, com a `Empresa` travada: limpa `pausa_inicio` e `pausada_ate`, e a fatura que a pausa cancelou (motivo `pausa`, sem `substituida_por`) nasce de novo como no desfazer do cancelamento: mesmo valor, vencimento e período, `aberta`, próximo código `FAT-`, a cancelada aponta para ela (`substituida_por`), e a cobrança sai pela forma cadastrada como na emissão (`PLT-02`). Se a pausa não cancelou nada (a fatura ainda não tinha sido gerada), nada nasce, e a `gerar_faturas` gera no dia certo. `status`, plano, `plano_proximo` e `dia_vencimento` não mudam. Moto Rápida, pausa pedida em 19 nov (FAT-0002 de 22 nov `cancelada`) e desistida em 20 nov: nasce a FAT-0003 `aberta`, R$ 160,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", com o boleto por e-mail em 20 nov; a empresa segue `ativa`. A partir de `pausa_inicio` a empresa já é `pausada`, e a mesma rota é a volta (acima). Auditoria `empresa.desistir_pausa` nos dois lugares, com a fatura nova. Teste `test_plt_06_desistir_da_pausa_agendada` (inclui o 403 do Rodrigo e do suporte).
 
 Sem pausa marcada: 409 `{ "codigo": "transicao_empresa", "mensagem": "Não há pausa para encerrar." }`.
 

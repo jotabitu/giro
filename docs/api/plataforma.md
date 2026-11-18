@@ -99,7 +99,7 @@ Funções: todas. Sem paginação (poucos itens).
 ```json
 { "resultados": [
   { "id": 2, "nome": "Profissional", "ativo": true, "ordem": 2,
-    "preco_mensal_centavos": 44900, "meses_cobrados_no_anual": 10, "preco_anual_centavos": 449000,
+    "preco_mensal_centavos": 16000, "meses_cobrados_no_anual": 10, "preco_anual_centavos": 160000,
     "limite_veiculos": 150, "limite_filiais": 3, "limite_usuarios": 10,
     "recursos": ["locacoes_vistoria", "contas_receber", "contrato_digital", "vendas_comissoes", "manutencao_despesas", "conciliacao", "relatorios", "recebimento_parceiro", "cobranca_whatsapp"],
     "empresas_no_plano": 71 }
@@ -174,7 +174,7 @@ Funções: todas.
   "subdominio": "motorapida", "endereco_acesso": "motorapida.girolocadoras.com.br", "cidade": "Fortaleza", "uf": "CE",
   "responsavel": { "nome": "Mariana Costa", "email": "mariana@motorapida.com.br", "telefone": "85998124410" },
   "cliente_desde": "2026-10-07", "apagada": false, "ja_foi_cliente": null,
-  "plano": { "id": 2, "nome": "Profissional" }, "ciclo": "mensal", "preco_contratado_centavos": 44900,
+  "plano": { "id": 2, "nome": "Profissional" }, "ciclo": "mensal", "preco_contratado_centavos": 16000,
   "status": "em_teste", "situacao": { "codigo": "em_teste", "rotulo": "Teste · dia 1", "tom": "info" },
   "teste": { "inicio": "2026-10-07", "fim": "2026-10-21", "dias_restantes": 14 },
   "uso": {
@@ -191,7 +191,7 @@ Funções: todas.
   "locacoes_total": 0,
   "chamados_abertos": 1,
   "suporte_bloqueado": false,
-  "faturas_recentes": [ { "codigo": "FAT-0001", "vencimento": "2026-10-22", "valor_centavos": 44900, "status": "aberta", "observacao": "1ª cobrança após o teste" } ],
+  "faturas_recentes": [ { "codigo": "FAT-0001", "vencimento": "2026-10-22", "valor_centavos": 16000, "status": "aberta", "observacao": "1ª cobrança após o teste" } ],
   "acoes": { "entrar_como_suporte": true, "estender_teste": true, "mudar_plano": true, "suspender": true }
 }
 ```
@@ -234,7 +234,7 @@ O serviço, numa transação: cria `Empresa` (`em_teste`, `teste_inicio` = hoje,
 
 Sem teste (`ja_foi_cliente`):
 - `Empresa` nasce `ativa`, com `teste_inicio` e `teste_fim` nulos, `empresa_anterior` = a apagada mais recente com o CNPJ, `dia_vencimento` = dia de hoje, e subdomínio novo (o antigo continua reservado na linha apagada; pedir o mesmo dá 409 `subdominio_em_uso`).
-- A 1ª fatura (`mensalidade`, `aberta`, valor do plano) vence hoje e cobre de hoje até a véspera do mesmo dia no mês seguinte (`proximo_periodo`; no anual, 12 meses). CA-ASS-61: compra em 01 mar 2027 → R$ 449,00 vencendo em 01 mar, "Plano Profissional · 01 mar a 31 mar", e as seguintes todo dia 1.
+- A 1ª fatura (`mensalidade`, `aberta`, valor do plano) vence hoje e cobre de hoje até a véspera do mesmo dia no mês seguinte (`proximo_periodo`; no anual, 12 meses). CA-ASS-61: compra em 01 mar 2027 → R$ 160,00 vencendo em 01 mar, "Plano Profissional · 01 mar a 31 mar", e as seguintes todo dia 1.
 - A empresa nasce sem forma de pagamento (a compra não pede cartão, ADR 0023). Na `Admin-Assinatura`, `acoes.pagar` vem `true` nessa fatura (vence hoje) e o administrador paga com o `meio`, ou escolhe a forma, que vale para a fatura em aberto (`PLT-13`). Sem pagamento, a régua é a da `ativa`: `inadimplente` em D+1 (`assinatura.md`).
 - Sem a linha do teste em `faturas/` (empresa que não passou por teste), com `teste` `null` no detalhe da plataforma e no `GET /api/assinatura/`, e sem os avisos da `IMP-06`, que só olham a `em_teste`. O assistente de implantação é o de sempre.
 - Auditoria `empresa.criar` com `ja_foi_cliente` e o `empresa_anterior` (só ids; os dados da empresa vão como "alterado" no `public`, `auditoria.md`).
@@ -303,7 +303,7 @@ Perfis: todos (cada tela mostra o que precisa; o administrador vê tudo).
 200:
 ```json
 {
-  "plano": { "nome": "Profissional", "preco_contratado_centavos": 44900, "ciclo": "mensal" },
+  "plano": { "nome": "Profissional", "preco_contratado_centavos": 16000, "ciclo": "mensal" },
   "status": "em_teste",
   "teste": { "fim": "2026-10-21", "dias_restantes": 14 },
   "faixa_aviso": null,

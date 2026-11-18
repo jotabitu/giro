@@ -52,7 +52,7 @@ def test_adr_0023_aviso_guardado_sem_o_token_do_cartao(
     settings.GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH = hash_do_token(TOKEN_PRINCIPAL)
     cobranca = provedor().criar_cobranca(
         conta_principal(),
-        PedidoCobranca("cartao_link", 44900, date(2026, 10, 22), "f-1", Pagador("x")),
+        PedidoCobranca("cartao_link", 16000, date(2026, 10, 22), "f-1", Pagador("x")),
     )
     corpo = pagamentos.simular_pagamento(cobranca.id, evento_id="evt_t189_1")
     corpo["payment"]["creditCard"] = {

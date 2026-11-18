@@ -7,7 +7,7 @@ escreve na assinatura (1), a exceção da `suspensa` é uma lista explícita (2)
 administrador (3). A lista completa da exceção e os requisitos 4 a 8 (forma de pagamento e
 faturas) estão em `test_t185b_forma_faturas.py`.
 
-Relógio em 07 out 2026, como o seed Moto Rápida: teste de 07 a 21 out, FAT-0001 de R$ 449,00 em
+Relógio em 07 out 2026, como o seed Moto Rápida: teste de 07 a 21 out, FAT-0001 de R$ 160,00 em
 22 out, 86 veículos, 1 filial e 5 usuários no Profissional.
 """
 
@@ -206,7 +206,7 @@ def test_plt_01_ca_ass_01_assinatura_da_moto_rapida_em_07_out(moto):
     assert corpo["plano"] == {
         "id": Plano.objects.get(nome="Profissional").pk,
         "nome": "Profissional",
-        "preco_contratado_centavos": 44900,
+        "preco_contratado_centavos": 16000,
         "ciclo": "mensal",
     }
     assert corpo["status"] == "em_teste"
@@ -214,7 +214,7 @@ def test_plt_01_ca_ass_01_assinatura_da_moto_rapida_em_07_out(moto):
     # A 1ª fatura vence no dia seguinte ao fim do teste: 22 out, não 21 (PLT-01).
     assert corpo["proxima_fatura"] == {
         "vencimento": "2026-10-22",
-        "valor_centavos": 44900,
+        "valor_centavos": 16000,
         "descricao": "Plano Profissional · 22 out a 21 nov",
     }
     assert corpo["plano_proximo"] is None
@@ -305,7 +305,7 @@ def test_plt_01_proxima_fatura_depois_da_primeira_paga(moto):
     assert corpo["status"] == "em_teste"
     assert corpo["proxima_fatura"] == {
         "vencimento": "2026-11-22",
-        "valor_centavos": 44900,
+        "valor_centavos": 16000,
         "descricao": "Plano Profissional · 22 nov a 21 dez",
     }
 
@@ -370,14 +370,14 @@ def test_plt_04_planos_para_comparar(moto):
         "usuarios": {"usado": 5, "limite": 3},
     }
     assert (essencial["preco_mensal_centavos"], essencial["preco_anual_centavos"]) == (
-        19900,
-        199000,
+        13000,
+        130000,
     )
     assert essencial["itens"] == list(catalogo.textos("Essencial").inclui)
     assert "preco_contratado_centavos" not in essencial
     assert profissional["atual"] is True
     assert profissional["mudanca"] is None
-    assert profissional["preco_contratado_centavos"] == 44900
+    assert profissional["preco_contratado_centavos"] == 16000
     assert (completo["mudanca"], completo["cabe"], completo["excede"]) == ("upgrade", True, {})
     assert completo["limite_veiculos"] is None
 
@@ -446,20 +446,20 @@ def test_plt_04_downgrade_em_teste_que_cabe_vale_na_hora(moto, relogio):
     assert resposta.status_code == 200, resposta.json()
     assert resposta.json()["plano"]["nome"] == "Essencial"
     assert resposta.json()["plano_proximo"] is None
-    assert moto.fatura("FAT-0001").valor_centavos == 19900
+    assert moto.fatura("FAT-0001").valor_centavos == 13000
 
 
 def test_plt_04_upgrade_proporcional(moto, relogio):
-    """CA-ASS-14: `ativa`, FAT-0001 paga, Completo em 01 nov → 45000 × 21 ÷ 31 = 30483,87 →
-    R$ 304,84, vencendo em 04 nov; a fatura de 22 nov vem com R$ 899,00."""
+    """CA-ASS-14: `ativa`, FAT-0001 paga, Completo em 01 nov → 73900 × 21 ÷ 31 = 50061,29 →
+    R$ 500,61, vencendo em 04 nov; a fatura de 22 nov vem com R$ 899,00."""
     moto.pagar_fat_0001()
     moto.estado(status="ativa")
     relogio.em("2026-11-01 09:00")
     api = moto.api()
     simulacao = _simular(api, "Completo").json()
-    assert simulacao["diferenca_centavos"] == 30484
+    assert simulacao["diferenca_centavos"] == 50061
     assert simulacao["fatura_diferenca"] == {
-        "valor_centavos": 30484,
+        "valor_centavos": 50061,
         "vencimento": "2026-11-04",
         "descricao": "Mudança para o plano Completo · 01 a 21 nov",
     }
@@ -470,7 +470,7 @@ def test_plt_04_upgrade_proporcional(moto, relogio):
     }
     assert (
         simulacao["mensagem"]
-        == "O plano Completo vale agora. A diferença de R$ 304,84 vence em 04 nov."
+        == "O plano Completo vale agora. A diferença de R$ 500,61 vence em 04 nov."
     )
 
     # O valor mudou entre simular e confirmar: 409, nada gravado.
@@ -480,35 +480,35 @@ def test_plt_04_upgrade_proporcional(moto, relogio):
     assert recusa.json()["mensagem"] == (
         "O valor da diferença mudou. Confira o novo valor antes de confirmar."
     )  # T-290
-    assert recusa.json()["detalhes"] == {"diferenca_centavos": 30484}
+    assert recusa.json()["detalhes"] == {"diferenca_centavos": 50061}
     assert moto.recarregar().plano.nome == "Profissional"
 
-    resposta = _mudar(api, "Completo", valor=30484)
+    resposta = _mudar(api, "Completo", valor=50061)
     assert resposta.status_code == 200, resposta.json()
     assert resposta.json()["proxima_fatura"]["valor_centavos"] == 89900
     assert moto.recarregar().preco_contratado_centavos == 89900
     diferenca = moto.fatura("FAT-0002")
     assert (diferenca.tipo, diferenca.valor_centavos, diferenca.status) == (
         "diferenca_plano",
-        30484,
+        50061,
         "aberta",
     )
     assert diferenca.vencimento == date(2026, 11, 4)
     assert diferenca.descricao == "Mudança para o plano Completo · 01 a 21 nov"
     evento = _eventos("empresa.mudar_plano", moto.empresa.schema_name)[0]
-    assert evento.depois["diferenca_centavos"] == 30484
+    assert evento.depois["diferenca_centavos"] == 50061
 
 
 def test_plt_04_upgrade_no_teste_com_primeira_paga(moto, relogio):
-    """FAT-0001 paga em 18 out, upgrade em 19 out: 45000 × 31 ÷ 31 = 45000, vence em 22 out; a
+    """FAT-0001 paga em 18 out, upgrade em 19 out: 73900 × 31 ÷ 31 = 73900, vence em 22 out; a
     empresa continua `em_teste` até 21 out."""
     moto.pagar_fat_0001(em="2026-10-18")
     relogio.em("2026-10-19 09:00")
-    resposta = _mudar(moto.api(), "Completo", valor=45000)
+    resposta = _mudar(moto.api(), "Completo", valor=73900)
     assert resposta.status_code == 200, resposta.json()
     assert resposta.json()["status"] == "em_teste"
     diferenca = moto.fatura("FAT-0002")
-    assert diferenca.valor_centavos == 45000
+    assert diferenca.valor_centavos == 73900
     assert diferenca.vencimento == date(2026, 10, 22)
     assert diferenca.descricao == "Mudança para o plano Completo · 22 out a 21 nov"
 
@@ -563,7 +563,7 @@ def test_plt_04_downgrade_agendado_e_desfeito(moto, relogio):
     }
     assert corpo["proxima_fatura"] == {
         "vencimento": "2026-11-22",
-        "valor_centavos": 44900,
+        "valor_centavos": 16000,
         "descricao": "Plano Profissional · 22 nov a 21 dez",
     }
     assert corpo["acoes"]["desfazer_mudanca_plano"] is True
@@ -604,7 +604,7 @@ def test_plt_04_desfazer_depois_da_fatura_gerada_pelo_plano_menor(moto, relogio)
     )
     assert (moto.fatura("FAT-0002").plano.nome, moto.fatura("FAT-0002").valor_centavos) == (
         "Profissional",
-        44900,
+        16000,
     )
     relogio.em("2026-11-18 09:00")
     api = moto.api()
@@ -648,7 +648,7 @@ def test_plt_04_upgrade_desfaz_o_downgrade_agendado(moto, relogio):
     api = moto.api()
     assert _mudar(api, "Essencial").status_code == 200
     assert moto.recarregar().plano_proximo.nome == "Essencial"
-    resposta = _mudar(api, "Completo", valor=30484)
+    resposta = _mudar(api, "Completo", valor=50061)
     assert resposta.status_code == 200, resposta.json()
     empresa = moto.recarregar()
     assert (empresa.plano.nome, empresa.plano_proximo) == ("Completo", None)
@@ -724,7 +724,7 @@ def test_plt_04_mudanca_de_ciclo_pela_equipe(moto, relogio):
     }
     assert corpo["proxima_fatura"] == {
         "vencimento": "2026-11-22",
-        "valor_centavos": 449000,
+        "valor_centavos": 160000,
         "descricao": "Plano Profissional anual · nov 2026 a nov 2027",
     }
     assert corpo["acoes"]["desfazer_mudanca_plano"] is False
@@ -738,7 +738,7 @@ def test_plt_04_mudanca_de_plano_isolada_por_empresa(moto, criar_empresa, relogi
     relogio.em("2026-10-10 09:00")
     assert _mudar(moto.api(), "Completo").status_code == 200
     fatura_da_outra = FaturaAssinatura.objects.get(empresa=outra, codigo="FAT-0001")
-    assert (fatura_da_outra.plano.nome, fatura_da_outra.valor_centavos) == ("Profissional", 44900)
+    assert (fatura_da_outra.plano.nome, fatura_da_outra.valor_centavos) == ("Profissional", 16000)
     assert Empresa.objects.get(pk=outra.pk).plano == Plano.objects.get(nome="Profissional")
     with schema_context(outra.schema_name):
         assert not EventoAuditoria.objects.filter(acao="empresa.mudar_plano").exists()
@@ -892,7 +892,7 @@ def test_plt_07_ca_ass_19_suporte_nao_escreve_na_assinatura(moto, permissao):
         "Profissional",
         "Moto Rápida Locações Ltda",
     )
-    assert moto.fatura("FAT-0001").valor_centavos == 44900
+    assert moto.fatura("FAT-0001").valor_centavos == 16000
     assert not pagamentos.cobrancas and not pagamentos.pagadores
     # Lê, com as ações desligadas.
     leitura = suporte.get(ASSINATURA)

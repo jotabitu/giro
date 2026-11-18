@@ -22,7 +22,33 @@ def _com_plano(empresa, plano, **uso):
 
 
 def test_plt_03_preco_anual_e_10_mensalidades(profissional):
-    assert profissional.preco_anual_centavos == 449000
+    assert profissional.preco_anual_centavos == 160000
+
+
+def test_plt_11_precos_do_catalogo(db):
+    precos = dict(Plano.objects.values_list("nome", "preco_mensal_centavos"))
+    assert precos == {"Essencial": 13000, "Profissional": 16000, "Completo": 89900}
+
+
+def test_plt_05_preco_novo_nao_muda_contratado(empresa_a, profissional):
+    """PLT-05 opção A (16 nov 2026): quem já assina mantém o preço contratado."""
+    import importlib
+
+    from django.apps import apps
+
+    migracao = importlib.import_module("apps.plataforma.migrations.0016_precos_novos_dos_planos")
+    migracao.precos_antigos(apps, None)
+    empresa_a.plano = profissional
+    empresa_a.preco_contratado_centavos = 44900
+    empresa_a.save(update_fields=["plano", "preco_contratado_centavos"])
+
+    migracao.precos_novos(apps, None)
+    migracao.precos_novos(apps, None)  # idempotente
+
+    empresa_a.refresh_from_db()
+    profissional.refresh_from_db()
+    assert profissional.preco_mensal_centavos == 16000
+    assert empresa_a.preco_contratado_centavos == 44900
 
 
 def test_plt_03_exigir_limite_fora_de_transacao_e_erro_de_programacao(empresa_a, monkeypatch):
