@@ -1,3 +1,5 @@
+// TODO(landing): fora da página por decisão do dono (T-490) até haver depoimentos reais, com nome, cidade e
+// autorização de uso. Fica no código para voltar em Landing.tsx.
 export function QuemUsa() {
   return (
     <section id="clientes">

@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/design-system/components";
 import { compraApi } from "@/lib/api/compra";
-import type { AndamentoDoPedido, PedidoCriado, PlanoAVenda } from "@/lib/api/tipos-compra";
+import type { AndamentoDoPedido, CatalogoDaCompra, PedidoCriado, PlanoAVenda } from "@/lib/api/tipos-compra";
 import { guardarPedido, pedidoGuardado } from "@/lib/compra";
 import { mensagemDoErro } from "@/lib/erros";
 import { AmbientePronto } from "./AmbientePronto";
@@ -18,6 +18,13 @@ type Passo =
   | { tela: "checkout"; plano: PlanoAVenda }
   | { tela: "codigo"; pedido: PedidoCriado }
   | { tela: "pronto"; chave: string; andamento: AndamentoDoPedido };
+
+/** O plano de `?plano=<codigo>`, se ele estiver no catálogo à venda que a API mandou; senão, nenhum. */
+export function planoDaUrl(busca: string, catalogo: CatalogoDaCompra): PlanoAVenda | null {
+  const codigo = new URLSearchParams(busca).get("plano")?.trim().toLowerCase();
+  if (!codigo) return null;
+  return catalogo.planos.find((p) => p.codigo === codigo) ?? null;
+}
 
 /**
  * Compra pública (`docs/api/compra.md`): escolha do plano, criar conta, código no e-mail e ambiente pronto, numa
@@ -40,6 +47,16 @@ export function CompraPublica() {
       })
       .catch(() => guardarPedido(null));
   }, []);
+
+  // Plano vindo da landing (/compra?plano=<codigo>): pula a escolha e abre a criação da conta com ele. Código
+  // fora do catálogo à venda (ou ausente) fica na escolha. Lido uma vez, quando o catálogo chega.
+  const planoDaUrlLido = useRef(false);
+  useEffect(() => {
+    if (planoDaUrlLido.current || !catalogo.data) return;
+    planoDaUrlLido.current = true;
+    const plano = planoDaUrl(window.location.search, catalogo.data);
+    if (plano) setPasso((atual) => (atual.tela === "planos" ? { tela: "checkout", plano } : atual));
+  }, [catalogo.data]);
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -76,7 +93,8 @@ export function CompraPublica() {
         catalogo={catalogo.data}
         plano={passo.plano}
         ciclo={ciclo}
-        aoTrocarPlano={() => setPasso({ tela: "planos" })}
+        aoMudarPlano={(plano) => setPasso({ tela: "checkout", plano })}
+        aoMudarCiclo={setCiclo}
         aoCriar={(pedido) => {
           guardarPedido(pedido.chave);
           setPasso({ tela: "codigo", pedido });

@@ -8,12 +8,12 @@ import { reaisInteiros } from "@/lib/compra";
 
 export type Ciclo = "mensal" | "anual";
 
-const CICLOS = [
+export const CICLOS = [
   { valor: "mensal", rotulo: "Mensal" },
   { valor: "anual", rotulo: "Anual · 2 meses grátis" },
 ] as const;
 
-function limites(plano: PlanoAVenda): string[] {
+export function limites(plano: PlanoAVenda): string[] {
   const { veiculos, filiais, usuarios } = plano.limites;
   const linhas: string[] = [];
   linhas.push(veiculos === null ? "Sem limite de veículos" : `Até ${veiculos} veículos`);
@@ -47,6 +47,31 @@ export function EscolhaDoPlano({
         </p>
       </div>
       <SegmentedControl rotulo="Ciclo de cobrança" opcoes={CICLOS} valor={ciclo} aoMudar={aoMudarCiclo} />
+      <CartoesDosPlanos catalogo={catalogo} ciclo={ciclo} aoEscolher={aoEscolher} />
+      <p style={{ margin: 0, color: "var(--ink-muted)", fontSize: 14 }}>Sem fidelidade · cancele quando quiser</p>
+    </main>
+  );
+}
+
+/** Os cartões dos planos à venda, com preço do ciclo, limites e o que inclui (textos da API, PLT-11). Usados na
+ * escolha do plano e no pop-up "Trocar" do Checkout. `atual` marca o plano já escolhido. */
+export function CartoesDosPlanos({
+  catalogo,
+  ciclo,
+  aoEscolher,
+  atual,
+  rotuloDoBotao,
+  rebaixados,
+}: {
+  catalogo: CatalogoDaCompra;
+  ciclo: Ciclo;
+  aoEscolher: (plano: PlanoAVenda) => void;
+  atual?: string;
+  rotuloDoBotao?: string;
+  /** Dentro de um painel ou pop-up (fundo surface): cartões em surface-sunken para se destacarem. */
+  rebaixados?: boolean;
+}) {
+  return (
       <div
         style={{
           display: "grid",
@@ -60,7 +85,7 @@ export function EscolhaDoPlano({
         {catalogo.planos.map((plano) => {
           const centavos = ciclo === "anual" ? plano.anual_centavos : plano.mensal_centavos;
           return (
-            <section key={plano.codigo} className="wl-panel" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <section key={plano.codigo} className="wl-panel" style={{ display: "flex", flexDirection: "column", gap: 16, ...(rebaixados ? { background: "var(--surface-sunken)" } : {}) }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>{plano.nome}</h2>
                 {plano.destaque && <span className="wl-badge">Mais escolhido</span>}
@@ -79,15 +104,19 @@ export function EscolhaDoPlano({
                 ))}
               </ul>
               <div style={{ marginTop: "auto" }}>
-                <Button variante={plano.destaque ? "solido" : "padrao"} onClick={() => aoEscolher(plano)}>
-                  {plano.destaque ? "Começar teste grátis" : "Começar teste"}
-                </Button>
+                {atual === plano.codigo ? (
+                  <Button variante={rebaixados ? "padrao" : "quieto"} disabled>
+                    Plano escolhido
+                  </Button>
+                ) : (
+                  <Button variante={plano.destaque ? "solido" : "padrao"} onClick={() => aoEscolher(plano)}>
+                    {rotuloDoBotao ? rotuloDoBotao : plano.destaque ? "Começar teste grátis" : "Começar teste"}
+                  </Button>
+                )}
               </div>
             </section>
           );
         })}
       </div>
-      <p style={{ margin: 0, color: "var(--ink-muted)", fontSize: 14 }}>Sem fidelidade · cancele quando quiser</p>
-    </main>
   );
 }
