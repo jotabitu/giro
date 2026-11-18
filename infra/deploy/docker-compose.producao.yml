@@ -212,8 +212,11 @@ services:
     mem_limit: ${GIRO_MEM_FRONTEND:-512m}
     # Só esta variável (não secreta): a origem das URLs assinadas do armazenamento entra na
     # img-src da CSP (T-479). O frontend não lê o producao.env, que tem segredos.
+    # DOMINIO_BASE (T-489): o middleware mostra a landing em "/" só em DOMINIO_BASE e www.; lida em
+    # execução (recriar o contêiner basta, sem rebuild).
     environment:
       GIRO_ARQUIVOS_ORIGEM: ${GIRO_ARQUIVOS_ORIGEM:-}
+      DOMINIO_BASE: ${DOMINIO_BASE:?DOMINIO_BASE em producao.env}
     expose:
       - "3000"
 

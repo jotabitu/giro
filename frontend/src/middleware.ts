@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { montarCsp, novoNonce } from "@/lib/csp";
+import { mostraLanding } from "@/lib/host-landing";
 
 const DEV = process.env.NODE_ENV !== "production";
 
@@ -12,6 +13,15 @@ export function middleware(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith("/api/")) {
     headers.delete("x-forwarded-for");
     return NextResponse.next({ request: { headers } });
+  }
+
+  // "/" (T-489): landing pública só no domínio da plataforma; no subdomínio da empresa, /entrar.
+  const host = req.headers.get("host");
+  if (req.nextUrl.pathname === "/" && !mostraLanding(host)) {
+    // Mesmo host que o navegador pediu (req.url pode trazer o endereço interno do Next). O proxy
+    // sobrescreve Host e X-Forwarded-Proto (infra/proxy/snippets/giro-locais.conf.template).
+    const protocolo = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
+    return NextResponse.redirect(new URL("/entrar", `${protocolo}://${host ?? req.nextUrl.host}`));
   }
 
   // Páginas: CSP com nonce na requisição (o Next lê daqui para marcar os próprios scripts)
