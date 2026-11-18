@@ -45,6 +45,18 @@ server {
     return 301 https://$host$request_uri;
 }
 
+# Landing pública (T-489): DOMINIO_BASE e www.DOMINIO_BASE. Sem este bloco o domínio raiz caía no
+# default_server (444); o www caía no curinga das empresas. O certificado já cobre os dois
+# (DOMINIO_BASE e *.DOMINIO_BASE). O Next mostra a landing em "/" (src/lib/host-landing.ts);
+# /api/ nesses hosts responde 404 no Django (nenhuma empresa tem esse domínio).
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMINIO_BASE} www.${DOMINIO_BASE};
+
+    include /etc/nginx/conf.d/snippets/giro-locais.conf;
+}
+
 # Hosts das empresas (<subdominio>.<DOMINIO_BASE>): /admin/ é a Administração da locadora, no Next.
 server {
     listen 443 ssl;
