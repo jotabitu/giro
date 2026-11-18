@@ -97,7 +97,9 @@ PARADOS: tuple[Parado, ...] = (
     ),
 )
 # Despesa que o gerente recusou no PVG-3C29 e que não entra no custo (`VEI-20`).
-RECUSADA = ("PVG3C29", "Carenagem lateral", 30000, "2026-08-31")
+# Acima de R$ 500,00, passa pela aprovação (`APR-03`); a recusa cai em setembro, fora da janela de
+# outubro dos números da tela Aprovações (`APR-12`).
+RECUSADA = ("PVG3C29", "Carenagem lateral", 60000, "2026-09-15")
 # A partir daqui, só o que o seed usa para gerar os números dos veículos extras (placa e chassi
 # vêm da tabela acima; o número só serve ao km e à cor padrão).
 NUMERO_BASE = 900
@@ -135,33 +137,27 @@ def _lancar_e_pagar(
 
 def _despesa_recusada(
     veiculo: Veiculo,
-    lucia: Usuario,
+    joao: Usuario,
     rodrigo: Usuario,
     centro: Filial,
     relogio: RelogioDoSeed,
 ) -> None:
-    """A despesa de R$ 300,00 que o gerente recusou. A recusa só existe para quem passou pelo
-    pedido de aprovação (`APR-03`, acima do limite sem aprovação); o seed baixa o limite só pelo
-    tempo do lançamento, para o pedido nascer, e o gerente recusa pelo serviço, com o motivo."""
+    """A despesa de R$ 600,00 que o gerente recusou, pelo fluxo normal: acima de R$ 500,00 nasce
+    `aguardando_aprovacao` com o pedido `APR-03`, e o Rodrigo recusa pelo serviço, com o motivo."""
     _, descricao, valor, dia = RECUSADA
     relogio.em(f"{dia} 09:00")
-    limite = financeiro.LIMITE_SEM_APROVACAO
-    financeiro.LIMITE_SEM_APROVACAO = 0
-    try:
-        with como(lucia):
-            despesa = financeiro.lancar_despesa(
-                filial=centro,
-                usuario=lucia,
-                descricao=descricao,
-                valor_centavos=valor,
-                data=date.fromisoformat(dia),
-                vencimento=date.fromisoformat(dia),
-                categoria="manutencao",
-                veiculo_id=veiculo.pk,
-                nota=_nota(),
-            )
-    finally:
-        financeiro.LIMITE_SEM_APROVACAO = limite
+    with como(joao):
+        despesa = financeiro.lancar_despesa(
+            filial=centro,
+            usuario=joao,
+            descricao=descricao,
+            valor_centavos=valor,
+            data=date.fromisoformat(dia),
+            vencimento=date.fromisoformat(dia),
+            categoria="manutencao",
+            veiculo_id=veiculo.pk,
+            nota=_nota(),
+        )
     despesa.refresh_from_db()
     pedido = PedidoAprovacao.objects.get(pk=despesa.pedido_aprovacao_id or 0)
     relogio.em(f"{dia} 11:00")
@@ -179,6 +175,7 @@ def garantir_estoque_parado(
     """Põe à venda PVE-1A07, PVF-2B18 e PVG-3C29 com as despesas dos casos das T-486 e T-487.
     Idempotente: quem já existe fica como está. Devolve se criou algo."""
     lucia, rodrigo = pessoas["Lúcia Freitas"], pessoas["Rodrigo Pinheiro"]
+    joao = pessoas["João Silva"]
     criou = False
     for posicao, dados in enumerate(PARADOS):
         if Veiculo.objects.filter(placa=dados.placa).exists():
@@ -208,11 +205,11 @@ def garantir_estoque_parado(
         )
         for descricao, valor, dia in dados.despesas:
             _lancar_e_pagar(veiculo, lucia, lucia, centro, relogio, descricao, valor, dia)
-        if dados.placa == RECUSADA[0]:
-            _despesa_recusada(veiculo, lucia, rodrigo, centro, relogio)
         relogio.em(f"{dados.entrada_em} 10:00")
         with como(administradora()):
             veiculos_services.colocar_a_venda(veiculo, dados.venda_centavos)
+        if dados.placa == RECUSADA[0]:
+            _despesa_recusada(veiculo, joao, rodrigo, centro, relogio)
     if criou:
         recalcular_uso(empresa)
         relogio.em("2026-10-07 10:00")

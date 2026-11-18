@@ -103,7 +103,9 @@ def test_vei_20_despesas_ligadas_e_a_recusada_seed(seed):  # noqa: F811
     assert valores("PVF2B18") == []
     assert sum(valores("PVG3C29", status__in=["a_pagar", "paga", "aguardando_aprovacao"])) == 115000
     recusadas = Despesa.objects.filter(veiculo__placa="PVG3C29", status="recusada")
-    assert [d.valor_centavos for d in recusadas] == [30000]
+    assert [d.valor_centavos for d in recusadas] == [60000]
+    assert recusadas[0].data == date(2026, 9, 15)
+    assert recusadas[0].lancada_por.nome == "João Silva"
     assert recusadas[0].motivo_recusa
 
 
