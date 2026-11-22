@@ -32,6 +32,7 @@ from . import calculo, services
 from .contrato import contrato_na_hora
 from .models import (
     ABERTAS,
+    PARTES_DO_MES,
     FormaPagamento,
     Locacao,
     ParcelamentoMensal,
@@ -357,7 +358,7 @@ def situacao(locacao: Locacao, sinal: dict[str, bool]) -> dict[str, str]:
 
 def _nome_na_linha(locacao: Locacao) -> str:
     """LOC-17: o nome da 1ª parcela na linha ("1ª semana", "1º mês", "as 5 diárias")."""
-    if locacao.periodicidade == Periodicidade.DIARIA:
+    if locacao.periodicidade == Periodicidade.DIARIA and not services.e_compra(locacao):
         return "a diária" if locacao.periodos == 1 else f"as {locacao.periodos} diárias"
     return _nome_da_primeira(locacao)
 
@@ -949,10 +950,13 @@ def _passo_do_contrato(
 
 def _nome_da_primeira(locacao: Locacao) -> str:
     """Como o 1º pagamento chama a 1ª parcela ("1ª semana R$ 329,00")."""
+    compra = services.e_compra(locacao)
     if locacao.periodicidade == Periodicidade.DIARIA:
-        return "diárias"
+        return "1ª diária" if compra else "diárias"  # na compra, uma parcela por dia (LOC-16)
+    if locacao.periodicidade == Periodicidade.QUINZENAL:
+        return "1ª quinzena"
     if locacao.periodicidade == Periodicidade.MENSAL:
-        if locacao.parcelamento_mensal == ParcelamentoMensal.QUATRO_SEMANAIS:
+        if locacao.parcelamento_mensal in PARTES_DO_MES:  # 4 semanais ou 2 quinzenais
             return "1ª parcela"
         return "1º mês"
     return "1ª semana"
