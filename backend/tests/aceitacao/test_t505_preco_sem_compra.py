@@ -63,7 +63,9 @@ def test_vei_13_sem_valor_de_compra_sem_desvalorizacao(moto, frota) -> None:
     """Biz: o custo era −R$ 45,00 e as margens passavam de 100%. Sem a compra, R$ 330,00 por mês,
     margem semanal 70,08% com a marca, e sem a faixa amarela mesmo abaixo da mínima de 80%."""
     biz = _biz(frota)
-    ConfiguracaoEmpresa.objects.update(margem_minima_pct=Decimal("80.00"))
+    ConfiguracaoEmpresa.objects.update_or_create(
+        unica=1, defaults={"margem_minima_pct": Decimal("80.00")}
+    )
     assert empresas_selectors.margem_minima_pct() == Decimal("80.00")
     dados = _simular(moto, biz, {"custos": CUSTOS_BIZ})
     assert dados["pago_na_moto"]["total_centavos"] is None
