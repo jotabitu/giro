@@ -1637,6 +1637,8 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         "api/veiculos/<int:pk>/",
         "api/veiculos/<int:pk>/documentos/",
         "api/veiculos/<int:pk>/documentos/historico/",
+        # VEI-12 (T-494): o suporte Giro só vê os preços do veículo; o `PUT` é proibido a ele.
+        "api/veiculos/<int:pk>/precos/",
         "api/categorias/",
         "api/categorias/<int:pk>/precos/",
         "api/precos/historico/",

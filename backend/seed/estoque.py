@@ -25,7 +25,7 @@ from apps.veiculos.models import Categoria, Veiculo
 
 from .ator import administradora, como
 from .financeiro import _nota
-from .frota import cadastrar_veiculo
+from .frota import PRECOS_SEED, cadastrar_veiculo
 from .relogio import RelogioDoSeed
 
 
@@ -165,6 +165,28 @@ def _despesa_recusada(
         aprovacoes.recusar(pedido, rodrigo, "Peça já coberta pela garantia da revenda.")
 
 
+def _preencher_tabela(veiculo: Veiculo, categoria: str) -> None:
+    """VEI-15 (T-494): "Colocar à venda" pede um plano ligado. Os três chegaram antes do preço
+    vigente da categoria (a Urbana vale desde 01 out, a Street desde 01 set), e o cadastro os
+    deixou com os planos desligados e o preço de 01 out agendado. A Mariana preenche a tabela da
+    moto com os valores da tabela do seed, pela tela de preços; nada muda nos números do
+    estoque (`dados-de-teste.md`)."""
+    if veiculos_services.tem_plano_ligado(veiculo):
+        return
+    _, diaria, semanal, mensal, caucao = PRECOS_SEED[categoria]
+    planos = [
+        {
+            "tipo": tipo,
+            "valor_centavos": valor,
+            "caucao_centavos": caucao,
+            "ligado": True,
+            "agendado": None,
+        }
+        for tipo, valor in (("diaria", diaria), ("semanal", semanal), ("mensal", mensal))
+    ]
+    veiculos_services.salvar_precos(veiculo, {"planos": planos})
+
+
 def garantir_estoque_parado(
     empresa: Empresa,
     centro: Filial,
@@ -173,6 +195,7 @@ def garantir_estoque_parado(
     relogio: RelogioDoSeed,
 ) -> bool:
     """Põe à venda PVE-1A07, PVF-2B18 e PVG-3C29 com as despesas dos casos das T-486 e T-487.
+    Antes de pôr à venda, a Mariana preenche a tabela de preços da moto (VEI-15, T-494).
     Idempotente: quem já existe fica como está. Devolve se criou algo."""
     lucia, rodrigo = pessoas["Lúcia Freitas"], pessoas["Rodrigo Pinheiro"]
     joao = pessoas["João Silva"]
@@ -207,6 +230,7 @@ def garantir_estoque_parado(
             _lancar_e_pagar(veiculo, lucia, lucia, centro, relogio, descricao, valor, dia)
         relogio.em(f"{dados.entrada_em} 10:00")
         with como(administradora()):
+            _preencher_tabela(veiculo, dados.categoria)
             veiculos_services.colocar_a_venda(veiculo, dados.venda_centavos)
         if dados.placa == RECUSADA[0]:
             _despesa_recusada(veiculo, joao, rodrigo, centro, relogio)

@@ -138,3 +138,54 @@ def vendido(evento: Any, apoio: dict[str, Any]) -> Texto:
     placa = _placa(evento, apoio)
     resumo = "Vendeu o veículo"
     return Texto(f"{resumo} {placa}" if placa else resumo, evento.motivo or "")
+
+
+# --- Preços por veículo (VEI-17, ADR 0041) ---
+
+RESUMOS_DOS_PRECOS = {
+    "veiculo.precos_salvar": "Mudou os preços do veículo",
+    "veiculo.precos_agendado_vigente": "Preço agendado passou a valer no veículo",
+}
+ROTULOS_DOS_CAMPOS = {
+    "valor_centavos": "valor",
+    "caucao_centavos": "caução",
+    "ligado": "ligado",
+    "valor_agendado_centavos": "valor agendado",
+    "agendado_para": "agendado para",
+    "valor_venda_centavos": "valor de venda",
+    "juros_mes_pct": "juros ao mês",
+    "parcela_moto_centavos": "parcela da moto",
+    "dia_atraso_centavos": "dia de atraso",
+    "multa_minima_centavos": "multa mínima",
+}
+
+
+def _valor_do_preco(campo: str, valor: Any) -> str:
+    if valor is None:
+        return "—"
+    if isinstance(valor, bool):
+        return "sim" if valor else "não"
+    if campo.endswith("_centavos") and isinstance(valor, int):
+        return formatar_reais(valor)
+    if campo.endswith("_pct"):
+        return f"{str(valor).replace('.', ',')}%"
+    return str(valor)
+
+
+def precos_do_veiculo(evento: Any, apoio: dict[str, Any]) -> Texto:
+    """ "Mudou os preços do veículo TBC-5H21", "Semanal · valor R$ 299,40 → R$ 329,00"; até três
+    mudanças, as outras como "e mais N"."""
+    placa = _placa(evento, apoio)
+    resumo = RESUMOS_DOS_PRECOS[evento.acao]
+    mudancas = (evento.depois or {}).get("mudancas") or []
+    trechos = []
+    for mudanca in mudancas[:3]:
+        campo = str(mudanca.get("campo", ""))
+        rotulo = ROTULOS_DOS_CAMPOS.get(campo, campo.replace("_", " "))
+        de = _valor_do_preco(campo, mudanca.get("de"))
+        para = _valor_do_preco(campo, mudanca.get("para"))
+        alvo = mudanca.get("alvo_nome") or ""
+        trechos.append(" · ".join(t for t in (alvo, f"{rotulo} {de} → {para}") if t))
+    if len(mudancas) > 3:
+        trechos.append(f"e mais {len(mudancas) - 3}")
+    return Texto(f"{resumo} {placa}" if placa else resumo, "; ".join(trechos))

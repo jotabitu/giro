@@ -8,15 +8,18 @@ mudam o status do veículo só por `transicionar`.
 
 import logging
 import re
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any
 
 from django.db import IntegrityError, transaction
 from django.db.models import Max
 from django.db.models.functions import Lower
 
+from apps.empresas import selectors as empresas_selectors
 from apps.filiais import selectors as filiais_selectors
 from apps.filiais.models import Filial
 from apps.notificacoes.services import avisar
@@ -41,24 +44,39 @@ from comum.erros import (
 )
 from comum.eventos import publicar
 
+from . import precos
 from .models import (
     CAMPOS_DA_VEI_09,
+    COMO_PAGA_DO_PERIODO,
     DOCUMENTOS_QUE_BLOQUEIAM,
     FORA_DA_FROTA,
     LIMITE_DA_GALERIA,
     MOVIMENTAVEIS,
+    PERIODO_DO_TIPO,
+    SO_PELA_VOLTA_SEM_PRECO,
     TRANSICOES_VEICULO,
+    AlvoPreco,
     Categoria,
+    CustosVeiculo,
     DocumentoVeiculo,
     Especie,
     Extra,
+    FormaAceita,
     FotoVeiculo,
+    HistoricoPrecoVeiculo,
     HistoricoStatusVeiculo,
     LeituraKm,
+    ModoParcela,
     Origem,
+    OrigemPreco,
+    PeriodoPlano,
+    PlanoCompraVeiculo,
+    PlanoVeiculo,
     PrecoCategoria,
+    RegrasVeiculo,
     StatusVeiculo,
     TipoDocumento,
+    TipoPlano,
     TipoVeiculo,
     TransferenciaVeiculo,
     Veiculo,
@@ -162,8 +180,20 @@ def transicionar(
     with transaction.atomic():
         travado = _travar(veiculo)
         de = travado.status
-        if novo_status not in TRANSICOES_VEICULO.get(de, set()):
+        if novo_status not in TRANSICOES_VEICULO.get(de, set()) or (
+            novo_status == S.INDISPONIVEL and de in SO_PELA_VOLTA_SEM_PRECO
+        ):
+            # `alugado`, `reservado`, `em_manutencao` e `a_venda` → `indisponivel` só pela volta
+            # sem preço, abaixo: nunca pedido direto (bloquear um alugado continua recusado).
             raise transicao_invalida(de, novo_status)
+        if novo_status == S.DISPONIVEL and not tem_plano_ligado(travado):
+            # VEI-15 (ADR 0041, item 4; PR #630): todo retorno do veículo sem plano ligado vai
+            # para `indisponivel` "sem preço", inclusive o desbloqueio e o "Voltar para a frota".
+            if de == S.INDISPONIVEL:
+                _trocar_motivo_para_sem_preco(travado, origem)
+                _recarregar(veiculo)
+                return veiculo
+            novo_status, motivo, acao = S.INDISPONIVEL, MOTIVO_SEM_PRECO, "sem_preco"
         travado.motivo_status = (motivo or "")[:200]
         estados.transicionar(
             travado,
@@ -188,6 +218,26 @@ def transicionar(
             atualizar_uso("veiculos", 1)
     _recarregar(veiculo)
     return veiculo
+
+
+def _trocar_motivo_para_sem_preco(travado: Veiculo, origem: OrigemDaMudanca) -> None:
+    """VEI-15: o desbloqueio do veículo sem plano ligado o deixa `indisponivel`, mas o bloqueio
+    sai: o motivo passa a ser "sem preço", com o histórico (de e para `indisponivel`) e o
+    evento `veiculo.sem_preco`."""
+    with auditar(
+        travado, "veiculo.sem_preco", CategoriaAuditoria.OPERACAO, motivo=MOTIVO_SEM_PRECO
+    ):
+        travado.motivo_status = MOTIVO_SEM_PRECO
+        travado.save(update_fields=["motivo_status", "atualizado_em"])
+    HistoricoStatusVeiculo.objects.create(
+        veiculo=travado,
+        de=S.INDISPONIVEL,
+        para=S.INDISPONIVEL,
+        em=relogio.agora(),
+        por_id=_quem(),
+        motivo=MOTIVO_SEM_PRECO,
+        **_origem(origem),
+    )
 
 
 def _exigir_motivo(motivo: str | None, campo: str = "motivo") -> str:
@@ -222,8 +272,11 @@ def desbloquear(veiculo: Veiculo, motivo: str | None = None) -> Veiculo:
 def colocar_a_venda(
     veiculo: Veiculo, valor_venda_centavos: int, referencia_fipe_centavos: int | None = None
 ) -> Veiculo:
-    """`disponivel` → `a_venda` (VEN-01). A Frota passa a mostrar o valor de venda."""
+    """`disponivel` → `a_venda` (VEN-01). A Frota passa a mostrar o valor de venda. Sem plano
+    ligado, 409 `VEI-15` (a tabela de preços não preenchida)."""
     with transaction.atomic():
+        if not tem_plano_ligado(_travar(veiculo)):
+            raise sem_preco()
         transicionar(veiculo, S.A_VENDA, origem=MANUAL, acao="colocar_a_venda")
         with auditar(veiculo, "veiculo.definir_valor_venda", CategoriaAuditoria.OPERACAO):
             veiculo.valor_venda_centavos = valor_venda_centavos
@@ -517,6 +570,11 @@ def _criar(
     )
     LeituraKm.objects.create(
         veiculo=veiculo, km=veiculo.km_atual, lido_em=agora, por_id=_quem(), **_origem(origem)
+    )
+    # ADR 0041, item 2: o veículo novo nasce com os planos do modelo (o preço da categoria).
+    aplicar_modelo_de_preco(
+        [veiculo],
+        OrigemPreco.IMPORTACAO if origem.tipo == Origem.IMPORTACAO else OrigemPreco.CADASTRO,
     )
     registrar_evento(
         "veiculo.cadastrar",
@@ -1685,3 +1743,736 @@ def apagar_foto(veiculo: Veiculo, foto_id: int) -> FotoVeiculo:
             },
         )
     return foto
+
+
+# --- Preços por veículo (VEI-12 a VEI-17, ADR 0041) ---
+
+MOTIVO_SEM_PRECO = "Sem preço · ligue um plano"
+AVISO_PRECO = (
+    "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda."
+)
+MENSAGEM_VALOR_PARA_LIGAR = "Informe um valor maior que zero para ligar o plano."
+MENSAGEM_FORMA_PARA_LIGAR = "Escolha ao menos uma forma de pagamento para ligar o plano."
+MENSAGEM_CAUCAO_PARA_LIGAR = "Informe a caução para ligar o plano. Pode ser R$ 0,00."
+MENSAGEM_VENDA_PARA_COMPRA = "Informe o valor de venda para ligar a locação com compra."
+MENSAGEM_ENTRADA = "A entrada precisa ser menor que o valor de venda."
+MENSAGEM_AGENDADO_DATA = "Escolha uma data a partir de amanhã."
+FORMAS_TODAS = [forma.value for forma in FormaAceita]
+CAMPOS_DO_PLANO_VEICULO = (
+    "ligado",
+    "valor_centavos",
+    "como_paga",
+    "formas_aceitas",
+    "caucao_centavos",
+    "caucao_parcelas",
+    "franquia_km",
+    "prazo_minimo_periodos",
+    "valor_agendado_centavos",
+    "caucao_agendada_centavos",
+    "agendado_para",
+    "nome",
+    "periodo",
+    "ativo",
+)
+CAMPOS_DAS_REGRAS = (
+    "km_excedente_centavos",
+    "dia_atraso_centavos",
+    "multa_minima_centavos",
+    "desconto_sem_aprovacao_pct",
+    "prazo_devolucao_caucao_dias",
+)
+CAMPOS_DOS_CUSTOS = (
+    "manutencao_mes_centavos",
+    "seguro_mes_centavos",
+    "rastreador_mes_centavos",
+    "ipva_ano_centavos",
+    "revenda_estimada_centavos",
+    "ocupacao_esperada_pct",
+)
+CAMPOS_DA_COMPRA = (
+    "ligado",
+    "periodicidade",
+    "parcelas",
+    "entrada_centavos",
+    "juros_mes_pct",
+    "modo",
+    "parcela_moto_centavos",
+    "adicional_centavos",
+    "caucao_centavos",
+)
+
+
+def sem_preco() -> Conflito:
+    """409 `VEI-15`: o veículo sem plano ligado não entra na locação, na troca nem à venda."""
+    return Conflito("VEI-15", AVISO_PRECO)
+
+
+def tem_plano_ligado(veiculo: Veiculo) -> bool:
+    """VEI-15: algum plano de aluguel ativo e ligado, ou a locação com compra ligada."""
+    return (
+        PlanoVeiculo.objects.filter(veiculo_id=veiculo.pk, ativo=True, ligado=True).exists()
+        or PlanoCompraVeiculo.objects.filter(veiculo_id=veiculo.pk, ligado=True).exists()
+    )
+
+
+def _alinhar_status_sem_preco(veiculo: Veiculo) -> None:
+    """VEI-15: `disponivel` sem plano → `indisponivel` "sem preço"; `indisponivel` "sem preço"
+    com plano → `disponivel`, se nenhum CRLV ou seguro venceu nesse meio-tempo. Outro motivo
+    (bloqueio, documento) não volta sozinho. Os outros status ficam: a volta confere em
+    `transicionar`."""
+    tem = tem_plano_ligado(veiculo)
+    if veiculo.status == S.DISPONIVEL and not tem:
+        transicionar(
+            veiculo, S.INDISPONIVEL, origem=MANUAL, motivo=MOTIVO_SEM_PRECO, acao="sem_preco"
+        )
+    elif (
+        veiculo.status == S.INDISPONIVEL
+        and veiculo.motivo_status == MOTIVO_SEM_PRECO
+        and tem
+        and not documentos_vencidos_que_bloqueiam(veiculo, relogio.hoje())
+    ):
+        transicionar(veiculo, S.DISPONIVEL, origem=MANUAL, acao="com_preco")
+
+
+def _json(valor: Any) -> Any:
+    """O valor cru do histórico: centavos, pct em texto, data ISO, bool e listas."""
+    if isinstance(valor, Decimal):
+        return str(valor)
+    if isinstance(valor, date):
+        return valor.isoformat()
+    if isinstance(valor, (list, tuple)):
+        return list(valor)
+    return valor
+
+
+@dataclass
+class _Lote:
+    """As linhas de histórico de uma gravação (VEI-17)."""
+
+    veiculo: Veiculo
+    origem: str
+    por_id: int | None
+    lote: uuid.UUID
+    em: Any
+    linhas: list[HistoricoPrecoVeiculo]
+
+    def mudou(
+        self,
+        alvo: str,
+        campo: str,
+        de: Any,
+        para: Any,
+        alvo_id: int | None = None,
+        alvo_nome: str = "",
+    ) -> None:
+        if _json(de) == _json(para):
+            return
+        self.linhas.append(
+            HistoricoPrecoVeiculo(
+                veiculo=self.veiculo,
+                em=self.em,
+                por_id=self.por_id,
+                origem=self.origem,
+                alvo=alvo,
+                alvo_id=alvo_id,
+                alvo_nome=alvo_nome[:60],
+                campo=campo,
+                de=_json(de),
+                para=_json(para),
+                lote=self.lote,
+            )
+        )
+
+    def comparar(
+        self,
+        alvo: str,
+        antes: dict[str, Any],
+        objeto: Any,
+        campos: tuple[str, ...],
+        alvo_id: int | None = None,
+        alvo_nome: str = "",
+    ) -> None:
+        for campo in campos:
+            self.mudou(alvo, campo, antes.get(campo), getattr(objeto, campo), alvo_id, alvo_nome)
+
+    def gravar(self, acao: str, extras: dict[str, Any] | None = None) -> None:
+        """O histórico e um `EventoAuditoria` por gravação, com o `lote` (VEI-17, AUD-01)."""
+        if not self.linhas:
+            return
+        HistoricoPrecoVeiculo.objects.bulk_create(self.linhas)
+        registrar_evento(
+            acao,
+            CategoriaAuditoria.OPERACAO,
+            objeto=self.veiculo,
+            depois={
+                "lote": str(self.lote),
+                "origem": self.origem,
+                "mudancas": [
+                    {
+                        "alvo": linha.alvo,
+                        "alvo_nome": linha.alvo_nome,
+                        "campo": linha.campo,
+                        "de": linha.de,
+                        "para": linha.para,
+                    }
+                    for linha in self.linhas
+                ],
+                **(extras or {}),
+            },
+            regra="VEI-17",
+            codigo=placa_com_hifen(self.veiculo.placa),
+        )
+
+
+def _novo_lote(veiculo: Veiculo, origem: str, por_id: int | None) -> _Lote:
+    return _Lote(veiculo, origem, por_id, uuid.uuid4(), relogio.agora(), [])
+
+
+def _valores(objeto: Any, campos: tuple[str, ...]) -> dict[str, Any]:
+    return {campo: getattr(objeto, campo) for campo in campos} if objeto is not None else {}
+
+
+# --- Modelo de preço: os planos do veículo novo (ADR 0041, item 2) ---
+
+
+@dataclass(frozen=True)
+class ModeloDePreco:
+    """O preço da categoria que pré-preenche o veículo novo: o vigente no dia e o primeiro
+    futuro, que vira o agendado de cada plano."""
+
+    diaria: int
+    semanal: int
+    mensal: int
+    caucao: int | None
+    futuro: PrecoCategoria | None
+
+
+def planos_do_modelo(categoria: Categoria | int, dia: date) -> ModeloDePreco:
+    categoria_id = categoria if isinstance(categoria, int) else categoria.pk
+    precos_da_categoria = PrecoCategoria.objects.filter(categoria_id=categoria_id)
+    vigente = precos_da_categoria.filter(vigente_desde__lte=dia).order_by("-vigente_desde").first()
+    futuro = precos_da_categoria.filter(vigente_desde__gt=dia).order_by("vigente_desde").first()
+    if vigente is None:
+        return ModeloDePreco(0, 0, 0, None, futuro)
+    return ModeloDePreco(
+        int(vigente.diaria_centavos),
+        int(vigente.semanal_centavos),
+        int(vigente.mensal_centavos),
+        int(vigente.caucao_centavos),
+        futuro,
+    )
+
+
+PADRAO_DO_TIPO = (
+    (TipoPlano.DIARIA, PeriodoPlano.DIA, "diaria"),
+    (TipoPlano.SEMANAL, PeriodoPlano.SEMANA, "semanal"),
+    (TipoPlano.MENSAL, PeriodoPlano.MES, "mensal"),
+)
+
+
+def aplicar_modelo_de_preco(veiculos: list[Veiculo], origem: str) -> None:
+    """Planos `diaria`, `semanal` e `mensal` com o preço da categoria (ligados com valor maior que
+    zero e caução), regras com o dia de atraso e a multa mínima iguais à diária, custos vazios e
+    o histórico, para veículos que ainda não têm regras. Só na criação do veículo."""
+    hoje = relogio.hoje()
+    modelos: dict[int, ModeloDePreco] = {}
+    ja_tem = set(
+        RegrasVeiculo.objects.filter(veiculo__in=veiculos).values_list("veiculo_id", flat=True)
+    )
+    planos: list[PlanoVeiculo] = []
+    regras: list[RegrasVeiculo] = []
+    custos: list[CustosVeiculo] = []
+    linhas: list[HistoricoPrecoVeiculo] = []
+    por_id = _quem()
+    agora = relogio.agora()
+    for veiculo in veiculos:
+        if veiculo.pk in ja_tem:
+            continue
+        if veiculo.categoria_id not in modelos:
+            modelos[veiculo.categoria_id] = planos_do_modelo(veiculo.categoria_id, hoje)
+        modelo = modelos[veiculo.categoria_id]
+        lote = _Lote(veiculo, origem, por_id, uuid.uuid4(), agora, [])
+        for tipo, periodo, nome in PADRAO_DO_TIPO:
+            valor = getattr(modelo, nome)
+            futuro = modelo.futuro
+            plano = PlanoVeiculo(
+                veiculo=veiculo,
+                tipo=tipo,
+                periodo=periodo,
+                como_paga=COMO_PAGA_DO_PERIODO[periodo][0],
+                formas_aceitas=list(FORMAS_TODAS),
+                valor_centavos=valor,
+                caucao_centavos=modelo.caucao,
+                ligado=valor > 0 and modelo.caucao is not None,
+                valor_agendado_centavos=getattr(futuro, f"{nome}_centavos") if futuro else None,
+                caucao_agendada_centavos=futuro.caucao_centavos if futuro else None,
+                agendado_para=futuro.vigente_desde if futuro else None,
+            )
+            planos.append(plano)
+            for campo in ("valor_centavos", "caucao_centavos", "ligado", "agendado_para"):
+                lote.mudou(AlvoPreco.PLANO, campo, None, getattr(plano, campo), None, tipo.label)
+        regra = RegrasVeiculo(
+            veiculo=veiculo,
+            dia_atraso_centavos=modelo.diaria,
+            multa_minima_centavos=modelo.diaria,
+        )
+        regras.append(regra)
+        for campo in ("dia_atraso_centavos", "multa_minima_centavos"):
+            lote.mudou(AlvoPreco.REGRAS, campo, None, getattr(regra, campo))
+        custos.append(CustosVeiculo(veiculo=veiculo))
+        linhas.extend(lote.linhas)
+    PlanoVeiculo.objects.bulk_create(planos)
+    RegrasVeiculo.objects.bulk_create(regras)
+    CustosVeiculo.objects.bulk_create(custos)
+    HistoricoPrecoVeiculo.objects.bulk_create(linhas)
+
+
+# --- Salvar a tela de preços (ADR 0041, item 4) ---
+
+
+def pago_na_moto(veiculo: Veiculo) -> int | None:
+    """VEI-13: valor de compra + despesas do veículo sem as recusadas (FIN-17), lidas pelo
+    registro (ADR 0015). Sem valor de compra, `None`."""
+    if veiculo.valor_compra_centavos is None:
+        return None
+    return int(veiculo.valor_compra_centavos) + despesas_do_veiculo(veiculo)
+
+
+def despesas_do_veiculo(veiculo: Veiculo) -> int:
+    """De `financeiro`, pelo contador registrado; sem o fornecedor, 0."""
+    return leituras.contar(ALVO_VEICULO, veiculo.pk, ["despesas_centavos"])["despesas_centavos"]
+
+
+ALVO_VEICULO = "veiculos.Veiculo"
+
+
+@dataclass
+class DocumentoDePrecos:
+    """O estado novo, montado e validado, ainda sem gravar."""
+
+    valor_venda_centavos: int | None
+    planos: list[PlanoVeiculo]
+    regras: RegrasVeiculo
+    custos: CustosVeiculo
+    compra: PlanoCompraVeiculo | None
+    resultado: precos.Resultado
+
+
+def plano_novo(veiculo: Veiculo, tipo: str) -> PlanoVeiculo:
+    periodo = PERIODO_DO_TIPO.get(TipoPlano(tipo), "")
+    return PlanoVeiculo(
+        veiculo=veiculo,
+        tipo=tipo,
+        periodo=periodo,
+        como_paga=COMO_PAGA_DO_PERIODO[PeriodoPlano(periodo)][0] if periodo else "",
+        formas_aceitas=list(FORMAS_TODAS),
+    )
+
+
+def planos_ativos(veiculo: Veiculo) -> list[PlanoVeiculo]:
+    return list(PlanoVeiculo.ativos.filter(veiculo_id=veiculo.pk).order_by("id"))
+
+
+def _aplicar_plano(
+    veiculo: Veiculo,
+    indice: int,
+    entrada: dict[str, Any],
+    existentes: list[PlanoVeiculo],
+    hoje: date,
+    erros: dict[str, list[str]],
+) -> PlanoVeiculo | None:
+    """Um item de `planos[]`: acha o plano (por id, ou pelo tipo fixo), aplica e valida. Volta o
+    plano a gravar; `None` quando o item não muda nada a gravar."""
+    chave = f"planos.{indice}"
+    tipo = entrada.get("tipo")
+    plano: PlanoVeiculo | None = None
+    if entrada.get("id") is not None:
+        plano = next((p for p in existentes if p.pk == entrada["id"]), None)
+        if plano is None:
+            erros[f"{chave}.id"] = ["Plano não encontrado neste veículo."]
+            return None
+        tipo = plano.tipo
+    elif tipo != TipoPlano.OUTRO:
+        plano = next((p for p in existentes if p.tipo == tipo), None)
+    if plano is None:
+        if tipo not in TipoPlano.values:
+            erros[f"{chave}.tipo"] = ["Escolha o tipo do plano."]
+            return None
+        plano = plano_novo(veiculo, str(tipo))
+    if entrada.get("ativo") is False:
+        if plano.tipo != TipoPlano.OUTRO:
+            erros[f"{chave}.ativo"] = ["Este plano não se retira. Desligue o plano."]
+            return None
+        if plano.pk is None:
+            return None
+        plano.ativo = False
+        plano.ligado = False
+        return plano
+    if plano.tipo == TipoPlano.OUTRO:
+        nome = str(entrada.get("nome", plano.nome) or "").strip()
+        if not nome:
+            erros[f"{chave}.nome"] = ["Dê um nome ao plano."]
+        plano.nome = nome[:40]
+    if plano.tipo in (TipoPlano.ENTREGADOR, TipoPlano.OUTRO):
+        periodo = entrada.get("periodo") or plano.periodo
+        if periodo not in PeriodoPlano.values:
+            erros[f"{chave}.periodo"] = ["Escolha o período: dia, semana ou mês."]
+            return None
+        plano.periodo = periodo
+    for campo in (
+        "ligado",
+        "valor_centavos",
+        "formas_aceitas",
+        "caucao_centavos",
+        "caucao_parcelas",
+        "franquia_km",
+        "prazo_minimo_periodos",
+    ):
+        if campo in entrada:
+            setattr(plano, campo, entrada[campo])
+    permitidos = COMO_PAGA_DO_PERIODO[PeriodoPlano(plano.periodo)]
+    como_paga = entrada.get("como_paga") or (
+        plano.como_paga if plano.como_paga in permitidos else permitidos[0]
+    )
+    if como_paga not in permitidos:
+        erros[f"{chave}.como_paga"] = ["Escolha como o cliente paga neste período."]
+    plano.como_paga = como_paga
+    if "agendado" in entrada:
+        agendado = entrada["agendado"]
+        if agendado is None:
+            plano.valor_agendado_centavos = None
+            plano.caucao_agendada_centavos = None
+            plano.agendado_para = None
+        else:
+            if agendado["a_partir_de"] <= hoje:
+                erros[f"{chave}.agendado.a_partir_de"] = [MENSAGEM_AGENDADO_DATA]
+            if not agendado.get("valor_centavos"):
+                erros[f"{chave}.agendado.valor_centavos"] = ["Informe o valor agendado."]
+            plano.valor_agendado_centavos = agendado.get("valor_centavos")
+            plano.caucao_agendada_centavos = agendado.get("caucao_centavos")
+            plano.agendado_para = agendado["a_partir_de"]
+    if plano.ligado:
+        _conferir_ligar(plano, chave, erros)
+    return plano
+
+
+def _conferir_ligar(plano: PlanoVeiculo, chave: str, erros: dict[str, list[str]]) -> None:
+    """VEI-12: ligar exige valor maior que zero, uma forma aceita e a caução preenchida."""
+    if not plano.valor_centavos:
+        erros[f"{chave}.valor_centavos"] = [MENSAGEM_VALOR_PARA_LIGAR]
+    if not plano.formas_aceitas:
+        erros[f"{chave}.formas_aceitas"] = [MENSAGEM_FORMA_PARA_LIGAR]
+    if plano.caucao_centavos is None:
+        erros[f"{chave}.caucao_centavos"] = [MENSAGEM_CAUCAO_PARA_LIGAR]
+
+
+def _nomes_repetidos(planos: list[PlanoVeiculo], erros: dict[str, list[str]]) -> None:
+    vistos: set[str] = set()
+    for plano in planos:
+        if plano.tipo != TipoPlano.OUTRO or not plano.ativo:
+            continue
+        nome = plano.nome.lower()
+        if nome in vistos:
+            erros["planos"] = [f"Já existe um plano com o nome {plano.nome}."]
+        vistos.add(nome)
+
+
+def _aplicar_compra(
+    veiculo: Veiculo,
+    entrada: dict[str, Any] | None,
+    erros: dict[str, list[str]],
+) -> PlanoCompraVeiculo | None:
+    atual = PlanoCompraVeiculo.objects.filter(veiculo_id=veiculo.pk).first()
+    if entrada is None:
+        return atual
+    compra = atual or PlanoCompraVeiculo(veiculo=veiculo)
+    for campo in CAMPOS_DA_COMPRA:
+        if campo in entrada:
+            setattr(compra, campo, entrada[campo])
+    if compra.modo == ModoParcela.CALCULAR or not compra.modo:
+        compra.modo = ModoParcela.CALCULAR
+    return compra
+
+
+def _entrada_de_simulacao(
+    veiculo: Veiculo,
+    valor_venda: int | None,
+    planos: list[PlanoVeiculo],
+    custos: CustosVeiculo,
+    compra: PlanoCompraVeiculo | None,
+    hoje: date,
+) -> precos.Entrada:
+    return precos.Entrada(
+        valor_venda=valor_venda,
+        pago_na_moto=pago_na_moto(veiculo),
+        custos=precos.Custos(
+            manutencao_mes=int(custos.manutencao_mes_centavos),
+            seguro_mes=int(custos.seguro_mes_centavos),
+            rastreador_mes=int(custos.rastreador_mes_centavos),
+            ipva_ano=int(custos.ipva_ano_centavos),
+            revenda_estimada=custos.revenda_estimada_centavos,
+            ocupacao_esperada_pct=custos.ocupacao_esperada_pct,
+        ),
+        planos=[
+            precos.PlanoAluguel(chave_do_plano(p), p.periodo, p.valor_em(hoje), p.ligado)
+            for p in planos
+            if p.ativo
+        ],
+        compra=(
+            precos.Compra(
+                ligado=compra.ligado,
+                periodicidade=compra.periodicidade,
+                parcelas=int(compra.parcelas),
+                entrada=int(compra.entrada_centavos),
+                juros_mes_pct=Decimal(compra.juros_mes_pct),
+                modo=compra.modo,
+                parcela_digitada=int(compra.parcela_moto_centavos),
+                adicional=int(compra.adicional_centavos),
+            )
+            if compra is not None and compra.periodicidade and compra.parcelas
+            else None
+        ),
+        margem_minima_pct=empresas_selectors.margem_minima_pct(),
+    )
+
+
+def chave_do_plano(plano: PlanoVeiculo) -> str:
+    """O id do plano, ou o tipo do plano ainda sem id (simulação de um tipo novo)."""
+    return str(plano.pk) if plano.pk is not None else f"{plano.tipo}:{plano.nome}"
+
+
+def montar_documento(
+    veiculo: Veiculo, dados: dict[str, Any], hoje: date | None = None
+) -> DocumentoDePrecos:
+    """Aplica o documento do `PUT` (ou do `simular`) sobre o que está gravado e valida (400 no
+    campo). Não grava nada."""
+    hoje = hoje or relogio.hoje()
+    erros: dict[str, list[str]] = {}
+    existentes = planos_ativos(veiculo)
+    mudados: dict[int, PlanoVeiculo] = {}
+    novos: list[PlanoVeiculo] = []
+    for indice, item in enumerate(dados.get("planos") or []):
+        plano = _aplicar_plano(veiculo, indice, item, existentes, hoje, erros)
+        if plano is None:
+            continue
+        if plano.pk is None:
+            if plano.tipo != TipoPlano.OUTRO and any(p.tipo == plano.tipo for p in novos):
+                erros[f"planos.{indice}.tipo"] = ["Este veículo já tem um plano deste tipo."]
+                continue
+            novos.append(plano)
+        else:
+            mudados[plano.pk] = plano
+    planos = [mudados.get(p.pk, p) for p in existentes if p.pk is not None] + novos
+    _nomes_repetidos(planos, erros)
+
+    regras = RegrasVeiculo.objects.filter(veiculo_id=veiculo.pk).first() or RegrasVeiculo(
+        veiculo=veiculo
+    )
+    for campo, valor in (dados.get("regras") or {}).items():
+        if campo in CAMPOS_DAS_REGRAS:
+            setattr(regras, campo, valor)
+    custos = CustosVeiculo.objects.filter(veiculo_id=veiculo.pk).first() or CustosVeiculo(
+        veiculo=veiculo
+    )
+    for campo, valor in (dados.get("custos") or {}).items():
+        if campo in CAMPOS_DOS_CUSTOS:
+            setattr(custos, campo, valor)
+    valor_venda = dados.get("valor_venda_centavos", veiculo.valor_venda_centavos)
+    compra = _aplicar_compra(veiculo, dados.get("plano_compra"), erros)
+    if compra is not None:
+        if compra.ligado and not valor_venda:
+            erros["valor_venda_centavos"] = [MENSAGEM_VENDA_PARA_COMPRA]
+        if valor_venda and compra.entrada_centavos >= valor_venda:
+            erros["plano_compra.entrada_centavos"] = [MENSAGEM_ENTRADA]
+    try:
+        resultado = precos.simular(
+            _entrada_de_simulacao(veiculo, valor_venda, planos, custos, compra, hoje)
+        )
+    except precos.ParcelaNaoCobre as erro:
+        erros["plano_compra.parcela_moto_centavos"] = [str(erro)]
+        resultado = precos.simular(
+            _entrada_de_simulacao(veiculo, valor_venda, planos, custos, None, hoje)
+        )
+    if compra is not None:
+        if resultado.compra is not None:
+            compra.juros_mes_pct = resultado.compra.juros_mes_pct
+            compra.parcela_moto_centavos = resultado.compra.parcela_moto_centavos
+        elif compra.modo == ModoParcela.CALCULAR:
+            compra.parcela_moto_centavos = 0
+        if compra.ligado and not compra.parcela_moto_centavos and not erros:
+            erros["plano_compra.parcela_moto_centavos"] = [precos.MENSAGEM_PARCELA_NAO_COBRE]
+    if erros:
+        raise ErroDeValidacao(erros)
+    return DocumentoDePrecos(valor_venda, planos, regras, custos, compra, resultado)
+
+
+def pede_confirmacao_juros(veiculo: Veiculo, compra: PlanoCompraVeiculo | None) -> bool:
+    """VEI-16: juros acima de 1% ao mês com a compra ligada, mudados (ou a compra ligada agora)
+    desde a última gravação."""
+    if compra is None or not compra.ligado:
+        return False
+    if Decimal(compra.juros_mes_pct) <= precos.JUROS_SEM_CONFIRMACAO_PCT:
+        return False
+    salvo = PlanoCompraVeiculo.objects.filter(veiculo_id=veiculo.pk).first()
+    return salvo is None or not salvo.ligado or salvo.juros_mes_pct != compra.juros_mes_pct
+
+
+def simular_precos(veiculo: Veiculo, dados: dict[str, Any]) -> DocumentoDePrecos:
+    """`POST .../precos/simular/`: o mesmo do `PUT`, sem gravar (ADR 0005)."""
+    return montar_documento(veiculo, dados)
+
+
+def salvar_precos(
+    veiculo: Veiculo,
+    dados: dict[str, Any],
+    por: Any = None,
+    origem: str = OrigemPreco.TELA_PRECOS,
+    confirmar_juros: bool = False,
+) -> Veiculo:
+    """`PUT .../precos/` (ADR 0041, item 4), numa transação com o veículo travado: valida (400),
+    pede a confirmação dos juros acima de 1% (409 `VEI-16`), grava, compara campo a campo para o
+    histórico e a auditoria (VEI-17) e alinha o "sem preço" (VEI-15)."""
+    por_id = getattr(por, "pk", None) if por is not None else _quem()
+    with transaction.atomic():
+        travado = _travar(veiculo)
+        documento = montar_documento(travado, dados)
+        juros_confirmados: dict[str, Any] | None = None
+        compra = documento.compra
+        if compra is not None and pede_confirmacao_juros(travado, compra):
+            juros = str(compra.juros_mes_pct)
+            if not confirmar_juros:
+                raise Conflito("VEI-16", precos.ALERTA_JUROS, {"juros_mes_pct": juros})
+            juros_confirmados = {
+                "pct": juros,
+                "por": por_id,
+                "em": relogio.agora().isoformat(),
+            }
+        lote = _novo_lote(travado, origem, por_id)
+        _gravar_documento(travado, documento, lote)
+        lote.gravar(
+            "veiculo.precos_salvar",
+            {"juros_confirmados": juros_confirmados} if juros_confirmados else None,
+        )
+        _alinhar_status_sem_preco(travado)
+    _recarregar(veiculo)
+    return veiculo
+
+
+def _gravar_documento(veiculo: Veiculo, documento: DocumentoDePrecos, lote: _Lote) -> None:
+    salvos = {p.pk: _valores(p, CAMPOS_DO_PLANO_VEICULO) for p in planos_ativos(veiculo)}
+    for plano in documento.planos:
+        antes = salvos.get(plano.pk, {}) if plano.pk else {}
+        plano.save()
+        lote.comparar(
+            AlvoPreco.PLANO, antes, plano, CAMPOS_DO_PLANO_VEICULO, plano.pk, plano.rotulo
+        )
+    regras_antes = _valores(
+        RegrasVeiculo.objects.filter(veiculo_id=veiculo.pk).first(), CAMPOS_DAS_REGRAS
+    )
+    documento.regras.save()
+    lote.comparar(AlvoPreco.REGRAS, regras_antes, documento.regras, CAMPOS_DAS_REGRAS)
+    custos_antes = _valores(
+        CustosVeiculo.objects.filter(veiculo_id=veiculo.pk).first(), CAMPOS_DOS_CUSTOS
+    )
+    documento.custos.save()
+    lote.comparar(AlvoPreco.CUSTOS, custos_antes, documento.custos, CAMPOS_DOS_CUSTOS)
+    if documento.compra is not None:
+        compra_antes = _valores(
+            PlanoCompraVeiculo.objects.filter(veiculo_id=veiculo.pk).first(), CAMPOS_DA_COMPRA
+        )
+        documento.compra.save()
+        lote.comparar(AlvoPreco.PLANO_COMPRA, compra_antes, documento.compra, CAMPOS_DA_COMPRA)
+    if documento.valor_venda_centavos != veiculo.valor_venda_centavos:
+        lote.mudou(
+            AlvoPreco.VALOR_VENDA,
+            "valor_venda_centavos",
+            veiculo.valor_venda_centavos,
+            documento.valor_venda_centavos,
+        )
+        veiculo.valor_venda_centavos = documento.valor_venda_centavos
+        veiculo.save(update_fields=["valor_venda_centavos", "atualizado_em"])
+
+
+def ligar_plano(
+    veiculo: Veiculo,
+    plano_id: int,
+    ligado: bool,
+    por: Any = None,
+    origem: str = OrigemPreco.FICHA,
+) -> PlanoVeiculo:
+    """O liga e desliga do cartão da ficha (VEI-12), com o mesmo histórico, auditoria e "sem
+    preço" do `salvar_precos`. Ligar sem valor, forma ou caução: 400 no campo."""
+    por_id = getattr(por, "pk", None) if por is not None else _quem()
+    with transaction.atomic():
+        travado = _travar(veiculo)
+        plano: PlanoVeiculo | None = (
+            PlanoVeiculo.ativos.select_for_update()
+            .filter(veiculo_id=travado.pk, pk=plano_id)
+            .first()
+        )
+        if plano is None:
+            raise NaoEncontrado("nao_encontrado", "Plano não encontrado neste veículo.")
+        antes = _valores(plano, CAMPOS_DO_PLANO_VEICULO)
+        plano.ligado = ligado
+        if ligado:
+            erros: dict[str, list[str]] = {}
+            _conferir_ligar(plano, "plano", erros)
+            if erros:
+                raise ErroDeValidacao(
+                    {chave.removeprefix("plano."): valor for chave, valor in erros.items()}
+                )
+        plano.save(update_fields=["ligado", "atualizado_em"])
+        lote = _novo_lote(travado, origem, por_id)
+        lote.comparar(AlvoPreco.PLANO, antes, plano, ("ligado",), plano.pk, plano.rotulo)
+        lote.gravar("veiculo.precos_salvar")
+        _alinhar_status_sem_preco(travado)
+    _recarregar(veiculo)
+    return plano
+
+
+def consolidar_precos_agendados(hoje: date) -> dict[str, int]:
+    """O agendado vencido passa a `valor_centavos` e `caucao_centavos` e os três campos se
+    limpam, com histórico (`origem = agendamento`, `por` nulo) e auditoria do Sistema (ADR 0041,
+    item 1). O plano que nasceu sem preço na migração (valor 0) e só com o agendado liga no dia,
+    se tiver forma e caução. Idempotente: a regra é a leitura por data, isto só arruma a tabela."""
+    contagem = {"planos": 0, "veiculos": 0}
+    veiculo_ids = sorted(
+        set(
+            PlanoVeiculo.objects.filter(agendado_para__lte=hoje).values_list(
+                "veiculo_id", flat=True
+            )
+        )
+    )
+    for veiculo_id in veiculo_ids:
+        with transaction.atomic():
+            veiculo = _travar(Veiculo(pk=veiculo_id))
+            lote = _novo_lote(veiculo, OrigemPreco.AGENDAMENTO, None)
+            for plano in PlanoVeiculo.objects.select_for_update().filter(
+                veiculo_id=veiculo_id, agendado_para__lte=hoje
+            ):
+                antes = _valores(plano, CAMPOS_DO_PLANO_VEICULO)
+                sem_preco_antes = not plano.valor_centavos
+                plano.valor_centavos = int(plano.valor_agendado_centavos or 0)
+                if plano.caucao_agendada_centavos is not None:
+                    plano.caucao_centavos = plano.caucao_agendada_centavos
+                plano.valor_agendado_centavos = None
+                plano.caucao_agendada_centavos = None
+                plano.agendado_para = None
+                if (
+                    sem_preco_antes
+                    and plano.ativo
+                    and not plano.ligado
+                    and plano.valor_centavos > 0
+                    and plano.formas_aceitas
+                    and plano.caucao_centavos is not None
+                ):
+                    plano.ligado = True
+                plano.save()
+                lote.comparar(
+                    AlvoPreco.PLANO, antes, plano, CAMPOS_DO_PLANO_VEICULO, plano.pk, plano.rotulo
+                )
+                contagem["planos"] += 1
+            lote.gravar("veiculo.precos_agendado_vigente")
+            _alinhar_status_sem_preco(veiculo)
+            contagem["veiculos"] += 1
+    return contagem

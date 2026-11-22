@@ -1,5 +1,6 @@
 <!doctype html>
 <!-- ajustada no repositório: 12/11/2026, T-420 -->
+<!-- ajustada no repositório: 18/11/2026, T-503 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -42,6 +43,15 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .opt{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);font-size:15px;background:var(--surface)}
 .opt.on{box-shadow:inset 0 0 0 2px var(--ink)}
 .h2{margin:0;font-size:20px;line-height:26px;font-weight:600}
+.sub{margin:0;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.est{display:flex;flex-direction:column;gap:12px}
+.est h3{margin:0;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)}
+.dlg{box-sizing:border-box;display:flex;flex-direction:column;gap:14px;padding:20px 16px;border-radius:var(--radius-xl);background:var(--surface);box-shadow:var(--shadow-pop)}
+.sheet{box-sizing:border-box;display:flex;flex-direction:column;gap:14px;padding:20px 16px 24px;border-radius:var(--radius-xl) var(--radius-xl) 0 0;background:var(--surface);box-shadow:var(--shadow-pop)}
+.dlg h4,.sheet h4{margin:0;font-size:22px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+.dlg p,.sheet p{margin:0;font-size:15px;line-height:22px;color:var(--ink-muted)}
+.acts{display:flex;flex-direction:column;gap:8px}
+.acts .wl-btn{width:100%;box-sizing:border-box;justify-content:center;height:48px}
 
 </style>
 </helmet>
@@ -51,9 +61,9 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <span style="font-size: 14px; color: var(--on-solid-muted);">Vendido em outubro</span>
 <div style="font-size: 34px; line-height: 38px; font-weight: 600; letter-spacing: -0.03em;">R$ 31.200</div>
 <div class="wl-progress" style="margin-top: 6px;"><div class="wl-progress__track" style="background: rgba(255,255,255,0.15);"><div class="wl-progress__fill" style="width: 62%; background: var(--brand);"></div></div></div>
-<span style="font-size: 14px; color: var(--on-solid-muted);">4 vendas · 62% da meta de R$ 50.000</span>
+<span style="font-size: 14px; color: var(--on-solid-muted);">4 vendas · 62% da meta de R$ 50.000</span><div><button class="wl-btn wl-btn--brand wl-btn--sm" type="button" style="margin-top: 8px;">Definir metas</button></div>
 </section>
-<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Propostas abertas · 4</div><a href="Venda-Mobile.dc.html" class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Diego Martins</div><small>Honda CB 300F Twister 2024 · VEN-0177</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm wl-badge--warning">Aguardando gerente</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 21.068</div><small>há 1 h</small></div></a><a href="Venda-Mobile.dc.html" class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Larissa Costa</div><small>Yamaha Fazer 250 2023 · VEN-0176</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm wl-badge--info">Banco analisando</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 19.500</div><small>há 2 dias</small></div></a><a href="Venda-Mobile.dc.html" class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Thiago Ramos</div><small>Honda Biz 125 2024 · VEN-0175</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm">Proposta enviada</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 13.200</div><small>ontem</small></div></a><a href="Venda-Mobile.dc.html" class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Fernanda Lopes</div><small>Yamaha NMax 160 2023 · VEN-0174</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm">Proposta enviada</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 21.800</div><small>hoje</small></div></a></section>
+<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Propostas abertas · 3</div><a href="Venda-Mobile.dc.html" class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Diego Martins</div><small>Honda CB 300F Twister 2024 · VEN-0177</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm wl-badge--warning">Aguardando gerente</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 21.068</div><small>há 1 h</small></div></a><a href="Venda-Mobile.dc.html" class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Thiago Ramos</div><small>Honda Biz 125 2024 · VEN-0175</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm">Proposta enviada</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 13.200</div><small>ontem</small></div></a><a href="Venda-Mobile.dc.html" class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Fernanda Lopes</div><small>Yamaha NMax 160 2023 · VEN-0174</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm">Proposta enviada</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 21.800</div><small>hoje</small></div></a></section>
 <section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Transferências pendentes</div>
 <div class="row" style="align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Lucas Ferreira</div><small>Honda CG 160 Fan · RTA-2C55</small><small>VEN-0178 · Quitação de locação</small><div style="margin-top: 8px;"><span class="wl-badge wl-badge--sm wl-badge--warning">Falta a transferência no Detran</span></div></div><a href="Locacao-Detalhe-Compra-Quitada-Mobile.dc.html" class="wl-btn wl-btn--sm" style="text-decoration: none; white-space: nowrap;">Abrir locação</a></div></section>
 <section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Vendidas em outubro</div><div class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Paulo Rocha</div><small>Honda Pop 110i 2022 · VEN-0173</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm wl-badge--success">Vendida 06 out</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 7.900</div><small>comissão R$ 237,00</small></div></div><div class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Renata Alves</div><small>Honda CG 160 Fan 2021 · VEN-0172</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm wl-badge--success">Vendida 03 out</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 11.400</div><small>comissão R$ 342,00</small></div></div><div class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Jonas Pereira</div><small>Honda Biz 125 2020 · VEN-0171</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm wl-badge--success">Vendida 02 out</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 6.500</div><small>comissão R$ 195,00</small></div></div><div class="row" style="text-decoration: none; color: var(--ink); align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Márcia Lima</div><small>Honda Pop 110i 2021 · VEN-0170</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm wl-badge--success">Vendida 01 out</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 5.400</div><small>comissão R$ 162,00</small></div></div></section>
@@ -65,8 +75,48 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <a href="Menu-Mobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 999px; background: var(--solid); color: var(--on-solid); text-decoration: none; font-size: 14px; font-weight: 500;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Mais</a>
 </nav>
 </div>
+<section style="display: flex; flex-direction: column; gap: 28px; padding: 24px 16px 40px; border-top: 1px solid var(--line); background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div><h2 class="h2">Estados desta tela</h2><p class="sub" style="margin-top: 4px;">Referência dos casos da VEN-08, VEN-09 e VEN-15. Na tela real, aparece um de cada vez. Tudo que é número ou texto de situação vem da API; a tela só mostra.</p></div>
+
+<div class="est"><h3>Definir metas (gaveta de baixo; gerente e administrador)</h3>
+<div class="sheet" role="dialog" aria-label="Metas de outubro">
+<h4>Metas de outubro</h4>
+<p>Defina a meta de cada vendedor da Filial Centro. Deixe em branco para ficar sem meta.</p>
+<label class="wl-field"><span class="wl-field__label">Bruna Alves</span><input class="wl-input" value="R$ 50.000,00" style="width: 100%; box-sizing: border-box;"></label>
+<label class="wl-field"><span class="wl-field__label">Felipe Nunes</span><input class="wl-input" value="" placeholder="Sem meta" style="width: 100%; box-sizing: border-box;"></label>
+<div class="wl-kv"><span>Meta da filial</span><span>R$ 50.000,00</span></div>
+<span class="sub">A meta da filial é a soma das metas dos vendedores e se atualiza ao salvar.</span>
+<div class="acts"><button class="wl-btn wl-btn--solid" style="height: 56px;">Salvar metas</button><button class="wl-btn wl-btn--quiet">Cancelar</button></div>
+</div></div>
+
+<div class="est"><h3>Sem meta no mês: para o gerente</h3>
+<section style="padding: 20px; border-radius: 28px; background: var(--solid); color: var(--on-solid); display: flex; flex-direction: column; gap: 4px;">
+<span style="font-size: 14px; color: var(--on-solid-muted);">Vendido em outubro</span>
+<div style="font-size: 34px; line-height: 38px; font-weight: 600; letter-spacing: -0.03em;">R$ 31.200</div>
+<span style="font-size: 14px; color: var(--on-solid-muted);">4 vendas · Sem meta em outubro.</span>
+<div><button class="wl-btn wl-btn--brand wl-btn--sm" type="button" style="margin-top: 8px;">Definir metas</button></div>
+</section></div>
+
+<div class="est"><h3>Sem meta no mês: para o vendedor</h3>
+<section style="padding: 20px; border-radius: 28px; background: var(--solid); color: var(--on-solid); display: flex; flex-direction: column; gap: 4px;">
+<span style="font-size: 14px; color: var(--on-solid-muted);">Vendido em outubro</span>
+<div style="font-size: 34px; line-height: 38px; font-weight: 600; letter-spacing: -0.03em;">R$ 31.200</div>
+<span style="font-size: 14px; color: var(--on-solid-muted);">4 vendas · Sem meta em outubro.</span>
+</section></div>
+
+<div class="est"><h3>Situação de cada venda na lista</h3>
+<section class="card">
+<div class="row" style="align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Mateus Oliveira</div><small>Honda Biz 125 2023 · VEN-0179</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm">Interessado</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 12.900</div><small>ontem</small></div></div>
+<div class="row" style="align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Caio Barros</div><small>Yamaha NMax 160 2023 · VEN-0180</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm wl-badge--info">Em negociação</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 21.800</div><small>hoje</small></div></div>
+<div class="row" style="align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Diego Martins</div><small>Honda CB 300F Twister 2024 · VEN-0177</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm wl-badge--warning">Aguardando assinatura</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 21.068</div><small>há 20 min</small></div></div>
+<div class="row" style="align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Diego Martins</div><small>Honda CB 300F Twister 2024 · VEN-0177</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm wl-badge--warning">Aguardando entrada</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 21.068</div><small>há 5 min</small></div></div>
+<div class="row" style="align-items: flex-start;"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Renan Souza</div><small>Yamaha Fazer 250 2023 · VEN-0169</small><div style="margin-top: 6px;"><span class="wl-badge wl-badge--sm">Perdida · proposta vencida</span></div></div><div style="text-align: right;"><div style="font-weight: 600;">R$ 19.500</div><small>há 8 dias</small></div></div>
+</section>
+<span class="sub">Texto de situação montado pela API (<span class="wl-mono">situacao_texto</span>). "Aguardando assinatura" e "Aguardando entrada" aparecem enquanto a venda está na etapa Assinatura; "Perdida" traz o motivo.</span>
+</div>
+</section>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1800}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":3300}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');

@@ -9,7 +9,7 @@ import comum.campos
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("empresas", "0005_ramo"),
+        ("empresas", "0006_margem_minima"),
     ]
 
     operations = [

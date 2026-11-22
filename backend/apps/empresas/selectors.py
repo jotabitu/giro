@@ -36,6 +36,14 @@ def meta_ocupacao_pct() -> Decimal:
     return valor if valor is not None else Decimal("80.00")
 
 
+def margem_minima_pct() -> Decimal | None:
+    """VEI-13 (ADR 0041): a margem mínima dos planos do veículo; nula = sem faixa amarela."""
+    valor: Decimal | None = ConfiguracaoEmpresa.objects.values_list(
+        "margem_minima_pct", flat=True
+    ).first()
+    return valor
+
+
 # --- Ramo (PLT-12, ADR 0024, T-224) ---
 
 DESCRICOES_DAS_ATIVIDADES = {

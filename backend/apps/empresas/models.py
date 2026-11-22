@@ -53,6 +53,8 @@ class ConfiguracaoEmpresa(ModeloBase):
     logo_altura = models.PositiveIntegerField(null=True, blank=True)
     cor_marca = models.CharField(max_length=7, blank=True, default="")  # "#RRGGBB"
     meta_ocupacao_pct = PercentualField(default=Decimal("80.00"))  # painel (VEI-06)
+    # VEI-13 (ADR 0041): abaixo dela a margem do plano fica amarela; nulo = nunca fica.
+    margem_minima_pct = PercentualField(null=True, blank=True)
     # Ramo (PLT-12, ADR 0024, item 2): muda só por `services.mudar_ramo`.
     atividade = models.CharField(max_length=5, choices=Atividade.choices, default=Atividade.AMBOS)
     trabalha_com = models.CharField(

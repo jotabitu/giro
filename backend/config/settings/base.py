@@ -311,6 +311,14 @@ SPECTACULAR_SETTINGS = {
         "PeriodicidadeEnum": "apps.locacoes.models.Periodicidade",
         "PeriodicidadeCompraEnum": "apps.locacoes.models.PlanoCompra.PeriodicidadeCompra",
         "TipoLocacaoEnum": "apps.locacoes.models.TipoLocacao",
+        # Preços por veículo (T-494, ADR 0041): o tipo do plano e a periodicidade da compra
+        # do veículo, que ganha `quinzenal`.
+        "TipoPlanoVeiculoEnum": "apps.veiculos.models.TipoPlano",
+        "PeriodicidadeCompraVeiculoEnum": "apps.veiculos.models.Periodicidade",
+        "PeriodoPlanoEnum": "apps.veiculos.models.PeriodoPlano",
+        "ComoPagaEnum": "apps.veiculos.models.ComoPaga",
+        "FormaAceitaEnum": "apps.veiculos.models.FormaAceita",
+        "ModoParcelaEnum": "apps.veiculos.models.ModoParcela",
         # Nomes que veículos já publicava, antes de clientes ter outro `motivo` e `situacao`.
         "MotivoEnum": ["perda_total", "roubo", "sucata", "outro"],
         "SituacaoEnum": ["em_dia", "vence_em_breve", "vencido"],
@@ -432,6 +440,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     "aut_06_vencimento_de_documentos": {
         "task": "aut_06_vencimento_de_documentos_de_todas",
         "schedule": crontab(hour=7, minute=0),
+    },
+    # VEI-12 (ADR 0041): o preço agendado do plano do veículo vira o vigente, às 00:05.
+    "consolidar_precos_agendados": {
+        "task": "consolidar_precos_agendados_de_todas",
+        "schedule": crontab(hour=0, minute=5),
     },
     # AUT-01: lembrete de devolução ao cliente, às 08:00.
     "aut_01_lembrete_de_devolucao": {
