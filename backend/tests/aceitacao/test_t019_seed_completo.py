@@ -734,7 +734,8 @@ def test_fin_07_seed_019_22_caixa_de_07_out(seed):
 def test_fin_05_seed_019_23_despesas_de_outubro(seed):
     linhas = {
         d.descricao: (d.data.isoformat()[5:], d.valor_centavos, d.lancada_por.nome, d.status)
-        for d in Despesa.objects.select_related("lancada_por")
+        # Só as de outubro: as de agosto são do estoque parado (T-499, `VEI-20`).
+        for d in Despesa.objects.select_related("lancada_por").filter(data__gte=date(2026, 10, 1))
     }
     assert linhas == {
         "Pneus (2)": ("10-07", 120000, "João Silva", "aguardando_aprovacao"),

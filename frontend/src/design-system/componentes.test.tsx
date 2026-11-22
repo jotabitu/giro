@@ -3,13 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CATALOGO } from "@/app/design-system/catalogo";
 import { ExemploDe } from "@/app/design-system/exemplos";
-import { Aviso, Button, Dialogo, Gaveta, IconButton, KpiTile, LigaDesliga, LinhaDeLista, ListaDeLinhas, ProgressBar, SelectField, StatusBadge, TextField, VehicleCard } from "./components";
+import { Aviso, Button, Dialogo, Escolha, Etapas, Gaveta, IconButton, KpiTile, LigaDesliga, LinhaDeLista, ListaDeLinhas, ProgressBar, SelectField, StatusBadge, TextField, Valores, VehicleCard } from "./components";
 
 const dir = new URL("./", import.meta.url);
 
 describe("componentes", () => {
-  it("são os 12 do design system mais os componentes da T-042, T-046, T-054, T-440 e T-496, cada um com preview e README", () => {
-    expect(CATALOGO).toHaveLength(21);
+  it("são os 12 do design system mais os componentes da T-042, T-046, T-054, T-440, T-496 e T-503, cada um com preview e README", () => {
+    expect(CATALOGO).toHaveLength(24);
     for (const c of CATALOGO) {
       expect(existsSync(new URL(`components/${c.nome}/README.md`, dir)), `README de ${c.nome}`).toBe(true);
       expect(existsSync(new URL(`components/${c.nome}/${c.nome}.tsx`, dir)), `código de ${c.nome}`).toBe(true);
@@ -194,5 +194,34 @@ describe("LigaDesliga e Aviso (T-496)", () => {
     const critico = renderToStaticMarkup(<Aviso tom="critico">Texto</Aviso>);
     expect(critico).toContain("wl-note--critical");
     expect(critico).toContain('role="alert"');
+  });
+});
+
+describe("Escolha, Etapas e Valores (T-503)", () => {
+  it("Escolha é um radiogroup com a opção marcada", () => {
+    const html = renderToStaticMarkup(
+      <Escolha rotulo="Forma de pagamento" valor="b" aoMudar={() => {}} opcoes={[{ valor: "a", titulo: "À vista", apoio: "Pix ou TED" }, { valor: "b", titulo: "Entrada + parcelas" }]} />,
+    );
+    expect(html).toContain('role="radiogroup"');
+    expect(html).toContain('aria-label="Forma de pagamento"');
+    expect(html).toContain('aria-checked="true"');
+    expect(html).toContain('aria-checked="false"');
+    expect(html).toContain("Pix ou TED");
+  });
+
+  it("Etapas marca feita e atual, e escreve o texto de cada passo", () => {
+    const html = renderToStaticMarkup(
+      <Etapas rotulo="Assinatura" etapas={[{ titulo: "Contrato enviado", texto: "07 out", estado: "feita" }, { titulo: "Assinatura do cliente", estado: "atual" }, { titulo: "Venda concluída", estado: "pendente" }]} />,
+    );
+    expect(html).toContain('data-state="done"');
+    expect(html).toContain('aria-current="step"');
+    expect(html).toContain("07 out");
+    expect(html.match(/aria-current/g)).toHaveLength(1);
+  });
+
+  it("Valores mostra rótulo e valor como vêm", () => {
+    const html = renderToStaticMarkup(<Valores linhas={[{ rotulo: "Saldo", valor: "12 × R$ 1.339,00" }]} />);
+    expect(html).toContain("wl-kv");
+    expect(html).toContain("12 × R$ 1.339,00");
   });
 });

@@ -4,6 +4,10 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-11-18] Fluxo de venda (ADR 0042, T-501)
+- A venda de balcão vira `vendida` sozinha, por evento, quando o contrato de compra e venda está assinado e a entrada paga (`VEN-15`), como a retirada da locação. A entrada nasce na etapa "Assinatura" como `TipoConta.ENTRADA` com `aguarda_retirada = True` (o campo quer dizer "a conta espera o fato que a libera": sem régua, sem multa).
+- O funil lê `entrou_proposta_em`, `entrou_negociacao_em` e `vendida_em` (gravados uma vez); a meta é `MetaVenda` por vendedor, filial e mês. Fase 1 em três PRs do backend (1a, 1b, 1c); troca e cancelamento na fase 2; financiamento na fase 3, com outra ADR. A venda da quitação (`VEN-11`) não muda.
+
 ### [2026-11-12] Favicon do Giro em todas as abas (T-465)
 Favicon: o ícone do Giro aparece em todas as abas do navegador, inclusive no sistema da locadora; é a única exceção ao white label (decisão do dono, 12 nov 2026, T-465).
 
@@ -131,6 +135,11 @@ Favicon: o ícone do Giro aparece em todas as abas do navegador, inclusive no si
 - **Consequências:** conferir a barra de contexto a cada entrega e antes de mandar tarefa nova.
 
 ## Log de Bugs Resolvidos
+
+### [2026-11-18] Migration de dados quebrava a criação de empresa nova (T-494, ADR 0040)
+- **Sintoma:** `UndefinedTable veiculos_veiculo` no `RunPython` da `veiculos 0010`, só na criação de empresa pelos papéis separados (os 7 testes da T-477); local e o seed passavam.
+- **Causa raiz:** o `criar_schema` migra a empresa nova pela conexão do papel de migração (`database=alias`). O `Modelo.objects` da migration usa a conexão `default`, que fica fora do schema novo.
+- **Correção:** em todo `RunPython` que toca dado do schema da empresa, use `.using(schema_editor.connection.alias)` em consulta, `create`, `get_or_create` e `bulk_create`. Para conferir, rode `tests/aceitacao/test_t477_criar_empresa_papeis.py`.
 
 ### [2026-11-13] "Rendeu no ano" errado em qualquer veículo (VEI-05, achado A8 da T-420)
 - **Sintoma:** o veículo vendido pela quitação mostrava "Rendeu no ano R$ 0"; na verdade o número saía errado para toda a frota.
