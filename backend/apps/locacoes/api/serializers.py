@@ -46,19 +46,37 @@ class LocacaoEntradaSerializer(serializers.Serializer[Any]):
         choices=TipoLocacao.choices,
         required=False,
         default=TipoLocacao.COMUM,
-        help_text="LOC-16: `intencao_compra` pede `plano_compra_id`; muda só no rascunho",
+        help_text=(
+            "LOC-16: `intencao_compra` usa o plano de compra ligado do veículo (VEI-16); muda "
+            "só no rascunho"
+        ),
+    )
+    plano_veiculo_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text=(
+            "LOC-01 (ADR 0041): o plano ligado do veículo, de `GET /api/veiculos/{id}/precos/`. "
+            "Desligado: 409 `VEI-15`; de outro veículo: 400"
+        ),
     )
     plano_compra_id = serializers.IntegerField(
         required=False,
         allow_null=True,
-        help_text="LOC-16: o plano de compra (só no tipo `intencao_compra`)",
+        help_text="Ignorado: a compra usa o plano do veículo (ADR 0041, item 2)",
     )
     periodicidade = serializers.ChoiceField(
         choices=Periodicidade.choices,
         required=False,
-        help_text="Obrigatória na comum; na compra vem do plano",
+        help_text=(
+            "Caminho antigo, até a T-497: sem `plano_veiculo_id`, escolhe o plano do veículo do "
+            "mesmo nome (diária, semanal ou mensal). Com o plano, vem dele"
+        ),
     )
-    plano_especial_id = serializers.IntegerField(required=False, allow_null=True)
+    plano_especial_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="Preenchido: 400. O plano especial saiu da Nova locação (ADR 0041, item 2)",
+    )
     inicio = serializers.DateTimeField()
     periodos = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     fim_previsto = serializers.DateTimeField(required=False, allow_null=True)
@@ -173,12 +191,32 @@ class ParcelaPrevistaSerializer(serializers.Serializer[Any]):
 
 
 class CompraDaSimulacaoSerializer(serializers.Serializer[Any]):
+    periodicidade = serializers.CharField(help_text="diaria, semanal, quinzenal (14 dias), mensal")
     parcelas_total = serializers.IntegerField()
-    valor_parcela_centavos = serializers.IntegerField()
+    valor_parcela_centavos = serializers.IntegerField(help_text="a parcela do cliente")
+    parcela_moto_centavos = serializers.IntegerField()
+    adicional_centavos = serializers.IntegerField()
+    entrada_centavos = serializers.IntegerField(help_text="cobrada na retirada (LOC-16)")
     ultima_parcela_centavos = serializers.IntegerField(help_text="já com a caução abatida")
     sobra_caucao_centavos = serializers.IntegerField(
         help_text="caução maior que a parcela: volta ao cliente na quitação"
     )
+
+
+class PlanoDaSimulacaoSerializer(serializers.Serializer[Any]):
+    """O plano do veículo escolhido, com as regras que a confirmação congela (ADR 0041, item 5)."""
+
+    id = serializers.IntegerField()
+    tipo = serializers.CharField()
+    rotulo = serializers.CharField(help_text='"Semanal", "Entregador" ou o nome do `outro`')
+    periodo = serializers.CharField()
+    como_paga = serializers.CharField()
+    formas_aceitas = serializers.ListField(child=serializers.CharField())
+    caucao_parcelas = serializers.IntegerField()
+    franquia_km = serializers.IntegerField(allow_null=True, help_text="null = livre")
+    prazo_minimo_periodos = serializers.IntegerField(allow_null=True)
+    multa_minima_centavos = serializers.IntegerField(help_text="LOC-12")
+    desconto_sem_aprovacao_pct = _pct(help_text="LOC-03")
 
 
 class SimulacaoLocacaoSerializer(serializers.Serializer[Any]):
@@ -191,7 +229,11 @@ class SimulacaoLocacaoSerializer(serializers.Serializer[Any]):
     texto_retirada = serializers.CharField()
     parcelas_previstas = ParcelaPrevistaSerializer(many=True)
     caucao_centavos = serializers.IntegerField()
-    diaria_centavos = serializers.IntegerField()
+    caucoes_previstas = ParcelaPrevistaSerializer(
+        many=True, help_text="LOC-04: a caução em parcelas, a 1ª na retirada"
+    )
+    diaria_centavos = serializers.IntegerField(help_text="o dia de atraso do veículo (LOC-10)")
+    plano = PlanoDaSimulacaoSerializer(allow_null=True, help_text="LOC-01; null na compra")
     compra = CompraDaSimulacaoSerializer(allow_null=True, help_text="LOC-16; null na comum")
     precisa_aprovacao_desconto = serializers.BooleanField()
     impedimentos = CodigoMensagemLocacaoSerializer(many=True)
@@ -272,10 +314,14 @@ class LocacaoSerializer(serializers.Serializer[Any]):
 
 class PrecosLocacaoSerializer(serializers.Serializer[Any]):
     valor_periodo_centavos = serializers.IntegerField()
-    diaria_centavos = serializers.IntegerField()
+    diaria_centavos = serializers.IntegerField(help_text="o dia de atraso (LOC-10)")
     caucao_centavos = serializers.IntegerField()
     desconto_pct = _pct()
     assinado_em_preco_de = serializers.DateField(allow_null=True)
+    caucao_parcelas = serializers.IntegerField(help_text="LOC-04; 1 = à vista")
+    multa_minima_centavos = serializers.IntegerField(help_text="LOC-12, congelada")
+    franquia_km = serializers.IntegerField(allow_null=True, help_text="null = livre (VEI-12)")
+    km_excedente_centavos = serializers.IntegerField(help_text="só guardado (VEI-14)")
 
 
 class DescontoLocacaoSerializer(serializers.Serializer[Any]):
@@ -546,6 +592,8 @@ class CompraLocacaoSerializer(serializers.Serializer[Any]):
     vistoriador recebe sem os campos `_centavos`."""
 
     plano = IdNomeLocacaoSerializer(allow_null=True)
+    periodicidade = serializers.CharField(help_text="diaria, semanal, quinzenal ou mensal")
+    entrada_centavos = serializers.IntegerField(required=False, help_text="LOC-16")
     parcelas_total = serializers.IntegerField()
     parcelas_pagas = serializers.IntegerField()
     valor_parcela_centavos = serializers.IntegerField(required=False)
@@ -568,6 +616,9 @@ class LocacaoDetalheSerializer(LocacaoSerializer):
     desconto = DescontoLocacaoSerializer(allow_null=True, required=False)
     extras = ExtraDaLocacaoSerializer(many=True, required=False)
     km_saida = serializers.IntegerField(allow_null=True)
+    plano_veiculo = IdNomeLocacaoSerializer(
+        required=False, allow_null=True, help_text="LOC-01; null nas locações de antes"
+    )
     km_livre = serializers.BooleanField()
     forma_pagamento = serializers.CharField()
     parcelamento_mensal = serializers.CharField(allow_null=True)

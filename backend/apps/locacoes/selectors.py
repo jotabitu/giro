@@ -96,25 +96,59 @@ def simular(dados: dict[str, Any], filial: Filial, usuario: Any) -> dict[str, An
             for p in conta.parcelas
         ],
         "caucao_centavos": conta.caucao_centavos,
+        "caucoes_previstas": [
+            {"numero": c.numero, "vencimento": c.vencimento, "valor_centavos": c.valor_centavos}
+            for c in conta.caucoes
+        ],
         "diaria_centavos": montagem.diaria_centavos,
+        "plano": _plano_da_simulacao(montagem),
         "compra": _compra_da_simulacao(montagem),
-        "precisa_aprovacao_desconto": services.precisa_aprovacao_desconto(desconto, usuario),
+        "precisa_aprovacao_desconto": services.precisa_aprovacao_desconto(
+            desconto,
+            usuario,
+            montagem.preco_plano.desconto_sem_aprovacao_pct if montagem.preco_plano else None,
+        ),
         "impedimentos": montagem.impedimentos,
         "avisos": montagem.avisos,
     }
 
 
-def _compra_da_simulacao(montagem: services.Montagem) -> dict[str, int] | None:
-    """LOC-16: o resumo do plano, para a tela mostrar sem conta."""
-    plano = montagem.plano_compra
+def _plano_da_simulacao(montagem: services.Montagem) -> dict[str, Any] | None:
+    """LOC-01 (ADR 0041): o plano do veículo escolhido e as regras que a confirmação congela."""
+    plano = montagem.preco_plano
+    if plano is None:
+        return None
+    return {
+        "id": plano.plano_id,
+        "tipo": plano.tipo,
+        "rotulo": plano.rotulo,
+        "periodo": plano.periodo,
+        "como_paga": plano.como_paga,
+        "formas_aceitas": list(plano.formas_aceitas),
+        "caucao_parcelas": plano.caucao_parcelas,
+        "franquia_km": plano.franquia_km,
+        "prazo_minimo_periodos": plano.prazo_minimo_periodos,
+        "multa_minima_centavos": plano.multa_minima_centavos,
+        "desconto_sem_aprovacao_pct": plano.desconto_sem_aprovacao_pct,
+    }
+
+
+def _compra_da_simulacao(montagem: services.Montagem) -> dict[str, Any] | None:
+    """LOC-16: o resumo do plano de compra do veículo (VEI-16), para a tela mostrar sem conta."""
+    plano = montagem.preco_compra
     if plano is None:
         return None
     caucao = montagem.calculo.caucao_centavos
+    valor = plano.parcela_cliente_centavos
     return {
+        "periodicidade": plano.periodicidade,
         "parcelas_total": plano.parcelas,
-        "valor_parcela_centavos": plano.valor_parcela_centavos,
+        "valor_parcela_centavos": valor,
+        "parcela_moto_centavos": plano.parcela_moto_centavos,
+        "adicional_centavos": plano.adicional_centavos,
+        "entrada_centavos": plano.entrada_centavos,
         "ultima_parcela_centavos": montagem.calculo.ultima_parcela_centavos,
-        "sobra_caucao_centavos": calculo.sobra_da_caucao(plano.valor_parcela_centavos, caucao),
+        "sobra_caucao_centavos": calculo.sobra_da_caucao(valor, caucao),
     }
 
 
@@ -123,7 +157,12 @@ def _compra_da_simulacao(montagem: services.Montagem) -> dict[str, int] | None:
 
 def base() -> QuerySet[Any]:
     qs = Locacao.objects.select_related(
-        "cliente", "veiculo__categoria", "plano_especial", "plano_compra", "filial"
+        "cliente",
+        "veiculo__categoria",
+        "plano_especial",
+        "plano_compra",
+        "plano_veiculo",
+        "filial",
     )
     return financeiro_selectors.anotar_resumo_da_origem(qs, ORIGEM, relogio.hoje())
 
@@ -323,15 +362,33 @@ def _nome_na_linha(locacao: Locacao) -> str:
     return _nome_da_primeira(locacao)
 
 
+ORDEM_DO_PRIMEIRO_PAGAMENTO = {"parcela": 0, "entrada": 1, "caucao": 2}
+
+
+def do_primeiro_pagamento(conta: Any) -> bool:
+    """As contas do 1º pagamento (LOC-17), como `financeiro_selectors.q_primeiro_pagamento`: a 1ª
+    parcela, a 1ª parcela da caução (LOC-04) e a entrada da compra (LOC-16)."""
+    if conta.tipo == "parcela":
+        return bool(conta.numero_parcela == 1)
+    if conta.tipo == "caucao":
+        return conta.numero_parcela in (None, 1)
+    return bool(conta.tipo == "entrada")
+
+
+def _nome_da_conta_do_primeiro(locacao: Locacao, conta: Any) -> str:
+    return {"caucao": "caução", "entrada": "entrada"}.get(conta.tipo) or _nome_na_linha(locacao)
+
+
 def _falta_do_primeiro_pagamento(locacao: Locacao) -> tuple[str, str]:
     """LOC-17 (T-456): o que falta do 1º pagamento (1ª parcela e caução), pelo valor de hoje das
     contas (com multa e juros se já atrasadas, FIN-03); com os dois pagos, "1º pagamento feito"."""
     primeiras = [
         c
         for c in financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk)
-        if c.tipo == "caucao" or (c.tipo == "parcela" and c.numero_parcela == 1)
+        if do_primeiro_pagamento(c)
     ]
-    primeiras.sort(key=lambda c: c.tipo == "caucao")  # a parcela antes da caução
+    # A parcela, a entrada e a caução, nessa ordem.
+    primeiras.sort(key=lambda c: ORDEM_DO_PRIMEIRO_PAGAMENTO.get(c.tipo, 3))
     abertas = [c for c in primeiras if c.status == "aberta"]
     if primeiras and not abertas:
         feito = sum(c.valor_centavos for c in primeiras if c.status == "paga")
@@ -341,9 +398,7 @@ def _falta_do_primeiro_pagamento(locacao: Locacao) -> tuple[str, str]:
     hoje = relogio.hoje()
     juros = financeiro_selectors.JurosDaPagina()
     total = sum(financeiro_selectors.valor_hoje(c, hoje, juros)["total_centavos"] for c in abertas)
-    nomes = list(
-        dict.fromkeys("caução" if c.tipo == "caucao" else _nome_na_linha(locacao) for c in abertas)
-    )
+    nomes = list(dict.fromkeys(_nome_da_conta_do_primeiro(locacao, c) for c in abertas))
     return f"Falta {formatar_reais(total)} · {' e '.join(nomes)}", "alerta"
 
 
@@ -908,10 +963,9 @@ def _passo_do_pagamento(
 ) -> dict[str, Any]:
     """1ª parcela **e** caução (LOC-17, FIN-18), pelo valor de hoje de cada uma (sem multa nem
     juros antes da retirada, FIN-03). Cada conta se recebe na seção Pagamentos."""
-    primeiras = [
-        c for c in contas if c.tipo == "caucao" or (c.tipo == "parcela" and c.numero_parcela == 1)
-    ]
-    primeiras.sort(key=lambda c: c.tipo == "caucao")  # a parcela antes da caução
+    primeiras = [c for c in contas if do_primeiro_pagamento(c)]
+    # A parcela, a entrada e a caução, nessa ordem.
+    primeiras.sort(key=lambda c: ORDEM_DO_PRIMEIRO_PAGAMENTO.get(c.tipo, 3))
     if locacao.primeiro_pagamento_em is not None:
         quando = dia_curto(_local(locacao.primeiro_pagamento_em).date())
         pago = sum(c.valor_centavos for c in primeiras if c.status == "paga")
@@ -926,7 +980,8 @@ def _passo_do_pagamento(
         if c.status == "aberta"
     ]
     nomes = [
-        f"{'caução' if c.tipo == 'caucao' else _nome_da_primeira(locacao)} {formatar_reais(v)}"
+        f"{ {'caucao': 'caução', 'entrada': 'entrada'}.get(c.tipo) or _nome_da_primeira(locacao) } "
+        f"{formatar_reais(v)}"
         for c, v in faltam
     ]
     total = sum(v for _, v in faltam)
@@ -1023,11 +1078,21 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
             "caucao_centavos": locacao.caucao_centavos,
             "desconto_pct": locacao.desconto_pct,
             "assinado_em_preco_de": locacao.precos_de,
+            # ADR 0041, item 5: o que a confirmação congelou do plano e das regras do veículo.
+            "caucao_parcelas": locacao.caucao_parcelas,
+            "multa_minima_centavos": services.multa_minima(locacao),
+            "franquia_km": locacao.franquia_km,
+            "km_excedente_centavos": locacao.km_excedente_centavos,
         },
+        "plano_veiculo": (
+            {"id": locacao.plano_veiculo_id, "nome": locacao.plano_veiculo.rotulo}
+            if locacao.plano_veiculo
+            else None
+        ),
         "desconto": _desconto(locacao),
         "extras": _extras(locacao),
         "km_saida": locacao.km_saida,
-        "km_livre": True,  # km livre em todos os planos (dados de referência)
+        "km_livre": locacao.franquia_km is None,  # VEI-12: sem franquia, km livre
         "forma_pagamento": locacao.forma_pagamento,
         "parcelamento_mensal": locacao.parcelamento_mensal or None,
         "primeiro_vencimento": locacao.primeiro_vencimento,
@@ -1123,14 +1188,24 @@ def _andamento(
     return f"Parcela {pagas} de {total} · faltam {faltam} para a transferência"
 
 
+NOME_DA_COMPRA = "Locação com compra"  # o plano de compra do veículo (VEI-16)
+
+
 def compra(locacao: Locacao, usuario: Any, contas: list[Any]) -> dict[str, Any] | None:
     """O bloco `compra` do detalhe; `None` na comum. No rascunho, os valores do plano escolhido;
     depois, os congelados na confirmação (LOC-15). A tela não conta parcelas (LOC-16)."""
     if not services.e_compra(locacao):
         return None
-    plano = locacao.plano_compra
+    plano = locacao.plano_compra  # as locações de antes, pelo plano da categoria
     total = locacao.compra_parcelas or (plano.parcelas if plano else 0)
     valor = locacao.compra_valor_parcela_centavos or (plano.valor_parcela_centavos if plano else 0)
+    nome_do_plano = (
+        {"id": plano.pk, "nome": plano.nome}
+        if plano
+        else {"id": locacao.plano_compra_veiculo_id, "nome": NOME_DA_COMPRA}
+        if locacao.plano_compra_veiculo_id
+        else None
+    )
     caucao = locacao.caucao_centavos
     pagas = services.parcelas_pagas(locacao, contas)
     venda = _venda(locacao, usuario) if locacao.quitada_em is not None else None
@@ -1151,7 +1226,9 @@ def compra(locacao: Locacao, usuario: Any, contas: list[Any]) -> dict[str, Any] 
         # M-01: sem a caução paga, a compra não quita; a ficha diz o que falta.
         falta.append({"conta_id": None, "rotulo": "Caução não paga", "valor_centavos": caucao})
     return {
-        "plano": {"id": plano.pk, "nome": plano.nome} if plano else None,
+        "plano": nome_do_plano,
+        "periodicidade": locacao.periodicidade,
+        "entrada_centavos": locacao.compra_entrada_centavos or 0,
         "parcelas_total": total,
         "parcelas_pagas": pagas,
         "valor_parcela_centavos": valor,

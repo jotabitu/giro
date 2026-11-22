@@ -137,7 +137,7 @@ def valores(locacao: Locacao) -> dict[str, str]:
         "locacao.inicio": _momento(locacao.inicio, fuso),
         "locacao.fim_previsto": _momento(locacao.fim_previsto, fuso),
         "locacao.periodicidade": str(Periodicidade(locacao.periodicidade).label).lower(),
-        "locacao.plano": locacao.plano_especial.nome if locacao.plano_especial else "Tabela",
+        "locacao.plano": _nome_do_plano(locacao),
         "locacao.valor": formatar_reais(efetivo),
         "locacao.caucao": formatar_reais(locacao.caucao_centavos),
         "locacao.diaria_atraso": formatar_reais(locacao.diaria_centavos),
@@ -153,16 +153,35 @@ def valores(locacao: Locacao) -> dict[str, str]:
     }
 
 
+def _nome_do_plano(locacao: Locacao) -> str:
+    """O plano do veículo ("Semanal", "Entregador"); nas locações de antes, o plano especial ou
+    a tabela."""
+    if locacao.plano_veiculo is not None:
+        return locacao.plano_veiculo.rotulo
+    return locacao.plano_especial.nome if locacao.plano_especial else "Tabela"
+
+
+UNIDADE_DA_COMPRA = {
+    Periodicidade.DIARIA: ("dia", "dias"),
+    Periodicidade.SEMANAL: ("semana", "semanas"),
+    Periodicidade.QUINZENAL: ("quinzena", "quinzenas"),
+    Periodicidade.MENSAL: ("mês", "meses"),
+}
+
+
 def _valores_da_compra(locacao: Locacao) -> dict[str, str]:
-    """O grupo `compra` (LOC-16), só na locação com intenção de compra: o plano congelado."""
-    if locacao.tipo != TipoLocacao.INTENCAO_COMPRA or locacao.plano_compra is None:
+    """O grupo `compra` (LOC-16), só na locação com intenção de compra: o plano congelado, do
+    veículo (VEI-16) ou, nas de antes, da categoria."""
+    if locacao.tipo != TipoLocacao.INTENCAO_COMPRA:
+        return {}
+    if locacao.plano_compra is None and locacao.plano_compra_veiculo_id is None:
         return {}
     parcelas = locacao.compra_parcelas or 0
     valor = locacao.compra_valor_parcela_centavos or 0
-    mensal = locacao.periodicidade == Periodicidade.MENSAL
-    unidade = ("mês", "meses") if mensal else ("semana", "semanas")
+    unidade = UNIDADE_DA_COMPRA[Periodicidade(locacao.periodicidade)]
+    nome = locacao.plano_compra.nome if locacao.plano_compra else "Locação com compra"
     return {
-        "compra.plano": locacao.plano_compra.nome,
+        "compra.plano": nome,
         "compra.parcelas": str(parcelas),
         "compra.valor_parcela": formatar_reais(valor),
         "compra.ultima_parcela": formatar_reais(max(0, valor - locacao.caucao_centavos)),
@@ -173,7 +192,7 @@ def _valores_da_compra(locacao: Locacao) -> dict[str, str]:
 def _com_relacoes(locacao_id: int) -> Locacao | None:
     return (
         Locacao.objects.select_related(
-            "filial", "cliente", "veiculo", "plano_especial", "plano_compra"
+            "filial", "cliente", "veiculo", "plano_especial", "plano_compra", "plano_veiculo"
         )
         .filter(pk=locacao_id)
         .first()

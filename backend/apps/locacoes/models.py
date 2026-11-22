@@ -18,6 +18,8 @@ class Periodicidade(models.TextChoices):
     DIARIA = "diaria", "Diária"
     SEMANAL = "semanal", "Semanal"
     MENSAL = "mensal", "Mensal"
+    # Só na locação com compra, a cada 14 dias (VEI-16, LOC-05; ADR 0041, item 2).
+    QUINZENAL = "quinzenal", "Quinzenal"
 
 
 class PlanoEspecial(ModeloBase, ModeloAtivavel):
@@ -144,6 +146,15 @@ class FormaPagamento(models.TextChoices):
 class ParcelamentoMensal(models.TextChoices):
     A_VISTA = "a_vista", "À vista"
     QUATRO_SEMANAIS = "quatro_semanais", "4 parcelas semanais"
+    # VEI-12: o mensal em "2 quinzenais", a cada 15 dias do começo de cada mês (LOC-05).
+    DUAS_QUINZENAIS = "duas_quinzenais", "2 parcelas quinzenais"
+
+
+# Em quantas parcelas o mês se divide e de quantos em quantos dias elas vencem (LOC-05, VEI-12).
+PARTES_DO_MES: dict[str, tuple[int, int]] = {
+    ParcelamentoMensal.QUATRO_SEMANAIS: (4, 7),
+    ParcelamentoMensal.DUAS_QUINZENAIS: (2, 15),
+}
 
 
 class StatusDesconto(models.TextChoices):
@@ -231,6 +242,32 @@ class Locacao(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
     compra_valor_parcela_centavos = CentavosField(null=True, blank=True)
     quitada_em = models.DateTimeField(null=True, blank=True)
     encerrada_por_atraso = models.BooleanField(default=False)
+    # ADR 0041, item 5: o plano do veículo e as regras dele, congelados na confirmação (LOC-15).
+    # Nulos ou com padrão nas locações de antes, que seguem com os valores delas.
+    plano_veiculo = models.ForeignKey(
+        "veiculos.PlanoVeiculo",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="locacoes",
+    )
+    plano_compra_veiculo = models.ForeignKey(
+        "veiculos.PlanoCompraVeiculo",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="locacoes",
+    )
+    caucao_parcelas = models.PositiveSmallIntegerField(default=1)  # LOC-04
+    franquia_km = models.PositiveIntegerField(null=True, blank=True)  # VEI-12; nulo = livre
+    km_excedente_centavos = CentavosField(default=0)  # só guardado (VEI-14, padrão B)
+    desconto_sem_aprovacao_pct = PercentualField(null=True, blank=True)  # LOC-03; nulo = 5.00
+    multa_minima_centavos = CentavosField(null=True, blank=True)  # LOC-12; nulo = a diária
+    prazo_devolucao_caucao_dias = models.PositiveSmallIntegerField(null=True, blank=True)
+    compra_entrada_centavos = CentavosField(null=True, blank=True)  # LOC-16
+    compra_adicional_centavos = CentavosField(null=True, blank=True)
+    compra_valor_venda_centavos = CentavosField(null=True, blank=True)  # VEI-16
+    compra_juros_mes_pct = PercentualField(null=True, blank=True)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = TRANSICOES_LOCACAO
     REGRA_TRANSICAO: ClassVar[str] = "transicao_locacao"
@@ -255,6 +292,10 @@ class Locacao(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
                 condition=models.Q(fim_previsto__gt=models.F("inicio")),
                 name="locacao_fim_depois_do_inicio",
             ),
+            models.CheckConstraint(
+                condition=models.Q(caucao_parcelas__gte=1, caucao_parcelas__lte=12),
+                name="locacao_caucao_parcelas_1_a_12",
+            ),
             # LOC-16 (modelo de dados, item 13): os campos da compra só no tipo dela; fora do
             # rascunho, congelados; sem desconto; `quitada_em` só na encerrada.
             models.CheckConstraint(
@@ -262,16 +303,19 @@ class Locacao(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
                     models.Q(
                         tipo="comum",
                         plano_compra__isnull=True,
+                        plano_compra_veiculo__isnull=True,
                         compra_parcelas__isnull=True,
                         compra_valor_parcela_centavos__isnull=True,
                         quitada_em__isnull=True,
                         encerrada_por_atraso=False,
                     )
                     | (
-                        models.Q(
-                            tipo="intencao_compra",
-                            plano_compra__isnull=False,
-                            desconto_pct=Decimal("0.00"),
+                        models.Q(tipo="intencao_compra", desconto_pct=Decimal("0.00"))
+                        # ADR 0041, item 2: as antigas têm o plano da categoria; as novas, o
+                        # do veículo.
+                        & (
+                            models.Q(plano_compra__isnull=False)
+                            | models.Q(plano_compra_veiculo__isnull=False)
                         )
                         & (
                             models.Q(status="rascunho")
