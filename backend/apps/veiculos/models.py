@@ -5,13 +5,17 @@ Modelo em `docs/decisoes/modelo-de-dados.md`, itens 8 e 9. Muda só por `veiculo
 status do veículo, só por `services.transicionar` (ADR 0009).
 """
 
+import uuid
+from datetime import date
+from decimal import Decimal
 from typing import ClassVar
 
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models.functions import Lower
 
 from comum import arquivos
-from comum.campos import CentavosField
+from comum.campos import CentavosField, PercentualField
 from comum.estados import MaquinaDeEstados
 from comum.models import ModeloAtivavel, ModeloBase
 
@@ -125,17 +129,24 @@ TRANSICOES_VEICULO: dict[str, set[str]] = {
         S.EM_MOVIMENTACAO,
         *_BAIXAR,
     },
-    S.RESERVADO: {S.ALUGADO, S.DISPONIVEL, *_BAIXAR},  # DISPONIVEL: reserva cancelada (LOC-12)
+    # DISPONIVEL: reserva cancelada (LOC-12); INDISPONIVEL: a mesma volta sem plano (VEI-15).
+    S.RESERVADO: {S.ALUGADO, S.DISPONIVEL, S.INDISPONIVEL, *_BAIXAR},
     # VENDIDO: quitação da locação com intenção de compra (LOC-16, VEN-11), só por `vendas`.
-    S.ALUGADO: {S.DISPONIVEL, S.EM_MANUTENCAO, S.VENDIDO},
-    S.EM_MANUTENCAO: {S.DISPONIVEL, *_BAIXAR},
+    # INDISPONIVEL: a volta do veículo sem plano ligado, "sem preço" (VEI-15, ADR 0041, item 4).
+    S.ALUGADO: {S.DISPONIVEL, S.EM_MANUTENCAO, S.VENDIDO, S.INDISPONIVEL},
+    # INDISPONIVEL: a OS concluída do veículo sem plano ligado (VEI-15, "vale em todo retorno").
+    S.EM_MANUTENCAO: {S.DISPONIVEL, S.INDISPONIVEL, *_BAIXAR},
     S.INDISPONIVEL: {S.DISPONIVEL, *_BAIXAR},
-    S.A_VENDA: {S.DISPONIVEL, S.VENDIDO, *_BAIXAR},
+    # INDISPONIVEL: "Voltar para a frota" sem plano ligado, "sem preço" (VEI-15, PR #630).
+    S.A_VENDA: {S.DISPONIVEL, S.VENDIDO, S.INDISPONIVEL, *_BAIXAR},
     S.VENDIDO: {S.A_VENDA, S.INDISPONIVEL, *_BAIXAR},
     S.BAIXADO: set(),
     # Volta pela chegada da movimentação: `indisponivel` com documento vencido (MOV-05).
     S.EM_MOVIMENTACAO: {S.DISPONIVEL, S.INDISPONIVEL, *_BAIXAR},
 }
+# VEI-15: destes, `indisponivel` só pela volta "sem preço" que `services.transicionar` decide;
+# pedido direto (bloquear um alugado, por exemplo) continua recusado com 409.
+SO_PELA_VOLTA_SEM_PRECO = frozenset({S.ALUGADO, S.RESERVADO, S.EM_MANUTENCAO, S.A_VENDA})
 
 
 class Combustivel(models.TextChoices):
@@ -259,6 +270,335 @@ class Veiculo(MaquinaDeEstados, ModeloBase):
 
     def __str__(self) -> str:
         return self.placa
+
+
+# --- Preços por veículo (VEI-12 a VEI-17, ADR 0041) ---
+
+
+class TipoPlano(models.TextChoices):
+    DIARIA = "diaria", "Diária"
+    SEMANAL = "semanal", "Semanal"
+    MENSAL = "mensal", "Mensal"
+    ENTREGADOR = "entregador", "Entregador"
+    OUTRO = "outro", "Outro"
+
+
+class PeriodoPlano(models.TextChoices):
+    DIA = "dia", "Dia"
+    SEMANA = "semana", "Semana"
+    MES = "mes", "Mês"
+
+
+class ComoPaga(models.TextChoices):
+    TUDO_NA_RETIRADA = "tudo_na_retirada", "Tudo na retirada"
+    SEMANA_ADIANTADO = "semana_adiantado", "Toda semana, adiantado"
+    MES_UMA_PARCELA = "mes_uma_parcela", "1 parcela no mês"
+    MES_DUAS_QUINZENAIS = "mes_duas_quinzenais", "2 quinzenais"
+    MES_QUATRO_SEMANAIS = "mes_quatro_semanais", "4 semanais"
+
+
+class FormaAceita(models.TextChoices):
+    """Os mesmos valores de `locacoes.FormaPagamento`, sem importar `locacoes` (ADR 0041)."""
+
+    PIX = "pix", "Pix"
+    BOLETO = "boleto", "Boleto"
+    CARTAO = "cartao", "Cartão"
+    DINHEIRO = "dinheiro", "Dinheiro"
+
+
+# Período fixo pelo tipo; `entregador` e `outro` escolhem (VEI-12).
+PERIODO_DO_TIPO = {
+    TipoPlano.DIARIA: PeriodoPlano.DIA,
+    TipoPlano.SEMANAL: PeriodoPlano.SEMANA,
+    TipoPlano.MENSAL: PeriodoPlano.MES,
+}
+# Como o cliente paga, lista fechada por período (VEI-12); o primeiro é o padrão.
+COMO_PAGA_DO_PERIODO = {
+    PeriodoPlano.DIA: (ComoPaga.TUDO_NA_RETIRADA,),
+    PeriodoPlano.SEMANA: (ComoPaga.SEMANA_ADIANTADO,),
+    PeriodoPlano.MES: (
+        ComoPaga.MES_UMA_PARCELA,
+        ComoPaga.MES_DUAS_QUINZENAIS,
+        ComoPaga.MES_QUATRO_SEMANAIS,
+    ),
+}
+TIPOS_FIXOS = (TipoPlano.DIARIA, TipoPlano.SEMANAL, TipoPlano.MENSAL, TipoPlano.ENTREGADOR)
+
+
+def _q_periodo_do_tipo() -> models.Q:
+    q = models.Q(tipo__in=[TipoPlano.ENTREGADOR, TipoPlano.OUTRO])
+    for tipo, periodo in PERIODO_DO_TIPO.items():
+        q |= models.Q(tipo=tipo, periodo=periodo)
+    return q
+
+
+def _q_como_paga() -> models.Q:
+    q = models.Q()
+    for periodo, formas in COMO_PAGA_DO_PERIODO.items():
+        q |= models.Q(periodo=periodo, como_paga__in=list(formas))
+    return q
+
+
+class PlanoVeiculo(ModeloBase, ModeloAtivavel):
+    """Plano de aluguel do veículo (VEI-12). `outro` retirado vira `ativo=False`; os outros tipos
+    só se desligam. O preço agendado mora nos três campos `*_agendad*` (ADR 0041, item 1)."""
+
+    veiculo = models.ForeignKey(Veiculo, on_delete=models.PROTECT, related_name="planos")
+    tipo = models.CharField(max_length=12, choices=TipoPlano.choices)
+    nome = models.CharField(max_length=40, blank=True, default="")
+    periodo = models.CharField(max_length=6, choices=PeriodoPlano.choices)
+    ligado = models.BooleanField(default=False)
+    valor_centavos = CentavosField(default=0)
+    como_paga = models.CharField(max_length=20, choices=ComoPaga.choices)
+    formas_aceitas = ArrayField(
+        models.CharField(max_length=10, choices=FormaAceita.choices), default=list, blank=True
+    )
+    caucao_centavos = CentavosField(null=True, blank=True)  # nulo = não preenchida
+    caucao_parcelas = models.PositiveSmallIntegerField(default=1)
+    franquia_km = models.PositiveIntegerField(null=True, blank=True)  # nulo = livre
+    prazo_minimo_periodos = models.PositiveSmallIntegerField(null=True, blank=True)
+    valor_agendado_centavos = CentavosField(null=True, blank=True)
+    caucao_agendada_centavos = CentavosField(null=True, blank=True)
+    agendado_para = models.DateField(null=True, blank=True)
+
+    # Nome de plano dado pela locadora ("Fim de semana"), não de pessoa: vai inteiro.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome"]}
+
+    class Meta:
+        verbose_name = "plano do veículo"
+        verbose_name_plural = "planos do veículo"
+        ordering = ["veiculo_id", "id"]
+        indexes = [
+            models.Index(
+                fields=["veiculo"],
+                condition=models.Q(ativo=True, ligado=True),
+                name="plano_veiculo_ligado",
+            )
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["veiculo", "tipo"],
+                condition=models.Q(ativo=True) & ~models.Q(tipo="outro"),
+                name="plano_veiculo_um_por_tipo",
+            ),
+            models.UniqueConstraint(
+                "veiculo",
+                Lower("nome"),
+                condition=models.Q(ativo=True, tipo="outro"),
+                name="plano_veiculo_outro_nome_unico",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(caucao_parcelas__gte=1, caucao_parcelas__lte=12),
+                name="plano_veiculo_caucao_parcelas_1_a_12",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(franquia_km__isnull=True) | models.Q(franquia_km__gt=0),
+                name="plano_veiculo_franquia_positiva",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(prazo_minimo_periodos__isnull=True)
+                | models.Q(prazo_minimo_periodos__gt=0),
+                name="plano_veiculo_prazo_minimo_positivo",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    agendado_para__isnull=True,
+                    valor_agendado_centavos__isnull=True,
+                    caucao_agendada_centavos__isnull=True,
+                )
+                | models.Q(agendado_para__isnull=False, valor_agendado_centavos__isnull=False),
+                name="plano_veiculo_agendado_completo",
+            ),
+            models.CheckConstraint(
+                condition=_q_periodo_do_tipo(), name="plano_veiculo_periodo_do_tipo"
+            ),
+            models.CheckConstraint(condition=_q_como_paga(), name="plano_veiculo_como_paga"),
+            models.CheckConstraint(
+                condition=models.Q(ligado=False)
+                | models.Q(
+                    valor_centavos__gt=0,
+                    formas_aceitas__len__gte=1,
+                    caucao_centavos__isnull=False,
+                ),
+                name="plano_veiculo_ligado_completo",
+            ),
+            models.CheckConstraint(
+                condition=(models.Q(tipo="outro") & ~models.Q(nome=""))
+                | (~models.Q(tipo="outro") & models.Q(nome="")),
+                name="plano_veiculo_nome_so_no_outro",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.veiculo_id}: {self.rotulo}"
+
+    @property
+    def rotulo(self) -> str:
+        """ "Semanal", "Entregador" ou o nome do `outro`."""
+        return self.nome if self.tipo == TipoPlano.OUTRO else TipoPlano(self.tipo).label
+
+    def _agendado_vale(self, dia: date) -> bool:
+        return self.agendado_para is not None and self.agendado_para <= dia
+
+    def valor_em(self, dia: date) -> int:
+        """O valor do dia: o agendado a partir de `agendado_para` (ADR 0041, item 1)."""
+        if self._agendado_vale(dia) and self.valor_agendado_centavos is not None:
+            return int(self.valor_agendado_centavos)
+        return int(self.valor_centavos)
+
+    def caucao_em(self, dia: date) -> int | None:
+        if self._agendado_vale(dia) and self.caucao_agendada_centavos is not None:
+            return int(self.caucao_agendada_centavos)
+        return None if self.caucao_centavos is None else int(self.caucao_centavos)
+
+
+class RegrasVeiculo(ModeloBase):
+    """As regras do veículo (VEI-14): dia de atraso (LOC-10), multa mínima (LOC-12), desconto sem
+    aprovação (LOC-03, APR-01), prazo da caução (DEV-02) e km excedente (só guardado)."""
+
+    veiculo = models.OneToOneField(Veiculo, on_delete=models.PROTECT, related_name="regras")
+    km_excedente_centavos = CentavosField(default=0)
+    dia_atraso_centavos = CentavosField(default=0)
+    multa_minima_centavos = CentavosField(default=0)
+    desconto_sem_aprovacao_pct = PercentualField(default=Decimal("5.00"))
+    prazo_devolucao_caucao_dias = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "regras do veículo"
+        verbose_name_plural = "regras do veículo"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    desconto_sem_aprovacao_pct__gte=0, desconto_sem_aprovacao_pct__lte=100
+                ),
+                name="regras_veiculo_desconto_0_a_100",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"regras de {self.veiculo_id}"
+
+
+class CustosVeiculo(ModeloBase):
+    """Custos e ocupação esperada do veículo (VEI-13). O valor de venda é o do `Veiculo`; o pago
+    na moto se calcula na leitura (compra + despesas, FIN-17)."""
+
+    veiculo = models.OneToOneField(Veiculo, on_delete=models.PROTECT, related_name="custos")
+    manutencao_mes_centavos = CentavosField(default=0)
+    seguro_mes_centavos = CentavosField(default=0)
+    rastreador_mes_centavos = CentavosField(default=0)
+    ipva_ano_centavos = CentavosField(default=0)
+    revenda_estimada_centavos = CentavosField(null=True, blank=True)
+    ocupacao_esperada_pct = PercentualField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "custos do veículo"
+        verbose_name_plural = "custos do veículo"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(ocupacao_esperada_pct__isnull=True)
+                | models.Q(ocupacao_esperada_pct__gte=0, ocupacao_esperada_pct__lte=100),
+                name="custos_veiculo_ocupacao_0_a_100",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"custos de {self.veiculo_id}"
+
+
+class Periodicidade(models.TextChoices):
+    DIARIA = "diaria", "Diária"
+    SEMANAL = "semanal", "Semanal"
+    QUINZENAL = "quinzenal", "Quinzenal"
+    MENSAL = "mensal", "Mensal"
+
+
+class ModoParcela(models.TextChoices):
+    CALCULAR = "calcular", "Calcular pelos juros"
+    DIGITAR = "digitar", "Digitar a parcela"
+
+
+class PlanoCompraVeiculo(ModeloBase):
+    """Locação com compra do veículo (VEI-16, detalha a LOC-16), um por veículo."""
+
+    veiculo = models.OneToOneField(Veiculo, on_delete=models.PROTECT, related_name="plano_compra")
+    ligado = models.BooleanField(default=False)
+    periodicidade = models.CharField(max_length=10, choices=Periodicidade.choices)
+    parcelas = models.PositiveSmallIntegerField()
+    entrada_centavos = CentavosField(default=0)
+    juros_mes_pct = PercentualField(default=Decimal("0.00"))
+    modo = models.CharField(max_length=8, choices=ModoParcela.choices)
+    parcela_moto_centavos = CentavosField(default=0)
+    adicional_centavos = CentavosField(default=0)
+    caucao_centavos = CentavosField(default=0)
+
+    class Meta:
+        verbose_name = "plano de compra do veículo"
+        verbose_name_plural = "planos de compra do veículo"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(parcelas__gte=2, parcelas__lte=1000),
+                name="plano_compra_veiculo_parcelas_2_a_1000",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(juros_mes_pct__gte=0), name="plano_compra_veiculo_juros_positivo"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(ligado=False) | models.Q(parcela_moto_centavos__gt=0),
+                name="plano_compra_veiculo_ligado_com_parcela",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"compra de {self.veiculo_id}"
+
+
+class OrigemPreco(models.TextChoices):
+    TELA_PRECOS = "tela_precos", "Tela de preços"
+    FICHA = "ficha", "Ficha do veículo"
+    CADASTRO = "cadastro", "Cadastro"
+    IMPORTACAO = "importacao", "Importação"
+    MIGRACAO = "migracao", "Migração"
+    AGENDAMENTO = "agendamento", "Preço agendado"
+
+
+class AlvoPreco(models.TextChoices):
+    PLANO = "plano", "Plano"
+    REGRAS = "regras", "Regras"
+    CUSTOS = "custos", "Custos"
+    PLANO_COMPRA = "plano_compra", "Locação com compra"
+    VALOR_VENDA = "valor_venda", "Valor de venda"
+
+
+class HistoricoPrecoVeiculo(ModeloBase):
+    """Uma linha por campo mudado (VEI-17). Imutável: só o serviço escreve, sem update nem
+    delete. `por` nulo = Sistema ou migração."""
+
+    veiculo = models.ForeignKey(Veiculo, on_delete=models.PROTECT, related_name="historico_precos")
+    em = models.DateTimeField()
+    por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    origem = models.CharField(max_length=12, choices=OrigemPreco.choices)
+    alvo = models.CharField(max_length=12, choices=AlvoPreco.choices)
+    alvo_id = models.BigIntegerField(null=True, blank=True)
+    alvo_nome = models.CharField(max_length=60, blank=True, default="")
+    campo = models.CharField(max_length=40)
+    de = models.JSONField(null=True, blank=True)
+    para = models.JSONField(null=True, blank=True)
+    lote = models.UUIDField(default=uuid.uuid4)
+
+    # O nome do plano copiado ("Semanal", "Entregador", o do `outro`), não de pessoa: vai inteiro.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["alvo_nome"]}
+
+    class Meta:
+        verbose_name = "histórico de preço do veículo"
+        verbose_name_plural = "histórico de preços do veículo"
+        ordering = ["em", "id"]
+        indexes = [models.Index(fields=["veiculo", "em"], name="historico_preco_veiculo_em")]
+
+    def __str__(self) -> str:
+        return f"{self.veiculo_id}: {self.alvo}.{self.campo}"
 
 
 class Origem(models.TextChoices):

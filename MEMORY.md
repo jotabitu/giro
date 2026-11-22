@@ -136,6 +136,11 @@ Favicon: o ícone do Giro aparece em todas as abas do navegador, inclusive no si
 
 ## Log de Bugs Resolvidos
 
+### [2026-11-18] Migration de dados quebrava a criação de empresa nova (T-494, ADR 0040)
+- **Sintoma:** `UndefinedTable veiculos_veiculo` no `RunPython` da `veiculos 0010`, só na criação de empresa pelos papéis separados (os 7 testes da T-477); local e o seed passavam.
+- **Causa raiz:** o `criar_schema` migra a empresa nova pela conexão do papel de migração (`database=alias`). O `Modelo.objects` da migration usa a conexão `default`, que fica fora do schema novo.
+- **Correção:** em todo `RunPython` que toca dado do schema da empresa, use `.using(schema_editor.connection.alias)` em consulta, `create`, `get_or_create` e `bulk_create`. Para conferir, rode `tests/aceitacao/test_t477_criar_empresa_papeis.py`.
+
 ### [2026-11-13] "Rendeu no ano" errado em qualquer veículo (VEI-05, achado A8 da T-420)
 - **Sintoma:** o veículo vendido pela quitação mostrava "Rendeu no ano R$ 0"; na verdade o número saía errado para toda a frota.
 - **Causa raiz:** em `apps/locacoes/leituras.py`, o subquery das locações ficava dentro do subquery das contas, e o `OuterRef("pk")` apontava para a conta (`veiculo_id = conta.id`), não para o veículo. Os testes antigos só comparavam diferenças, então não pegavam.
