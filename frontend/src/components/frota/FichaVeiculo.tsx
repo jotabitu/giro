@@ -19,6 +19,7 @@ import { dataCurta, dinheiro, dinheiroSemZeros, km, mesAno, percentual, placa } 
 import { situacaoDoDocumento } from "@/lib/frota";
 import { temNoMenu } from "@/lib/menu";
 import { DespesasDoVeiculo } from "./DespesasDoVeiculo";
+import { PrecosNaFicha } from "@/components/precos-veiculo/PrecosNaFicha";
 import { AgoraDesktop, FotosEAvarias, FotosEAvariasCelular, MovimentacoesCelular, MovimentacoesDoVeiculo, VendasDoVeiculo } from "./FichaBlocos";
 import { GaleriaNaFicha, GaleriaNaFichaCelular } from "./GaleriaNaFicha";
 import { useSessao } from "@/lib/sessao";
@@ -289,6 +290,8 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
           </Panel>
           )}
 
+          <PrecosNaFicha id={v.id} />
+
           <MovimentacoesDoVeiculo v={v} />
 
           <DespesasDoVeiculo v={v} />
@@ -444,6 +447,8 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
         )}
       </CartaoDoCelular>
       )}
+
+      <PrecosNaFicha id={v.id} />
 
       <VendasDoVeiculo v={v} celular />
 

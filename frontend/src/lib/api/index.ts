@@ -72,5 +72,6 @@ export * from "./tipos-configuracoes";
 export * from "./tipos-movimentacoes";
 export * from "./tipos-contratos";
 export * from "./tipos-precos";
+export * from "./tipos-precos-veiculo";
 export * from "./tipos-recebimentos";
 export * from "./tipos-suporte";
