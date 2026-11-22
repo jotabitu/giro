@@ -87,6 +87,9 @@ export const textoDoPrazoMinimo = (n: number | null, p: PeriodoDoPlano): string 
 /** Caução em parcelas: 1 é "À vista". */
 export const textoDaCaucaoEm = (parcelas: number): string => (parcelas <= 1 ? "À vista" : `${parcelas}x`);
 export const OPCOES_DE_PARCELAS_DA_CAUCAO = Array.from({ length: 12 }, (_, i) => i + 1);
+/** Parcelas da caução já calculadas pela API (VEI-12). */
+export const textoDaCaucaoParcelada = (p: { parcelas: number; parcela_centavos: number; ultima_parcela_centavos: number }): string =>
+  p.parcelas <= 1 ? `À vista: ${dinheiro(p.parcela_centavos)}` : p.ultima_parcela_centavos === p.parcela_centavos ? `${p.parcelas} parcelas de ${dinheiro(p.parcela_centavos)}` : `${p.parcelas - 1} de ${dinheiro(p.parcela_centavos)} e a última de ${dinheiro(p.ultima_parcela_centavos)}`;
 
 const PAGAMENTO_BASE: Record<ComoPaga, string> = {
   tudo_na_retirada: "Tudo na retirada",

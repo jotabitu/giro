@@ -64,7 +64,7 @@ function Formulario({ veiculoId, atual, ocupacaoReal, aoSalvar, aoFechar }: { ve
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <Campo id="c-manutencao" rotulo="Manutenção por mês" valor={r.manutencao} aoMudar={campo("manutencao")} erro={erros["custos.manutencao_mes_centavos"]} />
         <Campo id="c-seguro" rotulo="Seguro por mês" valor={r.seguro} aoMudar={campo("seguro")} erro={erros["custos.seguro_mes_centavos"]} />
-        <Campo id="c-ipva" rotulo="IPVA do ano" valor={r.ipvaAno} aoMudar={campo("ipvaAno")} erro={erros["custos.ipva_ano_centavos"]} dica="Entra dividido por 12 no custo por mês" />
+        <Campo id="c-ipva" rotulo="IPVA do ano" valor={r.ipvaAno} aoMudar={campo("ipvaAno")} erro={erros["custos.ipva_ano_centavos"]} dica={`Entra como ${dinheiro(simulado.data?.custos?.ipva_mes_centavos ?? atual.ipva_mes_centavos)} por mês no custo`} />
         <Campo id="c-rastreador" rotulo="Rastreador por mês" valor={r.rastreador} aoMudar={campo("rastreador")} erro={erros["custos.rastreador_mes_centavos"]} />
       </div>
       <Campo id="c-ocupacao" rotulo="Ocupação esperada" valor={r.ocupacao} aoMudar={campo("ocupacao")} erro={erros["custos.ocupacao_esperada_pct"]} dica={`Frota nos últimos 90 dias: ${textoDaOcupacao(ocupacaoReal)}`} />

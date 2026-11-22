@@ -67,7 +67,9 @@ export function LocacaoComCompra({
   const e = (campo: string) => erros[`compra.${campo}`];
   const digitando = c.modo === "digitar";
   const unidade = pluralDaCompra(c.periodicidade);
-  const largura = r && pagoNaMoto != null && r.recebe_pela_moto_centavos > 0 ? Math.min(100, (pagoNaMoto / r.recebe_pela_moto_centavos) * 100) : null;
+  // A divisão da barra vem da API (VEI-16); sem os dois campos (vendedor), a barra não aparece.
+  const pagoPct = r?.pago_sobre_recebe_pct == null ? null : Number(r.pago_sobre_recebe_pct);
+  const lucroPct = r?.lucro_sobre_recebe_pct == null ? null : Number(r.lucro_sobre_recebe_pct);
 
   return (
     <section className="wl-panel">
@@ -151,10 +153,10 @@ export function LocacaoComCompra({
               <span className="text-[13px] text-ink-muted">
                 {dinheiro(r.parcela_moto_centavos)} da moto + {dinheiro(r.adicional_centavos)} de adicional
               </span>
-              {largura != null && r.lucro_centavos != null && (
+              {pagoPct != null && lucroPct != null && r.lucro_centavos != null && (
                 <div className="mt-[10px] mb-1 flex h-3 overflow-hidden rounded-pill" role="img" aria-label={`Pago na moto ${dinheiro(pagoNaMoto ?? 0)} e lucro ${dinheiro(r.lucro_centavos)} do total recebido`}>
-                  <i className="block h-full bg-line" style={{ width: `${largura}%` }} />
-                  <i className="block h-full bg-solid" style={{ width: `${100 - largura}%` }} />
+                  <i className="block h-full bg-line" style={{ width: `${pagoPct}%` }} />
+                  <i className="block h-full bg-solid" style={{ width: `${lucroPct}%` }} />
                 </div>
               )}
               <Linha rotulo="Recebe pela moto">{dinheiro(r.recebe_pela_moto_centavos)}</Linha>

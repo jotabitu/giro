@@ -13,6 +13,7 @@ import {
   inteiroDoCampo,
   percentualDoCampo,
   rascunhoDoDocumento,
+  textoDaCaucaoParcelada,
   textoDasFormas,
   textoDoAgendado,
   textoDoPagamento,
@@ -142,6 +143,10 @@ describe("textos e o último plano", () => {
     expect(ehOUltimoLigado(so, "30")).toBe(false);
     expect(ehOUltimoLigado(PRECOS_POP, "31")).toBe(false);
     expect(ehOUltimoLigado({ ...so, plano_compra: { ...compra, ligado: true } }, "31")).toBe(false);
+  });
+  it("vei_12_caucao_parcelada", () => {
+    expect(textoDaCaucaoParcelada({ parcelas: 2, parcela_centavos: 25000, ultima_parcela_centavos: 25000 })).toBe("2 parcelas de R$ 250,00");
+    expect(textoDaCaucaoParcelada({ parcelas: 3, parcela_centavos: 16667, ultima_parcela_centavos: 16666 })).toBe("2 de R$ 166,67 e a última de R$ 166,66");
   });
   it("vei_12_rotulos", () => {
     expect(textoDasFormas(["boleto", "pix"])).toBe("Pix ou boleto");

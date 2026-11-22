@@ -100,6 +100,16 @@ describe("tela de preços do veículo", () => {
     expect(h).toContain('aria-pressed="true">Calcular pelos juros');
   });
 
+  it("vei_16_barra_usa_a_divisao_da_api", () => {
+    expect(h).toContain("width:77.67%");
+    expect(h).toContain("width:22.33%");
+    expect(texto(pagina(vendedor))).not.toContain("do total recebido");
+  });
+
+  it("vei_12_caucao_parcelada_vem_da_api", () => {
+    expect(t).toContain("2 parcelas de R$ 250,00");
+  });
+
   it("vei_14_regras_da_moto", () => {
     for (const r of ["Km excedente", "Atraso na devolução", "Desconto sem aprovação", "Devolver a caução em", "Multa mínima da devolução antecipada"]) expect(t).toContain(r);
     expect(h).toContain('value="R$ 0,35 por km"');

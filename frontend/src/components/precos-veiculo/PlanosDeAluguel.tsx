@@ -12,6 +12,7 @@ import {
   porPeriodo,
   periodoPlural,
   textoDaCaucaoEm,
+  textoDaCaucaoParcelada,
   textoDaFranquia,
   textoDaMargem,
   textoDoAgendado,
@@ -164,7 +165,7 @@ function LinhaDoPlano({ p, atual, erros, somenteLeitura, acoes, aberto, aoAbrir,
               ))}
             </select>
           </Campo>
-          <Campo rotulo="Caução em" classe="col-span-2 md:order-6 md:col-span-1">
+          <Campo rotulo="Caução em" classe="col-span-2 md:order-6 md:col-span-1" dica={atual?.caucao_parcelada ? textoDaCaucaoParcelada(atual.caucao_parcelada) : undefined}>
             <select className="wl-input" aria-label={`Parcelas da caução ${p.rotulo.toLowerCase()}`} value={String(p.caucaoParcelas)} disabled={somenteLeitura} onChange={(e) => acoes.editar(p.chave, { caucaoParcelas: Number(e.target.value) })}>
               {OPCOES_DE_PARCELAS_DA_CAUCAO.map((n) => (
                 <option key={n} value={n}>
