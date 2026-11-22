@@ -295,6 +295,11 @@ SPECTACULAR_SETTINGS = {
         "OrigemEnum": "apps.filiais.models.FeriadoFilial.Origem",  # o nome que já saía (T-420)
         "OrigemVendaEnum": "apps.vendas.models.OrigemVenda",  # VEN-11 (T-420)
         "StatusVendaEnum": "apps.vendas.models.StatusVenda",  # T-420
+        # T-502: os nomes que já saíam, sem colidir com os campos novos da venda.
+        "AcaoEnum": [("baixar", "Baixar"), ("ignorar", "Ignorar")],
+        "PedidoStatusEnum": "apps.aprovacoes.models.PedidoAprovacao.Status",
+        "AcaoVendaEnum": ["interessado", "enviar", "pedir_aprovacao"],
+        "FormaVendaEnum": "apps.vendas.models.FormaVenda",
         "FotoPosicaoEnum": "apps.vistorias.models.PosicaoFoto",  # T-320: o nome que já saía
         "PosicaoDaChegadaEnum": "apps.movimentacoes.models.PosicaoFoto",  # T-320
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",

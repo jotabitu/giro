@@ -925,8 +925,41 @@ def forma_texto(venda: Venda) -> str:
 
 
 def situacao_texto(venda: Venda) -> str:
+    """A situação da lista (`VEN-19`): "Vendida 06 out", "Perdida · proposta vencida". As da
+    etapa "Assinatura" ("Aguardando assinatura", "Aguardando entrada") entram na fase 1b."""
     if venda.origem == OrigemVenda.QUITACAO_LOCACAO:
         return OrigemVenda.QUITACAO_LOCACAO.label
-    if venda.motivo_recusa and venda.status in EM_ANDAMENTO:
-        return "Desconto recusado"
+    if venda.status == StatusVenda.VENDIDA and venda.vendida_em is not None:
+        return f"Vendida {aprovacoes.dia_curto(_data_local(venda.filial, venda.vendida_em))}"
+    if venda.status == StatusVenda.PERDIDA and venda.motivo_perda:
+        return f"Perdida · {venda.motivo_perda}"
     return SITUACAO.get(StatusVenda(venda.status), "")
+
+
+def vence_em(venda: Venda) -> date | None:
+    """`VEN-13`: a proposta sem resposta vence 7 dias corridos depois do último envio."""
+    if venda.status != StatusVenda.PROPOSTA or venda.proposta_enviada_em is None:
+        return None
+    return _data_local(venda.filial, venda.proposta_enviada_em) + timedelta(days=VENCE_EM_DIAS)
+
+
+def textos_da_aprovacao(venda: Venda, pedido: Any, gerentes: list[str]) -> str | None:
+    """`VEN-19`, montados pela API: "Pedido de 8% enviado para Rodrigo Pinheiro. Você não edita a
+    proposta até ele decidir." e "Desconto de 8% recusado por Rodrigo Pinheiro: margem baixa
+    neste mês. Dê até 5% ou peça uma nova aprovação." `pedido` é o `PedidoAprovacao`."""
+    if pedido is None:
+        return None
+    pct = f"{Decimal(pedido.pct or 0).normalize():f}".replace(".", ",") + "%"
+    limite = f"{LIMITE_DESCONTO_PCT.normalize():f}%"
+    if venda.aprovacao == SituacaoAprovacao.PENDENTE:
+        para = gerentes[0] if len(gerentes) == 1 else "o gerente"
+        return f"Pedido de {pct} enviado para {para}. Você não edita a proposta até ele decidir."
+    if venda.aprovacao == SituacaoAprovacao.RECUSADO:
+        quem = pedido.aprovador.nome if pedido.aprovador is not None else "o gerente"
+        motivo = (pedido.motivo_recusa or venda.motivo_recusa or "").strip().rstrip(".")
+        motivo = f"{motivo[:1].lower()}{motivo[1:]}" if motivo else ""
+        return (
+            f"Desconto de {pct} recusado por {quem}{': ' + motivo if motivo else ''}. "
+            f"Dê até {limite} ou peça uma nova aprovação."
+        )
+    return None

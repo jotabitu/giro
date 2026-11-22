@@ -84,6 +84,7 @@ class VendaSerializer(serializers.Serializer[Any]):
     situacao_texto = serializers.CharField()
     motivo_perda = serializers.CharField(allow_null=True)
     proposta_enviada_em = serializers.DateTimeField(allow_null=True)
+    proposta_vence_em = serializers.DateField(allow_null=True)
     ultimo_contato_em = serializers.DateTimeField(allow_null=True)
     perdida_em = serializers.DateTimeField(allow_null=True)
     vendida_em = serializers.DateTimeField(allow_null=True)
@@ -118,10 +119,12 @@ class CalculoDaVendaSerializer(serializers.Serializer[Any]):
 class AprovacaoDaVendaSerializer(serializers.Serializer[Any]):
     situacao = serializers.ChoiceField(choices=SituacaoAprovacao.choices)
     pedido_id = serializers.IntegerField(allow_null=True)
+    desconto_pedido_pct = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True)
     desconto_aprovado_pct = serializers.DecimalField(
         max_digits=5, decimal_places=2, allow_null=True
     )
     motivo_recusa = serializers.CharField(allow_null=True)
+    texto = serializers.CharField(allow_null=True)
 
 
 class VendaDetalheSerializer(VendaSerializer):

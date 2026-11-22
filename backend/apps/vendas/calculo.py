@@ -9,7 +9,9 @@ desconto chamam `calcular` com o preço de tabela copiado do veículo.
 import calendar
 from dataclasses import dataclass, field
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal, localcontext
+from decimal import ROUND_HALF_UP, Decimal
+
+from apps.veiculos import precos
 
 # VEN-02 (decisão do dono de 18 nov 2026): limite fixo da venda; o do veículo vale só na locação.
 LIMITE_DESCONTO_PCT = Decimal("5.00")
@@ -31,15 +33,8 @@ def arredondar(valor: Decimal) -> int:
 
 
 def pmt(saldo: Decimal, taxa: Decimal, parcelas: int) -> Decimal:
-    """saldo × taxa ÷ (1 − (1 + taxa) ^ −n); com taxa 0, saldo ÷ n. Sem arredondar.
-
-    A mesma conta da `VEI-16` (`veiculos.precos.pmt`, que entra com a T-494); com ela na develop,
-    esta função passa a chamar a de lá."""
-    if taxa == 0:
-        return saldo / Decimal(parcelas)
-    with localcontext() as contexto:
-        contexto.prec = 40
-        return saldo * taxa / (UM - (UM + taxa) ** -parcelas)
+    """A mesma conta da `VEI-16` (`veiculos.precos.pmt`, módulo puro): sem arredondar."""
+    return precos.pmt(taxa, parcelas, saldo)
 
 
 def limite_efetivo(desconto_aprovado_pct: Decimal | None) -> Decimal:

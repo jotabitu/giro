@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 
 from django.db.models import QuerySet
 
+from apps.aprovacoes.models import PedidoAprovacao
+from apps.filiais import selectors as filiais_selectors
 from apps.financeiro.models import Comissao, StatusComissao
 from comum.classificacao import mascarar_nome, mascarar_telefone
 from comum.documentos import placa_com_hifen
@@ -172,11 +174,19 @@ def _calculo(venda: Venda) -> dict[str, Any] | None:
 def _aprovacao(venda: Venda) -> dict[str, Any] | None:
     if not venda.aprovacao:
         return None
+    pedido = (
+        PedidoAprovacao.objects.select_related("aprovador")
+        .filter(pk=venda.pedido_aprovacao_id)
+        .first()
+    )
+    gerentes = [g["nome"] for g in filiais_selectors.gerentes(venda.filial)]
     return {
         "situacao": venda.aprovacao,
         "pedido_id": venda.pedido_aprovacao_id,
+        "desconto_pedido_pct": pedido.pct if pedido is not None else None,
         "desconto_aprovado_pct": venda.desconto_aprovado_pct,
         "motivo_recusa": venda.motivo_recusa or None,
+        "texto": services.textos_da_aprovacao(venda, pedido, gerentes),
     }
 
 
@@ -227,6 +237,7 @@ def representacao(
         "situacao_texto": services.situacao_texto(venda),
         "motivo_perda": venda.motivo_perda or None,
         "proposta_enviada_em": venda.proposta_enviada_em,
+        "proposta_vence_em": services.vence_em(venda),
         "ultimo_contato_em": venda.ultimo_contato_em,
         "perdida_em": venda.perdida_em,
         "vendida_em": venda.vendida_em,

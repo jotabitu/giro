@@ -29,7 +29,7 @@ from .test_t015_locacoes import Cenario, cenario  # noqa: F401
 
 VENDAS = "/api/vendas/"
 SIMULAR = "/api/vendas/simular/"
-VEN_0177 = {
+VEN_0177: dict[str, Any] = {
     "forma": "entrada_parcelas",
     "desconto_pct": "8.00",
     "entrada_centavos": 500000,
@@ -60,14 +60,20 @@ def _criar(cenario: Cenario, acao: str, quem: str = "Bruna", **campos: Any) -> A
     return cenario.moto.api(quem).post(VENDAS, _corpo(cenario, acao, **campos), format="json")
 
 
-def _criada(cenario: Cenario, acao: str, quem: str = "Bruna", **campos: Any) -> dict:  # noqa: F811
+def _criada(cenario: Cenario, acao: str, quem: str = "Bruna", **campos: Any) -> dict[str, Any]:  # noqa: F811
     resposta = _criar(cenario, acao, quem, **campos)
     assert resposta.status_code == 201, resposta.json()
     return dict(resposta.json())
 
 
 def _post(cenario: Cenario, venda_id: int, rota: str, quem: str = "Bruna", **corpo: Any):  # noqa: F811
-    return cenario.moto.api(quem).post(f"{VENDAS}{venda_id}/{rota}/", corpo, format="json")
+    return _api(cenario, quem).post(f"{VENDAS}{venda_id}/{rota}/", corpo, format="json")
+
+
+def _api(cenario: Cenario, quem: str = "Bruna") -> Any:  # noqa: F811
+    """Token novo a cada chamada: os testes andam o relógio (o token vence com ele)."""
+    cenario.moto._tokens.pop(quem, None)
+    return cenario.moto.api(quem)
 
 
 def _pedido(venda_id: int) -> PedidoAprovacao:
@@ -95,6 +101,7 @@ def test_ven_01_proposta_copia_o_preco_de_tabela_e_o_vendedor(cenario, relogio):
     assert venda.proposta_enviada_em == venda.entrou_proposta_em == relogio.agora
     assert venda.ultimo_contato_em == relogio.agora
     assert criada["forma_texto"] == "Pix à vista"
+    assert criada["proposta_vence_em"] == "2026-10-14"
     assert criada["situacao_texto"] == "Proposta enviada"
     assert criada["calculo"]["preco_final_centavos"] == 2244200
     # O preço do veículo muda depois; o da venda, não.
@@ -213,6 +220,9 @@ def test_ven_02_fin_09_ven_0177_pedido_de_aprovacao(cenario):  # noqa: F811
     )
     assert comissao.usuario == cenario.pessoas["Bruna"]
     assert criada["situacao_texto"] == "Aguardando gerente"
+    assert criada["aprovacao"]["texto"] == (
+        "Pedido de 8% enviado para Rodrigo. Você não edita a proposta até ele decidir."
+    )
     assert criada["comissao_centavos"] == 63204
 
 
@@ -255,8 +265,12 @@ def test_apr_01_recusado_zera_o_desconto_e_avisa_o_vendedor(cenario):  # noqa: F
     aviso = Notificacao.objects.get(destinatario=cenario.pessoas["Bruna"], tipo="desconto_recusado")
     assert aviso.titulo == f"Desconto da {venda.codigo} recusado: Margem baixa"
     detalhe = cenario.moto.api("Bruna").get(f"{VENDAS}{venda.pk}/").json()
-    assert detalhe["situacao_texto"] == "Desconto recusado"
+    assert detalhe["situacao_texto"] == "Proposta enviada"
     assert detalhe["aprovacao"]["motivo_recusa"] == "Margem baixa"
+    # VEN-19: o texto da recusa vem pronto da API.
+    assert detalhe["aprovacao"]["texto"] == (
+        "Desconto de 8% recusado por Rodrigo: margem baixa. Dê até 5% ou peça uma nova aprovação."
+    )
 
 
 def test_apr_01_pedido_cancelado_pelo_vendedor(cenario):  # noqa: F811
@@ -293,7 +307,7 @@ def test_ven_02_pedir_ate_5_pct_e_recusado(cenario):  # noqa: F811
 # --- Passagens (VEN-13, VEN-16) ---
 
 
-def test_ven_13_resposta_leva_a_negociacao_e_reenvio_nao_muda(cenario, relogio_jwt):  # noqa: F811
+def test_ven_13_resposta_leva_a_negociacao_e_reenvio_nao_muda(cenario, relogio, relogio_jwt):  # noqa: F811
     criada = _criada(cenario, "enviar", forma="a_vista")
     relogio.em("2026-10-08 09:00")
     resposta = _post(cenario, criada["id"], "resposta", nota="Quer pensar até sexta")
@@ -308,7 +322,9 @@ def test_ven_13_resposta_leva_a_negociacao_e_reenvio_nao_muda(cenario, relogio_j
     assert reenvio.json()["venda"]["status"] == "negociacao"
     venda.refresh_from_db()
     assert venda.proposta_enviada_em == venda.ultimo_contato_em == relogio.agora
-    assert venda.entrou_proposta_em.day == 7  # a primeira entrada não se reescreve
+    assert (
+        venda.entrou_proposta_em is not None and venda.entrou_proposta_em.day == 7
+    )  # a primeira entrada não se reescreve
     # De negociação não se registra resposta outra vez.
     assert _post(cenario, criada["id"], "resposta").status_code == 409
 
@@ -361,18 +377,17 @@ def test_aut_19_proposta_vence_em_7_dias(cenario, relogio):  # noqa: F811
     assert services.vencer_propostas() == 0  # idempotente
     venda = Venda.objects.get(pk=proposta["id"])
     assert (venda.status, venda.motivo_perda) == ("perdida", "proposta vencida")
+    assert services.situacao_texto(venda) == "Perdida · proposta vencida"  # VEN-19
     evento = EventoAuditoria.objects.get(acao="venda.vencer_proposta")
     assert (evento.ator_tipo, evento.regra) == ("sistema", "AUT-19")
     assert Venda.objects.get(pk=em_negociacao["id"]).status == "negociacao"
     assert Venda.objects.get(pk=interessado["id"]).status == "interessado"
 
 
-def test_ven_16_ultimo_contato_a_cada_mudanca(cenario, relogio_jwt):  # noqa: F811
+def test_ven_16_ultimo_contato_a_cada_mudanca(cenario, relogio, relogio_jwt):  # noqa: F811
     criada = _criada(cenario, "interessado", forma="a_vista")
     relogio.em("2026-10-08 10:00")
-    cenario.moto.api("Bruna").patch(
-        f"{VENDAS}{criada['id']}/", {"desconto_pct": "1.00"}, format="json"
-    )
+    _api(cenario).patch(f"{VENDAS}{criada['id']}/", {"desconto_pct": "1.00"}, format="json")
     assert Venda.objects.get(pk=criada["id"]).ultimo_contato_em == relogio.agora
     relogio.em("2026-10-09 10:00")
     _post(cenario, criada["id"], "enviar")
