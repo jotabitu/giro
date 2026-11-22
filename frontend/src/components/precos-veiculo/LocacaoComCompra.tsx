@@ -173,9 +173,11 @@ export function LocacaoComCompra({
               )}
               <Linha rotulo="Juros no prazo">{dinheiro(r.juros_no_prazo_centavos)}</Linha>
               {r.sem_custo_compra && (
-                <p className="mt-2 text-[13px] text-ink-muted">
-                  <b className="font-medium text-ink">Lucro e margem {MARCA_SEM_CUSTO_COMPRA}.</b> {DICA_SEM_CUSTO_COMPRA}
-                </p>
+                <div className="mt-2">
+                  <Aviso tom="info">
+                    <b>Lucro e margem {MARCA_SEM_CUSTO_COMPRA}.</b> {DICA_SEM_CUSTO_COMPRA}
+                  </Aviso>
+                </div>
               )}
             </>
           ) : (

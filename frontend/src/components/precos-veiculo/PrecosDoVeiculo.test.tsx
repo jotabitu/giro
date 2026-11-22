@@ -155,7 +155,11 @@ describe("tela de preços do veículo", () => {
     expect(tb).toContain("sem custo de compra");
     // Abaixo da mínima de 80%, mas sem a faixa amarela: a API manda `abaixo_da_minima: false` e a marca deixa o tom neutro.
     expect(hb).not.toContain("wl-badge--warning");
+    // A dica vem no Aviso info do design system; a marca da coluna Margem não quebra linha.
+    expect(hb).toMatch(/class="wl-note wl-note--info"[^>]*>(<[^>]+>)*Margem sem custo de compra\./);
+    expect(hb).toMatch(/whitespace-nowrap[^"]*"[^>]*>sem custo de compra</);
     expect(texto(pagina(PRECOS_POP))).not.toContain("sem custo de compra");
+    expect(pagina(PRECOS_POP)).not.toContain("wl-note--info");
   });
 
   it("vei_16_sem_valor_de_compra_sem_lucro_nem_margem_sobre_o_pago", () => {
@@ -164,12 +168,14 @@ describe("tela de preços do veículo", () => {
     expect(tb).toContain("R$ 17.768,96");
     expect(tb).not.toContain("Margem sobre o pago");
     expect(tb).not.toContain("R$ 3.968,96");
-    expect(tb).toContain("Lucro e margem sem custo de compra.");
+    expect(pagina(PRECOS_BIZ_SEM_COMPRA)).toMatch(/class="wl-note wl-note--info"[^>]*>(<[^>]+>)*Lucro e margem sem custo de compra\./);
   });
 
   it("vei_13_revenda_acima_do_pago_mostra_a_dica", () => {
     const custos = { ...(PRECOS_POP.custos as NonNullable<Precos["custos"]>), revenda_acima_do_pago: true };
-    expect(texto(pagina({ ...PRECOS_POP, custos }))).toContain("A revenda passa do que foi pago: sem desvalorização no custo.");
+    const hr = pagina({ ...PRECOS_POP, custos });
+    expect(hr).toMatch(/class="wl-note wl-note--info"[^>]*>A revenda passa do que foi pago: sem desvalorização no custo\./);
+    expect(texto(hr)).toContain("Quanto você espera vender a moto daqui a 24 meses.");
     expect(t).not.toContain("A revenda passa do que foi pago");
   });
 

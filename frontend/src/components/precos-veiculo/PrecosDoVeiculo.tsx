@@ -369,7 +369,7 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
                 }}
               />
               <span className={`text-[13px] ${erros["custos.revenda_estimada_centavos"] ? "text-critical-ink" : "text-ink-muted"}`}>
-                {erros["custos.revenda_estimada_centavos"] ?? (exibido.custos.revenda_acima_do_pago ? DICA_REVENDA_ACIMA_DO_PAGO : "Quanto você espera vender a moto daqui a 24 meses. Vazio: sem desvalorização no custo.")}
+                {erros["custos.revenda_estimada_centavos"] ?? "Quanto você espera vender a moto daqui a 24 meses. Vazio: sem desvalorização no custo."}
               </span>
             </label>
           )}
@@ -385,9 +385,16 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
           )}
         </div>
         {exibido.custos?.sem_custo_compra && (
-          <p className="mt-3 text-[13px] text-ink-muted" data-testid="dica-sem-custo-compra">
-            <b className="font-medium text-ink">Margem {MARCA_SEM_CUSTO_COMPRA}.</b> {DICA_SEM_CUSTO_COMPRA}
-          </p>
+          <div className="mt-3">
+            <Aviso tom="info">
+              <b>Margem {MARCA_SEM_CUSTO_COMPRA}.</b> {DICA_SEM_CUSTO_COMPRA}
+            </Aviso>
+          </div>
+        )}
+        {exibido.custos?.revenda_acima_do_pago && (
+          <div className="mt-3">
+            <Aviso tom="info">{DICA_REVENDA_ACIMA_DO_PAGO}</Aviso>
+          </div>
         )}
       </Panel>
 
