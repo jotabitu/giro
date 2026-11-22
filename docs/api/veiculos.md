@@ -631,7 +631,8 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
   "custos": {
     "manutencao_mes_centavos": 10000, "seguro_mes_centavos": 8000, "rastreador_mes_centavos": 5000,
     "ipva_ano_centavos": 120000, "ipva_mes_centavos": 10000, "revenda_estimada_centavos": 900000,
-    "ocupacao_esperada_pct": "85.00", "custo_mes_centavos": 53000
+    "ocupacao_esperada_pct": "85.00", "custo_mes_centavos": 53000,
+    "sem_custo_compra": false, "revenda_acima_do_pago": false
   },
   "planos": [
     {
@@ -640,7 +641,7 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
       "caucao_centavos": 30000, "caucao_parcelas": 1, "caucao_parcelada": null, "franquia_km": 1000, "prazo_minimo_periodos": null,
       "agendado": { "valor_centavos": 34900, "caucao_centavos": null, "a_partir_de": "2026-12-01" },
       "parcela_do_mes": null,
-      "margem": { "receita_mes_centavos": 121182, "lucro_mes_centavos": 68182, "margem_pct": "56.26", "abaixo_da_minima": false }
+      "margem": { "receita_mes_centavos": 121182, "lucro_mes_centavos": 68182, "margem_pct": "56.26", "abaixo_da_minima": false, "sem_custo_compra": false }
     },
     { "id": null, "tipo": "entregador", "nome": null, "rotulo": "Entregador", "periodo": null, "ligado": false, "valor_centavos": 0, "...": "..." }
   ],
@@ -656,7 +657,7 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
       "parcela_moto_centavos": 16124, "adicional_centavos": 2977, "parcela_cliente_centavos": 19101,
       "recebe_pela_moto_centavos": 1776896, "juros_no_prazo_centavos": 186896, "venda_abaixo_do_pago": false,
       "lucro_centavos": 396896, "margem_sobre_pago_pct": "28.76",
-      "pago_sobre_recebe_pct": "77.66", "lucro_sobre_recebe_pct": "22.34",
+      "pago_sobre_recebe_pct": "77.66", "lucro_sobre_recebe_pct": "22.34", "sem_custo_compra": false,
       "nas_periodicidades": [
         { "periodicidade": "diaria", "parcelas": 730, "parcela_cliente_centavos": 2719 },
         { "periodicidade": "semanal", "parcelas": 104, "parcela_cliente_centavos": 19101 },
@@ -681,6 +682,9 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
 - `plano_compra.resultado.pago_sobre_recebe_pct` e `lucro_sobre_recebe_pct`: a divisão da barra do "recebe pela moto", com 2 casas e somando 100,00 (o do lucro é 100 − o do pago). Pop: 77,66% e 22,34%. Com lucro negativo (venda abaixo do pago e juros que não cobrem), o do pago passa de 100 e o do lucro fica negativo. Só para administrador, gerente e financeiro; nulos sem valor de compra.
 - `margem` `null` sem `ocupacao_esperada_pct` ("Informe a ocupação"). `margem_pct` `null` com receita zero. `abaixo_da_minima` pinta a faixa de amarelo (`margem_minima_pct` da empresa; nula = nunca).
 - `pago_na_moto.total_centavos` = compra + despesas do veículo sem as recusadas (`FIN-17`); `null` sem valor de compra (aí `lucro_centavos` e `margem_sobre_pago_pct` também vêm `null`).
+- **Desvalorização** (`VEI-13`, padrão A de 22 nov 2026, T-505): entra no `custo_mes_centavos` como max(0, pago na moto − revenda estimada) ÷ 24. Vazia (zero) sem revenda estimada, sem valor de compra ou com a revenda acima do pago; nunca negativa.
+- `sem_custo_compra` (`VEI-13`, `VEI-16`): `true` quando o veículo não tem valor de compra. Vem em `custos`, em cada `planos[].margem` e em `plano_compra.resultado`, só para quem vê custo (ausente para o vendedor, como o resto). A margem continua calculada (sem a desvalorização), e a tela a marca "sem custo de compra" com a dica "A margem não conta a compra desta moto. Informe o valor de compra para ver a margem real."; `abaixo_da_minima` vem sempre `false` (sem a faixa amarela). Na compra, `lucro_centavos`, `margem_sobre_pago_pct` e a divisão da barra vêm `null`. Biz ADJ-4T71 (revenda R$ 9.000,00): custo R$ 330,00 por mês, e não −R$ 45,00; semanal R$ 299,40 a 85%, margem 70,08%.
+- `custos.revenda_acima_do_pago`: `true` quando a revenda estimada passa do pago na moto; a desvalorização fica em R$ 0,00, e a tela mostra a dica "A revenda passa do que foi pago: sem desvalorização no custo.".
 - `plano_compra` `null` enquanto o veículo não tem um; `resultado` `null` sem valor de venda ou com entrada maior ou igual a ele. O "recebe pela moto" usa a parcela arredondada × `n` + entrada (padrão A: Pop R$ 17.768,96). A parcela nas 4 periodicidades usa o mesmo prazo em meses; a parcela da moto e o adicional se arredondam cada um.
 - `alertas`: `{ "codigo": "venda_abaixo_do_pago", "mensagem": "Valor de venda abaixo do que foi pago: o lucro vem só dos juros." }` e, com juros acima de 1% ao mês, `{ "codigo": "VEI-16", "mensagem": "Locadora não é financeira: juros acima de 1% ao mês (12% ao ano) pedem confirmação. Valide o contrato com seu advogado." }`.
 - `aviso_preco`: o mesmo da representação do veículo, calculado sobre o documento mostrado.

@@ -4,6 +4,8 @@ import { Aviso, LigaDesliga, SegmentedControl, StatusBadge } from "@/design-syst
 import type { PrecosDoVeiculo } from "@/lib/api";
 import { dinheiro } from "@/lib/formatos";
 import {
+  DICA_SEM_CUSTO_COMPRA,
+  MARCA_SEM_CUSTO_COMPRA,
   MODOS_DA_PARCELA,
   ROTULO_DA_PERIODICIDADE_DA_COMPRA,
   pluralDaCompra,
@@ -170,6 +172,11 @@ export function LocacaoComCompra({
                 </Linha>
               )}
               <Linha rotulo="Juros no prazo">{dinheiro(r.juros_no_prazo_centavos)}</Linha>
+              {r.sem_custo_compra && (
+                <p className="mt-2 text-[13px] text-ink-muted">
+                  <b className="font-medium text-ink">Lucro e margem {MARCA_SEM_CUSTO_COMPRA}.</b> {DICA_SEM_CUSTO_COMPRA}
+                </p>
+              )}
             </>
           ) : (
             <p className="text-body text-ink-muted">Informe o valor de venda, as parcelas e a entrada para ver o resultado.</p>

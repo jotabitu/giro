@@ -3,7 +3,7 @@
 import { ErroApi } from "@/lib/api/tipos";
 import type { PlanoDoVeiculo, PrecosDoVeiculo, PrecosEntrada } from "@/lib/api/tipos-precos-veiculo";
 
-const margem = (receita: number, lucro: number, pct: string) => ({ receita_mes_centavos: receita, lucro_mes_centavos: lucro, margem_pct: pct, abaixo_da_minima: false });
+const margem = (receita: number, lucro: number, pct: string) => ({ receita_mes_centavos: receita, lucro_mes_centavos: lucro, margem_pct: pct, abaixo_da_minima: false, sem_custo_compra: false });
 
 const base = (p: Partial<PlanoDoVeiculo> & Pick<PlanoDoVeiculo, "tipo" | "rotulo">): PlanoDoVeiculo => ({
   id: null,
@@ -40,6 +40,8 @@ export const PRECOS_POP: PrecosDoVeiculo = {
     revenda_estimada_centavos: 900000,
     ocupacao_esperada_pct: "85.00",
     custo_mes_centavos: 53000,
+    sem_custo_compra: false,
+    revenda_acima_do_pago: false,
   },
   planos: [
     base({ id: 30, tipo: "diaria", rotulo: "Diária", periodo: "dia", ligado: true, valor_centavos: 4490, como_paga: "tudo_na_retirada", formas_aceitas: ["pix", "boleto"], caucao_centavos: 30000, franquia_km: 150, margem: margem(134700, 65678, "48.76") }),
@@ -101,6 +103,7 @@ export const PRECOS_POP: PrecosDoVeiculo = {
       margem_sobre_pago_pct: "28.76",
       pago_sobre_recebe_pct: "77.67",
       lucro_sobre_recebe_pct: "22.33",
+      sem_custo_compra: false,
       nas_periodicidades: [
         { periodicidade: "diaria", parcelas: 730, parcela_cliente_centavos: 2719 },
         { periodicidade: "semanal", parcelas: 104, parcela_cliente_centavos: 19101 },
@@ -113,6 +116,23 @@ export const PRECOS_POP: PrecosDoVeiculo = {
   aviso_preco: null,
   pede_confirmacao_juros: false,
   pode_editar: true,
+};
+
+/** A Biz ADJ-4T71 sem valor de compra (T-505, VEI-13): o pago vazio, só as despesas; custo R$ 330,00 sem a
+ * desvalorização; semanal R$ 299,40 a 85% com margem 70,08% marcada "sem custo de compra" e sem a faixa amarela,
+ * mesmo com a mínima de 80%; na compra, sem lucro e sem margem sobre o pago. Números da API (`test_t505`). */
+const compraPop = PRECOS_POP.plano_compra as NonNullable<PrecosDoVeiculo["plano_compra"]>;
+const resultadoPop = compraPop.resultado as NonNullable<typeof compraPop.resultado>;
+export const PRECOS_BIZ_SEM_COMPRA: PrecosDoVeiculo = {
+  ...PRECOS_POP,
+  veiculo: { id: 900, placa: "ADJ4T71", marca: "Honda", modelo: "Biz 125", status: "disponivel" },
+  margem_minima_pct: "80.00",
+  pago_na_moto: { total_centavos: null, compra_centavos: null, despesas_centavos: 0 },
+  custos: { ...(PRECOS_POP.custos as NonNullable<PrecosDoVeiculo["custos"]>), custo_mes_centavos: 33000, sem_custo_compra: true },
+  planos: PRECOS_POP.planos.map((p) =>
+    p.tipo === "semanal" ? { ...p, valor_centavos: 29940, agendado: null, margem: { receita_mes_centavos: 110279, lucro_mes_centavos: 77279, margem_pct: "70.08", abaixo_da_minima: false, sem_custo_compra: true } } : p.margem ? { ...p, margem: { ...p.margem, sem_custo_compra: true } } : p,
+  ),
+  plano_compra: { ...compraPop, resultado: { ...resultadoPop, lucro_centavos: null, margem_sobre_pago_pct: null, pago_sobre_recebe_pct: null, lucro_sobre_recebe_pct: null, sem_custo_compra: true } },
 };
 
 /** Só o que `PUT` e `simular` precisam nos testes: devolve o documento do contrato; os testes de tela não conferem conta. */

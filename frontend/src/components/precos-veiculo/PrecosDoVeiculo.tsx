@@ -10,7 +10,9 @@ import { useAtrasado, useCelular } from "@/lib/atrasado";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, placa as placaComHifen } from "@/lib/formatos";
 import {
-
+  DICA_REVENDA_ACIMA_DO_PAGO,
+  DICA_SEM_CUSTO_COMPRA,
+  MARCA_SEM_CUSTO_COMPRA,
   textosDaConfirmacao,
   centavosDoCampo,
   chaveDoPlano,
@@ -367,12 +369,12 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
                 }}
               />
               <span className={`text-[13px] ${erros["custos.revenda_estimada_centavos"] ? "text-critical-ink" : "text-ink-muted"}`}>
-                {erros["custos.revenda_estimada_centavos"] ?? "Quanto você espera vender a moto daqui a 24 meses. Vazio: sem desvalorização no custo."}
+                {erros["custos.revenda_estimada_centavos"] ?? (exibido.custos.revenda_acima_do_pago ? DICA_REVENDA_ACIMA_DO_PAGO : "Quanto você espera vender a moto daqui a 24 meses. Vazio: sem desvalorização no custo.")}
               </span>
             </label>
           )}
           {exibido.custos && (
-            <Quadro rotulo="Custos por mês" apoio="manutenção, seguro, IPVA, rastreador">
+            <Quadro rotulo="Custos por mês" apoio={exibido.custos.sem_custo_compra ? `manutenção, seguro, IPVA, rastreador · ${MARCA_SEM_CUSTO_COMPRA}` : "manutenção, seguro, IPVA, rastreador"}>
               <b className={NUMERO_GRANDE}>{dinheiro(exibido.custos.custo_mes_centavos)}</b>
             </Quadro>
           )}
@@ -382,6 +384,11 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
             </Quadro>
           )}
         </div>
+        {exibido.custos?.sem_custo_compra && (
+          <p className="mt-3 text-[13px] text-ink-muted" data-testid="dica-sem-custo-compra">
+            <b className="font-medium text-ink">Margem {MARCA_SEM_CUSTO_COMPRA}.</b> {DICA_SEM_CUSTO_COMPRA}
+          </p>
+        )}
       </Panel>
 
       <PlanosDeAluguel

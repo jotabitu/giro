@@ -5,7 +5,9 @@ import { Aviso, Button, LigaDesliga, Panel, StatusBadge } from "@/design-system"
 import type { PlanoDoVeiculo } from "@/lib/api";
 import { dinheiro } from "@/lib/formatos";
 import {
+  DICA_SEM_CUSTO_COMPRA,
   FORMAS,
+  MARCA_SEM_CUSTO_COMPRA,
   OPCOES_DE_PARCELAS_DA_CAUCAO,
   PAGAMENTOS_DO_PERIODO,
   ROTULO_DA_FORMA,
@@ -187,10 +189,15 @@ function LinhaDoPlano({ p, atual, erros, somenteLeitura, acoes, aberto, aoAbrir,
             <>
               <span className="text-ink-muted md:order-2">{dinheiro(margem.lucro_mes_centavos)}/mês</span>
               {margem.margem_pct != null && (
-                <StatusBadge tom={tomDaMargem(margem.abaixo_da_minima)} compacto>
+                <StatusBadge tom={tomDaMargem(margem.abaixo_da_minima, margem.sem_custo_compra)} compacto>
                   <span className="md:hidden">margem </span>
                   {textoDaMargem(margem.margem_pct)}
                 </StatusBadge>
+              )}
+              {margem.sem_custo_compra && (
+                <span className="text-ink-muted md:order-3" title={DICA_SEM_CUSTO_COMPRA}>
+                  {MARCA_SEM_CUSTO_COMPRA}
+                </span>
               )}
             </>
           )}
