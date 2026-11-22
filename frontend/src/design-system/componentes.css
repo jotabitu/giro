@@ -273,3 +273,29 @@ button.wl-pipe__col[aria-pressed="true"] .wl-pipe__bar { outline: 2px solid var(
 .wl-linha__apoio { color: var(--ink-muted); font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
 .wl-linha__acao { flex: none; }
 }
+
+
+/* Escolha: opções excludentes em cartões (forma de pagamento da venda); a escolhida ganha o anel de ink */
+.wl-choice { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-2-5); }
+.wl-choice__item { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--space-0-5); min-height: 64px; padding: var(--space-3-5) var(--space-4); border: 0; border-radius: 20px; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--line); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.wl-choice__item small { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.wl-choice__item[aria-checked="true"] { box-shadow: inset 0 0 0 2px var(--ink); }
+.wl-choice__item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wl-choice__item:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Etapas: linha do tempo vertical de um processo (assinatura e entrada da venda); feita, atual e pendente */
+.wl-steps { position: relative; margin: 0; padding: 0 0 0 var(--space-7); list-style: none; }
+.wl-steps::before { content: ""; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+.wl-steps > li { position: relative; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) 0; }
+.wl-steps > li::before { content: ""; position: absolute; left: -23px; top: 13px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 2px var(--line); }
+.wl-steps > li[aria-current="step"]::before { box-shadow: inset 0 0 0 2px var(--ink); }
+.wl-steps > li[data-state="done"]::before { background: var(--solid); box-shadow: none; }
+.wl-steps__title { font-weight: 500; }
+.wl-steps__text { font-size: 14px; line-height: 20px; color: var(--ink-muted); }
+.wl-steps__acts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+
+/* Valores: lista de rótulo e valor do resumo da venda; o valor vem formatado da API */
+.wl-kv { display: flex; justify-content: space-between; gap: var(--space-3); padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.wl-kv:last-child { border-bottom: 0; }
+.wl-kv > :first-child { color: var(--ink-muted); }
+.wl-kv > :last-child { font-weight: 500; text-align: right; }

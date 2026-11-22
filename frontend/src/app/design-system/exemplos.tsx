@@ -9,6 +9,9 @@ import {
   CodigoVerificacao,
   CelulaDupla,
   Dialogo,
+  Escolha,
+  Etapas,
+  Valores,
   Gaveta,
   SeletorDeFilial,
   Aviso,
@@ -235,6 +238,56 @@ function ExemploAviso() {
       <Aviso>A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda.</Aviso>
       <Aviso tom="info">Mudar um preço vale para as próximas locações.</Aviso>
       <Aviso tom="critico">A parcela não cobre o valor de venda.</Aviso>
+    </div>
+  );
+}
+
+function ExemploEscolha() {
+  const [forma, setForma] = useState("entrada_parcelas");
+  return (
+    <div className="max-w-md">
+      <Escolha
+        rotulo="Forma de pagamento"
+        valor={forma}
+        aoMudar={setForma}
+        opcoes={[
+          { valor: "a_vista", titulo: "À vista", apoio: "Pix ou TED" },
+          { valor: "entrada_parcelas", titulo: "Entrada + parcelas", apoio: "boleto ou Pix mensal" },
+        ]}
+      />
+    </div>
+  );
+}
+
+function ExemploEtapas() {
+  return (
+    <div className="max-w-md">
+      <Etapas
+        rotulo="Assinatura e entrada"
+        etapas={[
+          { titulo: "Contrato enviado", texto: "07 out, 10:20 · diego.martins@exemplo.com.br", estado: "feita" },
+          { titulo: "Assinatura do cliente", texto: "Aguardando assinatura. O cliente assina pelo celular.", estado: "atual" },
+          { titulo: "Entrada de R$ 5.000,00", texto: "Aguardando pagamento · vence hoje", estado: "atual" },
+          { titulo: "Venda concluída", texto: "Com o contrato assinado e a entrada paga, a venda é concluída sozinha.", estado: "pendente" },
+        ]}
+      />
+    </div>
+  );
+}
+
+function ExemploValores() {
+  return (
+    <div className="max-w-sm">
+      <Valores
+        linhas={[
+          { rotulo: "Preço de tabela", valor: "R$ 22.900,00" },
+          { rotulo: "Desconto 8%", valor: "− R$ 1.832,00" },
+          { rotulo: "Preço final", valor: "R$ 21.068,00" },
+          { rotulo: "Entrada", valor: "R$ 5.000,00" },
+          { rotulo: "Saldo", valor: "12 × R$ 1.339,00" },
+          { rotulo: "Comissão Bruna (3%)", valor: "R$ 632,04" },
+        ]}
+      />
     </div>
   );
 }
@@ -578,6 +631,9 @@ const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "button": ExemploButton,
   "codigo-verificacao": ExemploCodigoVerificacao,
   "dialogo": ExemploDialogo,
+  "escolha": ExemploEscolha,
+  "etapas": ExemploEtapas,
+  "valores": ExemploValores,
   "gaveta": ExemploGaveta,
   "seletor-de-filial": ExemploSeletorDeFilial,
   "cover": () => <Cover />,
