@@ -36,6 +36,8 @@ class ConfiguracaoEmpresa(ModeloBase):
     tolerancia_atraso_minutos = models.PositiveSmallIntegerField(default=60)  # LOC-10
     desconto_sem_aprovacao_pct = PercentualField(default=Decimal("5.00"))  # LOC-03, APR-01
     comissao_locacao_centavos = CentavosField(default=1600)  # FIN-09
+    comissao_venda_pct = PercentualField(default=Decimal("3.00"))  # FIN-09: 3% do preço final
+    juros_venda_mes_pct = PercentualField(default=Decimal("0.00"))  # VEN-04: começa sem juros
     # FIN-03: multa até 2% e juros até 1% ao mês; vão para o contrato (T-090).
     multa_atraso_pct = PercentualField(default=Decimal("2.00"))
     juros_mes_pct = PercentualField(default=Decimal("1.00"))
@@ -76,6 +78,14 @@ class ConfiguracaoEmpresa(ModeloBase):
             models.CheckConstraint(
                 condition=models.Q(juros_mes_pct__gte=0, juros_mes_pct__lte=Decimal("1.00")),
                 name="configuracao_juros_ate_1_pct",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(juros_venda_mes_pct__gte=0),
+                name="configuracao_juros_venda_nao_negativo",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(comissao_venda_pct__gte=0, comissao_venda_pct__lte=100),
+                name="configuracao_comissao_venda_0_a_100",
             ),
             models.CheckConstraint(
                 condition=models.Q(cor_marca="") | models.Q(cor_marca__regex=r"^#[0-9A-F]{6}$"),

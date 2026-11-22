@@ -467,6 +467,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "contratos_avisar_aditivos_sem_assinatura_de_todas",
         "schedule": crontab(hour=8, minute=0),
     },
+    # AUT-19: proposta de venda sem resposta há 7 dias vira `perdida` (VEN-13), de madrugada.
+    "aut_19_vencer_propostas": {
+        "task": "aut_19_vencer_propostas_de_todas",
+        "schedule": crontab(hour=2, minute=40),
+    },
     # AUT-03: régua de cobrança (WhatsApp e atraso para o bloqueio, CLI-05), às 09:00.
     "aut_03_regua_de_cobranca": {
         "task": "aut_03_regua_de_cobranca_de_todas",

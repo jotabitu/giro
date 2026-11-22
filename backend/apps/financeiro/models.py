@@ -70,6 +70,8 @@ class TipoConta(models.TextChoices):
     MULTA = "multa", "Multa"
     AVARIA = "avaria", "Avaria"
     ACERTO = "acerto", "Acerto"
+    # A entrada da venda (ou o total à vista), paga antes de `vendida` (VEN-15, ADR 0042, item 6).
+    ENTRADA = "entrada", "Entrada"
     OUTRO = "outro", "Outro"
 
 

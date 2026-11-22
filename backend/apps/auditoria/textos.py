@@ -49,6 +49,7 @@ OBJETOS: dict[str, tuple[str, str]] = {
     "suporte": ("o", "suporte"),
     "usuario": ("o", "usuário"),
     "veiculo": ("o", "veículo"),
+    "venda": ("a", "venda"),
     "vistoria": ("a", "vistoria"),
 }
 
@@ -84,6 +85,7 @@ VERBOS: dict[str, str] = {
     "pedir": "Pediu",
     "reabrir": "Reabriu",
     "reativar": "Reativou",
+    "recalcular": "Recalculou",
     "recusar": "Recusou",
     "reenviar": "Reenviou",
     "renegociar": "Renegociou",

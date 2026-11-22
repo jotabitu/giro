@@ -8,6 +8,7 @@ mudam o status do veículo só por `transicionar`.
 
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
@@ -233,11 +234,32 @@ def colocar_a_venda(
     return veiculo
 
 
+# Travas que os apps de cima registram no `ready()` para o veículo que sai do estoque à venda
+# (ADR 0042, item 1; ADR 0011: `veiculos` não importa `vendas`). Cada uma recebe o veículo travado
+# e levanta o erro do app dono, ou não faz nada. Ex.: venda em andamento (409 `VEN-10`). Sem
+# registro (testes de `veiculos` isolados), não há trava.
+TravaDoEstoque = Callable[[Veiculo], None]
+_travas_do_estoque: list[TravaDoEstoque] = []
+
+
+def registrar_trava_do_estoque(trava: TravaDoEstoque) -> None:
+    if trava not in _travas_do_estoque:
+        _travas_do_estoque.append(trava)
+
+
+def _conferir_travas_do_estoque(veiculo: Veiculo) -> None:
+    for trava in _travas_do_estoque:
+        trava(veiculo)
+
+
 def voltar_para_frota(veiculo: Veiculo) -> Veiculo:
-    """`a_venda` → `disponivel`. A recusa com venda aberta (409 `VEN-10`) entra com vendas."""
+    """`a_venda` → `disponivel`. Com venda em andamento, a trava de `vendas` recusa (409
+    `VEN-10`)."""
     if veiculo.status != S.A_VENDA:
         raise transicao_invalida(veiculo.status, S.DISPONIVEL)
-    return transicionar(veiculo, S.DISPONIVEL, origem=MANUAL, acao="voltar_para_frota")
+    with transaction.atomic():
+        _conferir_travas_do_estoque(_travar(veiculo))
+        return transicionar(veiculo, S.DISPONIVEL, origem=MANUAL, acao="voltar_para_frota")
 
 
 def baixar(veiculo: Veiculo, motivo: str, descricao: str) -> Veiculo:
@@ -255,6 +277,7 @@ def baixar(veiculo: Veiculo, motivo: str, descricao: str) -> Veiculo:
     else:
         motivo_texto = MOTIVOS_DE_BAIXA[motivo].lower()
     with transaction.atomic():
+        _conferir_travas_do_estoque(_travar(veiculo))
         transicionar(veiculo, S.BAIXADO, origem=MANUAL, motivo=texto, acao="baixar")
         publicar("veiculos.veiculo_baixado", veiculo_id=veiculo.pk, motivo_texto=motivo_texto)
     return veiculo

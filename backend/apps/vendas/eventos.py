@@ -31,3 +31,19 @@ def locacao_quitada(
         vendedor_id=vendedor_id,
         quitada_em=quitada_em,
     )
+
+
+@assinante("aprovacoes.pedido_decidido")
+def decisao_do_pedido(
+    *,
+    tipo: str,
+    status: str,
+    origem_tipo: str,
+    origem_id: int,
+    motivo: str = "",
+    **_: Any,
+) -> None:
+    """APR-01 da venda (ADR 0042, item 5): aprovado, recusado ou cancelado volta a venda ao
+    estado de antes do pedido (`VEN-13`), na transação da decisão."""
+    if origem_tipo == services.ORIGEM and tipo == "APR-01":
+        services.aplicar_decisao_desconto(origem_id, status, motivo)
