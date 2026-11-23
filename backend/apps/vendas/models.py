@@ -107,6 +107,12 @@ class Venda(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
     )
     pedido_aprovacao_id = models.BigIntegerField(null=True, blank=True)  # origem genérica, sem FK
     desconto_aprovado_pct = PercentualField(null=True, blank=True)
+    # Guardados na venda para o texto do VEN-19 sem ler `aprovacoes` (ADR 0019): o desconto do
+    # último pedido e quem o decidiu (vem no evento `aprovacoes.pedido_decidido`).
+    desconto_pedido_pct = PercentualField(null=True, blank=True)
+    aprovacao_decidida_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
     motivo_recusa = models.CharField(max_length=300, blank=True, default="")
     # Datas do funil (VEN-08): a primeira entrada, nunca reescrita.
     entrou_proposta_em = models.DateTimeField(null=True, blank=True)

@@ -45,7 +45,8 @@ function AbrirLocacao({ v }: { v: Venda }) {
   );
 }
 
-const celulaCliente = (v: Venda) => <CelulaDupla principal={v.cliente.nome} secundaria={<span className="wl-mono">{v.locacao ? `${v.codigo} · ${v.locacao.codigo}` : v.codigo}</span>} />;
+// `comprador_nome`: o cliente, ou o interessado sem cliente (VEN-14); a API escolhe.
+const celulaCliente = (v: Venda) => <CelulaDupla principal={v.comprador_nome} secundaria={<span className="wl-mono">{v.locacao ? `${v.codigo} · ${v.locacao.codigo}` : v.codigo}</span>} />;
 const celulaVeiculo = (v: Venda) => <CelulaDupla principal={<span className="font-normal">{v.veiculo.modelo}</span>} secundaria={placa(v.veiculo.placa)} />;
 
 const COLUNAS_PENDENTES: ColunaTabela<Venda>[] = [
@@ -78,7 +79,7 @@ function CartaoDaVenda({ v }: { v: Venda }) {
     <div className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-body font-medium">{v.cliente.nome}</div>
+          <div className="text-body font-medium">{v.comprador_nome}</div>
           <div className="wl-mono text-caption text-ink-muted">{v.locacao ? `${v.codigo} · ${v.locacao.codigo}` : v.codigo}</div>
         </div>
         <span className="text-body font-medium">{dinheiro(v.preco_final_centavos)}</span>

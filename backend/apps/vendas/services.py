@@ -498,7 +498,17 @@ def _abrir_pedido(venda: Venda, por: Any, motivo: str) -> None:
     )
     venda.pedido_aprovacao_id = ref.id
     venda.aprovacao = SituacaoAprovacao.PENDENTE
-    venda.save(update_fields=["pedido_aprovacao_id", "aprovacao", "atualizado_em"])
+    venda.desconto_pedido_pct = venda.desconto_pct
+    venda.aprovacao_decidida_por = None
+    venda.save(
+        update_fields=[
+            "pedido_aprovacao_id",
+            "aprovacao",
+            "desconto_pedido_pct",
+            "aprovacao_decidida_por",
+            "atualizado_em",
+        ]
+    )
 
 
 def _comissao(venda: Venda) -> tuple[int, Decimal]:
@@ -769,7 +779,9 @@ def pedir_desconto(venda: Venda, pct: Decimal, motivo: str, por: Any) -> Venda:
     return venda
 
 
-def aplicar_decisao_desconto(venda_id: int, status: str, motivo: str = "") -> None:
+def aplicar_decisao_desconto(
+    venda_id: int, status: str, motivo: str = "", decidido_por_id: int | None = None
+) -> None:
     """Volta do `APR-01` (assinante de `aprovacoes.pedido_decidido`, `VEN-13`).
 
     Aprovado: o desconto fica aprovado e a venda volta ao estado de antes; a que vinha de
@@ -786,7 +798,13 @@ def aplicar_decisao_desconto(venda_id: int, status: str, motivo: str = "") -> No
             return
         antes = venda.status_antes_aprovacao or StatusVenda.PROPOSTA
         agora = relogio.agora()
-        campos: list[str] = ["aprovacao", "status_antes_aprovacao", "ultimo_contato_em"]
+        campos: list[str] = [
+            "aprovacao",
+            "status_antes_aprovacao",
+            "ultimo_contato_em",
+            "aprovacao_decidida_por",
+        ]
+        venda.aprovacao_decidida_por_id = decidido_por_id
         if status == "aprovado":
             venda.aprovacao = SituacaoAprovacao.APROVADO
             venda.desconto_aprovado_pct = venda.desconto_pct
@@ -943,20 +961,21 @@ def vence_em(venda: Venda) -> date | None:
     return _data_local(venda.filial, venda.proposta_enviada_em) + timedelta(days=VENCE_EM_DIAS)
 
 
-def textos_da_aprovacao(venda: Venda, pedido: Any, gerentes: list[str]) -> str | None:
+def textos_da_aprovacao(venda: Venda, gerentes: list[str]) -> str | None:
     """`VEN-19`, montados pela API: "Pedido de 8% enviado para Rodrigo Pinheiro. Você não edita a
     proposta até ele decidir." e "Desconto de 8% recusado por Rodrigo Pinheiro: margem baixa
-    neste mês. Dê até 5% ou peça uma nova aprovação." `pedido` é o `PedidoAprovacao`."""
-    if pedido is None:
+    neste mês. Dê até 5% ou peça uma nova aprovação." Lê só o que a venda guarda (ADR 0019)."""
+    if venda.desconto_pedido_pct is None:
         return None
-    pct = f"{Decimal(pedido.pct or 0).normalize():f}".replace(".", ",") + "%"
+    pct = f"{Decimal(venda.desconto_pedido_pct).normalize():f}".replace(".", ",") + "%"
     limite = f"{LIMITE_DESCONTO_PCT.normalize():f}%"
     if venda.aprovacao == SituacaoAprovacao.PENDENTE:
         para = gerentes[0] if len(gerentes) == 1 else "o gerente"
         return f"Pedido de {pct} enviado para {para}. Você não edita a proposta até ele decidir."
     if venda.aprovacao == SituacaoAprovacao.RECUSADO:
-        quem = pedido.aprovador.nome if pedido.aprovador is not None else "o gerente"
-        motivo = (pedido.motivo_recusa or venda.motivo_recusa or "").strip().rstrip(".")
+        decisor = venda.aprovacao_decidida_por
+        quem = decisor.nome if decisor is not None else "o gerente"
+        motivo = (venda.motivo_recusa or "").strip().rstrip(".")
         motivo = f"{motivo[:1].lower()}{motivo[1:]}" if motivo else ""
         return (
             f"Desconto de {pct} recusado por {quem}{': ' + motivo if motivo else ''}. "
