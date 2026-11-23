@@ -1,5 +1,6 @@
 <!doctype html>
 <!-- ajustada no repositório: 03/11/2026, T-414 -->
+<!-- ajustada no repositório: 23/11/2026, T-486 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -196,6 +197,37 @@ Gerenciar fotos
 <section class="wl-panel"><h2 class="h2" style="margin-bottom: 4px;">Documentos</h2><div class="kv"><span>CRLV 2026</span><span class="wl-badge wl-badge--sm wl-badge--success">Em dia</span></div><div class="kv"><span>IPVA 2026</span><span class="wl-badge wl-badge--sm wl-badge--success">Pago</span></div><div class="kv"><span>Seguro</span><span class="wl-badge wl-badge--sm wl-badge--warning">Vence em 18 dias</span></div><div class="kv"><span>Rastreador</span><span class="wl-badge wl-badge--sm wl-badge--success">Online</span></div></section>
 </aside>
 </div>
+
+<section class="wl-panel">
+<div class="wl-panel__head"><div><h2 class="wl-panel__title">Estados desta tela</h2><p class="wl-panel__sub">Casos da VEI-18 e da VEI-19. Na tela real, aparece um de cada vez. Tudo que é número vem da API; a tela só mostra.</p></div></div>
+<div style="display: flex; flex-direction: column; gap: 32px;">
+
+<div style="display: flex; flex-direction: column; gap: 12px;"><h3 style="margin: 0; font-size: 15px; font-weight: 600;">Veículo à venda e parado: PVE-1A07, 53 dias com o limite de 30</h3>
+<div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Honda Biz 125</h1><div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;"><span class="wl-badge wl-badge--sm">À venda</span><span class="lbl wl-mono">PVE-1A07</span><span class="lbl">· 2023 · preta · Filial Centro</span></div></div>
+<div style="padding: 18px; border-radius: 22px; background: var(--surface-sunken); display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-weight: 600;">Agora</span><span class="wl-badge wl-badge--sm wl-badge--warning">À venda desde 15 ago · 53 dias</span></div>
+<div class="kv" style="padding: 6px 0;"><span>Limite da empresa</span><span>30 dias</span></div>
+</div></div>
+
+<div style="display: flex; flex-direction: column; gap: 12px;"><h3 style="margin: 0; font-size: 15px; font-weight: 600;">Veículo à venda dentro do limite: PVG-3C29, 30 dias</h3>
+<div style="padding: 18px; border-radius: 22px; background: var(--surface-sunken); display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-weight: 600;">Agora</span><span class="wl-badge wl-badge--sm">À venda desde 07 set · 30 dias</span></div>
+<div class="kv" style="padding: 6px 0;"><span>Limite da empresa</span><span>30 dias</span></div>
+</div></div>
+
+<div style="display: flex; flex-direction: column; gap: 12px;"><h3 style="margin: 0; font-size: 15px; font-weight: 600;">Veículo colocado à venda hoje</h3>
+<div style="padding: 18px; border-radius: 22px; background: var(--surface-sunken); display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-weight: 600;">Agora</span><span class="wl-badge wl-badge--sm">À venda desde 07 out · Hoje</span></div>
+</div></div>
+
+<div style="display: flex; flex-direction: column; gap: 12px;"><h3 style="margin: 0; font-size: 15px; font-weight: 600;">Veículo à venda sem entrada no histórico</h3>
+<div style="padding: 18px; border-radius: 22px; background: var(--surface-sunken); display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-weight: 600;">Agora</span><span class="wl-badge wl-badge--sm">À venda · —</span></div>
+</div></div>
+
+<span class="lbl">O vistoriador vê do veículo só km e avarias e não recebe estes campos. O veículo fora de "À venda" não mostra nada disso.</span>
+</div>
+</section>
 </main>
 </div>
 </x-dc>

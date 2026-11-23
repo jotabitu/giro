@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- ajustada no repositório: 23/11/2026, T-486 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -81,7 +82,17 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <label class="wl-field"><span class="wl-field__label">Nome que aparece para clientes</span><input class="wl-input" value="Moto Rápida"></label>
 <label class="wl-field"><span class="wl-field__label">Endereço do sistema</span><input class="wl-input" value="motorapida.girolocadoras.com.br" disabled></label>
 </div></section>
+<section class="wl-panel"><h2 class="h2" style="margin-bottom: 18px;">Estoque à venda</h2>
+<label class="wl-field"><span class="wl-field__label">Limite de dias em estoque</span><input class="wl-input wl-mono" inputmode="numeric" value="30"><span class="wl-field__hint">Acima disso, o veículo à venda aparece como parado e o gerente da filial é avisado. De 1 a 365 dias, igual para todas as filiais.</span></label>
+</section>
 <section class="wl-panel"><div class="wl-panel__head"><h2 class="wl-panel__title">Dados da empresa</h2><button class="wl-btn wl-btn--quiet wl-btn--sm">Editar</button></div><div class="kv"><span>Razão social</span><span>Moto Rápida Locações Ltda</span></div><div class="kv"><span>CNPJ</span><span>12.345.678/0001-95</span></div><div class="kv"><span>Endereço</span><span>Av. Bezerra de Menezes, 1200 · Fortaleza</span></div><div class="kv"><span>Telefone</span><span>(85) 3222-4410</span></div><div class="kv"><span>E-mail financeiro</span><span>financeiro@motorapida.com.br</span></div><p class="lbl" style="margin: 12px 0 0;">Saem no cabeçalho dos contratos e recibos.</p></section>
+<section class="wl-panel"><div class="wl-panel__head"><div><h2 class="wl-panel__title">Estados desta tela</h2><p class="wl-panel__sub" style="margin: 4px 0 0;">Caso da VEI-19. Na tela real, aparece um de cada vez.</p></div></div>
+<div style="display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 10px;"><h3 style="margin: 0; font-size: 15px; font-weight: 600;">Limite recusado no campo (0, 366 ou vazio)</h3>
+<label class="wl-field wl-field--error"><span class="wl-field__label">Limite de dias em estoque</span><input class="wl-input wl-mono" inputmode="numeric" value="366" aria-invalid="true"><span class="wl-field__hint">Informe um número inteiro de 1 a 365.</span></label></div>
+<div style="display: flex; flex-direction: column; gap: 10px;"><h3 style="margin: 0; font-size: 15px; font-weight: 600;">Perfil sem permissão (gerente, vendedor, financeiro)</h3>
+<label class="wl-field"><span class="wl-field__label">Limite de dias em estoque</span><input class="wl-input wl-mono" value="30" disabled><span class="wl-field__hint">Só o administrador altera.</span></label></div>
+</div></section>
 </div>
 <aside class="wl-panel" style="flex: 1 1 320px; min-width: 0;"><h2 class="h2" style="margin-bottom: 16px;">Prévia</h2><div style="width: 260px; margin: 0 auto; padding: 18px; border-radius: 36px; background: var(--canvas); box-shadow: inset 0 0 0 8px var(--solid);">
 <div style="padding: 18px 10px; display: flex; flex-direction: column; gap: 14px; align-items: center; text-align: center;">

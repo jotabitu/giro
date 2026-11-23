@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- ajustada no repositório: 23/11/2026, T-487 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -15,7 +16,7 @@ body{margin:0}
 a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1720px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 3420px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 
 <header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
 <div class="wl-logo-slot" aria-hidden="true">MR</div>
@@ -57,6 +58,23 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <div style="display: flex; justify-content: space-between;"><span style="color: var(--ink-muted);">À venda</span><span style="font-weight: 500;">12</span></div>
 </div>
 </div>
+</section>
+
+<section class="wl-panel" style="padding: 16px; border-radius: 28px;">
+<h2 style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 600;">Estoque à venda</h2>
+<div style="font-size: 14px; color: var(--ink-muted);">12 veículos à venda · Filial Centro</div>
+<div class="wl-kpi wl-kpi--solid" style="margin-top: 12px; padding: 14px 16px;"><div class="wl-kpi__label">Capital imobilizado</div><div class="wl-kpi__value" style="font-size: 32px; line-height: 36px;">R$ 39.500,00</div><div class="wl-kpi__meta" style="font-size: 13px;">compra e despesas de 3 veículos</div></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line);"><div><div style="font-size: 15px;">Custo médio por unidade</div><div style="font-size: 13px; color: var(--ink-muted);">3 veículos na conta</div></div><span style="font-weight: 600;">R$ 13.166,67</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0;"><div><div style="font-size: 15px;">Margem potencial</div><div style="font-size: 13px; color: var(--ink-muted);">5,05% sobre o valor de venda</div></div><span style="font-weight: 600;">R$ 2.100,00</span></div>
+<div class="wl-note wl-note--info" role="note">9 veículos sem valor de compra não entram na conta.</div>
+<a class="wl-btn wl-btn--quiet wl-btn--sm" href="Frota-Mobile.dc.html" style="margin-top: 8px; text-decoration: none; width: 100%; box-sizing: border-box; justify-content: center;">Ver na lista</a>
+</section>
+
+<section class="wl-panel" style="padding: 16px; border-radius: 28px;">
+<h2 style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 600;">Ticket médio do mês</h2>
+<div style="font-size: 14px; color: var(--ink-muted);">Vendas de outubro · Filial Centro</div>
+<div class="wl-kpi" style="margin-top: 12px; padding: 14px 16px;"><div class="wl-kpi__label">Ticket médio de outubro</div><div class="wl-kpi__value" style="font-size: 32px; line-height: 36px;">R$ 7.800,00</div><div class="wl-kpi__meta" style="font-size: 13px;">4 vendas · R$ 31.200,00</div></div>
+<p style="margin: 12px 0 0; font-size: 14px; color: var(--ink-muted);">−43,27% em relação a setembro (R$ 13.750,00)</p>
 </section>
 
 <section class="wl-alert-card" style="padding: 20px; border-radius: 28px;">
@@ -108,6 +126,29 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </div>
 </section>
 
+<section class="wl-panel" style="padding: 16px; border-radius: 28px;">
+<h2 style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 600;">Estados desta tela</h2>
+<div style="font-size: 14px; color: var(--ink-muted);">Casos da VEI-20 e da VEN-12. Na tela real, aparece um de cada vez. Tudo que é número vem da API; a tela só mostra.</div>
+
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Estoque à venda: só o PVG-3C29 tem valor de compra, e a venda fica abaixo do custo</div>
+<div class="wl-kpi wl-kpi--solid" style="margin-top: 8px; padding: 14px 16px;"><div class="wl-kpi__label">Capital imobilizado</div><div class="wl-kpi__value" style="font-size: 32px; line-height: 36px;">R$ 13.950,00</div><div class="wl-kpi__meta" style="font-size: 13px;">compra e despesas de 1 veículo</div></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line);"><div><div style="font-size: 15px;">Custo médio por unidade</div><div style="font-size: 13px; color: var(--ink-muted);">1 veículo na conta</div></div><span style="font-weight: 600;">R$ 13.950,00</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0;"><div><div style="font-size: 15px;">Margem potencial</div><div style="font-size: 13px; color: var(--critical-ink);">−5,68% sobre o valor de venda</div></div><span style="font-weight: 600; color: var(--critical-ink);">−R$ 750,00</span></div>
+
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Estoque à venda: nenhum veículo à venda com valor de compra</div>
+<div class="wl-kpi" style="margin-top: 8px; padding: 14px 16px;"><div class="wl-kpi__label">Capital imobilizado</div><div class="wl-kpi__value" style="font-size: 32px; line-height: 36px;">R$ 0,00</div><div class="wl-kpi__meta" style="font-size: 13px;">Nenhum veículo à venda com valor de compra.</div></div>
+
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Estoque à venda: veículo com compra e sem valor de venda</div>
+<div class="wl-note wl-note--info" role="note" style="margin-top: 8px;">1 veículo sem valor de venda.</div>
+
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Ticket médio: sem vendas no mês, até o fluxo de venda entrar (VEN-12)</div>
+<div class="wl-kpi" style="margin-top: 8px; padding: 14px 16px;"><div class="wl-kpi__label">Ticket médio do mês</div><div style="margin-top: 4px;">Sem vendas em novembro.</div></div>
+
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Ticket médio: sem vendas no mês anterior</div>
+<div class="wl-kpi" style="margin-top: 8px; padding: 14px 16px;"><div class="wl-kpi__label">Ticket médio de outubro</div><div class="wl-kpi__value" style="font-size: 32px; line-height: 36px;">R$ 7.800,00</div><div class="wl-kpi__meta" style="font-size: 13px;">4 vendas · R$ 31.200,00</div></div>
+<p style="margin: 8px 0 0; font-size: 14px; color: var(--ink-muted);">Sem vendas em setembro para comparar.</p>
+</section>
+
 <nav aria-label="Navegação principal" style="position: absolute; left: 16px; right: 16px; bottom: 20px; display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-pop);">
 <a href="Dashboard-Mobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 999px; background: var(--solid); color: var(--on-solid); text-decoration: none; font-size: 14px; font-weight: 500;"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Início</a>
 <a href="Frota-Mobile.dc.html" aria-label="Veículos" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg></a>
@@ -117,7 +158,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </nav>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1720}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":3420}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');
