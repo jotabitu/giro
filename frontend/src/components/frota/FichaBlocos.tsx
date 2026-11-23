@@ -10,6 +10,7 @@ import { useState, type ReactNode } from "react";
 import { Button, Icone, Panel, ProgressBar, StatusBadge } from "@/design-system";
 import { financeiro, type VeiculoDetalhe, type VistoriaRecente } from "@/lib/api";
 import { dataCurta, dinheiro, iniciais, km } from "@/lib/formatos";
+import { diasEmEstoque } from "@/lib/frota";
 import { tomDoStatus } from "@/lib/tom";
 import { VisualizadorDeFotos } from "./VisualizadorDeFotos";
 
@@ -129,20 +130,49 @@ function CartaoDaManutencao({ v }: { v: VeiculoDetalhe }) {
   );
 }
 
-/** "Agora": a locação em curso e a próxima manutenção, dois cartões lado a lado enquanto couberem (260px). */
+/** VEI-18: o veículo à venda com os dias em estoque na resposta (o vistoriador não os recebe). */
+export const mostraEstoque = (v: VeiculoDetalhe) => v.status === "a_venda" && "dias_em_estoque" in v;
+
+/** "À venda desde 15 ago · 53 dias", "À venda desde 07 out · Hoje" ou "À venda · —" sem entrada; parado em tom de alerta (VEI-19). */
+export function SeloDoEstoque({ v }: { v: VeiculoDetalhe }) {
+  const desde = v.a_venda_desde ? ` desde ${dataCurta(v.a_venda_desde)}` : "";
+  return (
+    <StatusBadge tom={v.parado ? "alerta" : "neutro"} compacto>
+      {`${v.situacao.rotulo}${desde} · ${diasEmEstoque(v.dias_em_estoque)}`}
+    </StatusBadge>
+  );
+}
+
+/** "Limite da empresa · 30 dias" (VEI-19), junto dos dias; some sem o número. */
+export function LimiteDaEmpresa({ v, Linha = Par }: { v: VeiculoDetalhe; Linha?: (p: { rotulo: string; children: ReactNode }) => ReactNode }) {
+  if (v.dias_em_estoque == null || v.limite_dias_parado == null) return null;
+  return <Linha rotulo="Limite da empresa">{diasEmEstoque(v.limite_dias_parado)}</Linha>;
+}
+
+/** "Agora": a locação em curso e a próxima manutenção, dois cartões lado a lado enquanto couberem (260px). À venda, os dias em estoque (VEI-18). */
 export function AgoraDesktop({ v }: { v: VeiculoDetalhe }) {
   const atual = v.locacao_atual;
-  if (!atual && !v.manutencao?.proxima) return null;
+  const estoque = mostraEstoque(v);
+  if (!atual && !v.manutencao?.proxima && !estoque) return null;
   return (
     <Panel
       titulo="Agora"
       acao={
-        <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
-          {v.situacao.desde ? `${v.situacao.rotulo} desde ${dataCurta(v.situacao.desde)}` : v.situacao.rotulo}
-        </StatusBadge>
+        estoque ? (
+          <SeloDoEstoque v={v} />
+        ) : (
+          <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
+            {v.situacao.desde ? `${v.situacao.rotulo} desde ${dataCurta(v.situacao.desde)}` : v.situacao.rotulo}
+          </StatusBadge>
+        )
       }
     >
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
+        {estoque && v.dias_em_estoque != null && (
+          <dl className={CARTAO}>
+            <LimiteDaEmpresa v={v} />
+          </dl>
+        )}
         <CartaoDaLocacao v={v} />
         <CartaoDaManutencao v={v} />
       </div>

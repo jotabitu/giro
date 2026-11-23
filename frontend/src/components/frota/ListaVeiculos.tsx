@@ -1,16 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Bike, Car, Plus } from "lucide-react";
+import { ArrowDown, Bike, Car, ChevronsUpDown, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CelulaDupla, DataTable, Icone, SearchField, SegmentedControl, StatusBadge, type ColunaTabela } from "@/design-system";
 import { FiltroChips, type OpcaoChip } from "@/components/lista/FiltroChips";
 import { Paginacao } from "@/components/lista/Paginacao";
-import { veiculos, type ListaVeiculos as Lista, type TipoVeiculo, type Veiculo } from "@/lib/api";
+import { veiculos, type ListaVeiculos as Lista, type OrdemDaFrota, type TipoVeiculo, type Veiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dataCurta, km, placa } from "@/lib/formatos";
-import { diaria, fatoDoVeiculo } from "@/lib/frota";
+import { diaria, diasEmEstoque, fatoDoVeiculo } from "@/lib/frota";
 import { useBuscaNaUrl, useFiltrosNaUrl } from "@/lib/filtros-url";
 import { tomDoStatus } from "@/lib/tom";
 import { useSessao } from "@/lib/sessao";
@@ -31,6 +31,20 @@ function Miniatura({ tipo }: { tipo: TipoVeiculo }) {
     </span>
   );
 }
+
+/** VEI-18, VEI-19: os dias que a API contou; o parado (acima do limite da empresa) em tom de alerta. */
+function EmEstoque({ v }: { v: Veiculo }) {
+  if (v.dias_em_estoque == null) return <span className="wl-cell-sub">—</span>;
+  if (v.parado)
+    return (
+      <StatusBadge tom="alerta" compacto>
+        {diasEmEstoque(v.dias_em_estoque)}
+      </StatusBadge>
+    );
+  return <>{diasEmEstoque(v.dias_em_estoque)}</>;
+}
+
+const COLUNA_EM_ESTOQUE: ColunaTabela<Veiculo> = { chave: "em_estoque", titulo: "Em estoque", celula: (v) => <EmEstoque v={v} /> };
 
 const TODAS_AS_COLUNAS: ColunaTabela<Veiculo>[] = [
   {
@@ -59,6 +73,7 @@ const TODAS_AS_COLUNAS: ColunaTabela<Veiculo>[] = [
       </>
     ),
   },
+  COLUNA_EM_ESTOQUE,
   { chave: "km", titulo: "Quilometragem", mono: true, celula: (v) => km(v.km_atual) },
   { chave: "diaria", titulo: "Diária", mono: true, celula: diaria },
   {
@@ -79,10 +94,22 @@ const TODAS_AS_COLUNAS: ColunaTabela<Veiculo>[] = [
   },
 ];
 
-/** Sem o preço na resposta (vistoriador, D-25), a coluna "Diária" não aparece. */
-const colunasDa = (veiculos: Veiculo[]) => (veiculos.some((v) => v.preco_vigente) ? TODAS_AS_COLUNAS : TODAS_AS_COLUNAS.filter((c) => c.chave !== "diaria"));
+/**
+ * Sem o preço na resposta (vistoriador, D-25), a coluna "Diária" não aparece; sem os dias em estoque (vistoriador, VEI-18),
+ * a "Em estoque" também não. A "Em estoque" ordena pela API (`?ordem=em_estoque`).
+ */
+function colunasDa(veiculos: Veiculo[], ordem: ColunaTabela<Veiculo>["ordem"]): ColunaTabela<Veiculo>[] {
+  const comEstoque = veiculos.some((v) => "dias_em_estoque" in v);
+  return TODAS_AS_COLUNAS.flatMap((c) => {
+    if (c.chave === "diaria" && !veiculos.some((v) => v.preco_vigente)) return [];
+    if (c.chave === "em_estoque") return comEstoque ? [{ ...c, ordem }] : [];
+    return [c];
+  });
+}
 
 function CartaoDoVeiculo({ v }: { v: Veiculo }) {
+  // VEI-18: no veículo à venda, o terceiro dado é o tempo em estoque.
+  const emEstoque = v.status === "a_venda" && "dias_em_estoque" in v;
   const fato = fatoDoVeiculo(v);
   const valorDiaria = diaria(v);
   return (
@@ -110,10 +137,17 @@ function CartaoDoVeiculo({ v }: { v: Veiculo }) {
             {valorDiaria}
           </span>
         )}
-        <span className="min-w-0">
-          <span className="block text-caption text-ink-muted">{fato.rotulo}</span>
-          <span className="block truncate">{fato.valor}</span>
-        </span>
+        {emEstoque ? (
+          <span className="min-w-0">
+            <span className="block text-caption text-ink-muted">Em estoque</span>
+            <EmEstoque v={v} />
+          </span>
+        ) : (
+          <span className="min-w-0">
+            <span className="block text-caption text-ink-muted">{fato.rotulo}</span>
+            <span className="block truncate">{fato.valor}</span>
+          </span>
+        )}
       </span>
       {v.aviso_preco && <span className="border-t border-line pt-3 text-[13px] leading-[18px] text-ink-muted">{v.aviso_preco}</span>}
     </Link>
@@ -129,12 +163,21 @@ export function ListaVeiculos() {
   const tipo = (valor("tipo") ?? "todos") as TipoVeiculo | "todos";
   const cursor = valor("cursor") ?? undefined;
   const buscaNaUrl = valor("busca") ?? "";
+  // VEI-18: sem `ordem` na URL, a API decide (do mais parado com o filtro "À venda"; pela placa nos outros).
+  const ordemNaUrl = (valor("ordem") ?? undefined) as OrdemDaFrota | undefined;
+  const porEstoque = ordemNaUrl ? ordemNaUrl === "em_estoque" : status === "a_venda";
+  const trocarOrdem = () => definir({ ordem: porEstoque ? "placa" : "em_estoque", cursor: null });
+  const ordemDaColuna: ColunaTabela<Veiculo>["ordem"] = {
+    estado: porEstoque ? "descending" : "none",
+    rotulo: porEstoque ? "Ordenado por tempo em estoque, do mais parado para o menos" : "Ordenar por tempo em estoque",
+    aoOrdenar: trocarOrdem,
+  };
 
   const [busca, setBusca] = useBuscaNaUrl(definir, buscaNaUrl);
 
   const consulta = useQuery({
-    queryKey: ["veiculos", { status, tipo, busca: buscaNaUrl, cursor }],
-    queryFn: () => veiculos.listar({ status, tipo_veiculo: tipo === "todos" ? undefined : tipo, busca: buscaNaUrl || undefined, cursor }),
+    queryKey: ["veiculos", { status, tipo, busca: buscaNaUrl, cursor, ordem: ordemNaUrl }],
+    queryFn: () => veiculos.listar({ status, tipo_veiculo: tipo === "todos" ? undefined : tipo, busca: buscaNaUrl || undefined, cursor, ordem: ordemNaUrl }),
     placeholderData: (anterior) => anterior,
   });
   const d = consulta.data;
@@ -199,9 +242,18 @@ export function ListaVeiculos() {
         {d && d.resultados.length > 0 && (
           <>
             <div className="hidden overflow-x-auto md:block">
-              <DataTable colunas={colunasDa(d.resultados)} linhas={d.resultados} chaveDaLinha={(v) => String(v.id)} aoAbrir={(v) => router.push(`/veiculos/${v.id}`)} legenda="Veículos" />
+              <DataTable colunas={colunasDa(d.resultados, ordemDaColuna)} linhas={d.resultados} chaveDaLinha={(v) => String(v.id)} aoAbrir={(v) => router.push(`/veiculos/${v.id}`)} legenda="Veículos" />
             </div>
             <div className="flex flex-col gap-3 md:hidden">
+              {d.resultados.some((v) => "dias_em_estoque" in v) && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-body text-ink-muted">{porEstoque ? `${total} ${total === 1 ? "veículo" : "veículos"} · do mais parado para o menos` : "Ordem: padrão"}</span>
+                  <button type="button" className="wl-btn wl-btn--quiet wl-btn--sm" aria-label={ordemDaColuna.rotulo} onClick={trocarOrdem}>
+                    <Icone de={porEstoque ? ArrowDown : ChevronsUpDown} />
+                    Em estoque
+                  </button>
+                </div>
+              )}
               {d.resultados.map((v) => (
                 <CartaoDoVeiculo key={v.id} v={v} />
               ))}

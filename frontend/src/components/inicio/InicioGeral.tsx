@@ -20,6 +20,7 @@ import { hrefDoDestino } from "@/lib/menu";
 import { atualizadoHa, tomDoStatus } from "@/lib/painel";
 import { useSessao } from "@/lib/sessao";
 import { CabecalhoInicio, KpisDoPainel } from "./comuns";
+import { BlocoEstoqueAVenda, BlocoTicketMedio } from "./EstoqueAVenda";
 
 type Linha = InicioDe<"geral">["devolucoes_semana"]["linhas"][number];
 
@@ -92,6 +93,22 @@ export function InicioGeral({ d, periodo, aoMudarPeriodo }: { d: InicioDe<"geral
           />
         </div>
       </Panel>
+
+      {/* T-487: só administrador e gerente recebem os blocos (VEI-20, VEN-12). */}
+      {(d.estoque_a_venda || d.ticket_medio) && (
+        <div className="flex flex-wrap items-start gap-6">
+          {d.estoque_a_venda && (
+            <div className="min-w-0 flex-[2_1_560px]">
+              <BlocoEstoqueAVenda e={d.estoque_a_venda} />
+            </div>
+          )}
+          {d.ticket_medio && (
+            <div className="min-w-0 flex-[1_1_300px]">
+              <BlocoTicketMedio t={d.ticket_medio} />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Panel titulo="Devoluções da semana" subtitulo={d.devolucoes_semana?.subtitulo}>
