@@ -53,6 +53,11 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
 
 - `aviso_preco` (T-494, `VEI-15`, ADR 0041): na lista e na ficha, em qualquer status, `"A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda."` quando o veículo não tem nenhum plano ligado (de aluguel ou a locação com compra); senão `null`. Não é status: o veículo `disponivel` sem plano vai para `indisponivel` com `motivo_status` "Sem preço · ligue um plano" (seção "Preços do veículo").
 
+- **Dias em estoque** (T-486, `VEI-18`, `VEI-19`): na lista e na ficha, `a_venda_desde` (data da última entrada no estoque, em `America/Sao_Paulo`), `dias_em_estoque` (inteiro, 0 = colocado à venda hoje) e `parado` (`dias_em_estoque` acima do limite da empresa). Exemplo do PVE-1A07 em 07 out: `"a_venda_desde": "2026-08-15", "dias_em_estoque": 53, "parado": true`.
+  - A entrada é a última passagem para `a_venda` no histórico de status, vinda de qualquer estado menos `vendido`: a venda cancelada (`VEN-07`) não recomeça a contagem; voltar para a frota e ser colocado à venda de novo recomeça do zero.
+  - Fora de `a_venda`, ou sem entrada no histórico: `a_venda_desde` e `dias_em_estoque` `null`, `parado` `false`; a tela mostra "—".
+  - Para o vistoriador, os três campos ficam **ausentes** (não nulos), como os valores.
+  - A tela só mostra: "53 dias", "1 dia", "Hoje" com 0, e o tom de alerta quando `parado`.
 - `placa` sai sem hífen no campo, e a tela põe o hífen; dentro de um texto montado pela API, sai com hífen (`docs/api/README.md`, Convenções, T-340). Aceita padrão antigo (`ABC1234`) e Mercosul (`ABC1D23`). `chassi` com 17 letras e números.
 - `preco_vigente`: preço da categoria vigente hoje (`LOC-15`). A coluna "Diária" da Frota usa `diaria_centavos`; veículo `a_venda` mostra `valor_venda_centavos`.
 - `situacao`: a API decide. Base no `status` do veículo; um bloco com `alerta` (ADR 0015) sobrepõe, ex.: "Atrasado" (`perigo`) quando a locação atual está `devolucao_atrasada`.
@@ -141,7 +146,8 @@ Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
 
 ### GET /api/veiculos/
 Perfis: todos (escopo de filial).
-Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (placa, modelo, chassi), `?ordem=placa|-km_atual|modelo`. A filial vem do `X-Filial` (`filiais.md`).
+Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (placa, modelo, chassi), `?ordem=placa|-km_atual|modelo|em_estoque`. A filial vem do `X-Filial` (`filiais.md`).
+- `?ordem=em_estoque` (T-486, `VEI-18`): do mais parado para o menos (a entrada mais antiga primeiro, com data e hora), depois a placa; os veículos sem o número (fora do estoque ou sem entrada) vão para o fim. Com `?status=a_venda` e sem `?ordem`, essa é a ordem padrão.
 200:
 ```json
 {
@@ -165,6 +171,7 @@ Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (pla
 "historico_status": [ { "de": "disponivel", "para": "alugado", "em": "...", "origem_tipo": "locacao", "origem_codigo": "LOC-2841", "motivo": null } ]
 ```
 - `ocupacao` (`VEI-06`): dias `alugado` ÷ dias na frota nos últimos 90 dias, a partir do `HistoricoStatusVeiculo`, excluindo os dias em `a_venda`, `vendido` e `baixado`. Calculada pelo app `veiculos`, pelo tempo exato entre as mudanças de status: conta a fração de dia (`VEI-06`), e um veículo alugado às 14:00 conta 0,42 daquele dia. Com mudanças em dias inteiros, dá o mesmo que contar dias.
+- `limite_dias_parado` (T-486, `VEI-19`): o limite de dias em estoque da empresa (padrão 30), para o "Limite da empresa" ao lado de "À venda desde 15 ago · 53 dias". Ausente para o vistoriador.
 - Locações e manutenções da ficha vêm das listas dos outros módulos: `GET /api/locacoes/?veiculo=<id>` e `GET /api/manutencao/ordens/?veiculo=<id>` (contratos de locações e manutenção). O "14 no total" é o `total` da lista de locações; as linhas são as que a lista devolve.
 
 #### Blocos da ficha (T-275, telas `Veiculo-Desktop` e `Veiculo-Mobile`)
@@ -833,6 +840,8 @@ Planos especiais (`Entregador`, `Mensal fidelidade`) aparecem na tela `Precos`, 
 | evento `veiculos.veiculo_baixado(veiculo_id, motivo_texto)` | publicado por `baixar` dentro da transação, síncrono; assinado por `movimentacoes`, que cancela a movimentação aberta (`MOV-03`, T-311). Falha no assinante desfaz a baixa. |
 | evento `veiculos.km_atualizado` | assinado por `manutencao` (preventivas, `MAN-03`). |
 | evento `veiculos.documento_vencendo` / tarefa `aut_06_vencimento_de_documentos` | `VEI-03`, `AUT-06`: 30 dias antes avisa; no dia, CRLV ou seguro vencido leva `disponivel` → `indisponivel`; veículo `alugado`, `reservado` ou `em_manutencao` não muda e gera tarefa urgente para os gerentes da filial (`FIL-02`). |
+| tarefa `aut_18_veiculos_parados` (Beat às 07:00) | `VEI-19`, `AUT-18`: avisa os gerentes ativos da filial (`FIL-02`) de cada veículo `a_venda` com `dias_em_estoque` acima do limite, uma vez por entrada no estoque (`Veiculo.estoque_aviso_entrada_em`), no sino e por e-mail: "O veículo PVF-2B18 (Honda CG 160 Fan) está à venda há 31 dias. O limite da empresa é 30 dias.", com o link da ficha. Administradores não recebem; filial sem gerente ativo fica sem o aviso. Execução perdida e limite que baixou avisam na próxima execução. |
+| `veiculos.selectors.estoque_a_venda(filiais)`, `parados_a_venda(filiais, limite, hoje)` | `VEI-20` e `VEI-18` para o painel (`painel.md`). |
 | anotações de leitura fornecidas | `indicadores` de `Filial` (`veiculos`, `ocupacao_pct`), ver `filiais.md`. |
 
 ## Preencher pelo CRLV-e (`VEI-08`, ADR 0026, T-247)

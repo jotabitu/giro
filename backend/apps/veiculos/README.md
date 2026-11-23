@@ -101,3 +101,10 @@ Assina `aprovacoes.pedido_decidido` em `eventos.py` (T-081): `APR-06` aprovado c
 
 - O e-mail ao gerente da `AUT-06` entra com o contrato de notificações; hoje o aviso é só no sino.
 - A exportação (`AUD-07`) e a recusa `VEN-10` do `voltar-para-frota` entram com os apps delas.
+
+## Implementado (T-486, T-487)
+
+- `VEI-18`: `selectors.anotar_entrada_no_estoque` (a última passagem para `a_venda` que não veio de `vendido`), `dados_do_estoque` e os campos `a_venda_desde`, `dias_em_estoque` e `parado` na lista e na ficha (ausentes para o vistoriador). `?ordem=em_estoque`, padrão com `?status=a_venda`.
+- `VEI-19`: o limite vem de `empresas.selectors.limite_dias_parado()`; a ficha traz `limite_dias_parado`.
+- `AUT-18`: `services.avisar_veiculos_parados(hoje)` e a tarefa `aut_18_veiculos_parados` (Beat às 07:00). A entrada já avisada fica em `Veiculo.estoque_aviso_entrada_em`.
+- `VEI-20`: `selectors.estoque_a_venda(filiais)` e `parados_a_venda(filiais, limite, hoje)`, lidos pelo painel (`relatorios`).

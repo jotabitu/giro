@@ -3,7 +3,7 @@
 from collections.abc import Iterable
 from typing import Any
 
-from django.db.models import QuerySet
+from django.db.models import Count, QuerySet, Sum
 
 from comum.documentos import placa_com_hifen
 from comum.permissoes import PERFIS_QUE_VEEM_TODAS, filiais_permitidas
@@ -160,3 +160,21 @@ def vendas_do_veiculo(veiculo_id: int) -> list[dict[str, Any]]:
             }
         )
     return itens
+
+
+def vendidas_entre(filiais: Iterable[int], inicio: Any, fim: Any) -> tuple[int, int]:
+    """VEN-12: (número, soma dos preços finais) das vendas das filiais que viraram `vendida`
+    entre `inicio` (inclusive) e `fim` (exclusive) e continuam `vendida`. A venda da quitação
+    (VEN-11, R$ 0,00) fica fora, como no funil e na meta."""
+    totais = (
+        Venda.objects.filter(
+            filial_id__in=list(filiais),
+            status="vendida",
+            origem=OrigemVenda.BALCAO,
+            vendida_em__gte=inicio,
+            vendida_em__lt=fim,
+        )
+        .order_by()
+        .aggregate(quantidade=Count("id"), soma=Sum("preco_final_centavos"))
+    )
+    return int(totais["quantidade"] or 0), int(totais["soma"] or 0)

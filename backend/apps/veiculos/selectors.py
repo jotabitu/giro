@@ -6,11 +6,24 @@ Interface para os outros apps (contrato de veículos): `preco_vigente(categoria,
 """
 
 from collections.abc import Iterable
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
-from django.db.models import Count, Exists, OuterRef, Q, QuerySet
+from django.db.models import (
+    Case,
+    Count,
+    DateTimeField,
+    Exists,
+    OuterRef,
+    Q,
+    QuerySet,
+    Subquery,
+    Value,
+    When,
+)
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.empresas import selectors as empresas_selectors
@@ -88,7 +101,13 @@ TOM = {
     S.EM_MOVIMENTACAO: "info",
 }
 GRAVIDADE = {"perigo": 3, "alerta": 2, "info": 1}
-ORDENS = {"placa": "placa", "-km_atual": "-km_atual", "modelo": "modelo"}
+ORDENS = {
+    "placa": "placa",
+    "-km_atual": "-km_atual",
+    "modelo": "modelo",
+    # VEI-18: do mais parado para o menos; padrão com o filtro "À venda".
+    "em_estoque": "ordem_em_estoque",
+}
 
 
 # --- Preço (LOC-01, LOC-15) ---
@@ -465,9 +484,11 @@ def representacao(
     documentos: dict[int, dict[str, Any] | None] | None = None,
     detalhe: bool = False,
     com_dados_do_documento: bool = False,
+    limite_parado: int | None = None,
 ) -> dict[str, Any]:
     """`com_dados_do_documento`: os blocos da VEI-09 nas respostas do `POST` e do `PATCH`; a
-    ficha (`detalhe`) sempre os traz, e a Frota nunca."""
+    ficha (`detalhe`) sempre os traz, e a Frota nunca. `limite_parado`: o da VEI-19, lido uma
+    vez para a página da Frota."""
     if precos is None:
         precos = precos_vigentes({veiculo.categoria_id}, relogio.hoje())
     if documentos is None:
@@ -510,6 +531,12 @@ def representacao(
         # VEI-15: em qualquer status; não é status (decisão do dono de 18 nov 2026).
         "aviso_preco": aviso_preco(veiculo),
     }
+    # VEI-18, VEI-19 (T-486): dias em estoque do veículo `a_venda`; o vistoriador não recebe.
+    if limite_parado is None:
+        limite_parado = limite_dias_parado()
+    dados.update(
+        dados_do_estoque(veiculo, entrada_no_estoque(veiculo), limite_parado, relogio.hoje())
+    )
     if detalhe or com_dados_do_documento:
         dados.update(dados_do_documento(veiculo, gestao))
     if detalhe:
@@ -533,6 +560,7 @@ def representacao(
         if perfil not in ("vistoriador", "financeiro"):
             dados["movimentacoes"] = leituras.bloco(ALVO_FICHA, "movimentacoes", veiculo)
         dados["ocupacao"] = ocupacao(veiculo)
+        dados["limite_dias_parado"] = limite_parado  # "Limite da empresa" da ficha (VEI-19)
         dados["historico_status"] = historico_status(veiculo)
         # As vendas do veículo, com a transferência no Detran (VEN-11, CA-420-16), de `vendas`.
         dados["vendas"] = leituras.bloco(ALVO_FICHA, "vendas", veiculo) or None
@@ -863,6 +891,8 @@ def _da_locacao(veiculo: Veiculo, perfil: str) -> dict[str, Any]:
 
 # Blocos que só têm dinheiro: saem inteiros para quem não vê valores.
 BLOCOS_DE_VALOR = frozenset({"preco_vigente", "proximo_preco", "indicadores_financeiros"})
+# VEI-18: o vistoriador, que vê do veículo só km e avarias, não recebe os dias em estoque.
+CAMPOS_DO_ESTOQUE = frozenset({"a_venda_desde", "dias_em_estoque", "parado", "limite_dias_parado"})
 
 
 def ve_valores(usuario: Any) -> bool:
@@ -871,14 +901,15 @@ def ve_valores(usuario: Any) -> bool:
 
 
 def sem_valores(dados: Any) -> Any:
-    """Sem nenhum campo `_centavos` e sem os blocos de preço. Aplicado depois do serializer, que
-    preencheria com `null` o campo que falta."""
+    """Sem nenhum campo `_centavos`, sem os blocos de preço e sem os dias em estoque (VEI-18).
+    Aplicado depois do serializer, que preencheria com `null` o campo que falta."""
     if isinstance(dados, dict):
         return {
             chave: sem_valores(valor)
             for chave, valor in dados.items()
             if not chave.endswith("_centavos")
             and chave not in BLOCOS_DE_VALOR
+            and chave not in CAMPOS_DO_ESTOQUE
             and chave != "data_compra"
         }
     if isinstance(dados, list):
@@ -1019,6 +1050,164 @@ def montar_indicadores(filial: Any) -> dict[str, Any]:
 def contar_veiculos_do_plano() -> int:
     """Uso do plano (PLT-03): os veículos fora de `vendido` e `baixado`."""
     return int(Veiculo.objects.exclude(status__in=FORA_DA_FROTA).count())
+
+
+# --- Estoque à venda (VEI-18, VEI-19, VEI-20; T-486, T-487) ---
+
+FUSO_DO_ESTOQUE = ZoneInfo("America/Sao_Paulo")
+# Sem entrada (fora do estoque ou sem histórico): o fim da ordem "Em estoque" (VEI-18).
+SEM_ENTRADA = datetime(9999, 12, 31, tzinfo=UTC)
+ORDEM_EM_ESTOQUE = ("ordem_em_estoque", "placa", "id")
+PARADOS_NO_INICIO = 5
+
+
+def limite_dias_parado() -> int:
+    """VEI-19: o limite da empresa (configuração em `empresas`)."""
+    return empresas_selectors.limite_dias_parado()
+
+
+def _passagens_que_abrem_entrada() -> QuerySet[HistoricoStatusVeiculo]:
+    """VEI-18: a passagem para `a_venda` vinda de qualquer estado menos `vendido`. A de
+    `vendido` (venda cancelada, VEN-07) não é entrada nova: a contagem continua a anterior."""
+    return HistoricoStatusVeiculo.objects.filter(para=S.A_VENDA).exclude(de=S.VENDIDO)
+
+
+def anotar_entrada_no_estoque(queryset: QuerySet[Veiculo]) -> QuerySet[Veiculo]:
+    """`estoque_entrada_em`: a última entrada no estoque do veículo `a_venda` (nula fora dele ou
+    sem histórico); `ordem_em_estoque`: a mesma, com os sem entrada no fim."""
+    ultima = (
+        _passagens_que_abrem_entrada()
+        .filter(veiculo_id=OuterRef("pk"))
+        .order_by("-em", "-id")
+        .values("em")[:1]
+    )
+    return queryset.annotate(
+        estoque_entrada_em=Case(
+            When(status=S.A_VENDA, then=Subquery(ultima)),
+            default=Value(None),
+            output_field=DateTimeField(),
+        )
+    ).annotate(
+        ordem_em_estoque=Coalesce(
+            "estoque_entrada_em", Value(SEM_ENTRADA), output_field=DateTimeField()
+        )
+    )
+
+
+def entrada_no_estoque(veiculo: Veiculo) -> datetime | None:
+    """VEI-18 de um veículo só (a ficha). Fora de `a_venda`, `None`."""
+    anotada = getattr(veiculo, "estoque_entrada_em", ...)
+    if anotada is not ...:
+        return anotada  # type: ignore[no-any-return]
+    if veiculo.status != S.A_VENDA:
+        return None
+    passagem = (
+        _passagens_que_abrem_entrada()
+        .filter(veiculo_id=veiculo.pk)
+        .order_by("-em", "-id")
+        .values_list("em", flat=True)
+        .first()
+    )
+    return passagem
+
+
+def _dia_da_entrada(entrada: datetime) -> date:
+    return entrada.astimezone(FUSO_DO_ESTOQUE).date()
+
+
+def dias_em_estoque(entrada: datetime, hoje: date) -> int:
+    """VEI-18: dias corridos de `America/Sao_Paulo` desde a entrada; colocado hoje, 0."""
+    return max((hoje - _dia_da_entrada(entrada)).days, 0)
+
+
+def dados_do_estoque(
+    veiculo: Veiculo, entrada: datetime | None, limite: int, hoje: date
+) -> dict[str, Any]:
+    """`a_venda_desde`, `dias_em_estoque` e `parado` (VEI-18, VEI-19). Fora do estoque ou sem
+    entrada no histórico, as datas vêm nulas e `parado` é falso (não gera alerta)."""
+    if veiculo.status != S.A_VENDA or entrada is None:
+        return {"a_venda_desde": None, "dias_em_estoque": None, "parado": False}
+    dias = dias_em_estoque(entrada, hoje)
+    return {
+        "a_venda_desde": _dia_da_entrada(entrada),
+        "dias_em_estoque": dias,
+        "parado": dias > limite,
+    }
+
+
+def inicio_do_parado(limite: int, hoje: date) -> datetime:
+    """VEI-19: parado = `dias > limite`, isto é, a entrada antes do começo do dia
+    `hoje − limite` em `America/Sao_Paulo`."""
+    return datetime.combine(hoje - timedelta(days=limite), time(), tzinfo=FUSO_DO_ESTOQUE)
+
+
+def a_venda_com_entrada(filiais: Iterable[int]) -> QuerySet[Veiculo]:
+    """Os veículos `a_venda` das filiais, anotados e na ordem da lista com o filtro "À venda"."""
+    return anotar_entrada_no_estoque(
+        Veiculo.objects.filter(filial_id__in=list(filiais), status=S.A_VENDA)
+    ).order_by(*ORDEM_EM_ESTOQUE)
+
+
+def parados_a_venda(filiais: Iterable[int], limite: int, hoje: date) -> dict[str, Any]:
+    """O bloco "Parados à venda" do início do gerente (VEI-18): os 5 com mais dias, na ordem da
+    lista, e quantos estão acima do limite da empresa."""
+    estoque = a_venda_com_entrada(filiais)
+    acima = estoque.filter(Q(estoque_entrada_em__lt=inicio_do_parado(limite, hoje))).count()
+    itens = []
+    for veiculo in estoque[:PARADOS_NO_INICIO]:
+        dados = dados_do_estoque(veiculo, veiculo.estoque_entrada_em, limite, hoje)  # type: ignore[attr-defined]
+        itens.append(
+            {
+                "id": veiculo.pk,
+                "placa": veiculo.placa,
+                "veiculo": f"{veiculo.marca} {veiculo.modelo}",
+                "dias_em_estoque": dados["dias_em_estoque"],
+                "parado": dados["parado"],
+            }
+        )
+    return {"limite_dias_parado": limite, "acima_do_limite": acima, "itens": itens}
+
+
+def estoque_a_venda(filiais: Iterable[int]) -> dict[str, Any]:
+    """VEI-20: capital imobilizado, custo médio e margem potencial dos veículos `a_venda`.
+
+    Custo = o "pago na moto" da VEI-13 (compra + despesas ligadas sem as recusadas). O veículo
+    sem valor de compra fica fora de tudo e é contado à parte; o com compra e sem valor de venda
+    entra no capital e no custo médio e fica fora da margem. Margem em % = soma das margens ÷
+    soma dos valores de venda (ponderada), arredondada uma vez, `ROUND_HALF_UP`.
+    """
+    veiculos = list(Veiculo.objects.filter(filial_id__in=list(filiais), status=S.A_VENDA))
+    com_compra = [v for v in veiculos if v.valor_compra_centavos is not None]
+    custos = {v.pk: pago_na_moto(v) or 0 for v in com_compra}
+    capital = sum(custos.values())
+    na_margem = [v for v in com_compra if v.valor_venda_centavos is not None]
+    margem = sum(int(v.valor_venda_centavos or 0) - custos[v.pk] for v in na_margem)
+    vendas = sum(int(v.valor_venda_centavos or 0) for v in na_margem)
+    return {
+        "quantidade": len(veiculos),
+        "capital_imobilizado_centavos": capital,
+        "veiculos_na_conta": len(com_compra),
+        "custo_medio_centavos": (
+            precos.centavos(Decimal(capital) / len(com_compra)) if com_compra else None
+        ),
+        "margem_centavos": margem if na_margem else None,
+        "margem_pct": precos.pct(Decimal(margem) * 100 / vendas) if na_margem and vendas else None,
+        "sem_valor_compra": len(veiculos) - len(com_compra),
+        "sem_valor_venda": len(com_compra) - len(na_margem),
+    }
+
+
+def a_avisar_de_parado(limite: int, hoje: date) -> list[tuple[Veiculo, datetime]]:
+    """AUT-18: os veículos `a_venda` parados (VEI-19) cuja entrada no estoque ainda não foi
+    avisada, com a entrada. Na ordem da lista."""
+    estoque = anotar_entrada_no_estoque(Veiculo.objects.filter(status=S.A_VENDA)).filter(
+        Q(estoque_entrada_em__lt=inicio_do_parado(limite, hoje))
+    )
+    return [
+        (veiculo, veiculo.estoque_entrada_em)  # type: ignore[attr-defined]
+        for veiculo in estoque.select_related("filial").order_by(*ORDEM_EM_ESTOQUE)
+        if veiculo.estoque_aviso_entrada_em != veiculo.estoque_entrada_em  # type: ignore[attr-defined]
+    ]
 
 
 # --- Documentos (VEI-03, AUD-05) ---

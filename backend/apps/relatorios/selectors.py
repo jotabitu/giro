@@ -257,6 +257,193 @@ def _receita(escopo: Escopo, dias: int, ate: date, fuso: ZoneInfo) -> int:
     return financeiro_selectors.receita_de_locacao(escopo.filiais, *_janela(dias, ate, fuso))
 
 
+# --- Estoque à venda e ticket médio (VEI-18, VEI-20, VEN-12; T-486, T-487) ---
+
+# VEI-20, VEN-12: os blocos de dinheiro do estoque e das vendas são só de quem vê o valor de
+# compra (USR-09). Para os outros perfis, a chave fica ausente, e não zerada.
+VEEM_O_ESTOQUE = frozenset({"administrador", "gerente"})
+MESES_POR_EXTENSO = (
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+)
+MENOS = "−"  # o sinal de menos das telas ("−R$ 750,00", "−5,68%")
+
+
+def _ve_o_estoque(usuario: Any) -> bool:
+    return getattr(usuario, "perfil", "") in VEEM_O_ESTOQUE
+
+
+def _onde(escopo: Escopo) -> str:
+    filial = escopo.filial()
+    return filial.nome if filial is not None else "Todas as filiais"
+
+
+def _pct_com_sinal(valor: Decimal) -> str:
+    """`Decimal("-5.68")` vira `"−5,68%"`, sempre com as 2 casas (VEI-20, VEN-12)."""
+    texto = f"{abs(valor):.2f}%".replace(".", ",")
+    return f"{MENOS}{texto}" if valor < 0 else texto
+
+
+def _reais_com_sinal(centavos: int) -> str:
+    texto = formatar_reais(abs(centavos))
+    return f"{MENOS}{texto}" if centavos < 0 else texto
+
+
+def _estoque_a_venda(escopo: Escopo) -> dict[str, Any]:
+    """VEI-20: o bloco "Estoque à venda" (Main e Gerente). Os números vêm de `veiculos`; aqui,
+    só os textos."""
+    dados = veiculos_selectors.estoque_a_venda(escopo.filiais)
+    na_conta = dados["veiculos_na_conta"]
+    avisos = []
+    if dados["sem_valor_compra"]:
+        avisos.append(
+            _plural(
+                dados["sem_valor_compra"],
+                "veículo sem valor de compra não entra na conta.",
+                "veículos sem valor de compra não entram na conta.",
+            )
+        )
+    if dados["sem_valor_venda"]:
+        avisos.append(
+            _plural(
+                dados["sem_valor_venda"],
+                "veículo sem valor de venda.",
+                "veículos sem valor de venda.",
+            )
+        )
+    margem_pct = dados["margem_pct"]
+    quantos = _plural(dados["quantidade"], "veículo à venda", "veículos à venda")
+    return {
+        **dados,
+        "subtitulo": f"{quantos} · {_onde(escopo)}",
+        "legenda_capital": (
+            f"compra e despesas de {_plural(na_conta, 'veículo', 'veículos')}"
+            if na_conta
+            else "Nenhum veículo à venda com valor de compra."
+        ),
+        "legenda_custo_medio": (
+            f"{_plural(na_conta, 'veículo', 'veículos')} na conta" if na_conta else None
+        ),
+        "margem_texto": (
+            _reais_com_sinal(dados["margem_centavos"])
+            if dados["margem_centavos"] is not None
+            else None
+        ),
+        "legenda_margem": (
+            f"{_pct_com_sinal(margem_pct)} sobre o valor de venda"
+            if margem_pct is not None
+            else None
+        ),
+        "margem_negativa": dados["margem_centavos"] is not None and dados["margem_centavos"] < 0,
+        "avisos": avisos,
+    }
+
+
+def _parados_a_venda(escopo: Escopo) -> dict[str, Any]:
+    """VEI-18, VEI-19: o bloco "Parados à venda" do início do gerente."""
+    limite = veiculos_selectors.limite_dias_parado()
+    dados = veiculos_selectors.parados_a_venda(escopo.filiais, limite, relogio.hoje())
+    acima = dados["acima_do_limite"]
+    return {
+        **dados,
+        "subtitulo": (
+            f"{acima} acima de {limite} dias" if acima else f"Nenhum acima de {limite} dias"
+        ),
+    }
+
+
+def _mes_e_ano(dia: date) -> tuple[int, int]:
+    return dia.year, dia.month
+
+
+def _inicio_do_mes(ano: int, mes: int, fuso: ZoneInfo) -> datetime:
+    return datetime(ano, mes, 1, tzinfo=fuso)
+
+
+def _mes_seguinte(ano: int, mes: int) -> tuple[int, int]:
+    return (ano + 1, 1) if mes == 12 else (ano, mes + 1)
+
+
+def _mes_anterior(ano: int, mes: int) -> tuple[int, int]:
+    return (ano - 1, 12) if mes == 1 else (ano, mes - 1)
+
+
+def _vendas_do_mes(escopo: Escopo, ano: int, mes: int) -> dict[str, Any]:
+    fuso = ZoneInfo("America/Sao_Paulo")  # VEN-12: a data de `vendida` em São Paulo
+    inicio = _inicio_do_mes(ano, mes, fuso)
+    fim = _inicio_do_mes(*_mes_seguinte(ano, mes), fuso)
+    quantidade, soma = vendas_selectors.vendidas_entre(escopo.filiais, inicio, fim)
+    ticket = (
+        int((Decimal(soma) / quantidade).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        if quantidade
+        else None
+    )
+    return {
+        "mes": MESES_POR_EXTENSO[mes - 1],
+        "vendas": quantidade,
+        "soma_centavos": soma,
+        "ticket_centavos": ticket,
+    }
+
+
+def _ticket_medio(escopo: Escopo) -> dict[str, Any]:
+    """VEN-12: ticket médio das vendas concluídas do mês e a comparação com o mês anterior
+    inteiro. Até o fluxo de venda entrar (T-502), não há venda concluída fora da quitação, e o
+    bloco diz "Sem vendas em <mês>."."""
+    ano, mes = _mes_e_ano(relogio.hoje())
+    atual = _vendas_do_mes(escopo, ano, mes)
+    anterior = _vendas_do_mes(escopo, *_mes_anterior(ano, mes))
+    variacao = None
+    comparacao = None
+    if atual["ticket_centavos"] is not None:
+        if anterior["ticket_centavos"] is None:
+            comparacao = f"Sem vendas em {anterior['mes']} para comparar."
+        else:
+            diferenca = Decimal(atual["ticket_centavos"] - anterior["ticket_centavos"])
+            variacao = (diferenca * 100 / Decimal(anterior["ticket_centavos"])).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            comparacao = (
+                f"{_pct_com_sinal(variacao)} em relação a {anterior['mes']} "
+                f"({formatar_reais(anterior['ticket_centavos'])})"
+            )
+    return {
+        **atual,
+        "subtitulo": f"Vendas de {atual['mes']} · {_onde(escopo)}",
+        "rotulo": f"Ticket médio de {atual['mes']}",
+        "resumo": (
+            f"{_plural(atual['vendas'], 'venda', 'vendas')} · "
+            f"{formatar_reais(atual['soma_centavos'])}"
+            if atual["vendas"]
+            else None
+        ),
+        "vazio": None if atual["vendas"] else f"Sem vendas em {atual['mes']}.",
+        "mes_anterior": anterior,
+        "variacao_pct": variacao,
+        "comparacao": comparacao,
+    }
+
+
+def _blocos_do_estoque(usuario: Any, escopo: Escopo, *, parados: bool) -> dict[str, Any]:
+    """Os blocos da T-486 e da T-487, só para administrador e gerente (ausentes para os outros)."""
+    if not _ve_o_estoque(usuario):
+        return {}
+    blocos = {"estoque_a_venda": _estoque_a_venda(escopo), "ticket_medio": _ticket_medio(escopo)}
+    if parados:
+        blocos["parados_a_venda"] = _parados_a_venda(escopo)
+    return blocos
+
+
 # --- Variante `geral` (administrador, tela Main) ---
 
 
@@ -349,6 +536,7 @@ def _geral(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
             "itens": itens,
         },
         "caixa_hoje": _caixa_hoje(escopo),
+        **_blocos_do_estoque(usuario, escopo, parados=False),
     }
 
 
@@ -592,6 +780,7 @@ def _gerente(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
                 },
             ],
         },
+        **_blocos_do_estoque(usuario, escopo, parados=True),
     }
 
 

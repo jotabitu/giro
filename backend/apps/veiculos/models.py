@@ -231,6 +231,9 @@ class Veiculo(MaquinaDeEstados, ModeloBase):
     rastreador_numero = models.CharField(max_length=20, blank=True, default="")
     rastreador_empresa = models.CharField(max_length=60, blank=True, default="")
     anotacoes = models.CharField(max_length=500, blank=True, default="")
+    # AUT-18 (VEI-19, T-486): a entrada no estoque (data e hora da passagem para `a_venda`, VEI-18)
+    # já avisada aos gerentes. Outra entrada pode ser avisada; a mesma, não.
+    estoque_aviso_entrada_em = models.DateTimeField(null=True, blank=True)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = TRANSICOES_VEICULO
     REGRA_TRANSICAO: ClassVar[str] = "transicao_veiculo"

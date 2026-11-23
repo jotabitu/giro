@@ -9,4 +9,7 @@ urlpatterns: list[URLPattern] = [
     path("marca/simular/", views.SimularMarcaView.as_view(), name="marca-simular"),
     path("marca/logo/", views.LogoView.as_view(), name="marca-logo"),
     path("ramo/", views.RamoView.as_view(), name="ramo"),
+    path(
+        "configuracoes/estoque/", views.EstoqueDaEmpresaView.as_view(), name="configuracoes-estoque"
+    ),
 ]

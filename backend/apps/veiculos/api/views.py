@@ -146,7 +146,7 @@ class VeiculosView(APIView):
             OpenApiParameter("em_movimentacao", bool),
             OpenApiParameter("movimentavel", bool),
         ],
-        summary="Frota (VEI-06)",
+        summary="Frota (VEI-06, VEI-18)",
     )
     def get(self, request: Request) -> Response:
         parametros = request.query_params
@@ -154,7 +154,9 @@ class VeiculosView(APIView):
         da_filial = selectors.do_tipo(da_filial, parametros.get("tipo_veiculo"))
         contagens = selectors.contagens(da_filial)
         qs = selectors.filtrar(
-            selectors.anotar_tem_plano_ligado(da_filial.select_related("categoria", "filial")),
+            selectors.anotar_entrada_no_estoque(
+                selectors.anotar_tem_plano_ligado(da_filial.select_related("categoria", "filial"))
+            ),
             status=parametros.get("status"),
             categoria=parametros.get("categoria"),
             busca=parametros.get("busca"),
@@ -166,14 +168,20 @@ class VeiculosView(APIView):
             movimentavel=parametros.get("movimentavel") == "true",
         )
         paginacao = PaginacaoPorCursor()
-        ordem = selectors.ORDENS.get(parametros.get("ordem", ""), "placa")
-        paginacao.ordering = (ordem, "id")  # type: ignore[assignment]
+        # VEI-18: com o filtro "À venda", a ordem de saída é a do tempo em estoque.
+        padrao = "em_estoque" if parametros.get("status") == "a_venda" else "placa"
+        ordem = selectors.ORDENS.get(parametros.get("ordem", ""), selectors.ORDENS[padrao])
+        ordenacao = selectors.ORDEM_EM_ESTOQUE if ordem == "ordem_em_estoque" else (ordem, "id")
+        paginacao.ordering = ordenacao  # type: ignore[assignment]
         pagina = paginacao.paginate_queryset(qs, request, view=self) or []
         hoje = relogio.hoje()
         precos = selectors.precos_vigentes({v.categoria_id for v in pagina}, hoje)
         documentos = selectors.resumos_de_documentos({v.pk for v in pagina}, hoje)
+        limite = selectors.limite_dias_parado()
         dados = [
-            selectors.representacao(v, request.user, precos=precos, documentos=documentos)
+            selectors.representacao(
+                v, request.user, precos=precos, documentos=documentos, limite_parado=limite
+            )
             for v in pagina
         ]
         return paginacao.get_paginated_response(

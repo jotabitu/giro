@@ -53,6 +53,8 @@ class ConfiguracaoEmpresa(ModeloBase):
     meta_ocupacao_pct = PercentualField(default=Decimal("80.00"))  # painel (VEI-06)
     # VEI-13 (ADR 0041): abaixo dela a margem do plano fica amarela; nulo = nunca fica.
     margem_minima_pct = PercentualField(null=True, blank=True)
+    # VEI-19 (T-486): acima destes dias à venda, o veículo está parado; de 1 a 365.
+    limite_dias_parado = models.PositiveSmallIntegerField(default=30)
     # Ramo (PLT-12, ADR 0024, item 2): muda só por `services.mudar_ramo`.
     atividade = models.CharField(max_length=5, choices=Atividade.choices, default=Atividade.AMBOS)
     trabalha_com = models.CharField(
@@ -64,7 +66,7 @@ class ConfiguracaoEmpresa(ModeloBase):
     # A marca é pública na tela de login: vai inteira. O logo entra pelo nome do arquivo, que é o
     # resumo do conteúdo limpo (T-153), nunca pelo conteúdo.
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
-        "inteiro": ["nome_exibicao", "cor_marca", "logo"]
+        "inteiro": ["nome_exibicao", "cor_marca", "logo", "limite_dias_parado"]
     }
 
     class Meta:
@@ -82,6 +84,10 @@ class ConfiguracaoEmpresa(ModeloBase):
             models.CheckConstraint(
                 condition=models.Q(cor_marca="") | models.Q(cor_marca__regex=r"^#[0-9A-F]{6}$"),
                 name="configuracao_cor_marca_hex",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(limite_dias_parado__gte=1, limite_dias_parado__lte=365),
+                name="configuracao_limite_dias_parado_1_a_365",
             ),
         ]
 

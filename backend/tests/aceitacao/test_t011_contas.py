@@ -1650,6 +1650,8 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         "api/painel/inicio/",
         # T-181: Configurações, só contagens e textos (sem auditoria e exportar para o suporte).
         "api/configuracoes/",
+        # T-486 (VEI-19): o limite de dias em estoque; o suporte lê e nunca muda (PATCH proibido).
+        "api/configuracoes/estoque/",
         # T-262: o suporte lê o ramo e nunca troca (PUT proibido). T-257: catálogo de modelos.
         "api/ramo/",
         "api/veiculos/modelos/",

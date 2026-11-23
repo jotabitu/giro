@@ -44,6 +44,15 @@ def margem_minima_pct() -> Decimal | None:
     return valor
 
 
+LIMITE_DIAS_PARADO_PADRAO = 30
+
+
+def limite_dias_parado() -> int:
+    """VEI-19: acima destes dias à venda, o veículo está parado. Sem a linha, o padrão 30."""
+    valor = ConfiguracaoEmpresa.objects.values_list("limite_dias_parado", flat=True).first()
+    return int(valor) if valor is not None else LIMITE_DIAS_PARADO_PADRAO
+
+
 # --- Ramo (PLT-12, ADR 0024, T-224) ---
 
 DESCRICOES_DAS_ATIVIDADES = {

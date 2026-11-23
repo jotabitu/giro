@@ -1599,6 +1599,54 @@ paths:
               schema:
                 $ref: '#/components/schemas/Configuracoes'
           description: ''
+  /api/configuracoes/estoque/:
+    get:
+      operationId: configuracoes_estoque_retrieve
+      description: |-
+        O limite de dias em estoque da tela Empresa e marca (VEI-19). Todos os perfis leem, para
+        o campo vir travado; só o administrador muda (403 aos outros). O suporte lê e nunca muda.
+      summary: Limite de dias em estoque da empresa (VEI-19)
+      tags:
+      - configuracoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstoqueDaEmpresa'
+          description: ''
+    patch:
+      operationId: configuracoes_estoque_partial_update
+      description: |-
+        O limite de dias em estoque da tela Empresa e marca (VEI-19). Todos os perfis leem, para
+        o campo vir travado; só o administrador muda (403 aos outros). O suporte lê e nunca muda.
+      summary: Mudar o limite de dias em estoque (VEI-19, só o administrador)
+      tags:
+      - configuracoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMudarEstoqueDaEmpresa'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMudarEstoqueDaEmpresa'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMudarEstoqueDaEmpresa'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstoqueDaEmpresa'
+          description: ''
+        '422':
+          description: '`VEI-19`: fora de 1 a 365, vazio ou não inteiro'
   /api/contratos/marcadores/:
     get:
       operationId: contratos_marcadores_retrieve
@@ -6462,7 +6510,7 @@ paths:
   /api/veiculos/:
     get:
       operationId: veiculos_list
-      summary: Frota (VEI-06)
+      summary: Frota (VEI-06, VEI-18)
       parameters:
       - in: query
         name: busca
@@ -6486,6 +6534,7 @@ paths:
           type: string
           enum:
           - -km_atual
+          - em_estoque
           - modelo
           - placa
       - in: query
@@ -12295,6 +12344,83 @@ components:
       - contexto
       - mais_antigo_em
       - quantidade
+    EstoqueAVenda:
+      type: object
+      description: VEI-20. Só para administrador e gerente; ausente para os outros
+        perfis.
+      properties:
+        quantidade:
+          type: integer
+          description: Veículos `a_venda` no escopo.
+        capital_imobilizado_centavos:
+          type: integer
+        veiculos_na_conta:
+          type: integer
+          description: Os com valor de compra.
+        custo_medio_centavos:
+          type: integer
+          nullable: true
+        margem_centavos:
+          type: integer
+          nullable: true
+        margem_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          nullable: true
+        margem_negativa:
+          type: boolean
+        sem_valor_compra:
+          type: integer
+        sem_valor_venda:
+          type: integer
+        subtitulo:
+          type: string
+        legenda_capital:
+          type: string
+        legenda_custo_medio:
+          type: string
+          nullable: true
+        margem_texto:
+          type: string
+          nullable: true
+          description: 'Com o sinal: −R$ 750,00.'
+        legenda_margem:
+          type: string
+          nullable: true
+        avisos:
+          type: array
+          items:
+            type: string
+      required:
+      - avisos
+      - capital_imobilizado_centavos
+      - custo_medio_centavos
+      - legenda_capital
+      - legenda_custo_medio
+      - legenda_margem
+      - margem_centavos
+      - margem_negativa
+      - margem_pct
+      - margem_texto
+      - quantidade
+      - sem_valor_compra
+      - sem_valor_venda
+      - subtitulo
+      - veiculos_na_conta
+    EstoqueDaEmpresa:
+      type: object
+      description: 'VEI-19 (T-486): o painel "Estoque à venda" de Empresa e marca.'
+      properties:
+        limite_dias_parado:
+          type: integer
+          description: Acima destes dias à venda, o veículo está parado. De 1 a 365.
+        pode_editar:
+          type: boolean
+          description: Só o administrador altera; para os outros, o campo vem travado.
+      required:
+      - limite_dias_parado
+      - pode_editar
     Etapa:
       type: object
       properties:
@@ -14318,6 +14444,10 @@ components:
           allOf:
           - $ref: '#/components/schemas/CaixaHoje'
           nullable: true
+        estoque_a_venda:
+          $ref: '#/components/schemas/EstoqueAVenda'
+        ticket_medio:
+          $ref: '#/components/schemas/TicketMedio'
       required:
       - atencao
       - atualizado_em
@@ -14352,6 +14482,12 @@ components:
           $ref: '#/components/schemas/Pendencias'
         frota_filial:
           $ref: '#/components/schemas/FrotaDaFilial'
+        estoque_a_venda:
+          $ref: '#/components/schemas/EstoqueAVenda'
+        parados_a_venda:
+          $ref: '#/components/schemas/ParadosAVenda'
+        ticket_medio:
+          $ref: '#/components/schemas/TicketMedio'
       required:
       - aprovacoes
       - atualizado_em
@@ -17300,6 +17436,45 @@ components:
       - ordem
       - saiu_em
       - servico
+    ParadoAVenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        veiculo:
+          type: string
+        dias_em_estoque:
+          type: integer
+          nullable: true
+        parado:
+          type: boolean
+      required:
+      - dias_em_estoque
+      - id
+      - parado
+      - placa
+      - veiculo
+    ParadosAVenda:
+      type: object
+      description: 'VEI-18, VEI-19: os 5 com mais dias da filial, na ordem da lista.'
+      properties:
+        limite_dias_parado:
+          type: integer
+        acima_do_limite:
+          type: integer
+        subtitulo:
+          type: string
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParadoAVenda'
+      required:
+      - acima_do_limite
+      - itens
+      - limite_dias_parado
+      - subtitulo
     ParcelaAtrasada:
       type: object
       properties:
@@ -17810,6 +17985,13 @@ components:
           maxLength: 80
         texto:
           type: string
+    PatchedMudarEstoqueDaEmpresa:
+      type: object
+      properties:
+        limite_dias_parado:
+          type: integer
+          maximum: 365
+          minimum: 1
     PatchedPedidoDeDadosFiscais:
       type: object
       description: Parcial. `endereco` vem inteiro (nulo é recusado); o CNPJ não muda
@@ -21189,6 +21371,54 @@ components:
       - dias_restantes
       - fim
       - texto
+    TicketMedio:
+      type: object
+      description: VEN-12. Só para administrador e gerente; ausente para os outros
+        perfis.
+      properties:
+        mes:
+          type: string
+        vendas:
+          type: integer
+        soma_centavos:
+          type: integer
+        ticket_centavos:
+          type: integer
+          nullable: true
+        subtitulo:
+          type: string
+        rotulo:
+          type: string
+        resumo:
+          type: string
+          nullable: true
+          description: 4 vendas · R$ 31.200,00
+        vazio:
+          type: string
+          nullable: true
+          description: Sem vendas em novembro.
+        mes_anterior:
+          $ref: '#/components/schemas/VendasDoMes'
+        variacao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+          nullable: true
+        comparacao:
+          type: string
+          nullable: true
+      required:
+      - comparacao
+      - mes
+      - mes_anterior
+      - resumo
+      - rotulo
+      - soma_centavos
+      - subtitulo
+      - ticket_centavos
+      - variacao_pct
+      - vazio
+      - vendas
     TipoA50Enum:
       enum:
       - lava_jato
@@ -21944,6 +22174,17 @@ components:
         aviso_preco:
           type: string
           nullable: true
+        a_venda_desde:
+          type: string
+          format: date
+          nullable: true
+          description: Dia da entrada no estoque (São Paulo).
+        dias_em_estoque:
+          type: integer
+          nullable: true
+        parado:
+          type: boolean
+          description: Dias em estoque acima do limite da empresa (VEI-19).
       required:
       - acoes
       - ano_fabricacao
@@ -22153,6 +22394,17 @@ components:
         aviso_preco:
           type: string
           nullable: true
+        a_venda_desde:
+          type: string
+          format: date
+          nullable: true
+          description: Dia da entrada no estoque (São Paulo).
+        dias_em_estoque:
+          type: integer
+          nullable: true
+        parado:
+          type: boolean
+          description: Dias em estoque acima do limite da empresa (VEI-19).
         documento:
           $ref: '#/components/schemas/DocumentoDoVeiculo'
         rastreador:
@@ -22356,6 +22608,17 @@ components:
         aviso_preco:
           type: string
           nullable: true
+        a_venda_desde:
+          type: string
+          format: date
+          nullable: true
+          description: Dia da entrada no estoque (São Paulo).
+        dias_em_estoque:
+          type: integer
+          nullable: true
+        parado:
+          type: boolean
+          description: Dias em estoque acima do limite da empresa (VEI-19).
         documento:
           $ref: '#/components/schemas/DocumentoDoVeiculo'
         rastreador:
@@ -22381,6 +22644,8 @@ components:
             $ref: '#/components/schemas/HistoricoStatus'
         vendas:
           nullable: true
+        limite_dias_parado:
+          type: integer
       required:
       - acoes
       - ano_fabricacao
@@ -22603,6 +22868,23 @@ components:
       - codigo
       - id
       - transferencia
+    VendasDoMes:
+      type: object
+      properties:
+        mes:
+          type: string
+        vendas:
+          type: integer
+        soma_centavos:
+          type: integer
+        ticket_centavos:
+          type: integer
+          nullable: true
+      required:
+      - mes
+      - soma_centavos
+      - ticket_centavos
+      - vendas
     Verificar2FA:
       type: object
       properties:

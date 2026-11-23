@@ -176,6 +176,38 @@ A resposta tem sempre `variante` (a mesma de `eu.navegacao.inicio.variante`), `s
 - `em_manutencao` vem com `valor: null` até o app `manutencao` existir (o frontend esconde o cartão).
 - `pendencias` (T-420, `LOC-16`, `VEN-11`): o mesmo formato das pendências do administrador, só com as transferências no Detran pendentes das filiais do escopo do gerente (`USR-07`), uma por venda, a mais antiga primeiro, com `destino` no detalhe da locação. `titulo`: "1 transferência no Detran pendente", "2 transferências no Detran pendentes"; com zero, "Nenhuma transferência no Detran pendente" e `itens` vazio.
 
+### Estoque à venda, parados e ticket médio (T-486, T-487; `VEI-18`, `VEI-19`, `VEI-20`, `VEN-12`)
+
+Só para **administrador** (variante `geral`) e **gerente** (variante `gerente`): `estoque_a_venda` e `ticket_medio` nas duas, `parados_a_venda` só no gerente. Para o vendedor, o financeiro e o vistoriador as chaves ficam **ausentes** (não zeradas). O escopo é o do `X-Filial` (`USR-07`). Tudo vem calculado; a tela só mostra. Caso da Filial Centro em 07 out (`dados-de-teste.md`):
+
+```json
+"estoque_a_venda": {
+  "quantidade": 12, "subtitulo": "12 veículos à venda · Filial Centro",
+  "capital_imobilizado_centavos": 3950000, "veiculos_na_conta": 3,
+  "legenda_capital": "compra e despesas de 3 veículos",
+  "custo_medio_centavos": 1316667, "legenda_custo_medio": "3 veículos na conta",
+  "margem_centavos": 210000, "margem_pct": "5.05", "margem_negativa": false,
+  "margem_texto": "R$ 2.100,00", "legenda_margem": "5,05% sobre o valor de venda",
+  "sem_valor_compra": 9, "sem_valor_venda": 0,
+  "avisos": ["9 veículos sem valor de compra não entram na conta."]
+},
+"parados_a_venda": {
+  "limite_dias_parado": 30, "acima_do_limite": 2, "subtitulo": "2 acima de 30 dias",
+  "itens": [ { "id": 81, "placa": "PVE1A07", "veiculo": "Honda Biz 125", "dias_em_estoque": 53, "parado": true } ]
+},
+"ticket_medio": {
+  "mes": "outubro", "vendas": 0, "soma_centavos": 0, "ticket_centavos": null,
+  "subtitulo": "Vendas de outubro · Filial Centro", "rotulo": "Ticket médio de outubro",
+  "resumo": null, "vazio": "Sem vendas em outubro.",
+  "mes_anterior": { "mes": "setembro", "vendas": 0, "soma_centavos": 0, "ticket_centavos": null },
+  "variacao_pct": null, "comparacao": null
+}
+```
+
+- `estoque_a_venda` (`VEI-20`): custo = compra + despesas ligadas sem as `recusada` (o "pago na moto" da `VEI-13`). O veículo sem valor de compra fica fora do capital, do custo médio e da margem (contado em `sem_valor_compra`); o com compra e sem valor de venda entra no capital e no custo médio e fica fora da margem (`sem_valor_venda`). `margem_pct` = soma das margens ÷ soma dos valores de venda, 2 casas, `ROUND_HALF_UP`. Sem nenhum com compra: capital 0, `custo_medio_centavos`, `margem_*` e as legendas de custo e margem `null`, e `legenda_capital` "Nenhum veículo à venda com valor de compra.". Margem negativa: `margem_negativa: true`, `margem_texto` "−R$ 750,00" e `legenda_margem` "−5,68% sobre o valor de venda" (sinal de menos U+2212); a tela usa o tom crítico.
+- `parados_a_venda` (`VEI-18`, `VEI-19`): os 5 `a_venda` da filial com mais dias, na ordem da lista com `?ordem=em_estoque`; `acima_do_limite` conta todos os `parado` da filial (não só os 5). Sem nenhum, `itens` vazio e a tela diz "Nenhum veículo à venda nesta filial.". `placa` sem hífen. "Ver todos" abre a Frota com `?status=a_venda`.
+- `ticket_medio` (`VEN-12`): vendas `vendida` no mês corrente (data de `vendida_em` em `America/Sao_Paulo`) que continuam `vendida`, sem a venda da quitação (`VEN-11`). `ticket_centavos` = soma ÷ número, `ROUND_HALF_UP`; `variacao_pct` contra o mês anterior inteiro, 2 casas, com o sinal. Sem venda no mês: `vazio` "Sem vendas em novembro." e sem comparação; sem venda no mês anterior: `comparacao` "Sem vendas em setembro para comparar.". Com vendas: `resumo` "4 vendas · R$ 31.200,00" e `comparacao` "−43,27% em relação a setembro (R$ 13.750,00)". **Até o fluxo de venda (T-502) concluir vendas, o bloco vem sempre vazio**: não há venda `vendida` fora da quitação.
+
 ### Variante `vendedor` (fase 1: locação; tela `Vendedor` completa na fase 2)
 
 ```json

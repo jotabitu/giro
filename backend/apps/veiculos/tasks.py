@@ -37,3 +37,19 @@ def consolidar_precos_agendados(schema_name: str) -> dict[str, int]:
 def consolidar_precos_agendados_de_todas(**_: Any) -> int:
     """Chamada pelo Beat: uma tarefa por empresa que opera."""
     return para_cada_empresa(consolidar_precos_agendados)
+
+
+@shared_task(name="aut_18_veiculos_parados")
+@tarefa_de_empresa
+def aut_18_veiculos_parados(schema_name: str) -> dict[str, int]:
+    """AUT-18 às 07:00: avisa os gerentes do veículo à venda parado (VEI-19), uma vez por
+    entrada no estoque. Idempotente."""
+    from .services import avisar_veiculos_parados
+
+    return avisar_veiculos_parados(relogio.hoje())
+
+
+@shared_task(name="aut_18_veiculos_parados_de_todas")
+def aut_18_veiculos_parados_de_todas(**_: Any) -> int:
+    """Chamada pelo Beat: uma tarefa por empresa que opera."""
+    return para_cada_empresa(aut_18_veiculos_parados)
