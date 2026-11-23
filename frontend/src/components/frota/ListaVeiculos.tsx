@@ -50,9 +50,13 @@ const TODAS_AS_COLUNAS: ColunaTabela<Veiculo>[] = [
     chave: "situacao",
     titulo: "Situação",
     celula: (v) => (
-      <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
-        {v.situacao.rotulo}
-      </StatusBadge>
+      <>
+        <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
+          {v.situacao.rotulo}
+        </StatusBadge>
+        {/* VEI-15: o aviso vem pronto da API, em qualquer situação; some quando um plano é ligado. */}
+        {v.aviso_preco && <span className="mt-1 block max-w-[260px] text-[13px] leading-[18px] text-ink-muted">{v.aviso_preco}</span>}
+      </>
     ),
   },
   { chave: "km", titulo: "Quilometragem", mono: true, celula: (v) => km(v.km_atual) },
@@ -111,6 +115,7 @@ function CartaoDoVeiculo({ v }: { v: Veiculo }) {
           <span className="block truncate">{fato.valor}</span>
         </span>
       </span>
+      {v.aviso_preco && <span className="border-t border-line pt-3 text-[13px] leading-[18px] text-ink-muted">{v.aviso_preco}</span>}
     </Link>
   );
 }

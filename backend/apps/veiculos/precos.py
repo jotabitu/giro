@@ -59,15 +59,29 @@ def custo_mes(
     seguro_mes: int,
     rastreador_mes: int,
     ipva_ano: int,
-    pago_na_moto: int,
+    pago_na_moto: int | None,
     revenda_estimada: int | None,
 ) -> Decimal:
-    """manutenção + seguro + IPVA ÷ 12 + rastreador + (pago na moto − revenda) ÷ 24. Sem revenda
-    estimada, sem desvalorização."""
+    """manutenção + seguro + IPVA ÷ 12 + rastreador + desvalorização (VEI-13)."""
     custo = Decimal(manutencao_mes + seguro_mes + rastreador_mes) + Decimal(ipva_ano) / 12
-    if revenda_estimada is not None:
-        custo += Decimal(pago_na_moto - revenda_estimada) / MESES_DA_DESVALORIZACAO
-    return custo
+    return custo + desvalorizacao_mes(pago_na_moto, revenda_estimada)
+
+
+def desvalorizacao_mes(pago_na_moto: int | None, revenda_estimada: int | None) -> Decimal:
+    """max(0, pago na moto − revenda) ÷ 24 (VEI-13, padrão A de 22 nov 2026, T-505). Sem valor de
+    compra (pago `None`) ou sem revenda estimada, zero; a revenda acima do pago também dá zero."""
+    if pago_na_moto is None or revenda_estimada is None:
+        return Decimal(0)
+    return max(Decimal(0), Decimal(pago_na_moto - revenda_estimada)) / MESES_DA_DESVALORIZACAO
+
+
+def revenda_acima_do_pago(pago_na_moto: int | None, revenda_estimada: int | None) -> bool:
+    """VEI-13: a revenda passa do que foi pago, e a desvalorização fica em R$ 0,00."""
+    return (
+        pago_na_moto is not None
+        and revenda_estimada is not None
+        and revenda_estimada > pago_na_moto
+    )
 
 
 def receita_mes(valor: int, periodo: str, ocupacao_pct: Decimal) -> Decimal:
@@ -81,6 +95,8 @@ class Margem:
     lucro_mes_centavos: int
     margem_pct: Decimal | None  # nula quando a receita é zero
     abaixo_da_minima: bool
+    # VEI-13: sem valor de compra, a conta não tem a compra; a tela marca e não pinta de amarelo.
+    sem_custo_compra: bool = False
 
 
 def margem(
@@ -89,20 +105,23 @@ def margem(
     ocupacao_pct: Decimal | None,
     custo: Decimal,
     margem_minima_pct: Decimal | None = None,
+    sem_custo_compra: bool = False,
 ) -> Margem | None:
     """lucro = receita − custo; margem = lucro ÷ receita. Sem ocupação, `None` ("Informe a
-    ocupação"). Abaixo da margem mínima da empresa, a faixa fica amarela."""
+    ocupação"). Abaixo da margem mínima da empresa, a faixa fica amarela, menos sem custo de
+    compra (VEI-13, T-505)."""
     if ocupacao_pct is None:
         return None
     receita = receita_mes(valor, periodo, ocupacao_pct)
     lucro = receita - custo
     valor_margem = pct(lucro / receita * CEM) if receita > 0 else None
     abaixo = (
-        margem_minima_pct is not None
+        not sem_custo_compra
+        and margem_minima_pct is not None
         and valor_margem is not None
         and valor_margem < margem_minima_pct
     )
-    return Margem(centavos(receita), centavos(lucro), valor_margem, abaixo)
+    return Margem(centavos(receita), centavos(lucro), valor_margem, abaixo, sem_custo_compra)
 
 
 # --- VEI-16: locação com compra ---
@@ -180,6 +199,8 @@ class ResultadoCompra:
     lucro_sobre_recebe_pct: Decimal | None
     venda_abaixo_do_pago: bool
     pede_confirmacao_juros: bool
+    # VEI-16: sem valor de compra, sem lucro e sem margem sobre o pago (T-505).
+    sem_custo_compra: bool = False
     nas_periodicidades: list[ParcelaNaPeriodicidade] = field(default_factory=list)
 
 
@@ -255,6 +276,7 @@ def simular_compra(
         lucro_sobre_recebe_pct=CEM - pago_recebe if pago_recebe is not None else None,
         venda_abaixo_do_pago=pago_na_moto is not None and valor_venda < pago_na_moto,
         pede_confirmacao_juros=juros > JUROS_SEM_CONFIRMACAO_PCT,
+        sem_custo_compra=pago_na_moto is None,
         nas_periodicidades=_nas_periodicidades(financiado, meses, parcelas, adicional, juros),
     )
 
@@ -309,19 +331,21 @@ class Resultado:
     compra: ResultadoCompra | None
     alertas: list[dict[str, str]]
     pede_confirmacao_juros: bool
+    sem_custo_compra: bool = False
+    revenda_acima_do_pago: bool = False
 
 
 def simular(entrada: Entrada) -> Resultado:
     """Custo por mês, a margem de cada plano e o resultado da compra, sem gravar (ADR 0041).
     A compra só se calcula com valor de venda e entrada menor que ele; `digitar` com parcela que
     não cobre levanta `ParcelaNaoCobre` (o serviço responde no campo)."""
-    pago = entrada.pago_na_moto or 0
+    sem_compra = entrada.pago_na_moto is None
     custo = custo_mes(
         manutencao_mes=entrada.custos.manutencao_mes,
         seguro_mes=entrada.custos.seguro_mes,
         rastreador_mes=entrada.custos.rastreador_mes,
         ipva_ano=entrada.custos.ipva_ano,
-        pago_na_moto=pago,
+        pago_na_moto=entrada.pago_na_moto,
         revenda_estimada=entrada.custos.revenda_estimada,
     )
     margens = {
@@ -331,6 +355,7 @@ def simular(entrada: Entrada) -> Resultado:
             entrada.custos.ocupacao_esperada_pct,
             custo,
             entrada.margem_minima_pct,
+            sem_compra,
         )
         for plano in entrada.planos
     }
@@ -357,4 +382,14 @@ def simular(entrada: Entrada) -> Resultado:
     pede = bool(compra and compra.pede_confirmacao_juros)
     if pede:
         alertas.append({"codigo": "VEI-16", "mensagem": ALERTA_JUROS})
-    return Resultado(centavos(custo), margens, compra, alertas, pede)
+    return Resultado(
+        centavos(custo),
+        margens,
+        compra,
+        alertas,
+        pede,
+        sem_custo_compra=sem_compra,
+        revenda_acima_do_pago=revenda_acima_do_pago(
+            entrada.pago_na_moto, entrada.custos.revenda_estimada
+        ),
+    )

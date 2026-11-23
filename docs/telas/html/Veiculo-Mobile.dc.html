@@ -1,5 +1,6 @@
 <!doctype html>
 <!-- ajustada no repositório: 03/11/2026, T-414 -->
+<!-- ajustada no repositório: 23/11/2026, T-486 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -44,7 +45,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .h2{margin:0;font-size:20px;line-height:26px;font-weight:600}
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1980px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2900px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 
 <header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
 <a href="Frota-Mobile.dc.html" class="wl-icon-btn wl-icon-btn--sm" aria-label="Voltar" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
@@ -121,6 +122,34 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <section class="card"><div style="font-weight: 600; font-size: 18px;">Manutenções</div><div class="kv"><span>Troca de óleo · 12 set · 18.900 km</span><span>R$ 48,00</span></div><div class="kv"><span>Pastilha de freio · 20 jul</span><span>R$ 95,00</span></div><div class="kv"><span>Revisão 15 mil · 02 jul</span><span>R$ 210,00</span></div></section>
 <section class="card"><div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-weight: 600; font-size: 18px;">Movimentações</span><a href="Movimentacoes-Mobile.dc.html" class="lbl">ver todas</a></div><div class="lbl" style="font-size: 14px; margin-top: 6px;">Nenhuma movimentação. Veículo alugado não se movimenta.</div></section>
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"><a href="Manutencao-Mobile.dc.html" class="wl-btn" style="justify-content: center; text-decoration: none;">Oficina</a><button class="wl-btn wl-btn--solid" style="justify-content: center;">Colocar à venda</button></div>
+<section class="card">
+<div style="font-weight: 600; font-size: 18px;">Estados desta tela</div>
+<div class="lbl" style="font-size: 14px; margin-top: 4px;">Casos da VEI-18 e da VEI-19. Na tela real, aparece um de cada vez. Tudo que é número vem da API; a tela só mostra.</div>
+
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Veículo à venda e parado: PVE-1A07, 53 dias com o limite de 30</div>
+<div style="margin-top: 8px; padding: 14px; border-radius: 18px; background: var(--surface-sunken);">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;"><span style="font-weight: 600;">Agora</span><span class="wl-badge wl-badge--sm wl-badge--warning">À venda</span></div>
+<div class="kv"><span>À venda desde</span><span>15 ago · 53 dias</span></div>
+<div class="kv"><span>Limite da empresa</span><span>30 dias</span></div></div>
+
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Veículo à venda dentro do limite: PVG-3C29, 30 dias</div>
+<div style="margin-top: 8px; padding: 14px; border-radius: 18px; background: var(--surface-sunken);">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;"><span style="font-weight: 600;">Agora</span><span class="wl-badge wl-badge--sm">À venda</span></div>
+<div class="kv"><span>À venda desde</span><span>07 set · 30 dias</span></div></div>
+
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Veículo colocado à venda hoje</div>
+<div style="margin-top: 8px; padding: 14px; border-radius: 18px; background: var(--surface-sunken);">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;"><span style="font-weight: 600;">Agora</span><span class="wl-badge wl-badge--sm">À venda</span></div>
+<div class="kv"><span>À venda desde</span><span>07 out · Hoje</span></div></div>
+
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Veículo à venda sem entrada no histórico</div>
+<div style="margin-top: 8px; padding: 14px; border-radius: 18px; background: var(--surface-sunken);">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;"><span style="font-weight: 600;">Agora</span><span class="wl-badge wl-badge--sm">À venda</span></div>
+<div class="kv"><span>À venda desde</span><span>—</span></div></div>
+
+<div class="lbl" style="margin-top: 12px;">O vistoriador vê do veículo só km e avarias e não recebe estes campos. O veículo fora de "À venda" não mostra nada disso.</div>
+</section>
+
 <nav aria-label="Navegação principal" style="position: absolute; left: 16px; right: 16px; bottom: 20px; display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-pop);">
 <a href="Dashboard-Mobile.dc.html" aria-label="Início" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg></a>
 <a href="Frota-Mobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 999px; background: var(--solid); color: var(--on-solid); text-decoration: none; font-size: 14px; font-weight: 500;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos</a>
@@ -130,7 +159,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </nav>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1980}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2900}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');

@@ -11203,6 +11203,10 @@ components:
           nullable: true
         custo_mes_centavos:
           type: integer
+        sem_custo_compra:
+          type: boolean
+        revenda_acima_do_pago:
+          type: boolean
       required:
       - custo_mes_centavos
       - ipva_ano_centavos
@@ -11210,8 +11214,10 @@ components:
       - manutencao_mes_centavos
       - ocupacao_esperada_pct
       - rastreador_mes_centavos
+      - revenda_acima_do_pago
       - revenda_estimada_centavos
       - seguro_mes_centavos
+      - sem_custo_compra
     CustosEntrada:
       type: object
       properties:
@@ -16226,11 +16232,14 @@ components:
           nullable: true
         abaixo_da_minima:
           type: boolean
+        sem_custo_compra:
+          type: boolean
       required:
       - abaixo_da_minima
       - lucro_mes_centavos
       - margem_pct
       - receita_mes_centavos
+      - sem_custo_compra
     MeioDePagarEnum:
       enum:
       - cartao
@@ -20400,6 +20409,8 @@ components:
           format: decimal
           pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
           nullable: true
+        sem_custo_compra:
+          type: boolean
       required:
       - adicional_centavos
       - financiado_centavos

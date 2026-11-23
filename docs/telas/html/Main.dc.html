@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- ajustada no repositório: 23/11/2026, T-487 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -13,6 +14,10 @@
 <style>
 body{margin:0}
 a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.est{display:flex;flex-direction:column;gap:12px}
+.est h3{margin:0;font-size:15px;font-weight:600}
+.est .lbl{font-size:13px;color:var(--ink-muted)}
+.big{margin:4px 0 8px;font-size:32px;line-height:36px;font-weight:600;letter-spacing:-0.03em}
 </style>
 </helmet>
 <div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1200px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
@@ -78,6 +83,23 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </div>
 </section>
 
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<section class="wl-panel" style="flex: 2 1 560px; min-width: 0;">
+<div class="wl-panel__head"><div><h2 class="wl-panel__title">Estoque à venda</h2><p class="wl-panel__sub">12 veículos à venda · Filial Centro</p></div></div>
+<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Capital imobilizado</div><div class="wl-kpi__value" style="font-size: 32px; line-height: 36px;">R$ 39.500,00</div><div class="wl-kpi__meta">compra e despesas de 3 veículos</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Custo médio por unidade</div><div class="wl-kpi__value" style="font-size: 32px; line-height: 36px;">R$ 13.166,67</div><div class="wl-kpi__meta">3 veículos na conta</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Margem potencial</div><div class="wl-kpi__value" style="font-size: 32px; line-height: 36px;">R$ 2.100,00</div><div class="wl-kpi__meta">5,05% sobre o valor de venda</div></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px;"><div class="wl-note wl-note--info" role="note" style="flex: 1 1 300px;">9 veículos sem valor de compra não entram na conta.</div><a class="wl-btn wl-btn--quiet wl-btn--sm" href="Frota-Desktop.dc.html" style="text-decoration: none;">Ver na lista</a></div>
+</section>
+<section class="wl-panel" style="flex: 1 1 300px; min-width: 0;">
+<div class="wl-panel__head"><div><h2 class="wl-panel__title">Ticket médio do mês</h2><p class="wl-panel__sub">Vendas de outubro · Filial Centro</p></div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Ticket médio de outubro</div><div class="wl-kpi__value" style="font-size: 32px; line-height: 36px;">R$ 7.800,00</div><div class="wl-kpi__meta">4 vendas · R$ 31.200,00</div></div>
+<p style="margin: 12px 0 0; font-size: 14px; color: var(--ink-muted);">−43,27% em relação a setembro (R$ 13.750,00)</p>
+</section>
+</div>
+
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px; align-items: start;">
 
 <section class="wl-panel" style="grid-column: span 1;">
@@ -128,6 +150,35 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </div>
 
 </div>
+
+<section class="wl-panel">
+<div class="wl-panel__head"><div><h2 class="wl-panel__title">Estados desta tela</h2><p class="wl-panel__sub">Casos da VEI-20 e da VEN-12. Na tela real, aparece um de cada vez. Tudo que é número vem da API; a tela só mostra.</p></div></div>
+<div style="display: flex; flex-direction: column; gap: 32px;">
+
+<div class="est"><h3>Estoque à venda: só o PVG-3C29 tem valor de compra, e a venda fica abaixo do custo</h3>
+<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Capital imobilizado</div><div class="big">R$ 13.950,00</div><div class="wl-kpi__meta">compra e despesas de 1 veículo</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Custo médio por unidade</div><div class="big">R$ 13.950,00</div><div class="wl-kpi__meta">1 veículo na conta</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Margem potencial</div><div class="big" style="color: var(--critical-ink);">−R$ 750,00</div><div class="wl-kpi__meta" style="color: var(--critical-ink);">−5,68% sobre o valor de venda</div></div>
+</div></div>
+
+<div class="est"><h3>Estoque à venda: nenhum veículo à venda com valor de compra</h3>
+<div class="wl-kpi"><div class="wl-kpi__label">Capital imobilizado</div><div class="big">R$ 0,00</div><div class="wl-kpi__meta">Nenhum veículo à venda com valor de compra.</div></div></div>
+
+<div class="est"><h3>Estoque à venda: veículo com compra e sem valor de venda</h3>
+<div class="wl-note wl-note--info" role="note">1 veículo sem valor de venda.</div>
+<span class="lbl">O veículo entra no capital e no custo médio e fica fora da margem.</span></div>
+
+<div class="est"><h3>Ticket médio: sem vendas no mês, até o fluxo de venda entrar (VEN-12)</h3>
+<div class="wl-kpi"><div class="wl-kpi__label">Ticket médio do mês</div><div style="margin: 4px 0 0;">Sem vendas em novembro.</div></div>
+<span class="lbl">A venda da quitação (VEN-11, R$ 0,00) não conta. A variação não aparece.</span></div>
+
+<div class="est"><h3>Ticket médio: sem vendas no mês anterior</h3>
+<div class="wl-kpi"><div class="wl-kpi__label">Ticket médio de outubro</div><div class="big">R$ 7.800,00</div><div class="wl-kpi__meta">4 vendas · R$ 31.200,00</div></div>
+<span class="lbl">Sem vendas em setembro para comparar.</span></div>
+
+</div>
+</section>
 </main>
 </div>
 </x-dc>

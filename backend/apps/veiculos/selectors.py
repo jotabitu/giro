@@ -771,6 +771,7 @@ def _margem(valor: precos.Margem | None) -> dict[str, Any] | None:
         "lucro_mes_centavos": valor.lucro_mes_centavos,
         "margem_pct": valor.margem_pct,
         "abaixo_da_minima": valor.abaixo_da_minima,
+        "sem_custo_compra": valor.sem_custo_compra,
     }
 
 
@@ -817,6 +818,7 @@ def _compra(
             calculo["margem_sobre_pago_pct"] = resultado.margem_sobre_pago_pct
             calculo["pago_sobre_recebe_pct"] = resultado.pago_sobre_recebe_pct
             calculo["lucro_sobre_recebe_pct"] = resultado.lucro_sobre_recebe_pct
+            calculo["sem_custo_compra"] = resultado.sem_custo_compra
         dados["resultado"] = calculo
     return dados
 
@@ -879,6 +881,8 @@ def precos_do_veiculo(
             # VEI-13: o IPVA entra no custo ÷ 12; a tela mostra "R$ 39,00 por mês".
             "ipva_mes_centavos": precos.centavos(Decimal(custos.ipva_ano_centavos) / 12),
             "custo_mes_centavos": resultado.custo_mes_centavos,
+            "sem_custo_compra": resultado.sem_custo_compra,
+            "revenda_acima_do_pago": resultado.revenda_acima_do_pago,
         }
     return dados
 
