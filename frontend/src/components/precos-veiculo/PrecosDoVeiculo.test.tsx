@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { PrecosDoVeiculo as Precos } from "@/lib/api";
-import { PRECOS_POP } from "@/testes/falsos/falso-precos-veiculo";
+import { PRECOS_BIZ_SEM_COMPRA, PRECOS_POP } from "@/testes/falsos/falso-precos-veiculo";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} }), usePathname: () => "/veiculos/900/precos", useSearchParams: () => new URLSearchParams() }));
 
@@ -144,6 +144,41 @@ describe("tela de preços do veículo", () => {
     expect(tv).toContain("Recebe pela moto");
   });
 
+  it("vei_13_sem_valor_de_compra_marca_a_margem_sem_faixa_amarela", () => {
+    const hb = pagina(PRECOS_BIZ_SEM_COMPRA);
+    const tb = texto(hb);
+    expect(tb).toContain("só despesas R$ 0,00");
+    expect(tb).toContain("R$ 330,00");
+    expect(tb).toContain("manutenção, seguro, IPVA, rastreador · sem custo de compra");
+    expect(tb).toContain("A margem não conta a compra desta moto. Informe o valor de compra para ver a margem real.");
+    expect(tb).toContain("70,1%");
+    expect(tb).toContain("sem custo de compra");
+    // Abaixo da mínima de 80%, mas sem a faixa amarela: a API manda `abaixo_da_minima: false` e a marca deixa o tom neutro.
+    expect(hb).not.toContain("wl-badge--warning");
+    // A dica vem no Aviso info do design system; a marca da coluna Margem não quebra linha.
+    expect(hb).toMatch(/class="wl-note wl-note--info"[^>]*>(<[^>]+>)*Margem sem custo de compra\./);
+    expect(hb).toMatch(/whitespace-nowrap[^"]*"[^>]*>sem custo de compra</);
+    expect(texto(pagina(PRECOS_POP))).not.toContain("sem custo de compra");
+    expect(pagina(PRECOS_POP)).not.toContain("wl-note--info");
+  });
+
+  it("vei_16_sem_valor_de_compra_sem_lucro_nem_margem_sobre_o_pago", () => {
+    const tb = texto(pagina(PRECOS_BIZ_SEM_COMPRA));
+    expect(tb).toContain("R$ 191,01");
+    expect(tb).toContain("R$ 17.768,96");
+    expect(tb).not.toContain("Margem sobre o pago");
+    expect(tb).not.toContain("R$ 3.968,96");
+    expect(pagina(PRECOS_BIZ_SEM_COMPRA)).toMatch(/class="wl-note wl-note--info"[^>]*>(<[^>]+>)*Lucro e margem sem custo de compra\./);
+  });
+
+  it("vei_13_revenda_acima_do_pago_mostra_a_dica", () => {
+    const custos = { ...(PRECOS_POP.custos as NonNullable<Precos["custos"]>), revenda_acima_do_pago: true };
+    const hr = pagina({ ...PRECOS_POP, custos });
+    expect(hr).toMatch(/class="wl-note wl-note--info"[^>]*>A revenda passa do que foi pago: sem desvalorização no custo\./);
+    expect(texto(hr)).toContain("Quanto você espera vender a moto daqui a 24 meses.");
+    expect(t).not.toContain("A revenda passa do que foi pago");
+  });
+
   it("vei_12_carregando_e_erro", () => {
     const cache = new QueryClient();
     const carregando = renderToStaticMarkup(
@@ -202,6 +237,12 @@ describe("Preços desta moto na ficha", () => {
     const hg = ficha(gerente);
     expect(hg).not.toContain("Editar preços");
     expect(hg).toMatch(/role="switch"[^>]*disabled/);
+  });
+
+  it("vei_13_sem_valor_de_compra_marca_a_margem_do_cartao", () => {
+    const hb = ficha(PRECOS_BIZ_SEM_COMPRA);
+    expect(texto(hb)).toContain("por mês · sem custo de compra");
+    expect(hb).not.toContain("wl-badge--warning");
   });
 
   it("vei_13_vendedor_sem_linha_de_margem", () => {

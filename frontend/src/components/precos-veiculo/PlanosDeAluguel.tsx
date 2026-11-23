@@ -5,7 +5,9 @@ import { Aviso, Button, LigaDesliga, Panel, StatusBadge } from "@/design-system"
 import type { PlanoDoVeiculo } from "@/lib/api";
 import { dinheiro } from "@/lib/formatos";
 import {
+  DICA_SEM_CUSTO_COMPRA,
   FORMAS,
+  MARCA_SEM_CUSTO_COMPRA,
   OPCOES_DE_PARCELAS_DA_CAUCAO,
   PAGAMENTOS_DO_PERIODO,
   ROTULO_DA_FORMA,
@@ -33,7 +35,7 @@ export type AcoesDoPlano = {
   desfazerAgendado: (chave: string) => void;
 };
 
-const COLUNAS = "md:grid-cols-[52px_minmax(0,1.4fr)_130px_190px_130px_120px_120px]";
+const COLUNAS = "md:grid-cols-[52px_minmax(0,1.4fr)_130px_190px_130px_120px_140px]";
 
 function Campo({ rotulo, erro, dica, children, classe = "" }: { rotulo: string; erro?: string; dica?: string; children: React.ReactNode; classe?: string }) {
   const apoio = erro ?? dica;
@@ -187,10 +189,15 @@ function LinhaDoPlano({ p, atual, erros, somenteLeitura, acoes, aberto, aoAbrir,
             <>
               <span className="text-ink-muted md:order-2">{dinheiro(margem.lucro_mes_centavos)}/mês</span>
               {margem.margem_pct != null && (
-                <StatusBadge tom={tomDaMargem(margem.abaixo_da_minima)} compacto>
+                <StatusBadge tom={tomDaMargem(margem.abaixo_da_minima, margem.sem_custo_compra)} compacto>
                   <span className="md:hidden">margem </span>
                   {textoDaMargem(margem.margem_pct)}
                 </StatusBadge>
+              )}
+              {margem.sem_custo_compra && (
+                <span className="whitespace-nowrap text-ink-muted md:order-3" title={DICA_SEM_CUSTO_COMPRA}>
+                  {MARCA_SEM_CUSTO_COMPRA}
+                </span>
               )}
             </>
           )}

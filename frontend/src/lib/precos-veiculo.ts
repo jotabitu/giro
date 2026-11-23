@@ -129,8 +129,14 @@ export const MODOS_DA_PARCELA: { valor: ModoDaParcela; rotulo: string }[] = [
 /** "R$ 289,00 a partir de 01 dez". */
 export const textoDoAgendado = (a: { valor_centavos: number; a_partir_de: string }): string => `${dinheiro(a.valor_centavos)} a partir de ${dataCurta(a.a_partir_de)}`;
 
-/** Sem esse tom a margem não tem cor: a API diz se está abaixo da mínima. */
-export const tomDaMargem = (abaixo: boolean) => (abaixo ? ("alerta" as const) : ("sucesso" as const));
+/** Sem esse tom a margem não tem cor: a API diz se está abaixo da mínima. Sem custo de compra
+ * (VEI-13), a margem não é real: tom neutro, nem verde nem amarelo. */
+export const tomDaMargem = (abaixo: boolean, semCustoCompra = false) => (semCustoCompra ? ("neutro" as const) : abaixo ? ("alerta" as const) : ("sucesso" as const));
+
+/** VEI-13 (padrão A de 22 nov 2026, T-505): a marca e as dicas. Quem decide é a API (`sem_custo_compra`, `revenda_acima_do_pago`). */
+export const MARCA_SEM_CUSTO_COMPRA = "sem custo de compra";
+export const DICA_SEM_CUSTO_COMPRA = "A margem não conta a compra desta moto. Informe o valor de compra para ver a margem real.";
+export const DICA_REVENDA_ACIMA_DO_PAGO = "A revenda passa do que foi pago: sem desvalorização no custo.";
 
 /** "84,00" da API em "84%". */
 export const textoDaOcupacao = (pct: string): string => `${Number(pct).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;

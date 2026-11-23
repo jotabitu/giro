@@ -8,6 +8,8 @@ import { ErroApi, veiculos, type PlanoCompraEntrada, type PlanoDoVeiculo, type P
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, placa } from "@/lib/formatos";
 import {
+  DICA_SEM_CUSTO_COMPRA,
+  MARCA_SEM_CUSTO_COMPRA,
   textosDaConfirmacao,
   chaveDoPlano,
   ehOUltimoLigado,
@@ -83,9 +85,11 @@ function CartaoDoPlano({ p, desabilitado, aoLigar, erro }: { p: PlanoDoVeiculo; 
       <Linha rotulo="Franquia">{textoDaFranquia(p.franquia_km, periodo)}</Linha>
       {p.margem && (
         <div className="mt-[6px] flex items-center justify-between gap-2 rounded-md bg-surface px-3 py-2 text-[13px]">
-          <span className="text-ink-muted">Lucro {dinheiro(p.margem.lucro_mes_centavos)} por mês</span>
+          <span className="text-ink-muted" title={p.margem.sem_custo_compra ? DICA_SEM_CUSTO_COMPRA : undefined}>
+            Lucro {dinheiro(p.margem.lucro_mes_centavos)} por mês{p.margem.sem_custo_compra ? ` · ${MARCA_SEM_CUSTO_COMPRA}` : ""}
+          </span>
           {p.margem.margem_pct != null && (
-            <StatusBadge tom={tomDaMargem(p.margem.abaixo_da_minima)} compacto>
+            <StatusBadge tom={tomDaMargem(p.margem.abaixo_da_minima, p.margem.sem_custo_compra)} compacto>
               margem {textoDaMargem(p.margem.margem_pct)}
             </StatusBadge>
           )}

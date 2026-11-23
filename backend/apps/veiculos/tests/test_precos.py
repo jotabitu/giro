@@ -160,3 +160,83 @@ def test_vei_13_sem_revenda_sem_desvalorizacao() -> None:
 def test_vei_13_valor_em_mes_por_periodo() -> None:
     assert precos.receita_mes(4490, "dia", Decimal(100)) == Decimal(134700)
     assert precos.receita_mes(99000, "mes", Decimal(50)) == Decimal(49500)
+
+
+# --- T-505: sem valor de compra e revenda acima do pago (padrão A de 22 nov 2026) ---
+
+CUSTOS_BIZ = precos.Custos(
+    manutencao_mes=10000,
+    seguro_mes=8000,
+    rastreador_mes=5000,
+    ipva_ano=120000,
+    revenda_estimada=900000,
+    ocupacao_esperada_pct=Decimal("85.00"),
+)
+SEMANAL_BIZ = precos.PlanoAluguel(chave="semanal", periodo="semana", valor=29940, ligado=True)
+
+
+def test_vei_13_sem_valor_de_compra_sem_desvalorizacao() -> None:
+    """Biz ADJ-4T71, sem valor de compra e com revenda de R$ 9.000,00: o custo era −R$ 45,00
+    (330 − 9.000 ÷ 24). Sem a compra, a desvalorização sai: R$ 330,00 por mês. Semanal R$ 299,40
+    a 85%: receita R$ 1.102,79, lucro R$ 772,79, margem 70,08%, marcada "sem custo de compra" e
+    sem a faixa amarela mesmo abaixo da margem mínima."""
+    resultado = precos.simular(
+        precos.Entrada(
+            valor_venda=None,
+            pago_na_moto=None,
+            custos=CUSTOS_BIZ,
+            planos=[SEMANAL_BIZ],
+            compra=None,
+            margem_minima_pct=Decimal("80.00"),
+        )
+    )
+    assert resultado.custo_mes_centavos == 33000
+    assert resultado.sem_custo_compra is True
+    assert resultado.revenda_acima_do_pago is False
+    margem = resultado.margens["semanal"]
+    assert margem is not None
+    assert (margem.receita_mes_centavos, margem.lucro_mes_centavos) == (110279, 77279)
+    assert margem.margem_pct == Decimal("70.08")
+    assert margem.sem_custo_compra is True
+    assert margem.abaixo_da_minima is False
+
+
+def test_vei_13_desvalorizacao_nunca_negativa() -> None:
+    """Pago R$ 13.800,00 e revenda R$ 15.000,00: a desvalorização é R$ 0,00, e não −R$ 50,00."""
+    assert precos.desvalorizacao_mes(1380000, 1500000) == 0
+    resultado = precos.simular(
+        precos.Entrada(
+            valor_venda=None,
+            pago_na_moto=1380000,
+            custos=precos.Custos(
+                manutencao_mes=10000,
+                seguro_mes=8000,
+                rastreador_mes=5000,
+                ipva_ano=120000,
+                revenda_estimada=1500000,
+            ),
+            planos=[],
+            compra=None,
+        )
+    )
+    assert resultado.custo_mes_centavos == 33000
+    assert resultado.revenda_acima_do_pago is True
+    assert resultado.sem_custo_compra is False
+    # A Pop TBC-5H21 continua: (13.800 − 8.900) ÷ 24 = R$ 204,17 de desvalorização.
+    assert precos.centavos(precos.desvalorizacao_mes(1380000, 890000)) == 20417
+    assert precos.revenda_acima_do_pago(1380000, 1380000) is False
+
+
+def test_vei_16_sem_valor_de_compra_sem_lucro_nem_margem() -> None:
+    """A Pop sem valor de compra: a parcela e os juros continuam; o lucro e a margem sobre o pago
+    não aparecem."""
+    resultado = precos.simular_compra(**{**POP, "pago_na_moto": None})  # type: ignore[arg-type]
+    assert resultado.parcela_moto_centavos == 16124
+    assert resultado.recebe_pela_moto_centavos == 1776896
+    assert resultado.juros_no_prazo_centavos == 186896
+    assert resultado.lucro_centavos is None
+    assert resultado.margem_sobre_pago_pct is None
+    assert resultado.pago_sobre_recebe_pct is None
+    assert resultado.sem_custo_compra is True
+    assert resultado.venda_abaixo_do_pago is False
+    assert precos.simular_compra(**POP).sem_custo_compra is False  # type: ignore[arg-type]

@@ -10,7 +10,9 @@ import { useAtrasado, useCelular } from "@/lib/atrasado";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, placa as placaComHifen } from "@/lib/formatos";
 import {
-
+  DICA_REVENDA_ACIMA_DO_PAGO,
+  DICA_SEM_CUSTO_COMPRA,
+  MARCA_SEM_CUSTO_COMPRA,
   textosDaConfirmacao,
   centavosDoCampo,
   chaveDoPlano,
@@ -372,7 +374,7 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
             </label>
           )}
           {exibido.custos && (
-            <Quadro rotulo="Custos por mês" apoio="manutenção, seguro, IPVA, rastreador">
+            <Quadro rotulo="Custos por mês" apoio={exibido.custos.sem_custo_compra ? `manutenção, seguro, IPVA, rastreador · ${MARCA_SEM_CUSTO_COMPRA}` : "manutenção, seguro, IPVA, rastreador"}>
               <b className={NUMERO_GRANDE}>{dinheiro(exibido.custos.custo_mes_centavos)}</b>
             </Quadro>
           )}
@@ -382,6 +384,18 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
             </Quadro>
           )}
         </div>
+        {exibido.custos?.sem_custo_compra && (
+          <div className="mt-3">
+            <Aviso tom="info">
+              <b>Margem {MARCA_SEM_CUSTO_COMPRA}.</b> {DICA_SEM_CUSTO_COMPRA}
+            </Aviso>
+          </div>
+        )}
+        {exibido.custos?.revenda_acima_do_pago && (
+          <div className="mt-3">
+            <Aviso tom="info">{DICA_REVENDA_ACIMA_DO_PAGO}</Aviso>
+          </div>
+        )}
       </Panel>
 
       <PlanosDeAluguel
