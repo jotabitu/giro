@@ -1,5 +1,6 @@
 <!doctype html>
 <!-- origem: repositório, 18/11/2026, T-496 (celular da Veiculo-Precos-Desktop) -->
+<!-- ajustada no repositório: 22/11/2026, T-505 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -244,13 +245,40 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <a href="Veiculo-Precos-Mobile.dc.html" class="wl-btn wl-btn--sm" style="text-decoration: none; align-self: flex-start;">Preencher preços</a></div>
 <span class="lbl">Moto alugada ou em manutenção sem plano mostra o aviso e mantém o status; ao voltar, vai para Indisponível, "Sem preço · ligue um plano".</span></div>
 
+<div class="est"><h3>Moto sem valor de compra: Custo e venda</h3>
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div class="stat"><small>Pago na moto</small><b>—</b><span class="lbl">só despesas R$ 0,00 · <a href="Despesas-Desktop.dc.html" style="color: var(--ink-muted);">ver</a></span></div>
+<div class="stat"><small>Custos por mês</small><b>R$ 330,00</b><span class="lbl">manutenção, seguro, IPVA, rastreador · sem custo de compra</span></div>
+</div>
+<p class="lbl" style="margin: 0;"><b style="font-weight: 500; color: var(--ink);">Margem sem custo de compra.</b> A margem não conta a compra desta moto. Informe o valor de compra para ver a margem real.</p>
+<span class="lbl">Sem valor de compra o pago fica vazio, a desvalorização sai da conta e não há faixa amarela de margem abaixo da mínima. A margem continua calculada, em tom neutro e com a marca "sem custo de compra" (VEI-13).</span></div>
+
+<div class="est"><h3>Moto sem valor de compra: linha do plano</h3>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;"><b>Semanal</b><span class="wl-badge wl-badge--sm">70,1%</span><span class="lbl">R$ 772,79/mês</span><span class="lbl">sem custo de compra</span></div>
+<span class="lbl">O chip da margem fica neutro (nem verde nem amarelo) e a marca vem ao lado, com a dica no título do elemento.</span></div>
+
+<div class="est"><h3>Moto sem valor de compra: locação com compra</h3>
+<div class="res">
+<span class="lbl" style="font-size: 14px;">O cliente paga</span>
+<div class="big">R$ 191,01 <small>por semana · 104×</small></div>
+<span class="lbl">R$ 161,24 da moto + R$ 29,77 de adicional</span>
+<div class="kv"><span>Recebe pela moto</span><span>R$ 17.768,96</span></div>
+<div class="kv"><span>Juros no prazo</span><span>R$ 1.868,96</span></div>
+<p class="lbl" style="margin: 8px 0 0;"><b style="font-weight: 500; color: var(--ink);">Lucro e margem sem custo de compra.</b> A margem não conta a compra desta moto. Informe o valor de compra para ver a margem real.</p>
+</div>
+<span class="lbl">Sem "Pago na moto", sem lucro, sem margem sobre o pago e sem a barra: só o que não depende da compra (VEI-16).</span></div>
+
+<div class="est"><h3>Revenda estimada acima do pago</h3>
+<label class="stat" style="max-width: 320px;"><small>Revenda estimada em 24 meses</small><input class="wl-input" value="R$ 15.000,00"><span class="lbl">A revenda passa do que foi pago: sem desvalorização no custo.</span></label>
+<span class="lbl">A desvalorização nunca é negativa: com a revenda acima do pago ela é zero (VEI-13).</span></div>
+
 <div class="est"><h3>Só leitura: gerente e demais perfis</h3>
 <span class="lbl">O gerente vê os planos, as regras e a compra, sem campos editáveis, sem "Salvar preços" e com os interruptores desabilitados. Custos, lucro e margem só aparecem para administrador, gerente e financeiro; para os outros perfis, a tela não mostra esses blocos.</span></div>
 </section>
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":5200}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":6000}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');
