@@ -95,7 +95,7 @@ class LocacaoEntradaSerializer(serializers.Serializer[Any]):
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if self.partial or attrs.get("tipo") == TipoLocacao.INTENCAO_COMPRA:
             return attrs  # LOC-16: a periodicidade e os períodos vêm do plano
-        if not attrs.get("periodicidade"):
+        if not attrs.get("periodicidade") and not attrs.get("plano_veiculo_id"):
             raise serializers.ValidationError({"periodicidade": ["Escolha a periodicidade."]})
         if not attrs.get("periodos") and not attrs.get("fim_previsto"):
             raise serializers.ValidationError(

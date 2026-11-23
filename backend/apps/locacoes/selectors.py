@@ -35,7 +35,6 @@ from .models import (
     PARTES_DO_MES,
     FormaPagamento,
     Locacao,
-    ParcelamentoMensal,
     Periodicidade,
     PlanoCompra,
     PlanoEspecial,

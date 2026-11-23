@@ -1138,7 +1138,7 @@ def _precos(placa: str, seed: Any) -> dict[str, Any]:
 
 
 def test_vei_16_seed_pop_tbc_5h21_locacao_com_compra(seed):
-    """"Locação com compra da Pop 110i TBC-5H21" (dados-de-teste.md): pago na moto R$ 13.800,00;
+    """A "Locação com compra da Pop 110i TBC-5H21" (dados-de-teste.md): pago na moto R$ 13.800,00;
     semanal 104 × R$ 191,01 (R$ 161,24 + R$ 29,77); recebe pela moto R$ 17.768,96; lucro
     R$ 3.968,96; juros no prazo R$ 1.868,96. A Pop está disponível, na frota de 86."""
     pop = Veiculo.objects.get(placa="TBC5H21")
@@ -1159,7 +1159,7 @@ def test_vei_16_seed_pop_tbc_5h21_locacao_com_compra(seed):
 
 
 def test_vei_16_seed_qxa_4b21_venda_abaixo_do_pago(seed):
-    """"Locação com compra da CG QXA-4B21": parcela R$ 135,05; recebe no contrato R$ 14.045,20;
+    """A "Locação com compra da CG QXA-4B21": parcela R$ 135,05; recebe no contrato R$ 14.045,20;
     lucro R$ 145,20; o alerta da venda abaixo do pago. A compra fica desligada (a CG está na
     LOC-2841)."""
     precos = _precos("QXA4B21", seed)
@@ -1178,4 +1178,4 @@ def test_vei_15_seed_sem_disponivel_sem_plano(seed):
     from apps.veiculos.selectors import anotar_tem_plano_ligado
 
     disponiveis = anotar_tem_plano_ligado(Veiculo.objects.filter(status="disponivel"))
-    assert not disponiveis.filter(tem_plano_ligado=False).exists()
+    assert not disponiveis.filter(tem_plano_ligado=False).exists()  # type: ignore[misc]

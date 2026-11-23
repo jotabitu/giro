@@ -17,6 +17,7 @@ from apps.contas.models import Usuario
 from apps.filiais.models import Filial
 from apps.financeiro.models import Despesa
 from apps.locacoes.models import Locacao
+from apps.veiculos.services import aplicar_modelo_de_preco
 from comum import aprovacoes
 from integracoes.whatsapp.falso import caixa_de_saida
 
@@ -60,6 +61,7 @@ def _nomes(resposta: Any) -> list[str]:
 def _locacao_na(cenario: Any, filial: Any, cliente: str, numero: int) -> Locacao:  # noqa: F811
     """Rascunho de locação do cliente na filial (o estado não importa para o filtro)."""
     veiculo = criar_veiculo(numero, cenario.sak.categoria, filial)
+    aplicar_modelo_de_preco([veiculo], "cadastro")  # VEI-15: com os planos da categoria
     api = cenario.moto.api("Mariana", HTTP_X_FILIAL=str(filial.pk))
     resposta = api.post(LOCACOES, cenario.corpo(cliente, veiculo), format="json")
     assert resposta.status_code == 201, resposta.json()

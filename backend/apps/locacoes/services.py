@@ -383,11 +383,13 @@ def _plano_do_veiculo(dados: dict[str, Any], veiculo: Veiculo, dia: date) -> Pre
 
 
 def _parcelamento_do_plano(dados: dict[str, Any], plano: PrecoDoPlano) -> str:
-    """VEI-12: o parcelamento do mês sai do "como paga" do plano. Pelo caminho antigo (sem
-    `plano_veiculo_id`, até a T-497), o `parcelamento_mensal` mandado ainda vale."""
+    """VEI-12: o parcelamento do mês sai do "como paga" do plano. O `parcelamento_mensal`
+    mandado (o caminho antigo, até a T-497) ou o guardado no rascunho ainda vale: a confirmação
+    remonta pelo rascunho, que já aponta para o plano. Trocar o plano no rascunho sem mandar o
+    parcelamento volta ao "como paga" do plano novo (`editar_rascunho`)."""
     if plano.periodo != "mes":
         return ""
-    if not dados.get("plano_veiculo_id") and dados.get("parcelamento_mensal"):
+    if dados.get("parcelamento_mensal"):
         return str(dados["parcelamento_mensal"])
     return str(PARCELAMENTO_DO_COMO_PAGA.get(plano.como_paga, ParcelamentoMensal.A_VISTA))
 
@@ -603,6 +605,8 @@ def editar_rascunho(locacao: Locacao, dados: dict[str, Any]) -> Locacao:
         if travada.status != S.RASCUNHO:
             raise transicao_invalida(travada.status, S.RASCUNHO)
         completos = {**_formulario(travada), **dados}
+        if "plano_veiculo_id" in dados and "parcelamento_mensal" not in dados:
+            completos["parcelamento_mensal"] = None  # VEI-12: o "como paga" do plano novo
         montagem = montar(completos, travada.filial, exceto=travada.pk)
         with auditar(travada, "locacao.editar", Categoria.OPERACAO):
             _preencher(travada, completos, montagem)
