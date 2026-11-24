@@ -1,6 +1,8 @@
 // Vendas na API real (docs/api/vendas.md). Só abre com o recurso `vendas_comissoes` (PLT-12); o vistoriador recebe 403.
 // Fase 1a da T-502: lista, detalhe, simular, criar, editar, enviar (só o estado e a data), resposta, pedir aprovação e perder.
+// Fase 1b: assinatura (contrato e entrada), link e reenvio do contrato, PDF e transferência no Detran.
 import { http } from "./http";
+import type { LinkDoContrato } from "./tipos-locacoes";
 import type { EdicaoDaVenda, FiltroDeVendas, ListaDeVendas, NovaVenda, PropostaDaVenda, SimulacaoDaVenda, VendaDetalhe, VendaEnviada } from "./tipos-vendas";
 
 export const vendasApi = {
@@ -50,5 +52,34 @@ export const vendasApi = {
   /** O motivo é obrigatório (VEN-13). */
   perder(id: number, motivo: string): Promise<VendaDetalhe> {
     return http.post(`/api/vendas/${id}/perder/`, { motivo });
+  },
+
+  /** "Preparar assinatura" (VEN-15): o contrato de compra e venda e a conta da entrada, na mesma transação. */
+  prepararAssinatura(id: number): Promise<VendaDetalhe> {
+    return http.post(`/api/vendas/${id}/assinatura/`, {});
+  },
+
+  /** "Cancelar assinatura" (VEN-19): contrato e cobrança da entrada cancelados; a proposta volta a se editar. */
+  cancelarAssinatura(id: number): Promise<VendaDetalhe> {
+    return http.delete(`/api/vendas/${id}/assinatura/`);
+  },
+
+  /** Token novo a cada chamada (T-411, S-15); o anterior deixa de valer. */
+  copiarLinkDoContrato(id: number): Promise<LinkDoContrato> {
+    return http.post(`/api/vendas/${id}/contrato/link/`, {});
+  },
+
+  async reenviarContrato(id: number): Promise<void> {
+    await http.post(`/api/vendas/${id}/contrato/reenviar/`, {});
+  },
+
+  /** URL de 15 minutos do PDF (o assinado, se houver). */
+  pdfDoContrato(id: number): Promise<{ url: string; url_expira_em: string }> {
+    return http.get(`/api/vendas/${id}/contrato/pdf/`);
+  },
+
+  /** VEN-17: administrador e gerente da filial, na venda `vendida`. */
+  registrarTransferencia(id: number, feita_em: string): Promise<VendaDetalhe> {
+    return http.post(`/api/vendas/${id}/transferencia/`, { feita_em });
   },
 };

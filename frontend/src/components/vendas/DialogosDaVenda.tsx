@@ -46,6 +46,8 @@ export function RespostaDoCliente({ venda, aoFechar }: { venda: VendaDetalhe; ao
   );
 }
 
+const SAI_DAS_ABERTAS = "A venda sai das abertas e o veículo fica livre para outra proposta.";
+
 /** Qualquer estado em andamento → perdida, com o motivo obrigatório. O pedido de desconto pendente é cancelado pela API. */
 export function PerderVenda({ venda, aoFechar }: { venda: VendaDetalhe; aoFechar: () => void }) {
   const cliente = useQueryClient();
@@ -63,7 +65,7 @@ export function PerderVenda({ venda, aoFechar }: { venda: VendaDetalhe; aoFechar
       aoFechar={aoFechar}
       fecharAoClicarFora={false}
       titulo="Marcar como perdida"
-      descricao="A venda sai das abertas e o veículo fica livre para outra proposta."
+      descricao={SAI_DAS_ABERTAS}
       acoes={
         <>
           <Button variante="quieto" onClick={aoFechar}>
@@ -76,6 +78,8 @@ export function PerderVenda({ venda, aoFechar }: { venda: VendaDetalhe; aoFechar
       }
     >
       <div className="flex flex-col gap-3">
+        {/* VEN-19: com a entrada paga, a API manda o texto do reembolso; nos outros casos, a mesma frase de cima. */}
+        {venda.perder_texto && venda.perder_texto !== SAI_DAS_ABERTAS && <Aviso tom="atencao">{venda.perder_texto}</Aviso>}
         <TextField cheio data-autofocus rotulo="Motivo" maxLength={200} value={motivo} onChange={(e) => setMotivo(e.target.value)} dica="Obrigatório." erro={campoDoErro(perder.error, "motivo")} />
         {perder.isError && !campoDoErro(perder.error, "motivo") && <Aviso tom="critico">{mensagemDoErro(perder.error)}</Aviso>}
       </div>

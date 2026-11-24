@@ -1,5 +1,5 @@
 // Tipos de vendas, a partir do cliente gerado do OpenAPI (docs/api/vendas.md): a venda da quitação (VEN-11) e o fluxo de
-// balcão da fase 1a da T-502 (estados, simular, proposta e aprovação do desconto).
+// balcão da T-502: fase 1a (estados, simular, proposta e aprovação do desconto) e 1b (assinatura, entrada e vendida).
 import type { components } from "./schema";
 
 type S = components["schemas"];
@@ -15,6 +15,9 @@ export type AprovacaoDaVenda = S["AprovacaoDaVenda"];
 export type SimulacaoDaVenda = S["SimulacaoDaVenda"];
 export type InteressadoDaVenda = S["InteressadoDaVenda"];
 export type VendaEnviada = S["VendaEnviada"];
+export type ContratoDaVenda = S["ContratoDaVenda"];
+export type ContaEntradaDaVenda = S["ContaEntradaDaVenda"];
+export type DocumentosDaVenda = S["DocumentosDaVenda"];
 /** A forma que a tela oferece: o financiamento fica fora da primeira entrega (VEN-03, VEN-18). */
 export type FormaDaVenda = "a_vista" | "entrada_parcelas";
 export type AcaoDaNovaVenda = S["AcaoVendaEnum"];

@@ -12,13 +12,14 @@ import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { celular, dinheiro, km, mascaraCelular, placa, soDigitos } from "@/lib/formatos";
 import { centavosDoCampo } from "@/lib/precos-veiculo";
 import { atualizarVendas, campoDoPct, comPorcento, dataDaProposta, FORMAS, linhasDoResumo, linkDoWhatsApp, mascaraReais, pctDoCampo, pctTexto, tomDaVenda } from "@/lib/vendas";
+import { AssinaturaDaVenda, DocumentosDaVenda, Painel, TransferenciaDaVenda } from "./AssinaturaDaVenda";
 import { PerderVenda, RespostaDoCliente } from "./DialogosDaVenda";
 
 // Referência: docs/telas/html/Venda-Desktop.dc.html e Venda-Mobile.dc.html (T-503; VEN-01 a VEN-04, VEN-10, VEN-13 a VEN-19).
 // Fase 1a da T-502: o passo 1 · Negócio (simular, criar, editar, enviar, pedir aprovação, registrar resposta, marcar como
 // perdida). Preço final, desconto em reais, saldo, parcelas, comissão e "precisa do gerente" vêm do `simular`; o que a
-// pessoa pode fazer vem em `acoes`. Os passos 2 · Documentos e 3 · Assinatura, o contrato e a entrada entram com a 1b;
-// o e-mail, o PDF e o "Copiar link" da proposta, com a 1c. A troca (VEN-05) é da fase 2 e não aparece.
+// pessoa pode fazer vem em `acoes`. Fase 1b: os passos 2 · Documentos e 3 · Assinatura, a conclusão e a transferência
+// (AssinaturaDaVenda). O e-mail, o PDF e o "Copiar link" da proposta entram com a 1c. A troca (VEN-05) é da fase 2.
 
 /** VEN-15: o que acontece depois da assinatura, como a tela de referência diz. */
 const NOTA_DA_CONCLUSAO = "Depois de assinada e com a entrada paga, a venda gera as parcelas em Contas a receber, lança a comissão e tira o veículo da frota de locação.";
@@ -76,26 +77,26 @@ function Cartao({ icone, titulo, detalhe, acao }: { icone: typeof User; titulo: 
   );
 }
 
-/** Os três passos da tela. Só o 1 · Negócio existe nesta fase; os outros chegam com a 1b. */
-function Passos() {
+/**
+ * O passo em que a venda está, pelo que a API mandou: com contrato, entrada ou já vendida, 3 · Assinatura; com o bloco
+ * `documentos` (proposta com cliente e sem contrato), 2 · Documentos; senão, 1 · Negócio.
+ */
+export function passoDaVenda(v?: VendaDetalhe): 0 | 1 | 2 {
+  if (!v) return 0;
+  if (v.contrato || v.conta_entrada || v.status === "vendida") return 2;
+  return v.documentos ? 1 : 0;
+}
+
+function Passos({ atual }: { atual: number }) {
   const passos = ["1 · Negócio", "2 · Documentos", "3 · Assinatura"];
   return (
     <ol className="m-0 flex list-none flex-wrap gap-2 p-0" aria-label="Etapas da venda">
       {passos.map((p, i) => (
-        <li key={p} aria-current={i === 0 ? "step" : undefined} className={`wl-badge ${i === 0 ? "wl-badge--solid" : "wl-badge--surface"}`}>
+        <li key={p} aria-current={i === atual ? "step" : undefined} className={`wl-badge ${i === atual ? "wl-badge--solid" : "wl-badge--surface"}`}>
           {p}
         </li>
       ))}
     </ol>
-  );
-}
-
-function Painel({ titulo, children, rotulo }: { titulo: string; children: ReactNode; rotulo?: string }) {
-  return (
-    <section className="wl-panel flex flex-col gap-4" aria-label={rotulo ?? titulo}>
-      <h2 className="m-0 text-heading">{titulo}</h2>
-      {children}
-    </section>
   );
 }
 
@@ -194,18 +195,20 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3">
-        <nav aria-label="Caminho" className="text-caption text-ink-muted">
-          <Link href="/vendas" className="text-ink-muted">
-            Vendas
-          </Link>{" "}
-          / {nova ? "Nova" : venda.codigo}
-        </nav>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="m-0 text-title md:text-display">{titulo}</h1>
-          {venda && <StatusBadge tom={tomDaVenda(venda.status)}>{venda.situacao_texto}</StatusBadge>}
+      <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="flex min-w-0 flex-col gap-3">
+          <nav aria-label="Caminho" className="text-caption text-ink-muted">
+            <Link href="/vendas" className="text-ink-muted">
+              Vendas
+            </Link>{" "}
+            / {nova ? "Nova" : venda.codigo}
+          </nav>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="m-0 text-title md:text-display">{titulo}</h1>
+            {venda && <StatusBadge tom={tomDaVenda(venda.status)}>{venda.situacao_texto}</StatusBadge>}
+          </div>
         </div>
-        {!quitacao && <Passos />}
+        {!quitacao && <Passos atual={passoDaVenda(venda)} />}
       </header>
 
       {quitacao && venda && (
@@ -308,7 +311,7 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
                   onChange={(e) => definir({ desconto: e.target.value })}
                   onFocus={() => definir({ desconto: form.desconto.replace("%", "") })}
                   onBlur={() => definir({ desconto: comPorcento(form.desconto) })}
-                  dica={dicaDoDesconto}
+                  dica={editavel ? dicaDoDesconto : undefined}
                   // Acima do limite (a API diz em `precisa_aprovacao`), a dica fica crítica, como na referência.
                   erro={erro("desconto_pct") ?? (editavel && precisaGerente ? dicaDoDesconto : undefined)}
                 />
@@ -320,6 +323,13 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
                 )}
               </div>
             </Painel>
+          )}
+          {venda && !quitacao && (
+            <>
+              <DocumentosDaVenda venda={venda} />
+              <AssinaturaDaVenda venda={venda} />
+              <TransferenciaDaVenda venda={venda} />
+            </>
           )}
         </div>
 
@@ -347,7 +357,9 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
               aoResponder={() => setDialogo("resposta")}
               aoPerder={() => setDialogo("perder")}
             />
-            {!quitacao && venda?.status !== "perdida" && <p className="m-0 text-caption text-ink-muted">{NOTA_DA_CONCLUSAO}</p>}
+            {/* VEN-19: o vendedor não marca como perdida a venda com a entrada paga; a API manda o porquê. */}
+            {venda && !venda.acoes.perder && venda.perder_texto && <p className="m-0 text-caption text-ink-muted">{venda.perder_texto}</p>}
+            {!quitacao && passoDaVenda(venda) < 2 && venda?.status !== "perdida" && <p className="m-0 text-caption text-ink-muted">{NOTA_DA_CONCLUSAO}</p>}
           </Painel>
         </aside>
       </div>
