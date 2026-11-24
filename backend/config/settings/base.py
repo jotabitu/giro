@@ -295,6 +295,11 @@ SPECTACULAR_SETTINGS = {
         "OrigemEnum": "apps.filiais.models.FeriadoFilial.Origem",  # o nome que já saía (T-420)
         "OrigemVendaEnum": "apps.vendas.models.OrigemVenda",  # VEN-11 (T-420)
         "StatusVendaEnum": "apps.vendas.models.StatusVenda",  # T-420
+        # T-502: os nomes que já saíam, sem colidir com os campos novos da venda.
+        "AcaoEnum": [("baixar", "Baixar"), ("ignorar", "Ignorar")],
+        "PedidoStatusEnum": "apps.aprovacoes.models.PedidoAprovacao.Status",
+        "AcaoVendaEnum": ["interessado", "enviar", "pedir_aprovacao"],
+        "FormaVendaEnum": "apps.vendas.models.FormaVenda",
         "FotoPosicaoEnum": "apps.vistorias.models.PosicaoFoto",  # T-320: o nome que já saía
         "PosicaoDaChegadaEnum": "apps.movimentacoes.models.PosicaoFoto",  # T-320
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",
@@ -311,10 +316,9 @@ SPECTACULAR_SETTINGS = {
         "PeriodicidadeEnum": "apps.locacoes.models.Periodicidade",
         "PeriodicidadeCompraEnum": "apps.locacoes.models.PlanoCompra.PeriodicidadeCompra",
         "TipoLocacaoEnum": "apps.locacoes.models.TipoLocacao",
-        # Preços por veículo (T-494, ADR 0041): o tipo do plano e a periodicidade da compra
-        # do veículo, que ganha `quinzenal`.
+        # Preços por veículo (T-494, ADR 0041): o tipo do plano. A periodicidade da compra do
+        # veículo tem os mesmos valores da locação desde a T-495 (`quinzenal`): `PeriodicidadeEnum`.
         "TipoPlanoVeiculoEnum": "apps.veiculos.models.TipoPlano",
-        "PeriodicidadeCompraVeiculoEnum": "apps.veiculos.models.Periodicidade",
         "PeriodoPlanoEnum": "apps.veiculos.models.PeriodoPlano",
         "ComoPagaEnum": "apps.veiculos.models.ComoPaga",
         "FormaAceitaEnum": "apps.veiculos.models.FormaAceita",
@@ -484,6 +488,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     "contratos_avisar_aditivos_sem_assinatura": {
         "task": "contratos_avisar_aditivos_sem_assinatura_de_todas",
         "schedule": crontab(hour=8, minute=0),
+    },
+    # AUT-19: proposta de venda sem resposta há 7 dias vira `perdida` (VEN-13), de madrugada.
+    "aut_19_vencer_propostas": {
+        "task": "aut_19_vencer_propostas_de_todas",
+        "schedule": crontab(hour=2, minute=40),
     },
     # AUT-03: régua de cobrança (WhatsApp e atraso para o bloqueio, CLI-05), às 09:00.
     "aut_03_regua_de_cobranca": {

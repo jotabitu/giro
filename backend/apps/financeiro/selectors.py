@@ -186,13 +186,21 @@ def paga_de_vez(conta: ContaReceber) -> bool:
     return ver(conta)
 
 
-def primeiro_pagamento_em(origem_tipo: str, origem_id: int) -> datetime | None:
-    """1ª parcela **e** caução pagas: o momento do último dos dois. Sem caução, só a parcela."""
-    contas = list(
-        contas_da_origem(origem_tipo, origem_id).filter(
-            Q(tipo=TipoConta.PARCELA, numero_parcela=1) | Q(tipo=TipoConta.CAUCAO)
-        )
+def q_primeiro_pagamento() -> Q:
+    """As contas do 1º pagamento (LOC-17): a 1ª parcela, a caução (na parcelada, só a 1ª parcela
+    dela, LOC-04; a diferença da troca não tem número) e a entrada da compra (LOC-16)."""
+    return (
+        Q(tipo=TipoConta.PARCELA, numero_parcela=1)
+        | Q(tipo=TipoConta.CAUCAO, numero_parcela__isnull=True)
+        | Q(tipo=TipoConta.CAUCAO, numero_parcela=1)
+        | Q(tipo=TipoConta.ENTRADA)
     )
+
+
+def primeiro_pagamento_em(origem_tipo: str, origem_id: int) -> datetime | None:
+    """1ª parcela **e** caução pagas: o momento do último dos dois. Sem caução, só a parcela.
+    Na caução parcelada, só a 1ª parcela dela (LOC-04); na compra, também a entrada (LOC-16)."""
+    contas = list(contas_da_origem(origem_tipo, origem_id).filter(q_primeiro_pagamento()))
     parcela = [c for c in contas if c.tipo == TipoConta.PARCELA]
     if not parcela or any(c.status != StatusConta.PAGA for c in contas):
         return None
@@ -670,6 +678,7 @@ def acoes_da_conta(
 ROTULOS_DO_TIPO: dict[str, str] = {
     TipoConta.PARCELA: "Parcela",
     TipoConta.CAUCAO: "Caução",
+    TipoConta.ENTRADA: "Entrada",
     TipoConta.MULTA: "Multa",
     TipoConta.AVARIA: "Avaria",
     TipoConta.ACERTO: "Acerto da devolução",
@@ -716,7 +725,9 @@ def a_que_se_refere(conta: ContaReceber, total: int | None) -> dict[str, Any]:
             parcela_de = f"{numero} de {total_parcelas} parcelas"
         else:
             rotulo = "Parcela única"
-    elif conta.tipo == TipoConta.CAUCAO or not descricao:
+    elif conta.tipo == TipoConta.CAUCAO and numero and (total_parcelas or 0) > 1:
+        rotulo = f"{tipo_rotulo} · {numero} de {total_parcelas}"  # LOC-04, caução parcelada
+    elif conta.tipo in (TipoConta.CAUCAO, TipoConta.ENTRADA) or not descricao:
         rotulo = tipo_rotulo
     else:
         rotulo = f"{tipo_rotulo} · {descricao}"

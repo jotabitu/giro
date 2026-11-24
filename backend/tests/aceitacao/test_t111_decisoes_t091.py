@@ -25,7 +25,16 @@ from apps.veiculos.models import Extra, Veiculo
 from . import carteira
 from .frota import montar_frota
 from .test_t012_filiais import MotoRapida
-from .test_t015_locacoes import LISTA, Cenario, _assinar, _pagar, _plano, _vistoriar
+from .test_t015_locacoes import (
+    LISTA,
+    Cenario,
+    _assinar,
+    _pagar,
+    _plano,
+    _vistoriar,
+    com_plano_especial,
+    street_a_29940_ate_30_set,
+)
 from .test_t016_vistorias import (
     _abrir_devolucao,
     _chegada,
@@ -141,6 +150,7 @@ def test_loc_08_ca_015_26_devolvida_em_16_out_cobra_so_o_atraso_anterior(cenario
 
 def _street_de_23_set(cenario: Cenario, relogio: Any, **campos: Any) -> Locacao:
     """Street semanal confirmada em 23 set (tabela 29940), 3 semanas, renovada em 07 out."""
+    street_a_29940_ate_30_set(cenario.sak)
     _ir_para(cenario, relogio, "2026-09-23 09:00")
     locacao = _ativa(cenario, "2026-09-23 09:00", periodos=3, **campos)
     _ir_para(cenario, relogio, "2026-10-07 10:00")
@@ -203,7 +213,8 @@ def test_loc_08_ca_015_27_plano_entregador(cenario, relogio, desativado, nova):
         regra="preco_fixo",
         preco_centavos=27900,
     )
-    street = _street_de_23_set(cenario, relogio, plano_especial_id=entregador["id"])
+    # VEI-12: a Nova locação não aceita mais o plano especial; a de antes continua com ele.
+    street = com_plano_especial(_street_de_23_set(cenario, relogio).pk, entregador["id"])
     if desativado:
         resposta = cenario.moto.api("Mariana").post(
             f"/api/planos-especiais/{entregador['id']}/desativar/"
@@ -230,8 +241,8 @@ def test_loc_08_ca_015_27_mensal_fidelidade_conta_os_meses_desde_o_comeco(cenari
         veiculo_id=urbana.pk,
         periodicidade="mensal",
         periodos=2,
-        plano_especial_id=fidelidade["id"],
     )
+    locacao = com_plano_especial(locacao.pk, fidelidade["id"])  # VEI-12: locação de antes
     _ir_para(cenario, relogio, "2026-10-07 10:00")
     _renovar(cenario, locacao, periodos=2)
     assert [p.valor_centavos for p in _parcelas(locacao.pk)] == [109000, 109000, 98100, 98100]

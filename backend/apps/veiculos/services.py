@@ -9,13 +9,14 @@ mudam o status do veículo só por `transicionar`.
 import logging
 import re
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
 from django.db import IntegrityError, transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.db.models.functions import Lower
 
 from apps.empresas import selectors as empresas_selectors
@@ -24,15 +25,17 @@ from apps.filiais.models import Filial
 from apps.notificacoes.services import avisar
 from apps.plataforma.services import atualizar_uso, exigir_limite, registrar_passo_implantacao
 from comum import aprovacoes, arquivos, comprovante_leitura, estados, leituras, relogio
-from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.auditoria import (
+    ATOR_SISTEMA,
     TipoAtor,
     ator_atual,
     auditar,
     diferenca,
     registrar_evento,
     retrato,
+    usar_ator,
 )
+from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.documentos import placa_com_hifen
 from comum.erros import (
     Conflito,
@@ -286,11 +289,32 @@ def colocar_a_venda(
     return veiculo
 
 
+# Travas que os apps de cima registram no `ready()` para o veículo que sai do estoque à venda
+# (ADR 0042, item 1; ADR 0011: `veiculos` não importa `vendas`). Cada uma recebe o veículo travado
+# e levanta o erro do app dono, ou não faz nada. Ex.: venda em andamento (409 `VEN-10`). Sem
+# registro (testes de `veiculos` isolados), não há trava.
+TravaDoEstoque = Callable[[Veiculo], None]
+_travas_do_estoque: list[TravaDoEstoque] = []
+
+
+def registrar_trava_do_estoque(trava: TravaDoEstoque) -> None:
+    if trava not in _travas_do_estoque:
+        _travas_do_estoque.append(trava)
+
+
+def _conferir_travas_do_estoque(veiculo: Veiculo) -> None:
+    for trava in _travas_do_estoque:
+        trava(veiculo)
+
+
 def voltar_para_frota(veiculo: Veiculo) -> Veiculo:
-    """`a_venda` → `disponivel`. A recusa com venda aberta (409 `VEN-10`) entra com vendas."""
+    """`a_venda` → `disponivel`. Com venda em andamento, a trava de `vendas` recusa (409
+    `VEN-10`)."""
     if veiculo.status != S.A_VENDA:
         raise transicao_invalida(veiculo.status, S.DISPONIVEL)
-    return transicionar(veiculo, S.DISPONIVEL, origem=MANUAL, acao="voltar_para_frota")
+    with transaction.atomic():
+        _conferir_travas_do_estoque(_travar(veiculo))
+        return transicionar(veiculo, S.DISPONIVEL, origem=MANUAL, acao="voltar_para_frota")
 
 
 def baixar(veiculo: Veiculo, motivo: str, descricao: str) -> Veiculo:
@@ -308,6 +332,7 @@ def baixar(veiculo: Veiculo, motivo: str, descricao: str) -> Veiculo:
     else:
         motivo_texto = MOTIVOS_DE_BAIXA[motivo].lower()
     with transaction.atomic():
+        _conferir_travas_do_estoque(_travar(veiculo))
         transicionar(veiculo, S.BAIXADO, origem=MANUAL, motivo=texto, acao="baixar")
         publicar("veiculos.veiculo_baixado", veiculo_id=veiculo.pk, motivo_texto=motivo_texto)
     return veiculo
@@ -2485,4 +2510,26 @@ def consolidar_precos_agendados(hoje: date) -> dict[str, int]:
             lote.gravar("veiculo.precos_agendado_vigente")
             _alinhar_status_sem_preco(veiculo)
             contagem["veiculos"] += 1
+    return contagem
+
+
+def alinhar_veiculos_sem_preco() -> dict[str, int]:
+    """VEI-15 (ADR 0041, item 3, passo 6): depois do `migrate_schemas`, no deploy e no
+    `make seed`, os veículos `disponivel` sem plano ligado vão para `indisponivel` "sem preço",
+    e os `indisponivel` "sem preço" que já têm plano voltam a `disponivel`, pelo serviço de
+    sempre (`_alinhar_status_sem_preco`), com histórico de status e auditoria do Sistema. Fica
+    fora da migration porque a mudança de status só sai por serviço. Idempotente."""
+    contagem = {"sem_preco": 0, "com_preco": 0}
+    candidatos = Veiculo.objects.filter(
+        Q(status=S.DISPONIVEL) | Q(status=S.INDISPONIVEL, motivo_status=MOTIVO_SEM_PRECO)
+    ).order_by("pk")
+    with usar_ator(ATOR_SISTEMA):
+        for veiculo in candidatos:
+            with transaction.atomic():
+                antes = veiculo.status
+                _alinhar_status_sem_preco(veiculo)
+                if veiculo.status == antes:
+                    continue
+                chave = "sem_preco" if veiculo.status == S.INDISPONIVEL else "com_preco"
+                contagem[chave] += 1
     return contagem

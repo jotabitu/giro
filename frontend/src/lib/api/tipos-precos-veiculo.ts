@@ -13,7 +13,8 @@ export type ComoPaga = S["ComoPagaEnum"];
 export type FormaAceita = S["FormaAceitaEnum"];
 export type PlanoCompraDoVeiculo = S["PlanoCompraDoVeiculo"];
 export type PlanoCompraEntrada = S["PlanoCompraDoVeiculoEntrada"];
-export type PeriodicidadeDaCompra = S["PeriodicidadeCompraVeiculoEnum"];
+// T-495: a compra do veículo e a locação têm a mesma periodicidade, um enum só no OpenAPI.
+export type PeriodicidadeDaCompra = S["PeriodicidadeEnum"];
 export type ModoDaParcela = S["ModoParcelaEnum"];
 export type ResultadoDaCompra = S["ResultadoCompra"];
 export type RegrasDoVeiculo = S["RegrasDoVeiculo"];

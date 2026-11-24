@@ -207,12 +207,18 @@ Query: `?aba=abertas|precisam_acao|devolvem_hoje|encerradas|canceladas` (padrão
 Perfis: quem cria. Não grava nada (ADR 0005). Chamado a cada mudança do formulário.
 Corpo:
 ```json
-{ "cliente_id": 1310, "veiculo_id": 501, "periodicidade": "semanal", "plano_especial_id": null,
+{ "cliente_id": 1310, "veiculo_id": 501, "plano_veiculo_id": 7002,
   "inicio": "2026-10-07T12:30:00Z", "periodos": 1, "fim_previsto": null,
   "extras": [ { "extra_id": 1, "quantidade": 1 } ], "desconto_pct": "0.00",
-  "forma_pagamento": "pix_automatico", "parcelamento_mensal": null }
+  "forma_pagamento": "pix_automatico" }
 ```
 `periodos` (quantas diárias, semanas ou meses) **ou** `fim_previsto`; a API devolve os dois.
+
+**O plano do veículo (T-495, ADR 0041, item 4).** `plano_veiculo_id` é um dos planos ligados do veículo, de `GET /api/veiculos/{id}/precos/` (`planos[].id`). Dele saem o valor e a caução **do dia** (`valor_em(dia)`: o agendado a partir da data dele), a periodicidade (`periodo` dia, semana ou mês), o parcelamento do mês (`como_paga`: `mes_uma_parcela` → `a_vista`, `mes_quatro_semanais` → `quatro_semanais`, `mes_duas_quinzenais` → `duas_quinzenais`), as formas aceitas, a franquia, o prazo mínimo, as parcelas da caução e as regras do veículo (dia de atraso, multa mínima, desconto sem aprovação, km excedente, prazo da caução). A confirmação congela tudo (`LOC-15`).
+- Veículo sem plano ligado, ou o plano escolhido desligado ou retirado: 409 `{ "codigo": "VEI-15", "mensagem": "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda." }`. Plano de outro veículo: 400 em `plano_veiculo_id`, "Escolha um plano deste veículo.".
+- `forma_pagamento` fora das formas aceitas do plano: 400, "Este plano não aceita Boleto." (o Pix automático conta como Pix). Menos períodos que o prazo mínimo: 400 em `periodos`, "Este plano pede no mínimo 12 semanas." (`VEI-12`).
+- `plano_especial_id` preenchido: 400, "A Nova locação usa os planos do veículo. O plano especial não vale mais." (ADR 0041, item 2).
+- **Caminho antigo, até a T-497:** sem `plano_veiculo_id`, a `periodicidade` (`diaria`, `semanal`, `mensal`) escolhe o plano do veículo do mesmo tipo, e o `parcelamento_mensal` mandado ainda vale. Com `plano_veiculo_id`, os dois são ignorados.
 200:
 ```json
 {
@@ -229,16 +235,24 @@ Corpo:
   "texto_retirada": "Hoje: primeira semana mais caução.",
   "parcelas_previstas": [ { "numero": 1, "vencimento": "2026-10-07", "valor_centavos": 32900 } ],
   "caucao_centavos": 30000,
+  "caucoes_previstas": [ { "numero": 1, "vencimento": "2026-10-07", "valor_centavos": 30000 } ],
+  "diaria_centavos": 5490,
+  "plano": { "id": 7002, "tipo": "semanal", "rotulo": "Semanal", "periodo": "semana",
+             "como_paga": "semana_adiantado", "formas_aceitas": ["pix", "boleto", "cartao", "dinheiro"],
+             "caucao_parcelas": 1, "franquia_km": null, "prazo_minimo_periodos": null,
+             "multa_minima_centavos": 5490, "desconto_sem_aprovacao_pct": "5.00" },
+  "compra": null,
   "precisa_aprovacao_desconto": false,
   "impedimentos": [],
   "avisos": []
 }
 ```
-- `LOC-01`: preço da categoria do veículo vigente na data (`LOC-15`); plano especial substitui ou desconta (`Entregador` 27900/semana; `Mensal fidelidade` −10% a partir do 3º mês seguido).
-- `LOC-14`: mensal é mês fechado, nunca diária × 30; período menor que um mês não aceita `mensal` (400 `validacao`). Com `parcelamento_mensal = "quatro_semanais"`, o mês é dividido em 4 parcelas pela `dividir_em_parcelas` (diferença na última).
+- `LOC-01`: o valor do plano ligado do veículo no dia (acima); `diaria_centavos` é o dia de atraso do veículo (`LOC-10`). `plano` traz o plano e as regras que a confirmação congela; `null` na compra.
+- `LOC-03`: `precisa_aprovacao_desconto` pelo "desconto sem aprovação" do veículo (`VEI-14`; 5% nos migrados).
+- `LOC-14`: mensal é mês fechado, nunca diária × 30; período menor que um mês não aceita `mensal` (400 `validacao`). No mensal em "4 semanais" ou "2 quinzenais", o mês é dividido em 4 ou 2 parcelas pela `dividir_em_parcelas` (diferença na última).
 - `LOC-02`: extras somam por período, pelo valor do cadastro.
-- `LOC-04`: caução da categoria, cobrada uma vez na retirada.
-- `LOC-05`: diária = tudo na retirada; semanal = 1ª na retirada e depois a cada 7 dias; mensal = 1ª na retirada e depois a cada mês.
+- `LOC-04`: a caução do plano, no valor e nas parcelas dele. À vista, uma conta na retirada. Em mais de uma parcela, `caucoes_previstas` traz uma por vencimento: a 1ª na retirada e as outras junto com as parcelas seguintes do aluguel (ex.: R$ 500,00 em 2 × R$ 250,00 no semanal, em 07 e 14 out). Com menos vencimentos que parcelas (a diária vence toda na retirada), o que sobra vence com o último. `hoje_na_retirada_centavos` soma só a 1ª da caução.
+- `LOC-05`: diária = tudo na retirada; semanal = 1ª na retirada e depois a cada 7 dias; mensal = 1ª na retirada e depois a cada mês; mensal em "4 semanais" ou "2 quinzenais" = a cada 7 ou 15 dias do começo de cada mês do contrato.
 - `impedimentos`: `[{ "codigo", "mensagem" }]` de `clientes.selectors.impedimentos_para_nova_locacao` (`CLI-05` bloqueado, `cliente_inativo`), do veículo (`LOC-03` não está `disponivel`; `CLI-02` CNH sem a categoria) e do início (`inicio_vencido`, abaixo). Com impedimento, `confirmar` recusa.
   - **T-410:** o veículo `reservado` deixou de servir para a Nova locação. Todo `reservado` é de uma locação `aguardando_retirada` ou de uma troca pendente (`LOC-09`), e nenhum dos dois vai para outro cliente (CA-410-01, CA-410-05). Antes, o `reservado` passava na simulação e só a restrição de uma locação aberta por veículo recusava.
   - `{ "codigo": "inicio_vencido", "mensagem": "O início passou de 3 dias. Mude a data de início para confirmar." }` quando o `ultimo_dia_retirada` do `inicio` informado já passou (hoje > início + 3, `LOC-12`, padrão A do produto). Ex.: hoje 09 nov, início 05 nov. Com início 06 nov, passa. O rascunho pode ser criado e editado com esse início; só a confirmação recusa. A tela mostra o impedimento como os outros, sem fazer a conta.
@@ -255,8 +269,8 @@ Só em `rascunho`. Mesmo corpo. 200: detalhe. 409 `transicao_locacao` fora de `r
 ### POST /api/locacoes/{id}/confirmar/
 Botões "Continuar para vistoria" e "Salvar como reserva". Corpo: `{ "primeiro_vencimento": "2026-10-07" }` (opcional; padrão = data do início).
 200: detalhe com `status = "aguardando_retirada"`. Na mesma transação:
-- Congela preços (`valor_periodo_centavos`, `diaria_centavos`, `caucao_centavos`, extras) pela data de hoje (`LOC-15`).
-- Cria as contas a receber em `financeiro`: as parcelas até o `fim_previsto` e a caução (`tipo = caucao`), todas com origem nesta locação e com `aguarda_retirada = true` (ADR 0035, `LOC-05`). Os vencimentos seguem o calendário a partir da data de início, como antes.
+- Congela, pelo plano do veículo no dia de hoje (`LOC-15`, ADR 0041, item 5): `valor_periodo_centavos`, `caucao_centavos` e `caucao_parcelas`, `diaria_centavos` (o dia de atraso, `LOC-10`), `multa_minima_centavos` (`LOC-12`), `desconto_sem_aprovacao_pct` (`LOC-03`), `franquia_km`, `km_excedente_centavos` (só guardado), `prazo_devolucao_caucao_dias` e o `plano_veiculo`; e os extras. As locações de antes ficam com esses campos nulos e seguem como eram (multa mínima = diária, desconto da empresa).
+- Cria as contas a receber em `financeiro`: as parcelas até o `fim_previsto` e a caução (`tipo = caucao`; parcelada, uma conta por parcela, com `numero_parcela` e `total_parcelas`, "Caução · 1 de 2"), todas com origem nesta locação e com `aguarda_retirada = true` (ADR 0035, `LOC-05`). Os vencimentos seguem o calendário a partir da data de início, como antes. O 1º pagamento (`LOC-17`) é a 1ª parcela, a 1ª da caução e, na compra, a entrada.
 - **O veículo vai para `reservado`, com qualquer data de início** (T-410; tabela de transições do veículo): futuro, hoje ou passado. O serviço trava o veículo e exige `disponivel`; com outro status, 409 `LOC-03`. A transição é de `veiculos.services.transicionar`, com a origem na locação e o motivo "Reserva da LOC-2856" (evento de auditoria do veículo, CA-410-01). Antes, só o início futuro reservava, e o veículo da locação com início hoje ou passado ficava `disponivel` até a ativação.
 - Confirmada no próprio `ultimo_dia_retirada` depois das 08:00, a locação manda na hora o aviso da `AUT-17` aos gerentes (depois do commit, mesma chave; CA-410-17).
 - Desconto acima do limite: cria o pedido `APR-01` e devolve `"desconto": { "status": "pendente", "pedido_aprovacao_id": 88 }`. As parcelas nascem com o preço sem desconto e o contrato não é gerado até a decisão; aprovado, as parcelas abertas são refeitas com o desconto, ainda com `aguarda_retirada = true`; recusado, o desconto volta a 0 e o vendedor é avisado com o motivo. A reserva do veículo não espera a decisão.
@@ -339,13 +353,13 @@ Regras comuns das rotas de copiar link em `copiar-link.md`. Sem corpo. Gera um l
 Perfis: quem cria. Só em `ativa` ou `devolucao_atrasada`. Corpo: `{ "periodos": 1 }` ou `{ "fim_previsto": "..." }`.
 Simular devolve as novas parcelas; renovar (`LOC-08`):
 - Estende o `fim_previsto` e cria as novas parcelas na mesma locação (não cria outro `LOC-`).
-- Usa o preço vigente hoje (`LOC-15`: renovação usa o preço novo) e atualiza `valor_periodo_centavos` dali em diante.
+- Usa o preço de hoje do mesmo plano do veículo (`plano_veiculo`, `valor_em(hoje)`; `LOC-15`: renovação usa o preço novo) e atualiza `valor_periodo_centavos` e `diaria_centavos` (o dia de atraso de hoje) dali em diante. Plano desligado ou retirado: 409 `VEI-15` com o aviso da tabela não preenchida (ADR 0041, item 5). Depois de uma troca, o plano do mesmo tipo do veículo novo. Nas locações de antes, o plano do veículo do tipo da periodicidade. A multa mínima continua a congelada na confirmação (`LOC-12`).
 - Gera um aditivo pelo app `contratos` (`tipo = aditivo`) e o envia. A renovação vale na hora; se o aditivo não for assinado em 7 dias, os gerentes da filial recebem uma tarefa (`LOC-08`).
 - Não gera comissão (`FIN-09`).
 - Permitida com uma troca de veículo pendente: as parcelas novas saem da categoria atual e as que vencem depois do dia da troca são refeitas na conclusão (`LOC-08`, `LOC-09`).
 - `devolucao_atrasada` renovada volta a `ativa` se o novo fim for futuro; o atraso já corrido continua cobrado na devolução.
 - Dentro do prazo (fim previsto mais a tolerância, `LOC-10`, `LOC-11`), o período novo começa no fim previsto antigo. Depois do prazo, mesmo com a locação ainda `ativa`, começa na hora da renovação, e o atraso até ali fica guardado (`atraso_anterior_*`) e é cobrado no acerto (T-111, CA-015-26: fim 07 out 10:00, renovada em 09 out 10:00 → 10980 de atraso, parcela de 32900 vencendo em 09 out, fim em 16 out 10:00).
-- Período e extras por período pelo preço de hoje (os extras pelo valor atual do cadastro, que passa a valer na locação); o mesmo `desconto_pct`, sem novo `APR-01`; plano de preço fixo pelo valor de hoje, plano de desconto contando os períodos desde o começo da locação; plano desativado → tabela (CA-015-27).
+- Período e extras por período pelo preço de hoje (os extras pelo valor atual do cadastro, que passa a valer na locação); o mesmo `desconto_pct`, sem novo `APR-01`. Só nas locações de antes, com plano especial: o de preço fixo pelo valor de hoje, o de desconto contando os períodos desde o começo da locação; desativado → o plano do veículo (CA-015-27).
 200: detalhe.
 
 ### Troca de veículo (LOC-09)
@@ -355,12 +369,12 @@ As rotas da troca ficam em `apps/vistorias/api`, porque abrem e descartam vistor
 #### POST /api/locacoes/{id}/trocar-veiculo/
 Perfis: quem cria. Só em `ativa`. Corpo: `{ veiculo_novo_id, motivo }`.
 202: `{ "troca": { "id", "status": "pendente", "devolucao_vistoria_id", "saida_vistoria_id" } }`. Na mesma transação:
-- a troca nasce `pendente`, com o preço da nova categoria **no dia do pedido** guardado nela (`LOC-09`, `LOC-15`): período (sem descontos, como `Locacao.valor_periodo_centavos`; o plano especial de preço fixo continua se valer para a nova categoria), diária e caução, mais `preco_do_dia` (a data local da filial). A diferença de caução, as parcelas refeitas, a diária do atraso, a caução da locação e a diferença do período em curso saem todos desse preço, mesmo que a tabela mude até a conclusão;
+- a troca nasce `pendente`, com o preço do veículo novo **no dia do pedido** guardado nela (`LOC-09`, `LOC-15`): o plano ligado dele **do mesmo tipo do contratado** (no `outro`, o de mesmo nome; T-495, ADR 0041) dá o período (sem descontos, como `Locacao.valor_periodo_centavos`; nas locações de antes, o plano especial de preço fixo continua se valer para a nova categoria), o dia de atraso e a caução, mais `preco_do_dia` (a data local da filial). Sem esse plano ligado, 409 `VEI-15` com o aviso da tabela não preenchida, e nada muda. Na conclusão, a locação passa a apontar para esse plano (`plano_veiculo`), que a renovação usa. A diferença de caução, as parcelas refeitas, a diária do atraso, a caução da locação e a diferença do período em curso saem todos desse preço, mesmo que a tabela mude até a conclusão;
 - o veículo novo fica `reservado`;
 - abrem a chegada do veículo atual e a saída do novo, em `rascunho`, e a devolução da locação nasce em `rascunho` com essa chegada (um acerto só, `vistorias.md`);
 - caução da nova categoria **maior**: a diferença vira conta `caucao` aberta com vencimento hoje, e o veículo novo só sai depois de paga (Juliana: 20000). Caução **menor**: nenhuma conta; o acerto final desconta da caução total paga.
 
-Recusas: 400 `motivo` vazio; 403 para quem não cria; 409 `transicao_locacao` fora de `ativa`; 409 `cancelamento_em_andamento`; 409 `troca_pendente` ("Esta locação já tem uma troca de veículo pendente."); 422 `LOC-03` (veículo novo indisponível), `FIL-05` (de outra filial), `CLI-02` (CNH sem a categoria), `LOC-01` (categoria sem preço vigente).
+Recusas: 400 `motivo` vazio; 403 para quem não cria; 409 `transicao_locacao` fora de `ativa`; 409 `cancelamento_em_andamento`; 409 `troca_pendente` ("Esta locação já tem uma troca de veículo pendente."); 422 `LOC-03` (veículo novo indisponível), `FIL-05` (de outra filial), `CLI-02` (CNH sem a categoria); 409 `VEI-15` (o veículo novo sem plano ligado do mesmo tipo).
 
 Com a troca pendente: a renovação é permitida (`LOC-08`; as parcelas novas saem da categoria atual e são refeitas na conclusão), o cancelamento e o pedido de cancelamento respondem 409 `troca_pendente` (abaixo), e encerrar a devolução responde 409 `troca_pendente` (`vistorias.md`).
 
@@ -480,12 +494,18 @@ chave: "aut17-aviso-{locacao_id}"
 
 ---
 
-## Planos especiais (tela Precos)
+## Planos especiais e de compra: só leitura (ADR 0041, item 2, T-495)
+
+O plano especial e o plano de compra da categoria deixaram de receber cadastro: os planos agora são de cada veículo (`VEI-12`, `VEI-16`, `docs/api/veiculos.md`, "Preços"). O `GET` continua, porque as locações antigas apontam para eles; `POST .../desativar/` também.
+- `POST /api/planos-especiais/` e `PATCH /api/planos-especiais/{id}/`: 410 `{ "codigo": "VEI-12", "mensagem": "Os planos agora são de cada veículo, como o Entregador. Use Planos e preços do veículo." }`.
+- `POST /api/planos-compra/` e `PATCH /api/planos-compra/{id}/`: 410 `{ "codigo": "VEI-16", "mensagem": "O plano de compra agora é de cada veículo. Use Planos e preços do veículo." }`.
+
+### Planos especiais (tela Precos, as locações de antes)
 
 `GET /api/planos-especiais/` (todos) → `{ "resultados": [ { "id", "nome": "Entregador", "periodicidade": "semanal", "regra": "preco_fixo", "preco_centavos": 27900, "desconto_pct": null, "a_partir_do_periodo": null, "categorias": [], "condicoes": "Semanal com km livre e troca de óleo inclusa", "locacoes_ativas": 18, "ativo": true } ] }`.
-`POST`, `PATCH /api/planos-especiais/{id}/`, `POST .../desativar/` · administrador. Mudança vale para locações novas (`LOC-15`); quem já assinou mantém.
+`POST .../desativar/` · administrador. Quem já assinou mantém (`LOC-15`). Na renovação e na troca das locações de antes, o plano especial de preço fixo ativo continua valendo e o de desconto continua contando os períodos (`LOC-08`).
 
-## Planos de compra (tela Precos, `LOC-16`, T-420)
+### Planos de compra (tela Precos, `LOC-16`, T-420, as locações de antes)
 
 `GET /api/planos-compra/` (administrador, gerente e vendedor; o vistoriador e o financeiro recebem 403; sem filtro, todos; `?ativo=true` para a Nova locação, `?ativo=false` os desativados, `?categoria=<id>`) →
 ```json
@@ -494,7 +514,7 @@ chave: "aut17-aviso-{locacao_id}"
   "caucao_centavos": 30000, "ultima_parcela_centavos": 89000, "locacoes_ativas": 0, "ativo": true } ] }
 ```
 - `caucao_centavos` é a caução vigente da categoria; `ultima_parcela_centavos` = `max(0, valor_parcela_centavos − caucao_centavos)`, para a tela mostrar sem conta. Os dois são de hoje e podem mudar até a confirmação.
-- `POST /api/planos-compra/`, `PATCH /api/planos-compra/{id}/`, `POST /api/planos-compra/{id}/desativar/` · administrador. Corpo: `{ nome, categoria_id, periodicidade: "semanal" | "mensal", parcelas, valor_parcela_centavos, condicoes? }`. 400 `validacao`: nome repetido, `parcelas` fora de 2 a 260, valor 0. Mudar ou desativar vale só para locações novas (`LOC-15`); auditoria `plano_compra.criar`, `editar`, `desativar`.
+- `POST /api/planos-compra/{id}/desativar/` · administrador. Auditoria `plano_compra.desativar`. A migração `locacoes` 0009 copiou o plano ativo mais recente de cada categoria para o plano de compra de cada veículo dela, desligado, no modo `digitar` (ADR 0041, item 3, passo 4).
 - Valem com o padrão A do ponto em aberto 1 da `LOC-16` (ADR 0037, item 2).
 
 ---
@@ -537,9 +557,12 @@ A linha da lista e o detalhe ganham `tipo` (`comum` ou `intencao_compra`) e `tip
 
 ### POST /api/locacoes/simular/ e POST /api/locacoes/ com o tipo
 
-Corpo: `{ "tipo": "intencao_compra", "plano_compra_id": 3, "cliente_id", "veiculo_id", "inicio", "forma_pagamento" }`. Sem `tipo`, é `comum`, como hoje.
-- `periodicidade` e `periodos` vêm do plano; mandados, são ignorados se iguais e recusados se diferentes. `plano_especial_id`, `fim_previsto`, `extras` com item, `desconto_pct` diferente de 0 e `parcelamento_mensal` recusam com 400 `validacao` no campo: "A locação com intenção de compra usa o valor do plano." (CA-420-02).
-- O veículo tem de ser da categoria do plano: 400 `validacao` em `veiculo_id`, "O veículo não é da categoria do plano.". Plano inativo: 400 em `plano_compra_id`.
+Corpo: `{ "tipo": "intencao_compra", "cliente_id", "veiculo_id", "inicio", "forma_pagamento" }`. Sem `tipo`, é `comum`, como hoje. **Desde a T-495, o plano é o de compra do próprio veículo** (`VEI-16`, ADR 0041): `plano_compra_id` é ignorado.
+- `periodicidade` (`diaria`, `semanal`, `quinzenal` ou `mensal`) e `periodos` vêm do plano; mandados, são ignorados se iguais e recusados se diferentes. `plano_especial_id`, `plano_veiculo_id`, `fim_previsto`, `extras` com item, `desconto_pct` diferente de 0 e `parcelamento_mensal` recusam com 400 `validacao` no campo: "A locação com intenção de compra usa o valor do plano." (CA-420-02).
+- Veículo sem a locação com compra ligada: 409 `VEI-15`, com o aviso da tabela não preenchida.
+- O valor da parcela é a parcela do cliente (parcela da moto + adicional). A quinzenal vence a cada 14 dias, e a diária, uma parcela por dia (`LOC-05`, `VEI-16`). O `compra` da simulação traz `{ periodicidade, parcelas_total, valor_parcela_centavos, parcela_moto_centavos, adicional_centavos, entrada_centavos, ultima_parcela_centavos, sobra_caucao_centavos }`.
+- **Entrada:** com entrada, a confirmação cria uma conta `tipo = entrada`, com o vencimento da 1ª parcela; ela entra no 1º pagamento (`LOC-17`), não abate parcela e não volta no encerramento antes do fim (`LOC-16`). A primeira linha da simulação é "Entrada", e `texto_retirada` passa a "Na retirada: entrada, primeira parcela e caução.". Ex.: Pop 110i TBC-5H21, semanal, 104 × R$ 191,01, entrada R$ 1.000,00, caução R$ 300,00 → `hoje_na_retirada_centavos` 149101; a última parcela nasce R$ 0,00 e sobram R$ 108,99.
+- A confirmação congela, além de `compra_parcelas` e `compra_valor_parcela_centavos`, o `plano_compra_veiculo`, `compra_entrada_centavos`, `compra_adicional_centavos`, `compra_valor_venda_centavos` e `compra_juros_mes_pct`; `diaria_centavos` é o dia de atraso do veículo. No detalhe, `compra.plano` é `{ "id", "nome": "Locação com compra" }` (nas de antes, o plano da categoria) e `compra` ganha `periodicidade` e `entrada_centavos`.
 - `tipo` só muda no rascunho.
 
 Simulação do CA-420-01 (início 10 nov 2026 10:00):
@@ -558,7 +581,7 @@ Simulação do CA-420-01 (início 10 nov 2026 10:00):
                           "...",
                           { "numero": 24, "vencimento": "2028-10-10", "valor_centavos": 89000 } ],
   "caucao_centavos": 30000,
-  "compra": { "parcelas_total": 24, "valor_parcela_centavos": 119000, "ultima_parcela_centavos": 89000, "sobra_caucao_centavos": 0 },
+  "compra": { "periodicidade": "mensal", "parcelas_total": 24, "valor_parcela_centavos": 119000, "parcela_moto_centavos": 119000, "adicional_centavos": 0, "entrada_centavos": 0, "ultima_parcela_centavos": 89000, "sobra_caucao_centavos": 0 },
   "precisa_aprovacao_desconto": false, "impedimentos": [], "avisos": []
 }
 ```
@@ -569,7 +592,7 @@ Simulação do CA-420-01 (início 10 nov 2026 10:00):
 ### POST /api/locacoes/{id}/confirmar/ com o tipo
 
 Como na comum (reserva, contas com `aguarda_retirada`, comissão de locação da `FIN-09`), mais:
-- congela `plano_compra`, `compra_parcelas` e `compra_valor_parcela_centavos` (CA-420-04);
+- congela `plano_compra_veiculo`, `compra_parcelas`, `compra_valor_parcela_centavos` e os `compra_*` da T-495 (CA-420-04); com entrada, cria a conta `entrada`;
 - cria as `compra_parcelas` parcelas de uma vez, a última com a caução abatida (no mínimo R$ 0,00), e a caução (observação "Abatida na última parcela"). A última de R$ 0,00 não vira conta (o `financeiro` não cria conta zerada, `criar_contas`): `total_parcelas` continua com o número do plano, e ela conta como paga em `compra.parcelas_pagas` e na quitação quando todas as outras estão pagas (T-420; CA-420-14: 103 contas, quita na 103ª);
 - sem modelo publicado de `finalidade = locacao_compra`: 422 `{ "codigo": "LOC-16", "mensagem": "Publique o modelo de contrato da locação com intenção de compra antes de confirmar.", "detalhes": { "link": "/admin/contratos" } }`, conferido antes de tudo o mais depois do `inicio_vencido` (CA-420-03). Na comum, nada muda (o `IMP-04` continua na geração do contrato).
 - O contrato gerado depois (`POST /api/locacoes/{id}/contrato/`) usa o modelo dessa finalidade (`contratos.md`).
@@ -642,6 +665,8 @@ O nome do plano vem do evento; sem ele, o nome de hoje. Testes: `test_aud_loc_16
 | `locacoes.selectors.calcular_encerramento_antecipado(locacao, data)` | `LOC-12`, `LOC-13`; o mesmo cálculo de `cancelamento/simular`. |
 | assinantes | `financeiro.parcela_paga` (1º pagamento), `contratos.contrato_assinado`, `aprovacoes.pedido_decidido` (`APR-01`, `APR-02`). |
 | evento publicado | `locacoes.locacao_encerrada` (preventivas, `MAN-03`). `locacoes.locacao_cancelada` (T-410): `locacao_id`, `codigo`, `antes_da_retirada`, `automatico`, `motivo`, depois do commit de todo cancelamento antes da retirada, pedido ou automático; `vistorias` assina e descarta a saída em `rascunho`. |
+| `veiculos.selectors.planos_para_locacao(veiculo, dia)`, `plano_para_locacao(veiculo, plano_id, dia)`, `plano_do_mesmo_tipo(veiculo, tipo, nome, dia)`, `plano_compra_para_locacao(veiculo)` | T-495 (ADR 0041, item 4): de onde a locação lê o preço, no lugar de `preco_vigente`. Devolvem `PrecoDoPlano` ou `PrecoDaCompra` (frozen) com o valor e a caução do dia e as regras do veículo; sem o plano ligado, 409 `VEI-15`. |
+| `veiculos.services.alinhar_veiculos_sem_preco()` e o comando `alinhar_veiculos_sem_preco [<schema>]` | `VEI-15` (ADR 0041, item 3, passo 6): depois do `migrate_schemas`, no deploy e no `make seed`, o `disponivel` sem plano ligado vai a `indisponivel` "sem preço", pelo serviço, com auditoria do Sistema. Idempotente. |
 | `locacoes.services.quitar_se_pago(locacao)` | `LOC-16` (T-420): a quitação, chamada pelo assinante de `financeiro.parcela_paga`; publica `locacoes.locacao_quitada` (`locacao_id`, `codigo`, `filial_id`, `cliente_id`, `veiculo_id`, `vendedor_id`, `quitada_em`) dentro da transação; `vendas` assina (ADR 0037). |
 | `locacoes.selectors.ultimo_dia_retirada(locacao) -> date` | `LOC-12` (T-410): data local do `inicio` + 3. Uma função só para a confirmação (`inicio_vencido`), a simulação, o `prazo_retirada` do detalhe e a `AUT-17`. |
 | `locacoes.services.cancelar_nao_retirada(locacao_id)` e `avisar_nao_retirada(locacao)` | `AUT-17` (T-410): o cancelamento automático e o aviso aos gerentes, acima. |

@@ -383,6 +383,7 @@ function compraDe(s: Semente, ps: ParcelaDaLocacao[], vistoriador: boolean): Com
   const pode = perfil === "administrador" || perfil === "gerente";
   return {
     plano: c.plano,
+    periodicidade: s.periodicidade,
     parcelas_total: c.total,
     parcelas_pagas: pagas,
     ...(vistoriador ? {} : { valor_parcela_centavos: c.valorCentavos, ultima_parcela_centavos: c.ultimaCentavos, sobra_caucao_centavos: 0 }),
@@ -416,6 +417,10 @@ function detalhe(s: Semente): LocacaoCompleta {
       caucao_centavos: s.corpo.caucaoCentavos,
       desconto_pct: s.desconto ?? "0.00",
       assinado_em_preco_de: s.inicio.slice(0, 10),
+      caucao_parcelas: 1,
+      multa_minima_centavos: s.corpo.diariaCentavos,
+      franquia_km: null,
+      km_excedente_centavos: 0,
     },
     desconto: null,
     extras: (s.extras ?? []).map((nome, i) => ({ id: EXTRAS.find((x) => x.nome === nome)?.id ?? i + 1, nome, quantidade: 1, valor_centavos: 0, cobranca: "por_periodo" })),
@@ -655,6 +660,8 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
     hoje_na_retirada_centavos: (parcelas[0]?.valor_centavos ?? 0) + caucao,
     texto_retirada: `${e.periodicidade === "diaria" ? "Hoje: todas as diárias" : e.periodicidade === "semanal" ? "Hoje: primeira semana" : quatro ? "Hoje: primeira parcela do mês" : "Hoje: primeiro mês"} mais caução.`,
     parcelas_previstas: parcelas,
+    caucoes_previstas: caucao ? [{ numero: 1, vencimento: parcelas[0]?.vencimento ?? e.inicio.slice(0, 10), valor_centavos: caucao }] : [],
+    plano: null,
     caucao_centavos: caucao,
     diaria_centavos: pv.diaria_centavos,
     compra: null, // LOC-16: só na locação com intenção de compra
@@ -698,12 +705,14 @@ async function simularCompra(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
     hoje_na_retirada_centavos: plano.valor_parcela_centavos + plano.caucao_centavos,
     texto_retirada: "Na retirada: primeira parcela mais caução.",
     parcelas_previstas: parcelas,
+    caucoes_previstas: [{ numero: 1, vencimento: parcelas[0]?.vencimento ?? e.inicio.slice(0, 10), valor_centavos: plano.caucao_centavos }],
+    plano: null,
     caucao_centavos: plano.caucao_centavos,
     diaria_centavos: 0,
     precisa_aprovacao_desconto: false,
     impedimentos,
     avisos,
-    compra: { parcelas_total: plano.parcelas, valor_parcela_centavos: plano.valor_parcela_centavos, ultima_parcela_centavos: plano.ultima_parcela_centavos, sobra_caucao_centavos: 0 },
+    compra: { periodicidade: plano.periodicidade, parcelas_total: plano.parcelas, valor_parcela_centavos: plano.valor_parcela_centavos, parcela_moto_centavos: plano.valor_parcela_centavos, adicional_centavos: 0, entrada_centavos: 0, ultima_parcela_centavos: plano.ultima_parcela_centavos, sobra_caucao_centavos: 0 },
   };
 }
 

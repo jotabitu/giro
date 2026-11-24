@@ -7,7 +7,7 @@ detalhe responde 404. O vistoriador não usa a lista (403) e vê o detalhe sem v
 from typing import Any
 
 from django.http import Http404
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
@@ -24,7 +24,7 @@ from apps.contratos.api.serializers import (
 from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
 from apps.plataforma.models import Recurso
-from comum.erros import ErroDeValidacao
+from comum.erros import ErroDeValidacao, Expirado
 from comum.limites import LIMITES_DO_LINK_CONTRATO
 from comum.paginacao import PaginacaoPorCursor, envelope_sem_paginas
 from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, filial_pedida
@@ -406,7 +406,18 @@ class PdfDoContratoView(ViewDeLocacao):
         return Response({"url": url.url, "url_expira_em": url.expira_em})
 
 
-# --- Planos especiais ---
+# --- Planos especiais e de compra: só leitura (ADR 0041, item 2) ---
+
+# 410 no cadastro novo: as locações antigas continuam apontando para os planos, que o `GET` lê.
+PLANO_DE_COMPRA_SAIU = (
+    "VEI-16",
+    "O plano de compra agora é de cada veículo. Use Planos e preços do veículo.",
+)
+PLANO_ESPECIAL_SAIU = (
+    "VEI-12",
+    "Os planos agora são de cada veículo, como o Entregador. Use Planos e preços do veículo.",
+)
+RESPOSTA_410 = OpenApiResponse(description="Os planos agora são de cada veículo (ADR 0041)")
 
 
 class PlanosEspeciaisView(ViewDeLocacao):
@@ -428,15 +439,11 @@ class PlanosEspeciaisView(ViewDeLocacao):
 
     @extend_schema(
         request=PlanoEspecialEntradaSerializer,
-        responses={201: PlanoEspecialSerializer},
-        summary="Criar plano especial (LOC-01, LOC-15)",
+        responses={410: RESPOSTA_410},
+        summary="Criar plano especial: 410, o plano é de cada veículo (VEI-12, ADR 0041)",
     )
     def post(self, request: Request) -> Response:
-        plano = services.criar_plano(_entrada(PlanoEspecialEntradaSerializer, request))
-        return Response(
-            PlanoEspecialSerializer(selectors.representacao_plano(plano)).data,
-            status=status.HTTP_201_CREATED,
-        )
+        raise Expirado(*PLANO_ESPECIAL_SAIU)
 
 
 def _plano(pk: int) -> PlanoEspecial:
@@ -451,13 +458,12 @@ class PlanoEspecialView(ViewDeLocacao):
 
     @extend_schema(
         request=PlanoEspecialEntradaSerializer,
-        responses=PlanoEspecialSerializer,
-        summary="Editar plano especial (vale para locações novas, LOC-15)",
+        responses={410: RESPOSTA_410},
+        summary="Editar plano especial: 410, o plano é de cada veículo (VEI-12, ADR 0041)",
     )
     def patch(self, request: Request, pk: int) -> Response:
-        dados = _entrada(PlanoEspecialEntradaSerializer, request, partial=True)
-        plano = services.editar_plano(_plano(pk), dados)
-        return Response(PlanoEspecialSerializer(selectors.representacao_plano(plano)).data)
+        _plano(pk)
+        raise Expirado(*PLANO_ESPECIAL_SAIU)
 
 
 class DesativarPlanoEspecialView(ViewDeLocacao):
@@ -495,15 +501,11 @@ class PlanosCompraView(ViewDeLocacao):
 
     @extend_schema(
         request=PlanoCompraEntradaSerializer,
-        responses={201: PlanoCompraSerializer},
-        summary="Criar plano de compra (LOC-16, LOC-15)",
+        responses={410: RESPOSTA_410},
+        summary="Criar plano de compra: 410, o plano é de cada veículo (VEI-16, ADR 0041)",
     )
     def post(self, request: Request) -> Response:
-        plano = services.criar_plano_compra(_entrada(PlanoCompraEntradaSerializer, request))
-        return Response(
-            PlanoCompraSerializer(selectors.representacao_plano_compra(plano)).data,
-            status=status.HTTP_201_CREATED,
-        )
+        raise Expirado(*PLANO_DE_COMPRA_SAIU)
 
 
 def _plano_compra(pk: int) -> PlanoCompra:
@@ -518,13 +520,12 @@ class PlanoCompraView(ViewDeLocacao):
 
     @extend_schema(
         request=PlanoCompraEntradaSerializer,
-        responses=PlanoCompraSerializer,
-        summary="Editar plano de compra (vale para locações novas, LOC-15)",
+        responses={410: RESPOSTA_410},
+        summary="Editar plano de compra: 410, o plano é de cada veículo (VEI-16, ADR 0041)",
     )
     def patch(self, request: Request, pk: int) -> Response:
-        dados = _entrada(PlanoCompraEntradaSerializer, request, partial=True)
-        plano = services.editar_plano_compra(_plano_compra(pk), dados)
-        return Response(PlanoCompraSerializer(selectors.representacao_plano_compra(plano)).data)
+        _plano_compra(pk)
+        raise Expirado(*PLANO_DE_COMPRA_SAIU)
 
 
 class DesativarPlanoCompraView(ViewDeLocacao):

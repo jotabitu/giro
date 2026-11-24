@@ -15,15 +15,25 @@ from zoneinfo import ZoneInfo
 from comum.dinheiro import aplicar_percentual, dividir_em_parcelas, formatar_reais
 from comum.erros import ErroDeValidacao
 
-from .models import ParcelamentoMensal, Periodicidade
+from .models import PARTES_DO_MES, Periodicidade
 
 P = Periodicidade
-# Teto de períodos por locação: acima disso, é outro contrato.
-MAXIMO_DE_PERIODOS = {P.DIARIA: 90, P.SEMANAL: 52, P.MENSAL: 24}
+# Teto de períodos por locação: acima disso, é outro contrato. A quinzenal é só da compra, que
+# não tem teto (o plano do veículo vai até 1000 parcelas, VEI-16).
+MAXIMO_DE_PERIODOS = {P.DIARIA: 90, P.SEMANAL: 52, P.MENSAL: 24, P.QUINZENAL: 52}
 UNIDADE = {
     P.DIARIA: ("diária", "diárias"),
     P.SEMANAL: ("semana", "semanas"),
     P.MENSAL: ("mês", "meses"),
+    P.QUINZENAL: ("quinzena", "quinzenas"),
+}
+# Dias entre as parcelas (LOC-05); a mensal soma meses. A quinzenal da compra, 14 dias (VEI-16).
+DIAS_DO_PASSO = {P.DIARIA: 1, P.SEMANAL: 7, P.QUINZENAL: 14}
+ROTULO_DA_COMPRA = {
+    P.DIARIA: "diárias",
+    P.SEMANAL: "semanais",
+    P.QUINZENAL: "quinzenais",
+    P.MENSAL: "mensais",
 }
 
 
@@ -60,8 +70,13 @@ class Entrada:
     parcelamento_mensal: str = ""
     primeiro_vencimento: date | None = None
     # LOC-16: locação com intenção de compra. Os períodos são as parcelas do plano (sem o teto
-    # da comum; o plano vai até 260) e a última nasce com a caução abatida, no mínimo 0.
+    # da comum; o plano vai até 1000), cada uma com o seu vencimento (também na diária), e a
+    # última nasce com a caução abatida, no mínimo 0. A entrada vai no 1º pagamento.
     compra: bool = False
+    entrada_centavos: int = 0
+    # LOC-04: a caução em mais de uma parcela, a 1ª na retirada e as outras com os vencimentos
+    # seguintes do aluguel.
+    caucao_parcelas: int = 1
 
 
 @dataclass(frozen=True)
@@ -84,10 +99,14 @@ class Calculo:
     parcelas: list[Parcela] = field(default_factory=list)
     linhas: list[dict[str, object]] = field(default_factory=list)
     texto_retirada: str = ""
+    caucoes: list[Parcela] = field(default_factory=list)  # LOC-04, uma por vencimento
+    entrada_centavos: int = 0  # LOC-16
 
     @property
     def hoje_na_retirada_centavos(self) -> int:
-        return self.parcelas[0].valor_centavos + self.caucao_centavos
+        """O 1º pagamento (LOC-17): a 1ª parcela, a 1ª parcela da caução e a entrada."""
+        caucao = self.caucoes[0].valor_centavos if self.caucoes else self.caucao_centavos
+        return self.parcelas[0].valor_centavos + caucao + self.entrada_centavos
 
     @property
     def ultima_parcela_centavos(self) -> int:
@@ -102,6 +121,25 @@ def ultima_parcela_da_compra(valor_parcela_centavos: int, caucao_centavos: int) 
 def sobra_da_caucao(valor_parcela_centavos: int, caucao_centavos: int) -> int:
     """LOC-16: a caução maior que a parcela; a diferença volta ao cliente na quitação."""
     return max(0, caucao_centavos - valor_parcela_centavos)
+
+
+def parcelas_da_caucao(caucao_centavos: int, partes: int, vencimentos: list[date]) -> list[Parcela]:
+    """LOC-04 (decisão do dono de 18 nov 2026): a caução em `partes` parcelas, a 1ª no primeiro
+    vencimento (a retirada) e as outras junto com os vencimentos seguintes do aluguel, uma por
+    vencimento; a diferença de centavos vai para a última (convenção de arredondamento). Com
+    menos vencimentos que parcelas (a diária vence toda na retirada), o que sobra vence com o
+    último. Sem caução, nenhuma."""
+    if caucao_centavos <= 0 or not vencimentos:
+        return []
+    valores = dividir_em_parcelas(caucao_centavos, max(1, partes))
+    caucoes: list[Parcela] = []
+    for indice, valor in enumerate(valores):
+        if indice < len(vencimentos):
+            caucoes.append(Parcela(indice + 1, vencimentos[indice], valor))
+        else:
+            ultima = caucoes[-1]
+            caucoes[-1] = Parcela(ultima.numero, ultima.vencimento, ultima.valor_centavos + valor)
+    return caucoes
 
 
 def somar_meses(momento: datetime, meses: int) -> datetime:
@@ -119,11 +157,16 @@ def somar_meses_data(dia: date, meses: int) -> date:
 
 
 def fim_dos_periodos(periodicidade: str, inicio: datetime, periodos: int) -> datetime:
-    if periodicidade == P.DIARIA:
-        return inicio + timedelta(days=periodos)
-    if periodicidade == P.SEMANAL:
-        return inicio + timedelta(days=7 * periodos)
+    if periodicidade in DIAS_DO_PASSO:
+        return inicio + timedelta(days=DIAS_DO_PASSO[P(periodicidade)] * periodos)
     return somar_meses(inicio, periodos)
+
+
+def vencimento_da_parcela(periodicidade: str, primeiro: date, numero: int) -> date:
+    """O calendário da `LOC-05` para a parcela `numero` (1, 2, ...) de uma por período."""
+    if periodicidade in DIAS_DO_PASSO:
+        return primeiro + timedelta(days=DIAS_DO_PASSO[P(periodicidade)] * (numero - 1))
+    return somar_meses_data(primeiro, numero - 1)
 
 
 def _periodos_ate(entrada: Entrada, inicio: datetime, fim: datetime) -> int:
@@ -143,7 +186,7 @@ def _periodos_ate(entrada: Entrada, inicio: datetime, fim: datetime) -> int:
         while somar_meses(inicio, n) < fim:
             n += 1
         return n
-    dias = 1 if entrada.periodicidade == P.DIARIA else 7
+    dias = DIAS_DO_PASSO[P(entrada.periodicidade)]
     return ceil((fim - inicio) / timedelta(days=dias))
 
 
@@ -186,12 +229,12 @@ def _rotulo_periodos(periodicidade: str, n: int, precos: list[int]) -> str:
     return texto
 
 
-def _texto_retirada(entrada: Entrada, quatro_semanais: bool) -> str:
+def _texto_retirada(entrada: Entrada, mes_dividido: bool) -> str:
     if entrada.periodicidade == P.DIARIA:
         texto = "Hoje: todas as diárias"
     elif entrada.periodicidade == P.SEMANAL:
         texto = "Hoje: primeira semana"
-    elif quatro_semanais:
+    elif mes_dividido:
         texto = "Hoje: primeira parcela do mês"
     else:
         texto = "Hoje: primeiro mês"
@@ -216,29 +259,32 @@ def calcular(entrada: Entrada) -> Calculo:
     valores = [p - d + extras_periodo for p, d in zip(precos, descontos, strict=True)]
     valores[0] += extras_unicos
 
-    quatro_semanais = (
-        entrada.periodicidade == P.MENSAL
-        and entrada.parcelamento_mensal == ParcelamentoMensal.QUATRO_SEMANAIS
-    )
-    if entrada.periodicidade == P.DIARIA:
+    # VEI-12, LOC-05: o mensal em 4 semanais (a cada 7 dias) ou 2 quinzenais (a cada 15 dias),
+    # a partir do começo de cada mês do contrato.
+    mensal = entrada.periodicidade == P.MENSAL
+    partes_do_mes = PARTES_DO_MES.get(entrada.parcelamento_mensal) if mensal else None
+    if entrada.periodicidade == P.DIARIA and not entrada.compra:
         parcelas = [Parcela(1, primeiro, sum(valores))]
-    elif entrada.periodicidade == P.SEMANAL:
-        parcelas = [
-            Parcela(k + 1, primeiro + timedelta(days=7 * k), v) for k, v in enumerate(valores)
-        ]
-    elif quatro_semanais:
+    elif partes_do_mes is not None:
+        partes, passo = partes_do_mes
         parcelas = []
         for k, valor in enumerate(valores):
             comeco = somar_meses_data(primeiro, k)
-            for semana, parte in enumerate(dividir_em_parcelas(valor, 4)):
+            for indice, parte in enumerate(dividir_em_parcelas(valor, partes)):
                 parcelas.append(
-                    Parcela(len(parcelas) + 1, comeco + timedelta(days=7 * semana), parte)
+                    Parcela(len(parcelas) + 1, comeco + timedelta(days=passo * indice), parte)
                 )
     else:
-        parcelas = [Parcela(k + 1, somar_meses_data(primeiro, k), v) for k, v in enumerate(valores)]
+        parcelas = [
+            Parcela(k + 1, vencimento_da_parcela(entrada.periodicidade, primeiro, k + 1), v)
+            for k, v in enumerate(valores)
+        ]
+    caucoes = parcelas_da_caucao(
+        entrada.caucao_centavos, entrada.caucao_parcelas, [p.vencimento for p in parcelas]
+    )
 
     if entrada.compra:
-        return _calculo_da_compra(entrada, periodos, fim, parcelas)
+        return _calculo_da_compra(entrada, periodos, fim, parcelas, caucoes)
 
     seguinte = _preco_do_periodo(entrada, 2)
     valor_seguinte = seguinte - aplicar_percentual(seguinte, entrada.desconto_pct) + extras_periodo
@@ -264,19 +310,26 @@ def calcular(entrada: Entrada) -> Calculo:
             {"rotulo": "Desconto", "valor_centavos": desconto_total},
             {"rotulo": "Caução (devolvida no fim)", "valor_centavos": entrada.caucao_centavos},
         ],
-        texto_retirada=_texto_retirada(entrada, quatro_semanais),
+        texto_retirada=_texto_retirada(entrada, partes_do_mes is not None),
+        caucoes=caucoes,
     )
 
 
 def _calculo_da_compra(
-    entrada: Entrada, periodos: int, fim: datetime, parcelas: list[Parcela]
+    entrada: Entrada, periodos: int, fim: datetime, parcelas: list[Parcela], caucoes: list[Parcela]
 ) -> Calculo:
     """LOC-16: as parcelas do plano, a última com a caução abatida (no mínimo 0). Sem extras,
-    sem desconto e sem plano especial (recusados antes, no serviço)."""
+    sem desconto e sem plano especial (recusados antes, no serviço). A entrada vai no 1º
+    pagamento, sem abater parcela."""
     valor = entrada.preco_periodo_centavos
     ultima = ultima_parcela_da_compra(valor, entrada.caucao_centavos)
     parcelas[-1] = Parcela(parcelas[-1].numero, parcelas[-1].vencimento, ultima)
-    unidade = "mensais" if entrada.periodicidade == P.MENSAL else "semanais"
+    unidade = ROTULO_DA_COMPRA[P(entrada.periodicidade)]
+    linhas: list[dict[str, object]] = []
+    texto = "Na retirada: primeira parcela mais caução."
+    if entrada.entrada_centavos:
+        linhas.append({"rotulo": "Entrada", "valor_centavos": entrada.entrada_centavos})
+        texto = "Na retirada: entrada, primeira parcela e caução."
     return Calculo(
         periodos=periodos,
         fim_previsto=fim,
@@ -288,6 +341,7 @@ def _calculo_da_compra(
         desconto_centavos=0,
         parcelas=parcelas,
         linhas=[
+            *linhas,
             {
                 "rotulo": f"{periodos} parcelas {unidade} × {formatar_reais(valor)}",
                 "valor_centavos": valor * periodos,
@@ -298,5 +352,7 @@ def _calculo_da_compra(
             },
             {"rotulo": "Última parcela", "valor_centavos": ultima},
         ],
-        texto_retirada="Na retirada: primeira parcela mais caução.",
+        texto_retirada=texto,
+        caucoes=caucoes,
+        entrada_centavos=entrada.entrada_centavos,
     )

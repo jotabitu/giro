@@ -28,14 +28,16 @@ from apps.financeiro import services as financeiro
 from apps.financeiro.models import Comissao, ContaReceber
 from apps.locacoes import leituras as locacoes_leituras
 from apps.locacoes import services
+from apps.locacoes.api.serializers import PlanoEspecialEntradaSerializer
 from apps.locacoes.models import Locacao, PlanoEspecial
 from apps.notificacoes.models import Notificacao
 from apps.plataforma.models import Empresa
 from apps.veiculos import selectors as veiculos_selectors
 from apps.veiculos import services as veiculos_services
-from apps.veiculos.models import Veiculo
+from apps.veiculos.models import PlanoVeiculo, Veiculo
 from comum import eventos, relogio
 from comum.codigos import ajustar_sequencia
+from comum.erros import ErroDeValidacao
 
 from . import carteira
 from .frota import Frota, criar_veiculo, montar_frota
@@ -247,13 +249,33 @@ def test_loc_14_ca_015_02_mensal_menor_que_um_mes(cenario):
 
 
 def _plano(cenario: Cenario, **dados: Any) -> dict[str, Any]:
-    resposta = cenario.moto.api("Mariana").post("/api/planos-especiais/", dados, format="json")
-    assert resposta.status_code == 201, resposta.json()
-    return dict(resposta.json())
+    """Plano especial de antes da ADR 0041 (o cadastro pela API agora é 410 `VEI-12`): pelo
+    serviço, como os que já estão no banco."""
+    entrada = PlanoEspecialEntradaSerializer(data=dados)
+    assert entrada.is_valid(), entrada.errors
+    plano = services.criar_plano(dict(entrada.validated_data))
+    return {"id": plano.pk, "nome": plano.nome}
+
+
+def com_plano_especial(locacao_id: int, plano_id: int) -> Locacao:
+    """Locação de antes da ADR 0041 com plano especial: a Nova locação não aceita mais o plano
+    (VEI-12), mas as locações de antes continuam com ele na renovação e na troca."""
+    Locacao.objects.filter(pk=locacao_id).update(plano_especial_id=plano_id)
+    return Locacao.objects.get(pk=locacao_id)
+
+
+def street_a_29940_ate_30_set(veiculo: Veiculo) -> None:
+    """LOC-15: o plano semanal do veículo como a tabela da Street (R$ 299,40 até 30 set e
+    R$ 329,00 agendado desde 01 out), para confirmar em setembro (ADR 0041, item 1)."""
+    PlanoVeiculo.ativos.filter(veiculo=veiculo, tipo="semanal").update(
+        valor_centavos=29940, valor_agendado_centavos=32900, agendado_para=date(2026, 10, 1)
+    )
 
 
 def test_loc_01_ca_015_03_planos_especiais(cenario):
-    entregador = _plano(
+    """VEI-12 (ADR 0041, item 2): o plano especial saiu da Nova locação e do cadastro (410); os
+    de antes continuam na lista."""
+    _plano(
         cenario,
         nome="Entregador",
         periodicidade="semanal",
@@ -269,34 +291,15 @@ def test_loc_01_ca_015_03_planos_especiais(cenario):
         desconto_pct="10.00",
         a_partir_do_periodo=3,
     )
-    corpo = cenario.simular(plano_especial_id=entregador["id"]).json()
-    assert corpo["valor_periodo_centavos"] == 27900
-
-    urbana = cenario.veiculo("Urbana 110–125")
-    corpo = cenario.simular(
-        veiculo=urbana,
-        periodicidade="mensal",
-        periodos=4,
-        plano_especial_id=fidelidade["id"],
-        parcelamento_mensal="a_vista",
-    ).json()
-    assert [p["valor_centavos"] for p in corpo["parcelas_previstas"]] == [
-        109000,
-        109000,
-        98100,
-        98100,
-    ]
-
-    # Plano de outra periodicidade não vale.
-    resposta = cenario.simular(veiculo=urbana, plano_especial_id=fidelidade["id"])
+    resposta = cenario.simular(plano_especial_id=fidelidade["id"])
     assert resposta.status_code == 400
-    # Só o administrador cuida dos planos.
-    resposta = cenario.moto.api("Rodrigo").post(
+    assert resposta.json()["campos"]["plano_especial_id"] == [services.PLANO_ESPECIAL_SAIU]
+    resposta = cenario.moto.api("Mariana").post(
         "/api/planos-especiais/",
         {"nome": "X", "periodicidade": "semanal", "regra": "preco_fixo", "preco_centavos": 1},
         format="json",
     )
-    assert resposta.status_code == 403
+    assert (resposta.status_code, resposta.json()["codigo"]) == (410, "VEI-12")
     lista = cenario.moto.api("Bruna").get("/api/planos-especiais/").json()["resultados"]
     assert {p["nome"] for p in lista} == {"Entregador", "Mensal fidelidade"}
 
@@ -322,6 +325,7 @@ def test_loc_02_ca_015_04_extras_por_periodo(cenario):
 
 
 def test_loc_15_ca_015_05_preco_congelado_na_confirmacao(cenario, relogio):
+    street_a_29940_ate_30_set(cenario.sak)
     relogio.em("2026-09-23 09:00")
     cenario.moto._tokens.clear()
     antiga = cenario.confirmada(cliente="Carlos", periodos=5, inicio="2026-09-23T12:00:00Z")
@@ -514,6 +518,7 @@ def test_imp_04_ca_015_09_sem_modelo_de_contrato_publicado(cenario):
 def test_fil_05_ca_015_09_veiculo_de_outra_filial(cenario):
     caucaia = _caucaia(cenario.moto)
     de_caucaia = criar_veiculo(900, cenario.frota.categorias["Street 150–160"], caucaia)
+    veiculos_services.aplicar_modelo_de_preco([de_caucaia], "cadastro")  # VEI-15
     corpo = _recusada(cenario, "FIL-05", veiculo=de_caucaia)
     assert corpo["mensagem"] == "O veículo é de outra filial. Transfira antes de alugar."
 
@@ -916,7 +921,13 @@ def test_loc_01_plano_especial_campo_da_regra(cenario):
         {"nome": "Sem preço", "periodicidade": "semanal", "regra": "preco_fixo"},
         format="json",
     )
-    assert resposta.status_code == 400
+    assert resposta.status_code == 410  # VEI-12: o cadastro saiu (ADR 0041, item 2)
+    entrada = PlanoEspecialEntradaSerializer(
+        data={"nome": "Sem preço", "periodicidade": "semanal", "regra": "preco_fixo"}
+    )
+    assert entrada.is_valid(), entrada.errors
+    with pytest.raises(ErroDeValidacao):  # LOC-01: o preço fixo pede o preço
+        services.criar_plano(dict(entrada.validated_data))
     plano = PlanoEspecial.objects.create(
         nome="Entregador", periodicidade="semanal", regra="preco_fixo", preco_centavos=27900
     )

@@ -15,6 +15,7 @@ Toda baixa passa por `_baixar`: grava a forma, a hora, a multa e os juros (FIN-0
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from email.headerregistry import Address
 from email.utils import parseaddr
 from typing import Any
@@ -158,7 +159,7 @@ def vencer_na_retirada(origem: Origem, dia: date) -> int:
     juros contam do dia seguinte (FIN-03). As outras parcelas seguem o calendário do início.
     Chamar antes de `liberar_contas_da_retirada`, na mesma transação. Devolve quantas mudaram."""
     contas = ContaReceber.objects.select_for_update().filter(
-        Q(tipo=TipoConta.CAUCAO) | Q(tipo=TipoConta.PARCELA, numero_parcela=1),
+        selectors.q_primeiro_pagamento(),
         origem_tipo=origem.tipo,
         origem_id=origem.id,
         status=StatusConta.ABERTA,
@@ -315,13 +316,20 @@ def _baixar(
 
 
 def lancar_comissao(
-    origem: Origem, *, usuario_id: int, valor_centavos: int, regra: str = RegraComissao.FIXO_LOCACAO
+    origem: Origem,
+    *,
+    usuario_id: int,
+    valor_centavos: int,
+    regra: str = RegraComissao.FIXO_LOCACAO,
+    base_centavos: int | None = None,
+    pct: Decimal | None = None,
 ) -> Comissao | None:
     """Comissão `pendente` da origem. Uma por origem e pessoa (sem contar as estornadas).
 
     Só nasce com `vendas_comissoes` ligado no momento do fato (PLT-12, ADR 0024, item 11): a
     locação confirmada no Essencial nunca tem comissão, nem depois do upgrade. Confirmar, pagar e
-    estornar só mexem na comissão que já existe."""
+    estornar só mexem na comissão que já existe. A venda passa a base (o preço final) e o
+    percentual (ADR 0042, item 11); a locação continua com base = valor."""
     if valor_centavos <= 0 or not tem_recurso("vendas_comissoes"):
         return None
     with transaction.atomic():
@@ -334,14 +342,33 @@ def lancar_comissao(
             return existente
         comissao = Comissao(
             usuario_id=usuario_id,
-            base_centavos=valor_centavos,
+            base_centavos=valor_centavos if base_centavos is None else base_centavos,
             regra=regra,
+            pct=pct,
             valor_centavos=valor_centavos,
             **origem.campos(),
         )
         with auditar(comissao, "comissao.lancar", Categoria.FINANCEIRO, regra="FIN-09"):
             comissao.save()
     return comissao
+
+
+def recalcular_comissao(origem: Origem, *, base_centavos: int, valor_centavos: int) -> int:
+    """A comissão `pendente` da origem com a base e o valor novos, quando o preço muda antes de
+    fechar (FIN-09, ADR 0042, item 11). A confirmada, a paga e a estornada não mudam."""
+    recalculadas = 0
+    with transaction.atomic():
+        for comissao in Comissao.objects.select_for_update().filter(
+            origem_tipo=origem.tipo, origem_id=origem.id, status=StatusComissao.PENDENTE
+        ):
+            if (comissao.base_centavos, comissao.valor_centavos) == (base_centavos, valor_centavos):
+                continue
+            with auditar(comissao, "comissao.recalcular", Categoria.FINANCEIRO, regra="FIN-09"):
+                comissao.base_centavos = base_centavos
+                comissao.valor_centavos = valor_centavos
+                comissao.save(update_fields=["base_centavos", "valor_centavos", "atualizado_em"])
+            recalculadas += 1
+    return recalculadas
 
 
 def _mes_seguinte(dia: date) -> date:
