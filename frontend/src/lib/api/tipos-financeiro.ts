@@ -36,6 +36,7 @@ export type FiltroReceber = {
   cliente?: number;
   busca?: string;
   ordem?: "vencimento" | "-valor";
+  cursor?: string;
 };
 
 export type FormaDeRecebimento = S["ReceberFormaEnum"];

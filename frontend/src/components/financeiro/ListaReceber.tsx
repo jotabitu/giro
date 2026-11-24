@@ -141,14 +141,15 @@ export function ListaReceber() {
   const { valor, definir } = useFiltrosNaUrl();
   const aba = (valor("aba") ?? "atrasadas") as Aba;
   const periodo = (valor("periodo") ?? "mes") as PeriodoReceber;
+  const cursor = valor("cursor") ?? undefined;
   const buscaNaUrl = valor("busca") ?? "";
   const [busca, setBusca] = useBuscaNaUrl(definir, buscaNaUrl);
   const [aberto, setAberto] = useState<Pendente>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
   const consulta = useQuery({
-    queryKey: ["contas-receber", { aba, periodo, busca: buscaNaUrl }],
-    queryFn: () => financeiro.listarContas({ periodo, situacao: aba === "todas" ? undefined : aba, busca: buscaNaUrl || undefined }),
+    queryKey: ["contas-receber", { aba, periodo, busca: buscaNaUrl, cursor }],
+    queryFn: () => financeiro.listarContas({ periodo, situacao: aba === "todas" ? undefined : aba, busca: buscaNaUrl || undefined, cursor }),
     placeholderData: (anterior) => anterior,
     enabled: eu.pode.caixa_receber,
   });

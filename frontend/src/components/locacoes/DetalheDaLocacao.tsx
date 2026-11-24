@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bike, Car, ChevronLeft, FileText, User } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { Button, Icone, Panel, StatusBadge } from "@/design-system";
+import { Button, Icone, ListaComRolagem, Panel, StatusBadge } from "@/design-system";
 import { ErroApi, locacoes, type HistoricoDaLocacao, type LocacaoCompleta } from "@/lib/api";
 import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
@@ -131,9 +131,15 @@ function Pagamentos({ l, variante, aoConcluir }: { l: LocacaoCompleta; variante:
       </Panel>
     </div>
   );
-  if (variante === "celular") return panel(<ContasNoCelular l={l} parcelas={l.parcelas} aoConcluir={aoConcluir} />);
+  if (variante === "celular") {
+    return panel(
+      <ListaComRolagem rotulo="Pagamentos da locação">
+        <ContasNoCelular l={l} parcelas={l.parcelas} aoConcluir={aoConcluir} />
+      </ListaComRolagem>,
+    );
+  }
   return panel(
-      <div className="overflow-x-auto">
+      <ListaComRolagem rotulo="Pagamentos da locação">
         <table className="wl-table whitespace-nowrap">
           <thead>
             <tr>
@@ -167,7 +173,7 @@ function Pagamentos({ l, variante, aoConcluir }: { l: LocacaoCompleta; variante:
             })}
           </tbody>
         </table>
-      </div>,
+      </ListaComRolagem>,
   );
 }
 
@@ -323,6 +329,7 @@ function Historico({ l, historico }: { l: LocacaoCompleta; historico: HistoricoD
   const previstaTexto = prevista ? (diaDe(prevista) === diaDe(agora.toISOString()) ? `hoje, ${horaCurta(prevista)}` : dataHoraCurta(prevista)) : "";
   return (
     <Panel titulo="Histórico">
+      <ListaComRolagem rotulo="Histórico da locação">
       <ol className="relative flex flex-col pl-[26px] before:absolute before:bottom-2 before:left-[6px] before:top-2 before:w-[2px] before:bg-line">
         {itens.map((i, n) => (
           <li key={`${i.em}-${n}`} className="relative py-2 before:absolute before:-left-[25px] before:top-[13px] before:h-3 before:w-3 before:rounded-pill before:bg-solid">
@@ -337,6 +344,7 @@ function Historico({ l, historico }: { l: LocacaoCompleta; historico: HistoricoD
           </li>
         )}
       </ol>
+      </ListaComRolagem>
     </Panel>
   );
 }

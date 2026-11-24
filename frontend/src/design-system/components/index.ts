@@ -13,6 +13,7 @@ export { FleetBar, type SegmentoFrota } from "./FleetBar/FleetBar";
 export { LigaDesliga, type LigaDesligaProps } from "./LigaDesliga/LigaDesliga";
 export { LinhaDeLista, ListaDeLinhas } from "./LinhaDeLista/LinhaDeLista";
 export { KpiGrid, KpiTile, KpiVariacao } from "./KpiTile/KpiTile";
+export { ListaComRolagem } from "./ListaComRolagem/ListaComRolagem";
 export { Panel } from "./Panel/Panel";
 export { ProgressBar } from "./ProgressBar/ProgressBar";
 export { SeletorDeFilial, type SeletorDeFilialProps } from "./SeletorDeFilial/SeletorDeFilial";
