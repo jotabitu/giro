@@ -13,7 +13,7 @@ export default async function NovaLocacaoPagina({ searchParams }: { searchParams
   const q = await searchParams;
   return (
     <Suspense>
-      <NovaLocacao clienteInicial={numero(q.cliente)} veiculoInicial={numero(q.veiculo)} rascunhoInicial={numero(q.rascunho)} />
+      <NovaLocacao clienteInicial={numero(q.cliente)} veiculoInicial={numero(q.veiculo)} rascunhoInicial={numero(q.rascunho)} planoInicial={numero(q.plano)} />
     </Suspense>
   );
 }

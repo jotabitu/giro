@@ -6,7 +6,7 @@ import type { TomApi } from "./tipos-frota";
 type S = components["schemas"];
 
 export type StatusLocacao = "rascunho" | "aguardando_retirada" | "ativa" | "devolucao_atrasada" | "encerrada" | "cancelada";
-export type Periodicidade = "diaria" | "semanal" | "mensal";
+export type Periodicidade = "diaria" | "semanal" | "quinzenal" | "mensal";
 export type AbaLocacoes = "abertas" | "precisam_acao" | "devolvem_hoje" | "encerradas" | "canceladas" | "rascunhos";
 export type StatusParcela = "aberta" | "vence_hoje" | "atrasada" | "paga" | "renegociada" | "cancelada" | "estornada";
 export type CodigoAcaoLocacao = "cobrar" | "receber_devolucao" | "abrir";
@@ -64,7 +64,7 @@ export type TrocaCancelada = S["TrocaCanceladaResposta"];
 export type TrocaDaLocacao = S["TrocaPendente"];
 
 export type FormaPagamento = "pix" | "pix_automatico" | "cartao" | "boleto" | "dinheiro";
-export type ParcelamentoMensal = "a_vista" | "quatro_semanais";
+export type ParcelamentoMensal = "a_vista" | "quatro_semanais" | "duas_quinzenais";
 export type ExtraDeLocacao = S["Extra"];
 export type PlanoEspecial = Omit<S["PlanoEspecial"], "periodicidade" | "regra"> & { periodicidade: Periodicidade; regra: "preco_fixo" | "desconto_a_partir" };
 export type SimulacaoDaLocacao = S["SimulacaoLocacao"];
@@ -77,7 +77,7 @@ export type CompraDaLocacao = S["CompraLocacao"];
 export type VendaDaCompra = S["VendaDaCompra"];
 /** Corpo de simular, criar e atualizar (`PATCH` do rascunho): o mesmo formulário. */
 export type EntradaDaLocacao = Omit<S["LocacaoEntrada"], "periodicidade" | "forma_pagamento" | "parcelamento_mensal"> & {
-  periodicidade: Periodicidade;
+  periodicidade?: Periodicidade;
   forma_pagamento: FormaPagamento;
   parcelamento_mensal?: ParcelamentoMensal | null;
 };

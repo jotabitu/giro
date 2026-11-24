@@ -233,11 +233,11 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
             <div className="grid gap-4 md:grid-cols-2">
               <TextField cheio rotulo="Filial" value={ficha.filial.nome} readOnly dica="A filial só muda por transferência" />
               {tipoTravado ? (
-                <SelectField cheio rotulo="Tipo de veículo" opcoes={OPCOES_DE_TIPO} defaultValue={ficha.tipo_veiculo} disabled dica={tipoTravado} />
+                <SelectField cheio rotulo="Moto ou carro" opcoes={OPCOES_DE_TIPO} defaultValue={ficha.tipo_veiculo} disabled dica={tipoTravado} />
               ) : (
-                <SelectField cheio rotulo="Tipo de veículo" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} erro={erro("tipo")} />
+                <SelectField cheio rotulo="Moto ou carro" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} erro={erro("tipo")} />
               )}
-              <Selecao id="categoria" rotulo="Categoria de preço" vazio={categorias.isPending ? "Carregando…" : "Escolha"} opcoes={opcoes} dica={semCategoria ?? "Vale para as locações novas; as em andamento mantêm o preço"} erro={erro("categoria_id")} {...register("categoria_id")} value={v.categoria_id} />
+              <Selecao id="categoria" rotulo="Tipo de veículo" vazio={categorias.isPending ? "Carregando…" : "Escolha"} opcoes={opcoes} dica={semCategoria ?? "Trocar o tipo não muda os planos deste veículo. Os preços ficam em Planos e preços."} erro={erro("categoria_id")} {...register("categoria_id")} value={v.categoria_id} />
             </div>
             {categoria && (
               <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">

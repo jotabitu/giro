@@ -109,7 +109,7 @@ export function linhasDoEndereco(e: EnderecoCliente | null): [string, string] | 
   return [rua, [e.bairro, cidade].filter(Boolean).join(" · ")];
 }
 
-const UNIDADE = { diaria: ["diária", "diárias"], semanal: ["semana", "semanas"], mensal: ["mês", "meses"] } as const;
+const UNIDADE = { diaria: ["diária", "diárias"], semanal: ["semana", "semanas"], quinzenal: ["quinzena", "quinzenas"], mensal: ["mês", "meses"] } as const;
 
 /** "2 de 2 semanas pagas". */
 export function textoDeParcelas(pagas: number, total: number, periodicidade: keyof typeof UNIDADE): string {
@@ -117,4 +117,4 @@ export function textoDeParcelas(pagas: number, total: number, periodicidade: key
   return `${pagas} de ${total} ${total === 1 ? um : varios} ${total === 1 ? "paga" : "pagas"}`;
 }
 
-export const ROTULO_PERIODICIDADE = { diaria: "Diária", semanal: "Semanal", mensal: "Mensal" } as const;
+export const ROTULO_PERIODICIDADE = { diaria: "Diária", semanal: "Semanal", quinzenal: "Quinzenal", mensal: "Mensal" } as const;

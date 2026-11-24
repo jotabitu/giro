@@ -20,17 +20,16 @@ async function pagina(): Promise<string> {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(AGORA);
   try {
-    const planos = await locacoes.planosEspeciais();
-    const corpo = corpoDaLocacao(valoresIniciais(1206, 504, AGORA), planos.resultados)!;
+    const corpo = corpoDaLocacao({ ...valoresIniciais(1206, 504, AGORA), plano_veiculo_id: 7002 })!;
     const cache = new QueryClient();
     cache.setQueryData(["cliente", 1206], await clientes.obter(1206));
     cache.setQueryData(["veiculo", 504], await veiculos.obter(504));
     cache.setQueryData(["extras"], await locacoes.extras());
-    cache.setQueryData(["planos-especiais"], planos);
+    cache.setQueryData(["veiculo-precos", 504], await veiculos.precos(504));
     cache.setQueryData(["locacao-simulacao", JSON.stringify(corpo)], await locacoes.simular(corpo));
     return renderToStaticMarkup(
       <QueryClientProvider client={cache}>
-        <NovaLocacao clienteInicial={1206} veiculoInicial={504} />
+        <NovaLocacao clienteInicial={1206} veiculoInicial={504} planoInicial={7002} />
       </QueryClientProvider>,
     );
   } finally {
