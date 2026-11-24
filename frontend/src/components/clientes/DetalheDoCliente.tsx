@@ -537,24 +537,24 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
       <CartaoDoCelular titulo="Locações">
         <Estado consulta={locacoes} vazio={lista?.resultados.length === 0}>
           <ListaComRolagem rotulo="Locações do cliente">
-          <dl>
-            {lista?.resultados.map((l) => (
-              <Linha
-                key={l.id}
-                rotulo={
-                  <>
-                    <span className="wl-mono">{l.codigo}</span> · {l.veiculo.modelo}
-                    <br />
-                    <small className="text-[13px]">
-                      {ROTULO_PERIODICIDADE[l.periodicidade]} · {periodoDaLocacao(l)}
-                    </small>
-                  </>
-                }
-              >
-                {textoDoPagamento(l.pagamento, l.caucao)}
-              </Linha>
-            ))}
-          </dl>
+            <dl>
+              {lista?.resultados.map((l) => (
+                <Linha
+                  key={l.id}
+                  rotulo={
+                    <>
+                      <span className="wl-mono">{l.codigo}</span> · {l.veiculo.modelo}
+                      <br />
+                      <small className="text-[13px]">
+                        {ROTULO_PERIODICIDADE[l.periodicidade]} · {periodoDaLocacao(l)}
+                      </small>
+                    </>
+                  }
+                >
+                  {textoDoPagamento(l.pagamento, l.caucao)}
+                </Linha>
+              ))}
+            </dl>
           </ListaComRolagem>
         </Estado>
       </CartaoDoCelular>
