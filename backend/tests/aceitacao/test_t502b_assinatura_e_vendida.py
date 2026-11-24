@@ -63,16 +63,31 @@ def _preparada(cenario: Cenario, veiculo: Any = None) -> Venda:  # noqa: F811
     return Venda.objects.get(pk=venda.pk)
 
 
+def _contrato(venda: Venda) -> Contrato:
+    assert venda.contrato_id is not None
+    return Contrato.objects.select_related("cliente").get(pk=venda.contrato_id)
+
+
+def _entrada(venda: Venda) -> ContaReceber:
+    assert venda.conta_entrada_id is not None
+    return ContaReceber.objects.get(pk=venda.conta_entrada_id)
+
+
+def _cliente(venda: Venda) -> Cliente:
+    assert venda.cliente is not None
+    return venda.cliente
+
+
 def _assinar(venda: Venda) -> None:
     """O cliente assina pelo link, como na retirada (S-15)."""
-    contrato = Contrato.objects.select_related("cliente").get(pk=venda.contrato_id)
+    contrato = _contrato(venda)
     contratos_services.marcar_enviado(contrato)
     token = contratos_services.novo_token(contrato)
     contratos_services.assinar(token, contrato.cliente.nome, "177.10.20.30", "Celular")
 
 
 def _pagar_entrada(venda: Venda) -> None:
-    financeiro.marcar_paga(ContaReceber.objects.get(pk=venda.conta_entrada_id), forma="pix")
+    financeiro.marcar_paga(_entrada(venda), forma="pix")
 
 
 def _detalhe(cenario: Cenario, venda: Venda, quem: str = "Bruna") -> dict[str, Any]:  # noqa: F811
@@ -162,9 +177,9 @@ def test_ven_15_ven_0177_assinatura_e_entrada_concluem_a_venda(cenario, relogio)
     }
     assert detalhe["acoes"]["cancelar_assinatura"] and not detalhe["acoes"]["editar"]
     assert detalhe["documentos"] is None
-    conta = ContaReceber.objects.get(pk=venda.conta_entrada_id)
+    conta = _entrada(venda)
     assert (conta.tipo, conta.aguarda_retirada) == ("entrada", True)  # sem régua, multa e juros
-    contrato = Contrato.objects.get(pk=venda.contrato_id)
+    contrato = _contrato(venda)
     assert contrato.titulo == "Contrato de compra e venda"
     for trecho in (
         "R$ 22.900,00",
@@ -245,7 +260,7 @@ def test_ven_17_transferencia_da_venda_de_balcao(cenario, django_capture_on_comm
     )
     placa = f"{venda.veiculo.placa[:3]}-{venda.veiculo.placa[3:]}"
     assert aviso.titulo == (
-        f"Fazer a transferência no Detran: {placa} para {venda.cliente.nome}. "
+        f"Fazer a transferência no Detran: {placa} para {_cliente(venda).nome}. "
         f"{venda.codigo} vendida em 07/10/2026."
     )
     assert aviso.link == f"/vendas/{venda.pk}"
@@ -286,11 +301,11 @@ def test_imp_04_venda_sem_modelo_de_compra_e_venda(cenario, modelo_de_venda):  #
 
 def test_cli_03_preparar_com_cadastro_incompleto(cenario):  # noqa: F811
     venda = _ven_0177(cenario)
-    Cliente.objects.filter(pk=venda.cliente_id).update(consentimento_em=None)
+    Cliente.objects.filter(pk=_cliente(venda).pk).update(consentimento_em=None)
     detalhe = _detalhe(cenario, venda)
     assert "consentimento" in detalhe["documentos"]["pendencias"]
     assert detalhe["documentos"]["texto"] == (
-        f"Falta completar o cadastro de {venda.cliente.nome} para preparar a assinatura."
+        f"Falta completar o cadastro de {_cliente(venda).nome} para preparar a assinatura."
     )
     assert detalhe["documentos"]["pode_preparar"] is False
     resposta = _assinatura(cenario, venda)
@@ -300,11 +315,11 @@ def test_cli_03_preparar_com_cadastro_incompleto(cenario):  # noqa: F811
 
 def test_cli_05_preparar_com_cliente_bloqueado(cenario):  # noqa: F811
     venda = _ven_0177(cenario)
-    clientes_services.bloquear(venda.cliente, "Cheque devolvido")
+    clientes_services.bloquear(_cliente(venda), "Cheque devolvido")
     detalhe = _detalhe(cenario, venda)
     assert detalhe["documentos"]["gravidade"] == "critica"
     assert detalhe["documentos"]["texto"] == (
-        f"{venda.cliente.nome} está bloqueado e não pode comprar. A assinatura fica liberada "
+        f"{_cliente(venda).nome} está bloqueado e não pode comprar. A assinatura fica liberada "
         "depois do desbloqueio. Peça o desbloqueio ao gerente."
     )
     resposta = _assinatura(cenario, venda)
@@ -316,7 +331,7 @@ def test_cli_05_preparar_com_cliente_bloqueado(cenario):  # noqa: F811
 
 def test_ven_19_cancelar_assinatura_para_mudar_a_proposta(cenario):  # noqa: F811
     venda = _preparada(cenario)
-    contrato_id, conta_id = venda.contrato_id, venda.conta_entrada_id
+    contrato_id, conta_id = _contrato(venda).pk, _entrada(venda).pk
     resposta = _assinatura(cenario, venda, "delete")
     assert resposta.status_code == 200, resposta.json()
     assert resposta.json()["contrato"] is None and resposta.json()["acoes"]["editar"] is True
@@ -354,13 +369,13 @@ def test_ven_13_perder_com_contrato_assinado_cancela_o_contrato(cenario):  # noq
         f"{VENDAS}{venda.pk}/perder/", {"motivo": "Desistiu"}, format="json"
     )
     assert resposta.status_code == 200, resposta.json()
-    contrato = Contrato.objects.get(pk=venda.contrato_id)
+    contrato = _contrato(venda)
     assert (contrato.status, contrato.motivo_cancelamento) == (
         "cancelado",
         "Venda perdida: Desistiu",
     )
     assert contrato.assinado_em is not None and contrato.assinado_ip == "177.10.20.30"
-    assert ContaReceber.objects.get(pk=venda.conta_entrada_id).status == "cancelada"
+    assert _entrada(venda).status == "cancelada"
     assert not Reembolso.objects.exists()
     assert resposta.json()["contrato"]["situacao_texto"] == "Cancelado · venda perdida"
     assert Comissao.objects.get(origem_tipo="venda", origem_id=venda.pk).status == "estornada"
@@ -391,7 +406,7 @@ def test_ven_19_perder_com_entrada_paga_so_gerente_e_vira_reembolso(cenario):  #
         "a_fazer",
         "Venda perdida com a entrada paga",
     )
-    assert Contrato.objects.get(pk=venda.contrato_id).status == "cancelado"
+    assert _contrato(venda).status == "cancelado"
     assert Venda.objects.get(pk=venda.pk).veiculo.status == "a_venda"
 
 
@@ -403,8 +418,8 @@ def test_aut_19_venda_assinada_em_proposta_vence(cenario, relogio):  # noqa: F81
     assert services.vencer_propostas() == 1
     venda.refresh_from_db()
     assert (venda.status, venda.motivo_perda) == ("perdida", "proposta vencida")
-    assert Contrato.objects.get(pk=venda.contrato_id).status == "cancelado"
-    assert ContaReceber.objects.get(pk=venda.conta_entrada_id).status == "cancelada"
+    assert _contrato(venda).status == "cancelado"
+    assert _entrada(venda).status == "cancelada"
 
 
 # --- contratos: o assinado só se cancela na venda; marcadores e prévia (VEN-15) ---
@@ -413,7 +428,7 @@ def test_aut_19_venda_assinada_em_proposta_vence(cenario, relogio):  # noqa: F81
 def test_ven_15_cancelar_assinado_so_no_contrato_da_venda(cenario):  # noqa: F811
     venda = _preparada(cenario)
     _assinar(venda)
-    contrato = Contrato.objects.get(pk=venda.contrato_id)
+    contrato = _contrato(venda)
     with pytest.raises(Conflito) as erro:
         contratos_services.cancelar(contrato, "Teste")
     assert erro.value.codigo == "contrato_assinado"
