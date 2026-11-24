@@ -278,6 +278,7 @@ Perfis: administrador e gerente da filial (recurso `vendas_comissoes`). `{ "feit
 
 "Copiar link" (`VEN-15`, `VEN-19`), como o link do recibo da devolução (T-411, S-15). Quem mexe na venda (o vendedor nas dele, gerente e administrador nas da filial); o suporte não gera link (403 `PLT-07` "No modo suporte você não gera link para o cliente."). Sem corpo.
 - Só com a proposta enviada e aberta (`proposta` ou `negociacao`); fora disso, 409 `transicao_venda` "O link existe só para a proposta enviada e ainda aberta.". Cliente anonimizado: 409 `titular_anonimizado`.
+- Anonimização do titular (`AUD-06`, padrão A do dono, #665): `clientes.titular` apaga o PDF da proposta de todas as vendas do cliente (a pasta `<schema>/vendas/venda/<id>/`, com as versões antigas) e anula o link; a venda continua, com o cliente anonimizado.
 - Grava o PDF de novo a cada link (o do link é sempre o da proposta de agora); cria um token de 32 bytes (`secrets.token_urlsafe`), guarda só o hash SHA-256 e o vencimento (7 dias); o token anterior deixa de valer (um vivo por venda). Não envia nada e não muda o estado nem o vencimento da proposta.
 - 200, com `Cache-Control: no-store`: `{ "link": "https://motorapida.giro.ceo/proposta#<token>", "expira_em": "2026-10-14T13:00:00Z", "aviso": "O link anterior deixa de valer." }`. O token vai no fragmento do link: não chega a log de servidor nem ao `Referer`, e aparece só nesta resposta.
 - Limites: 5 por hora por venda e 20 por hora por pessoa (429).
