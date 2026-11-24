@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tan
 import { Bike, Camera, Car, Check, ChevronLeft, Download, Eye, EyeOff, MessageCircle, Pencil, Info } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, type ReactNode } from "react";
-import { Button, DataTable, CelulaDupla, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
+import { Button, DataTable, CelulaDupla, Icone, KpiGrid, KpiTile, ListaComRolagem, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   clientes,
   type ClienteCompleto,
@@ -303,7 +303,11 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados 
 
           <Panel titulo="Locações" acao={lista ? <span className="text-[13px] text-ink-muted">{lista.total} no total · {lista.com_atraso === 0 ? "nenhuma com atraso" : `${lista.com_atraso} com atraso`}</span> : undefined}>
             <Estado consulta={locacoes} vazio={lista?.resultados.length === 0}>
-              {lista && <DataTable colunas={COLUNAS_LOCACOES} linhas={lista.resultados} chaveDaLinha={(l) => String(l.id)} legenda="Locações do cliente" />}
+              {lista && (
+                <ListaComRolagem rotulo="Locações do cliente">
+                  <DataTable colunas={COLUNAS_LOCACOES} linhas={lista.resultados} chaveDaLinha={(l) => String(l.id)} legenda="Locações do cliente" />
+                </ListaComRolagem>
+              )}
             </Estado>
           </Panel>
 
@@ -532,6 +536,7 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
 
       <CartaoDoCelular titulo="Locações">
         <Estado consulta={locacoes} vazio={lista?.resultados.length === 0}>
+          <ListaComRolagem rotulo="Locações do cliente">
           <dl>
             {lista?.resultados.map((l) => (
               <Linha
@@ -550,6 +555,7 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
               </Linha>
             ))}
           </dl>
+          </ListaComRolagem>
         </Estado>
       </CartaoDoCelular>
 
