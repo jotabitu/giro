@@ -233,6 +233,10 @@ services:
       # O certbot grava o certificado curinga em /etc/letsencrypt/live/<DOMINIO_BASE>/.
       CERT_DIR: /etc/letsencrypt/live/${DOMINIO_BASE}
       ESTATICOS_DIR: /estaticos
+      # Painel de monitoramento da VPS (T-506), binário no host escutando no gateway do Docker.
+      PAINEL_UPSTREAM: ${PAINEL_UPSTREAM:-host.docker.internal:8090}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../proxy/giro.conf.template:/etc/nginx/templates/giro.conf.template:ro
       - ../proxy/snippets:/etc/nginx/templates/snippets:ro
