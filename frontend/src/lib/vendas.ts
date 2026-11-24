@@ -89,8 +89,9 @@ export function linhasDoResumo(c: Pick<CalculoDaVenda, "preco_tabela_centavos" |
   if (c.forma === "entrada_parcelas") {
     if (c.entrada_centavos != null) linhas.push({ rotulo: "Entrada", valor: dinheiro(c.entrada_centavos) });
     if (c.num_parcelas && c.parcela_centavos != null) {
-      const ultima = c.ultima_parcela_centavos != null && c.ultima_parcela_centavos !== c.parcela_centavos ? ` (última ${dinheiro(c.ultima_parcela_centavos)})` : "";
-      linhas.push({ rotulo: "Saldo", valor: `${c.num_parcelas} × ${dinheiro(c.parcela_centavos)}${ultima}` });
+      linhas.push({ rotulo: "Saldo", valor: `${c.num_parcelas} × ${dinheiro(c.parcela_centavos)}` });
+      // A diferença de centavos vai na última (VEN-04), numa linha própria para o saldo caber numa linha só.
+      if (c.ultima_parcela_centavos != null && c.ultima_parcela_centavos !== c.parcela_centavos) linhas.push({ rotulo: "Última parcela", valor: dinheiro(c.ultima_parcela_centavos) });
     }
   }
   linhas.push({ rotulo: "Comissão", valor: dinheiro(c.comissao_centavos) });

@@ -33,8 +33,9 @@ describe("resumo da proposta", () => {
   });
 
   it("test_ven_04_diferenca_de_centavos_na_ultima_parcela_vem_da_api", () => {
-    const saldo = linhasDoResumo({ ...VEN_0177, parcela_centavos: 133900, ultima_parcela_centavos: 133901 }).find((l) => l.rotulo === "Saldo");
-    expect(saldo?.valor).toBe("12 × R$ 1.339,00 (última R$ 1.339,01)");
+    const linhas = linhasDoResumo({ ...VEN_0177, parcela_centavos: 133900, ultima_parcela_centavos: 133901 });
+    expect(linhas.find((l) => l.rotulo === "Saldo")?.valor).toBe("12 × R$ 1.339,00");
+    expect(linhas.find((l) => l.rotulo === "Última parcela")?.valor).toBe("R$ 1.339,01");
   });
 });
 
