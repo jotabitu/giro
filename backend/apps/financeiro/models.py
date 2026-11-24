@@ -68,12 +68,11 @@ class TipoConta(models.TextChoices):
     PARCELA = "parcela", "Parcela"
     CAUCAO = "caucao", "Caução"  # não é receita (LOC-04, FIN-13)
     # LOC-16: a entrada da locação com compra, cobrada na retirada com a 1ª parcela e a caução.
+    # Também a entrada da venda (ou o total à vista), paga antes de `vendida` (VEN-15, ADR 0042).
     ENTRADA = "entrada", "Entrada"
     MULTA = "multa", "Multa"
     AVARIA = "avaria", "Avaria"
     ACERTO = "acerto", "Acerto"
-    # A entrada da venda (ou o total à vista), paga antes de `vendida` (VEN-15, ADR 0042, item 6).
-    ENTRADA = "entrada", "Entrada"
     OUTRO = "outro", "Outro"
 
 

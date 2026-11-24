@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
         ("clientes", "0001_clientes"),
         ("contratos", "0004_finalidade_locacao_compra"),
         ("filiais", "0003_nome_curto"),
-        ("financeiro", "0011_conta_entrada_da_venda"),
+        ("financeiro", "0011_conta_entrada"),
         ("locacoes", "0008_locacao_com_intencao_de_compra"),
         ("veiculos", "0008_fotos_do_veiculo"),
         ("vendas", "0001_vendas"),
