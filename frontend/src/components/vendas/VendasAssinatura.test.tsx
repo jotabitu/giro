@@ -51,6 +51,7 @@ const PROPOSTA: VendaDetalhe = {
   vendida_em: null,
   comissao_centavos: 63204,
   transferencia: { feita_em: null, registrada_por: null, pendente: false },
+  contrato_pdf_disponivel: false,
   acoes: { ...NENHUMA, editar: true, enviar: true, registrar_resposta: true, pedir_aprovacao: true, perder: true, preparar_assinatura: true },
   calculo: {
     preco_tabela_centavos: 2290000,
@@ -77,8 +78,8 @@ const PROPOSTA: VendaDetalhe = {
   conclusao_texto: null,
 };
 
-const CONTRATO_ENVIADO = { id: 88, status: "enviado" as const, modelo: "Compra e venda", versao: 1, enviado_em: "2026-10-07T13:20:00Z", assinado_em: null, pdf_disponivel: true, situacao_texto: "Aguardando assinatura. O cliente assina pelo celular." };
-const ENTRADA_ABERTA = { id: 5120, status: "aberta" as const, valor_centavos: 500000, vencimento: "2026-10-07", rotulo: "Entrada de R$ 5.000,00", texto: "Aguardando pagamento · vence hoje" };
+const CONTRATO_ENVIADO = { id: 88, status: "enviado" as const, modelo: "Compra e venda", versao: 1, enviado_em: "2026-10-07T13:20:00Z", assinado_em: null, pdf_disponivel: true, situacao_texto: "Aguardando assinatura. O cliente assina pelo celular.", enviado_para: "diego.martins@exemplo.com.br", enviado_texto: "Contrato enviado · 07 out, 10:20 · diego.martins@exemplo.com.br" };
+const ENTRADA_ABERTA = { id: 5120, status: "aberta" as const, valor_centavos: 500000, vencimento: "2026-10-07", rotulo: "Entrada de R$ 5.000,00", texto: "Aguardando pagamento · vence hoje", pago_em: null, forma_texto: null };
 
 const NA_ASSINATURA: VendaDetalhe = {
   ...PROPOSTA,
@@ -162,11 +163,11 @@ describe("Venda: passo 3 · Assinatura (VEN-15, VEN-19)", () => {
       ...NA_ASSINATURA,
       situacao_texto: "Aguardando assinatura",
       acoes: { ...NENHUMA, copiar_link_contrato: true, reenviar_contrato: true },
-      conta_entrada: { ...ENTRADA_ABERTA, status: "paga", texto: "Paga em 07/10/2026" },
+      conta_entrada: { ...ENTRADA_ABERTA, status: "paga", texto: "Paga em 07 out, 11:02 · Pix", pago_em: "2026-10-07T14:02:00Z", forma_texto: "Pix" },
       perder_texto: "Só o gerente ou o administrador marca como perdida uma venda com a entrada paga.",
     };
     const t = texto(html(<FormularioDaVenda venda={venda} />));
-    expect(t).toContain("Paga em 07/10/2026");
+    expect(t).toContain("Paga em 07 out, 11:02 · Pix");
     expect(t).toContain("Só o gerente ou o administrador marca como perdida uma venda com a entrada paga.");
     expect(t).not.toContain("Marcar como perdida");
     expect(t).not.toContain("Cancelar assinatura");
@@ -181,8 +182,9 @@ describe("Venda: vendida e transferência (VEN-06, VEN-17)", () => {
     vendida_em: "2026-10-07T14:02:00Z",
     acoes: { ...NENHUMA, registrar_transferencia: true },
     contrato: { ...CONTRATO_ENVIADO, status: "assinado", assinado_em: "2026-10-07T13:41:00Z", situacao_texto: "Contrato assinado" },
-    conta_entrada: { ...ENTRADA_ABERTA, status: "paga", texto: "Paga em 07/10/2026" },
+    conta_entrada: { ...ENTRADA_ABERTA, status: "paga", texto: "Paga em 07 out, 11:02 · Pix", pago_em: "2026-10-07T14:02:00Z", forma_texto: "Pix" },
     transferencia: { feita_em: null, registrada_por: null, pendente: true },
+    contrato_pdf_disponivel: true,
     perder_texto: null,
     conclusao_texto: "Venda concluída. As 12 parcelas estão em Contas a receber, a comissão de R$ 632,04 foi lançada e o veículo saiu da frota de locação.",
   };
@@ -190,7 +192,7 @@ describe("Venda: vendida e transferência (VEN-06, VEN-17)", () => {
   it("test_ven_06_vendida_com_a_conclusao_da_api_e_o_contrato", () => {
     const h = html(<FormularioDaVenda venda={vendida} />);
     const t = texto(h);
-    for (const esperado of ["Vendida 07 out", "Assinado em", "Paga em 07/10/2026", "Venda concluída. As 12 parcelas estão em Contas a receber, a comissão de R$ 632,04 foi lançada e o veículo saiu da frota de locação.", "Contrato"]) expect(t).toContain(esperado);
+    for (const esperado of ["Vendida 07 out", "Assinado em", "Paga em 07 out, 11:02 · Pix", "Venda concluída. As 12 parcelas estão em Contas a receber, a comissão de R$ 632,04 foi lançada e o veículo saiu da frota de locação.", "Contrato"]) expect(t).toContain(esperado);
     expect(passoAtual(h)).toBe("3 · Assinatura");
     for (const ausente of ["Marcar como perdida", "Cancelar assinatura", "Copiar link para assinar"]) expect(t).not.toContain(ausente);
   });
