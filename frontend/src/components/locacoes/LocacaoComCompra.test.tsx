@@ -9,6 +9,8 @@ import { textoDaTransferencia } from "@/lib/locacao-compra";
 import { modeloDeCompra } from "@/testes/falsos/falso-locacoes";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} }), usePathname: () => "/locacoes", useSearchParams: () => new URLSearchParams() }));
+// T-503: a lista de vendas lê a sessão (o botão Nova venda e a filial do subtítulo).
+vi.mock("@/lib/sessao", async (original) => ({ ...(await original<typeof import("@/lib/sessao")>()), useSessao: () => ({ eu: { filiais: [{ id: 1, nome: "Filial Centro" }], pode: { vendas_criar: true } }, sair: async () => {} }) }));
 
 import { DetalheDaLocacao } from "./DetalheDaLocacao";
 import { NovaLocacao } from "./NovaLocacao";
@@ -238,7 +240,8 @@ describe("T-420 vendas: a venda da quitação", () => {
   it("test_ven_11_lista_com_transferencia_pendente_e_o_rotulo_quitacao_de_locacao", async () => {
     const cache = new QueryClient();
     cache.setQueryData(["vendas", "pendentes"], await vendas.listar({ transferencia_pendente: true }));
-    cache.setQueryData(["vendas", "lista", null], await vendas.listar());
+    // T-503: a lista virou propostas abertas e vendidas do mês; a quitação aparece nas vendidas.
+    cache.setQueryData(["vendas", "vendidas", new Date().toISOString().slice(0, 7), null], await vendas.listar());
     const html = renderToStaticMarkup(
       <QueryClientProvider client={cache}>
         <ListaDeVendas />

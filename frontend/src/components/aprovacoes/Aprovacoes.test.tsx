@@ -203,7 +203,8 @@ describe("apoio da tela", () => {
     expect(rotuloDoTipo("APR-04")).toBe("Diferença de caixa");
     expect(efeitoDoTipo("APR-06")).toContain("km");
     expect(linkDaOrigem({ tipo: "cliente", id: 12, codigo: null })).toEqual({ href: "/clientes/12", rotulo: "Ver cliente" });
-    expect(linkDaOrigem({ tipo: "venda", id: 177, codigo: "VEN-0177" })).toBeNull();
+    expect(linkDaOrigem({ tipo: "venda", id: 177, codigo: "VEN-0177" })).toEqual({ href: "/vendas/177", rotulo: "Ver venda" }); // T-503: o gerente decide e abre a venda
+    expect(linkDaOrigem({ tipo: "ordem_servico", id: 118, codigo: "OS-118" })).toBeNull();
   });
 
   it("linha da decisão", () => {
