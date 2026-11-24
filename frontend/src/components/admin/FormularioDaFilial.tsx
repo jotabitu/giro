@@ -5,7 +5,7 @@ import { ArrowLeft, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ReactNode } from "react";
-import { Button, Icone, ProgressBar, SegmentedControl, StatusBadge, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, Icone, ProgressBar, SegmentedControl, StatusBadge, TextField } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { filiais, type FilialDetalhada } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
@@ -315,12 +315,11 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
                 <span className="wl-field__hint">Quem gerencia é quem tem perfil gerente nesta filial, em Usuários.</span>
               </div>
               {eu.pode.administracao && (
-                <TextField
+                <CampoDeDinheiro prefixo
                   cheio
                   mono
                   rotulo="Preço do litro do combustível"
                   placeholder="R$ 0,00"
-                  inputMode="decimal"
                   value={v.precoLitro}
                   onChange={(e) => definir("precoLitro", e.target.value)}
                   erro={erro("preco_litro_centavos")}

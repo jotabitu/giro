@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
-import { Button, CelulaDupla, type ColunaTabela, DataTable, Dialogo, Icone, StatusBadge, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, CelulaDupla, type ColunaTabela, DataTable, Dialogo, Icone, StatusBadge, TextField } from "@/design-system";
 import { precos as api, type PlanoDeCompra } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { dinheiro } from "@/lib/formatos";
@@ -96,7 +96,7 @@ function DialogoDoPlanoDeCompra({ plano, aoFechar, aoConcluir }: { plano: PlanoD
         <CampoSelecao rotulo="Periodicidade" value={periodicidade} onChange={(e) => setPeriodicidade(e.target.value as "mensal" | "semanal")} opcoes={PERIODICIDADES.map((p) => ({ valor: p.valor, rotulo: p.rotulo }))} erro={campoDoErro(erro, "periodicidade")} />
         <div className="grid grid-cols-2 gap-3">
           <TextField cheio rotulo="Parcelas" mono inputMode="numeric" autoComplete="off" value={parcelas} onChange={(e) => setParcelas(e.target.value.replace(/\D/g, ""))} erro={campoDoErro(erro, "parcelas")} />
-          <TextField cheio rotulo="Valor da parcela" mono inputMode="decimal" autoComplete="off" value={valor} onChange={(e) => setValor(e.target.value)} erro={erroLocal ?? campoDoErro(erro, "valor_parcela_centavos")} />
+          <CampoDeDinheiro cheio rotulo="Valor da parcela" mono autoComplete="off" value={valor} onChange={(e) => setValor(e.target.value)} erro={erroLocal ?? campoDoErro(erro, "valor_parcela_centavos")} />
         </div>
         <TextField cheio rotulo="Condições" value={condicoes} onChange={(e) => setCondicoes(e.target.value)} erro={campoDoErro(erro, "condicoes")} />
         {erro && !(erro as { campos?: unknown }).campos && (

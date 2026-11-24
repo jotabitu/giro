@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { Button, Dialogo, Icone, StatusBadge, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, Dialogo, Icone, StatusBadge, TextField } from "@/design-system";
 import { precos as api, type CobrancaDoExtra, type ExtraDePreco } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { dinheiro } from "@/lib/formatos";
@@ -71,7 +71,7 @@ function DialogoDoExtra({ extra, aoFechar, aoConcluir }: { extra: ExtraDePreco |
         }}
       >
         <TextField cheio rotulo="Nome do extra" value={nome} onChange={(e) => setNome(e.target.value)} erro={campoDoErro(erro, "nome")} autoFocus />
-        <TextField cheio rotulo="Valor" mono inputMode="decimal" autoComplete="off" value={valor} onChange={(e) => setValor(e.target.value)} erro={erroLocal ?? campoDoErro(erro, "valor_centavos")} />
+        <CampoDeDinheiro cheio rotulo="Valor" mono autoComplete="off" value={valor} onChange={(e) => setValor(e.target.value)} erro={erroLocal ?? campoDoErro(erro, "valor_centavos")} />
         <div className="wl-field">
           <span className="wl-field__label" id="cobranca-do-extra">
             Cobrança

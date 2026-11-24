@@ -5,13 +5,13 @@ import { Bike, Car, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Aviso, Button, Escolha, Icone, StatusBadge, TextField, Valores } from "@/design-system";
+import { CampoDeDinheiro, Aviso, Button, Escolha, Icone, StatusBadge, TextField, Valores } from "@/design-system";
 import { EscolherCliente, EscolherVeiculo } from "@/components/locacoes/SeletoresDaLocacao";
 import { vendas, veiculos, type FormaDaVenda, type PropostaDaVenda, type Veiculo, type VendaDetalhe } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { celular, dinheiro, km, mascaraCelular, placa, soDigitos } from "@/lib/formatos";
 import { centavosDoCampo } from "@/lib/precos-veiculo";
-import { atualizarVendas, campoDoPct, comPorcento, dataDaProposta, FORMAS, linhasDoResumo, linkDoWhatsApp, mascaraReais, pctDoCampo, pctTexto, tomDaVenda } from "@/lib/vendas";
+import { atualizarVendas, campoDoPct, comPorcento, dataDaProposta, FORMAS, linhasDoResumo, linkDoWhatsApp, pctDoCampo, pctTexto, tomDaVenda } from "@/lib/vendas";
 import { AssinaturaDaVenda, DocumentosDaVenda, Painel, TransferenciaDaVenda } from "./AssinaturaDaVenda";
 import { PerderVenda, RespostaDoCliente } from "./DialogosDaVenda";
 
@@ -317,7 +317,7 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
                 />
                 {form.forma === "entrada_parcelas" && (
                   <>
-                    <TextField cheio rotulo="Entrada" inputMode="numeric" placeholder="R$ 0,00" value={form.entrada} disabled={!editavel} onChange={(e) => definir({ entrada: mascaraReais(e.target.value) })} erro={erro("entrada_centavos")} />
+                    <CampoDeDinheiro prefixo cheio rotulo="Entrada" placeholder="R$ 0,00" value={form.entrada} disabled={!editavel} onChange={(e) => definir({ entrada: e.target.value })} erro={erro("entrada_centavos")} />
                     <TextField cheio rotulo="Parcelas" inputMode="numeric" value={form.parcelas} disabled={!editavel} onChange={(e) => definir({ parcelas: soDigitos(e.target.value).slice(0, 2) })} dica="De 2 a 24" erro={erro("num_parcelas")} />
                   </>
                 )}

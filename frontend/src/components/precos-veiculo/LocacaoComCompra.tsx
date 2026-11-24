@@ -1,6 +1,6 @@
 "use client";
 
-import { Aviso, LigaDesliga, SegmentedControl, StatusBadge } from "@/design-system";
+import { Aviso, InputDeDinheiro, LigaDesliga, SegmentedControl, StatusBadge } from "@/design-system";
 import type { PrecosDoVeiculo } from "@/lib/api";
 import { dinheiro } from "@/lib/formatos";
 import {
@@ -106,7 +106,7 @@ export function LocacaoComCompra({
               <input className="wl-input" inputMode="numeric" value={c.parcelas} disabled={somenteLeitura} onChange={(ev) => aoEditar({ parcelas: ev.target.value })} />
             </Campo>
             <Campo rotulo="Entrada" erro={e("entrada_centavos")} dica={r ? `Financia ${dinheiro(r.financiado_centavos)}` : undefined}>
-              <input className="wl-input" inputMode="decimal" value={c.entrada} disabled={somenteLeitura} onChange={(ev) => aoEditar({ entrada: ev.target.value })} />
+              <InputDeDinheiro prefixo value={c.entrada} disabled={somenteLeitura} onChange={(ev) => aoEditar({ entrada: ev.target.value })} />
             </Campo>
             <Campo rotulo="Juros ao mês" erro={e("juros_mes_pct")} dica={r ? `${textoDosJuros(r.taxa_periodo_pct)} ${porPeriodoDaCompra(c.periodicidade)} · Price` : undefined}>
               <input
@@ -119,9 +119,8 @@ export function LocacaoComCompra({
               />
             </Campo>
             <Campo rotulo="Valor da parcela" erro={e("parcela_moto_centavos")} dica={digitando ? "Digitado por você" : "Calculado pelos juros"}>
-              <input
+              <InputDeDinheiro prefixo
                 className="wl-input"
-                inputMode="decimal"
                 value={digitando ? c.parcelaMoto : r ? dinheiro(r.parcela_moto_centavos) : ""}
                 readOnly={!digitando}
                 disabled={somenteLeitura}
@@ -140,10 +139,10 @@ export function LocacaoComCompra({
           <p className="-mt-2 text-[13px] leading-[18px] text-ink-muted">Digitando a parcela, o sistema mostra os juros que ela representa. Ex.: R$ 170,00 por semana = 1,46% ao mês.</p>
           <div className="grid grid-cols-2 gap-3">
             <Campo rotulo="Adicional por parcela" erro={e("adicional_centavos")} dica="Seguro e rastreador seguem com a locadora">
-              <input className="wl-input" inputMode="decimal" value={c.adicional} disabled={somenteLeitura} onChange={(ev) => aoEditar({ adicional: ev.target.value })} />
+              <InputDeDinheiro prefixo value={c.adicional} disabled={somenteLeitura} onChange={(ev) => aoEditar({ adicional: ev.target.value })} />
             </Campo>
             <Campo rotulo="Caução" erro={e("caucao_centavos")} dica="Abatida da última parcela">
-              <input className="wl-input" inputMode="decimal" value={c.caucao} disabled={somenteLeitura} onChange={(ev) => aoEditar({ caucao: ev.target.value })} />
+              <InputDeDinheiro prefixo value={c.caucao} disabled={somenteLeitura} onChange={(ev) => aoEditar({ caucao: ev.target.value })} />
             </Campo>
           </div>
         </div>

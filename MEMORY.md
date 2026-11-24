@@ -216,3 +216,6 @@ Favicon: o ícone do Giro aparece em todas as abas do navegador, inclusive no si
 - Decisão do dono: nada vai ao cliente final pelo WhatsApp na fase 1; os pontos 1 a 7 da ADR 0034 saem por e-mail, com ou sem o aceite (`CLI-12`), e o convite também (`USR-01`). Só a régua da assinatura (Giro) usa o WhatsApp, pelo número do Giro.
 - O "C" da decisão é o do ponto em aberto das regras (sem WhatsApp ao cliente), não a opção C (parceiro BSP) da ADR.
 - O código de WhatsApp ao cliente fica, desligado pela chave `GIRO_WHATSAPP_CLIENTE_FINAL` (falsa). Recibo do pagamento, recibo da devolução, reenvio do contrato assinado e lembrete da devolução hoje só mandam WhatsApp e precisam ganhar o e-mail (tarefa de backend).
+
+### [2026-11-24] Dinheiro ao digitar: um campo só (T-509)
+- Todo campo de reais usa `CampoDeDinheiro` (ou `InputDeDinheiro` em input solto) de `design-system`: os dígitos entram pela direita como centavos e a pontuação aparece a cada tecla. A máscara roda no próprio evento, então serve a `register` e a campo controlado, e o texto continua sendo lido por `centavosDoTexto`/`centavosDoCampo` (a API segue recebendo centavos). `prefixo` põe "R$ " só onde a tela já mostrava. Não crie campo de dinheiro com `TextField` e `inputMode` à mão.

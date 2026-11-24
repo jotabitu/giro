@@ -2,9 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Button, StatusBadge, TextField, type TomStatus } from "@/design-system";
+import { Button, CampoDeDinheiro, StatusBadge, TextField, type TomStatus } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
-import { CampoDeDinheiro } from "@/components/precos/CampoDeDinheiro";
 import { recebimentos, type CorpoDosRecebimentos, type Recebimentos, type SituacaoDosRecebimentos, type TipoDeEmpresa } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { mascaraCelular, mascaraCep, mascaraCnpj, mascaraCpf, soDigitos } from "@/lib/formatos";
@@ -103,7 +102,7 @@ export function FormularioDeRecebimentos({ inicial, aoConectar }: { inicial: Rec
           <TextField cheio rotulo="Razão social ou nome" autoComplete="organization" value={v.nome} onChange={(e) => definir("nome", e.target.value)} erro={erro("nome")} />
           <TextField cheio mono rotulo="CNPJ ou CPF" inputMode="numeric" autoComplete="off" value={mascaraDocumento(v.documento)} onChange={(e) => definir("documento", e.target.value)} erro={erro("documento")} />
           <CampoSelecao rotulo="Tipo de empresa" value={v.tipo} onChange={(e) => definir("tipo", e.target.value as TipoDeEmpresa)} opcoes={TIPOS} erro={erro("tipo_empresa")} />
-          <CampoDeDinheiro rotulo="Faturamento mensal estimado (R$)" valor={v.faturamento} aoMudar={(x) => definir("faturamento", x)} erro={erro("faturamento_mensal_centavos")} />
+          <CampoDeDinheiro cheio mono rotulo="Faturamento mensal estimado (R$)" value={v.faturamento} onChange={(e) => definir("faturamento", e.target.value)} erro={erro("faturamento_mensal_centavos")} />
         </div>
       </fieldset>
       <fieldset className="m-0 flex flex-col gap-4 border-0 p-0">

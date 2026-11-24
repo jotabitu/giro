@@ -72,11 +72,6 @@ export function comPorcento(t: string): string {
   return limpo ? `${limpo}%` : "";
 }
 
-/** Máscara do campo em reais: os dígitos viram centavos ("500000" → "R$ 5.000,00"). Vazio fica vazio. */
-export function mascaraReais(t: string): string {
-  const digitos = t.replace(/\D/g, "").replace(/^0+/, "").slice(0, 11);
-  return digitos ? dinheiro(Number(digitos)) : "";
-}
 
 /** "8.00" → "8%", "7.50" → "7,5%": o percentual que a API manda, sem arredondar. */
 export const pctTexto = (pct: string): string => `${Number(pct).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;

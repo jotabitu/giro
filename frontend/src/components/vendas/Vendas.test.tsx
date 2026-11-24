@@ -236,3 +236,12 @@ describe("Vendas (lista)", () => {
     sessao.eu = antes;
   });
 });
+
+describe("T-509 · entrada com a máscara ao digitar", () => {
+  it("test_ven_03_entrada_e_o_campo_de_dinheiro_com_r$_e_a_entrada_da_api_no_valor", () => {
+    const h = html(<FormularioDaVenda venda={VEN_0177} />);
+    const entrada = /<input[^>]*placeholder="R\$ 0,00"[^>]*>/.exec(h)?.[0] ?? "";
+    expect(entrada).toContain('inputMode="numeric"');
+    expect(entrada).toContain('value="R$ 5.000,00"');
+  });
+});
