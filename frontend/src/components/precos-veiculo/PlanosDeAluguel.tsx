@@ -1,8 +1,7 @@
 "use client";
 
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
-import { Aviso, Button, Icone, IconButton, LigaDesliga, StatusBadge } from "@/design-system";
+import { Aviso, Button, LigaDesliga, StatusBadge } from "@/design-system";
 import type { PlanoDoVeiculo } from "@/lib/api";
 import { dinheiro } from "@/lib/formatos";
 import {
@@ -24,6 +23,7 @@ import {
   type ErrosDeCampo,
   type PlanoRascunho,
 } from "@/lib/precos-veiculo";
+import { SetaDoBloco, useBlocoRecolhivel } from "./SetaDoBloco";
 
 // Referência: docs/telas/html/Veiculo-Precos-Desktop.dc.html e Veiculo-Precos-Mobile.dc.html, painel "Aluguel".
 // Uma árvore só: a linha é uma grade de 7 colunas no desktop e um cartão de duas colunas no celular (ordem pelas classes).
@@ -248,9 +248,8 @@ export function PlanosDeAluguel({
   aluguelLigado: boolean;
   aoLigarAluguel: (ligado: boolean) => void;
 }) {
-  const [recolhido, setRecolhido] = useState(!aluguelLigado);
   const comErro = Object.keys(erros).some((k) => k.startsWith("plano."));
-  const aberto = !recolhido || comErro;
+  const { aberto, alternar: alternarBloco } = useBlocoRecolhivel(!aluguelLigado, comErro);
   const [abertos, setAbertos] = useState<Set<string>>(() => new Set(rascunho.filter((p) => p.tipo === "semanal" && p.ligado).map((p) => p.chave)));
   const alternar = (chave: string) =>
     setAbertos((s) => {
@@ -270,15 +269,7 @@ export function PlanosDeAluguel({
             <p className="wl-panel__sub">Ligue os planos que esta moto oferece. Margem = lucro por mês ÷ receita, já com a desvalorização até a venda.</p>
           </div>
         </div>
-        <IconButton
-          quieto
-          compacto
-          aria-label={aberto ? "Recolher os planos de aluguel" : "Abrir os planos de aluguel"}
-          aria-expanded={aberto}
-          aria-controls="planos-de-aluguel"
-          onClick={() => setRecolhido(aberto)}
-          icone={<Icone de={aberto ? ChevronUp : ChevronDown} />}
-        />
+        <SetaDoBloco aberto={aberto} oQue="os planos de aluguel" controla="planos-de-aluguel" aoAlternar={alternarBloco} />
       </div>
       {!aluguelLigado && (
         <div className="mb-3">

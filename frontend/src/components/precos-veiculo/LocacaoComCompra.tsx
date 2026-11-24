@@ -17,6 +17,7 @@ import {
   type CompraRascunho,
   type ErrosDeCampo,
 } from "@/lib/precos-veiculo";
+import { SetaDoBloco, useBlocoRecolhivel } from "./SetaDoBloco";
 
 // Referência: Veiculo-Precos-Desktop|Mobile.dc.html, painel "Locação com compra". Todo número do resultado (parcela do cliente,
 // recebe pela moto, lucro, margem, juros no prazo, parcelas nas outras periodicidades, alertas) vem da API pelo `simular`.
@@ -72,23 +73,28 @@ export function LocacaoComCompra({
   // A divisão da barra vem da API (VEI-16); sem os dois campos (vendedor), a barra não aparece.
   const pagoPct = r?.pago_sobre_recebe_pct == null ? null : Number(r.pago_sobre_recebe_pct);
   const lucroPct = r?.lucro_sobre_recebe_pct == null ? null : Number(r.lucro_sobre_recebe_pct);
+  // T-508: a mesma seta do aluguel. Aberto por padrão; com a compra desligada, começa recolhido. Erro na compra abre.
+  const comErro = Object.keys(erros).some((k) => k.startsWith("compra."));
+  const { aberto, alternar } = useBlocoRecolhivel(!c.ligado, comErro);
 
   return (
-    <section className="wl-panel">
+    <section className="wl-panel" aria-label="Locação com compra">
       <div className="wl-panel__head">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <LigaDesliga ligado={c.ligado} rotulo="Oferecer locação com compra" desabilitado={somenteLeitura || ocupado} aoMudar={aoLigar} />
-          <div>
+          <div className="min-w-0">
             <h2 className="wl-panel__title">Locação com compra</h2>
             <p className="wl-panel__sub">O cliente paga o valor de venda em parcelas e a moto é dele no fim.</p>
           </div>
         </div>
+        <SetaDoBloco aberto={aberto} oQue="a locação com compra" controla="locacao-com-compra" aoAlternar={alternar} />
       </div>
       {e("ligado") && (
         <div className="mt-3">
           <Aviso tom="critico">{e("ligado")}</Aviso>
         </div>
       )}
+      <div id="locacao-com-compra" hidden={!aberto}>
       <div className="mt-4 grid gap-5 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
           <div className={SEG_CHEIO}>
@@ -203,6 +209,7 @@ export function LocacaoComCompra({
           ))}
         </div>
       )}
+      </div>
     </section>
   );
 }
