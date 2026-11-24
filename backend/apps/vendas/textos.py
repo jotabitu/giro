@@ -111,6 +111,38 @@ def vencer_proposta(evento: Any, _: dict[str, Any]) -> Texto:
     return Texto(f"Proposta {_da(evento)} vencida", "7 dias sem resposta do cliente")
 
 
+def perdida_pela_outra(evento: Any, _: dict[str, Any]) -> Texto:
+    """`VEN-10`: o interessado perdido porque o veículo foi vendido em outra venda."""
+    return Texto(f"Venda{_codigo(evento)} perdida", evento.motivo)
+
+
+# --- Fase 1b: assinatura e conclusão (VEN-15, VEN-06, T-502) ---
+
+
+def preparar_assinatura(evento: Any, _: dict[str, Any]) -> Texto:
+    return Texto(
+        f"Preparou a assinatura {_da(evento)}", "Contrato gerado e entrada em Contas a receber"
+    )
+
+
+def cancelar_assinatura(evento: Any, _: dict[str, Any]) -> Texto:
+    return Texto(
+        f"Cancelou a assinatura {_da(evento)}", "Contrato e cobrança da entrada cancelados"
+    )
+
+
+def registrar_assinatura(evento: Any, _: dict[str, Any]) -> Texto:
+    return Texto(f"Cliente assinou o contrato {_da(evento)}", evento.motivo)
+
+
+def registrar_entrada(evento: Any, _: dict[str, Any]) -> Texto:
+    return Texto(f"Entrada {_da(evento)} paga", evento.motivo)
+
+
+def concluir(evento: Any, _: dict[str, Any]) -> Texto:
+    return Texto(f"Venda{_codigo(evento)} concluída", "Contrato assinado e entrada paga")
+
+
 DO_FLUXO: dict[str, Callable[[Any, dict[str, Any]], Texto]] = {
     "venda.criar": criar,
     "venda.editar": editar,
@@ -123,4 +155,10 @@ DO_FLUXO: dict[str, Callable[[Any, dict[str, Any]], Texto]] = {
     "venda.cancelar_desconto": cancelar_desconto,
     "venda.perder": perder,
     "venda.vencer_proposta": vencer_proposta,
+    "venda.perdida": perdida_pela_outra,
+    "venda.preparar_assinatura": preparar_assinatura,
+    "venda.cancelar_assinatura": cancelar_assinatura,
+    "venda.registrar_assinatura": registrar_assinatura,
+    "venda.registrar_entrada": registrar_entrada,
+    "venda.concluir": concluir,
 }

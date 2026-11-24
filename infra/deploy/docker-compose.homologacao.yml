@@ -102,6 +102,10 @@ services:
       FRONTEND_UPSTREAM: ${FRONTEND_UPSTREAM}
       CERT_DIR: /etc/ssl/giro
       ESTATICOS_DIR: /estaticos
+      # Painel de monitoramento da VPS (T-506); sem o painel, só painel.<domínio> responde 502.
+      PAINEL_UPSTREAM: ${PAINEL_UPSTREAM:-host.docker.internal:8090}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../proxy/giro.conf.template:/etc/nginx/templates/giro.conf.template:ro
       - ../proxy/snippets:/etc/nginx/templates/snippets:ro

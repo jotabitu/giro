@@ -546,13 +546,14 @@ def _geral(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
 
 
 def _transferencias_pendentes(escopo: Escopo) -> list[dict[str, Any]]:
-    """`LOC-16`, `VEN-11`: uma pendência por transferência no Detran que falta, a mais antiga
-    primeiro, levando ao detalhe da locação quitada (`painel.md`, `vendas.md`)."""
+    """`LOC-16`, `VEN-11`, `VEN-17`: uma pendência por transferência no Detran que falta, a mais
+    antiga primeiro, levando ao detalhe da locação quitada ou da venda de balcão (`painel.md`,
+    `vendas.md`)."""
     return [
         {
             "texto": f"{item['rotulo']} · {item['detalhe']}",
             "gravidade": "alerta",
-            "destino": {"chave": "locacoes", "id": item["locacao_id"]},
+            "destino": item["destino"],
         }
         for item in vendas_selectors.transferencias_pendentes(escopo.filiais)
     ]

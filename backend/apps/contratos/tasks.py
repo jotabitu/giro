@@ -140,9 +140,11 @@ def _enviar_assinado(contrato: Contrato, marca: pdf.Marca) -> None:
 def contratos_registrar_assinatura(schema_name: str, contrato_id: int) -> None:
     with transaction.atomic():
         contrato = _travar(contrato_id)
+        # O assinado e cancelado depois (venda perdida, ADR 0042, item 6a) também guarda o PDF
+        # assinado: a tarefa pode rodar depois do cancelamento.
         if (
             contrato is None
-            or contrato.status != StatusContrato.ASSINADO
+            or contrato.status not in (StatusContrato.ASSINADO, StatusContrato.CANCELADO)
             or contrato.pdf_assinado
             or contrato.assinado_em is None
         ):

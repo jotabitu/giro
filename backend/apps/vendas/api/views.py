@@ -5,6 +5,9 @@
 - T-502, fase 1a (ADR 0042, item 14): simular, criar, editar, enviar, resposta, pedir aprovação e
   perder. O suporte (PLT-07) não cria venda nem pede desconto: a venda e o pedido são de uma
   pessoa da empresa (o vendedor da comissão e quem pede ao gerente).
+- Fase 1b: preparar e cancelar a assinatura, o contrato (link, reenvio e PDF, como na retirada)
+  e a transferência no Detran da venda de balcão (`VEN-17`). O suporte não gera o link para o
+  cliente, como na locação.
 """
 
 from dataclasses import asdict
@@ -18,13 +21,21 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.contratos import selectors as contratos_selectors
+from apps.contratos.api.serializers import (
+    ContratoGeradoSerializer,
+    LinkDoContratoSerializer,
+    UrlDoPdfSerializer,
+)
 from apps.filiais.selectors import filtrar_por_filial
 from apps.locacoes import selectors as locacoes_selectors
 from apps.locacoes.api.serializers import LocacaoDetalheSerializer
 from apps.locacoes.models import Locacao
 from apps.plataforma.models import Recurso
+from comum.limites import LIMITES_DO_LINK_CONTRATO
 from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao, exige_perfil
+from comum.rede import ip_do_cliente
 
 from .. import envio, selectors, services
 from ..models import OrigemVenda, StatusVenda, Venda
@@ -238,6 +249,101 @@ class PerderView(ViewDeAcao):
         entrada.is_valid(raise_exception=True)
         venda = services.perder(
             _venda(request, pk), entrada.validated_data.get("motivo", ""), request.user
+        )
+        return Response(_detalhe(venda, request))
+
+
+class AssinaturaView(ViewDeAcao):
+    """A etapa "Assinatura" (VEN-15, VEN-19; ADR 0042, item 6)."""
+
+    @extend_schema(
+        request=None,
+        responses=VendaDetalheSerializer,
+        summary="Preparar a assinatura: contrato e conta da entrada (VEN-15, VEN-14, CLI-03,"
+        " CLI-05, IMP-04)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        venda = services.preparar_assinatura(_venda(request, pk), request.user)
+        return Response(_detalhe(venda, request))
+
+    @extend_schema(
+        request=None,
+        responses=VendaDetalheSerializer,
+        summary="Cancelar a assinatura para mudar a proposta (VEN-19, VEN-06)",
+    )
+    def delete(self, request: Request, pk: int) -> Response:
+        venda = services.cancelar_assinatura(_venda(request, pk), request.user)
+        return Response(_detalhe(venda, request))
+
+
+class LinkDoContratoView(ViewDeAcao):
+    """Copiar link para assinar (VEN-15), como na retirada (T-411): o link sai só nesta resposta,
+    sem cache, e não vai para log."""
+
+    throttle_classes = LIMITES_DO_LINK_CONTRATO
+    suporte_proibido = True
+    mensagem_suporte_proibido = ("PLT-07", "No modo suporte você não gera link para o cliente.")
+
+    @extend_schema(
+        request=None,
+        responses=LinkDoContratoSerializer,
+        summary="Copiar link para assinar o contrato da venda (S-15, VEN-15)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        link, vigente = services.copiar_link_do_contrato(
+            _venda(request, pk), request.user, ip_do_cliente(request)
+        )
+        corpo = {
+            "link": link,
+            "expira_em": vigente.token_assinatura_expira_em,
+            "aviso": "O link anterior deixa de valer.",
+            "contrato": contratos_selectors.resumo(vigente),
+        }
+        return Response(LinkDoContratoSerializer(corpo).data, headers={"Cache-Control": "no-store"})
+
+
+class ReenviarContratoView(ViewDeAcao):
+    @extend_schema(
+        request=None,
+        responses={202: ContratoGeradoSerializer},
+        summary="Reenviar o contrato da venda (novo link; o anterior deixa de valer, S-15)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        reenviado = services.reenviar_contrato(_venda(request, pk), request.user)
+        return Response(
+            {"contrato_id": reenviado.pk, "status": reenviado.status},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class PdfDoContratoView(ViewDeVendas):
+    @extend_schema(
+        responses=UrlDoPdfSerializer,
+        summary="PDF do contrato da venda, o assinado se houver (URL de 15 min, AUD-05)",
+    )
+    def get(self, request: Request, pk: int) -> Response:
+        contrato = _venda(request, pk).contrato
+        url = contratos_selectors.url_do_pdf(contrato) if contrato else None
+        if url is None:
+            raise Http404
+        return Response({"url": url.url, "url_expira_em": url.expira_em})
+
+
+class TransferenciaDaVendaView(ViewDeVendas):
+    """`VEN-17`: "Transferência feita" na venda de balcão (e na da quitação, pela venda)."""
+
+    permission_classes = REGISTRAM
+
+    @extend_schema(
+        request=TransferenciaEntradaSerializer,
+        responses=VendaDetalheSerializer,
+        summary="Transferência feita no Detran (VEN-17, VEN-11): fecha a tarefa da venda",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        entrada = TransferenciaEntradaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        venda = services.registrar_transferencia(
+            _venda(request, pk), entrada.validated_data["feita_em"], request.user
         )
         return Response(_detalhe(venda, request))
 

@@ -4,10 +4,12 @@
   6): igual à da T-420.
 - Venda de balcão, fase 1a da T-502 (ADR 0042, itens 2, 5, 9 e 11): `simular`, `criar`,
   `editar`, `enviar_proposta` (só o estado e a data; o e-mail é da 1c), `registrar_resposta`,
-  `pedir_desconto`, `aplicar_decisao_desconto`, `perder` e `vencer_propostas` (`AUT-19`). A
-  assinatura, a conclusão em `vendida` e a perda com a entrada paga são da 1b.
+  `pedir_desconto`, `aplicar_decisao_desconto`, `perder` e `vencer_propostas` (`AUT-19`).
+- Fase 1b (ADR 0042, itens 6, 6a e 7): `preparar_assinatura`, `cancelar_assinatura`, os
+  assinantes da assinatura e da entrada, `concluir_se_pronto` e a perda com a entrada paga.
 """
 
+import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -16,13 +18,23 @@ from zoneinfo import ZoneInfo
 from django.db import IntegrityError, transaction
 from django_tenants.utils import tenant_context
 
-from apps.clientes.models import Cliente
+from apps.clientes import selectors as clientes_selectors
+from apps.clientes.models import Cliente, StatusCliente
 from apps.contas import selectors as contas_selectors
+from apps.contratos import selectors as contratos_selectors
+from apps.contratos import services as contratos_services
+from apps.contratos.models import Contrato, StatusContrato
 from apps.empresas import selectors as empresas_selectors
 from apps.filiais import selectors as filiais_selectors
 from apps.filiais.models import Filial
 from apps.financeiro import services as financeiro
-from apps.financeiro.models import RegraComissao
+from apps.financeiro.models import (
+    ContaReceber,
+    FormaReembolso,
+    RegraComissao,
+    StatusConta,
+    TipoConta,
+)
 from apps.notificacoes import services as notificacoes
 from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import StatusVeiculo, Veiculo
@@ -31,10 +43,11 @@ from comum.auditoria import ATOR_SISTEMA, Categoria, auditar, usar_ator
 from comum.conexao import conexao
 from comum.dinheiro import formatar_reais
 from comum.documentos import placa_com_hifen, so_digitos
-from comum.erros import Conflito, ErroDeValidacao, SemPermissao
+from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, SemPermissao
 from comum.permissoes import filiais_permitidas
 
 from . import calculo
+from . import contrato as contrato_da_venda
 from .models import (
     ABERTAS,
     EM_ANDAMENTO,
@@ -45,6 +58,8 @@ from .models import (
     StatusVenda,
     Venda,
 )
+
+logger = logging.getLogger(__name__)
 
 REGRA = "VEN-11"
 # Quem registra a transferência no Detran (`vendas.md`, "Quem pode").
@@ -167,33 +182,46 @@ def criar_venda_da_quitacao(
     return venda
 
 
+def transferencia_pendente(venda: Venda) -> bool:
+    """`VEN-11`, `VEN-17`: a venda `vendida` (das duas origens) sem a transferência no Detran."""
+    return venda.status == StatusVenda.VENDIDA and venda.transferencia_feita_em is None
+
+
 def pode_registrar_transferencia(venda: Venda, usuario: Any) -> bool:
     return (
-        venda.origem == OrigemVenda.QUITACAO_LOCACAO
-        and venda.transferencia_feita_em is None
+        transferencia_pendente(venda)
         and getattr(usuario, "perfil", "") in REGISTRAM_TRANSFERENCIA
         and venda.filial_id in filiais_permitidas(usuario)
     )
 
 
 def registrar_transferencia(venda: Venda, feita_em: date, usuario: Any) -> Venda:
-    """ "Transferência feita" (`LOC-16`, CA-420-16): fecha a tarefa da transferência no Detran.
+    """ "Transferência feita" (`LOC-16`, CA-420-16; `VEN-17` na venda de balcão): fecha a tarefa
+    da transferência no Detran.
 
-    Só administrador e gerente da filial; a data não pode ser depois de hoje nem antes da
-    quitação. Registrar de novo é 409 `VEN-11`. O veículo continua `vendido`."""
+    Só administrador e gerente da filial; a data não pode ser depois de hoje nem antes da venda
+    (a quitação, na da locação). Registrar de novo é 409 (`VEN-11`; `VEN-17` na de balcão). O
+    veículo continua `vendido`."""
     if getattr(usuario, "perfil", "") not in REGISTRAM_TRANSFERENCIA:
         raise SemPermissao("permissao", "Seu perfil não tem acesso a esta ação.")
     if venda.filial_id not in filiais_permitidas(usuario):
         raise SemPermissao("USR-07", "Você não tem acesso a esta filial")
     with transaction.atomic():
-        venda = Venda.objects.select_for_update().select_related("filial").get(pk=venda.pk)
+        venda = (
+            Venda.objects.select_for_update(of=("self",)).select_related("filial").get(pk=venda.pk)
+        )
+        da_quitacao = venda.origem == OrigemVenda.QUITACAO_LOCACAO
+        regra = REGRA if da_quitacao else "VEN-17"
         if venda.transferencia_feita_em is not None:
-            raise Conflito(REGRA, TRANSFERENCIA_JA_REGISTRADA)
+            raise Conflito(regra, TRANSFERENCIA_JA_REGISTRADA)
+        if venda.status != StatusVenda.VENDIDA:
+            raise Conflito(regra, "A transferência sai depois de a venda ser concluída.")
         if feita_em > _data_local(venda.filial, relogio.agora()):
             raise ErroDeValidacao({"feita_em": ["A data não pode ser depois de hoje."]})
         if feita_em < data_da_quitacao(venda):
-            raise ErroDeValidacao({"feita_em": ["A data não pode ser antes da quitação."]})
-        with auditar(venda, "venda.registrar_transferencia", Categoria.OPERACAO, regra=REGRA):
+            antes = "da quitação" if da_quitacao else "da venda"
+            raise ErroDeValidacao({"feita_em": [f"A data não pode ser antes {antes}."]})
+        with auditar(venda, "venda.registrar_transferencia", Categoria.OPERACAO, regra=regra):
             venda.transferencia_feita_em = feita_em
             venda.transferencia_registrada_por = usuario
             venda.save(
@@ -222,6 +250,19 @@ LIMITE_DESCONTO_PCT = calculo.LIMITE_DESCONTO_PCT  # VEN-02
 VENCE_EM_DIAS = 7  # VEN-13, AUT-19
 # Quem cria e mexe na venda (ADR 0042, item 2); o financeiro só lê e o vistoriador nem vê.
 CRIAM = frozenset({"administrador", "gerente", "vendedor"})
+# VEN-19: a venda com a entrada paga só o gerente ou o administrador marca como perdida.
+PERDEM_COM_ENTRADA_PAGA = frozenset({"administrador", "gerente"})
+SO_GERENTE_PERDE = (
+    "Só o gerente ou o administrador marca como perdida uma venda com a entrada paga."
+)
+MOTIVO_DO_REEMBOLSO = "Venda perdida com a entrada paga"  # VEN-19, DEV-02
+# VEN-19 e ADR 0042, item 6a: os 409 VEN-06 do "Cancelar a assinatura".
+ENTRADA_JA_PAGA = "A entrada já foi paga. Para desfazer, marque a venda como perdida."
+CONTRATO_JA_ASSINADO = (
+    "O cliente já assinou o contrato. Para mudar a proposta, marque esta venda como perdida e "
+    "faça uma nova."
+)
+COM_ASSINATURA = "Cancele a assinatura para mudar a proposta."
 
 
 class Acao:
@@ -621,7 +662,7 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
         if venda.status not in EM_ANDAMENTO:
             raise Conflito("transicao_venda", "Esta venda não se edita mais.")
         if venda.contrato_id is not None:
-            raise Conflito("VEN-06", "Cancele a assinatura para mudar a proposta.")
+            raise Conflito("VEN-06", COM_ASSINATURA)
         cliente = venda.cliente
         nome, celular = venda.interessado_nome, venda.interessado_celular
         if dados.get("cliente_id"):
@@ -746,7 +787,7 @@ def pedir_desconto(venda: Venda, pct: Decimal, motivo: str, por: Any) -> Venda:
         if venda.status not in EM_ANDAMENTO:
             raise Conflito("transicao_venda", "Esta venda não pede mais desconto.")
         if venda.contrato_id is not None:
-            raise Conflito("VEN-06", "Cancele a assinatura para mudar a proposta.")
+            raise Conflito("VEN-06", COM_ASSINATURA)
         conta = calculo.calcular(_entrada(venda, {"desconto_pct": pct}, _juros_da_empresa()))
         if conta.erros:
             raise ErroDeValidacao(conta.erros)
@@ -836,6 +877,11 @@ def aplicar_decisao_desconto(
             acao = "venda.recusar_desconto" if recusado else "venda.cancelar_desconto"
         venda.status_antes_aprovacao = ""
         venda.ultimo_contato_em = agora
+        if destino == StatusVenda.PROPOSTA and status in ("aprovado", "recusado"):
+            # Decisão do dono de 23 nov 2026 (VEN-13, AUT-19): a volta à `proposta` recomeça os
+            # 7 dias, sem reenviar ao cliente; a espera pelo gerente não gasta o prazo.
+            venda.proposta_enviada_em = agora
+            campos.append("proposta_enviada_em")
         estados.transicionar(
             venda,
             destino,
@@ -855,10 +901,52 @@ def aplicar_decisao_desconto(
             )
 
 
+def _entrada_paga(venda: Venda) -> ContaReceber | None:
+    """A conta da entrada já paga (`VEN-15`), ou `None`."""
+    if venda.conta_entrada_id is None:
+        return None
+    conta: ContaReceber | None = ContaReceber.objects.filter(
+        pk=venda.conta_entrada_id, status=StatusConta.PAGA
+    ).first()
+    return conta
+
+
+def _desfazer_assinatura_da_perdida(venda: Venda, motivo: str) -> None:
+    """`VEN-13`, ADR 0042, item 6a (padrão A): o contrato da venda perdida vai para
+    `cancelado` (o assinado também, com o PDF e a prova guardados); a conta da entrada em aberto
+    vai para `cancelada`; a paga vira um reembolso "a fazer" por Pix (`DEV-02`, `VEN-19`). O
+    contrato fica ligado à venda, para a tela mostrar "Cancelado · venda perdida"."""
+    texto = f"Venda perdida: {motivo}"[:200]
+    if venda.contrato_id is not None:
+        contrato = Contrato.objects.select_for_update().get(pk=venda.contrato_id)
+        if contrato.status == StatusContrato.ASSINADO:
+            contratos_services.cancelar_assinado(contrato, texto)
+        elif contrato.status != StatusContrato.CANCELADO:
+            contratos_services.cancelar(contrato, texto)
+    if venda.conta_entrada_id is None:
+        return
+    paga = _entrada_paga(venda)
+    if paga is None:
+        financeiro.cancelar_conta(venda.conta_entrada_id, motivo=texto, regra="VEN-13")
+        return
+    if venda.cliente_id is None:  # a entrada só existe com o cliente (VEN-14)
+        return
+    financeiro.devolver_ao_cliente(
+        _origem(venda),
+        filial_id=venda.filial_id,
+        cliente_id=venda.cliente_id,
+        valor_centavos=paga.valor_centavos,
+        forma=FormaReembolso.PIX,
+        motivo=MOTIVO_DO_REEMBOLSO,
+        regra="DEV-02",
+    )
+
+
 def _perder(venda: Venda, motivo: str, *, regra: str, acao: str) -> None:
     """Qualquer estado em andamento → `perdida` (`VEN-13`), na transação de quem chama: cancela o
-    pedido de desconto pendente (o pedido vai para `cancelado`) e estorna a comissão pendente
-    (`FIN-09`). A `aprovacao` muda antes do cancelamento, para o evento de volta não fazer nada."""
+    pedido de desconto pendente (o pedido vai para `cancelado`), o contrato e a conta da entrada
+    (ou devolve a entrada paga, fase 1b) e estorna a comissão pendente (`FIN-09`). A `aprovacao`
+    muda antes do cancelamento, para o evento de volta não fazer nada."""
     pendente = venda.aprovacao == SituacaoAprovacao.PENDENTE
     agora = relogio.agora()
     venda.motivo_perda = motivo[:200]
@@ -881,19 +969,30 @@ def _perder(venda: Venda, motivo: str, *, regra: str, acao: str) -> None:
         aprovacoes.cancelar_pendentes(
             origem_tipo=ORIGEM, origem_id=venda.pk, motivo=f"Venda perdida: {motivo}"[:300]
         )
+    _desfazer_assinatura_da_perdida(venda, motivo)
     financeiro.estornar_comissao(_origem(venda), motivo=f"Venda perdida: {motivo}"[:200])
+
+
+def pode_perder(venda: Venda, usuario: Any) -> bool:
+    """`VEN-19`: com a entrada paga, só o gerente ou o administrador marca como perdida."""
+    if not pode_mexer(venda, usuario) or venda.status not in EM_ANDAMENTO:
+        return False
+    return venda.entrada_paga_em is None or _perfil(usuario) in PERDEM_COM_ENTRADA_PAGA
 
 
 def perder(venda: Venda, motivo: str, por: Any) -> Venda:
     """ "Marcar como perdida" (`VEN-13`), motivo obrigatório. O vendedor perde as próprias vendas;
-    gerente e administrador, as da filial (decisão do dono de 18 nov 2026). A venda com a entrada
-    paga é da fase 1b."""
+    gerente e administrador, as da filial (decisão do dono de 18 nov 2026). Com a entrada paga,
+    só o gerente ou o administrador (403 para o vendedor), e o valor vira um reembolso "a fazer"
+    (`VEN-19`, `DEV-02`)."""
     _exigir_mexer(venda, por)
     texto = (motivo or "").strip()
     if not texto:
         raise ErroDeValidacao({"motivo": ["Informe o motivo."]})
     with transaction.atomic():
         venda = _travar(venda)
+        if venda.entrada_paga_em is not None and _perfil(por) not in PERDEM_COM_ENTRADA_PAGA:
+            raise SemPermissao("VEN-19", SO_GERENTE_PERDE)
         _perder(venda, texto, regra="VEN-13", acao="venda.perder")
     return venda
 
@@ -930,6 +1029,311 @@ def vencer_propostas() -> int:
     return vencidas
 
 
+# --- Fase 1b: assinatura e `vendida` (ADR 0042, itens 6, 6a e 7) ---
+
+NA_ASSINATURA = (StatusVenda.PROPOSTA, StatusVenda.NEGOCIACAO)
+CLIENTE_BLOQUEADO = "O cliente está bloqueado e não pode comprar."
+CLIENTE_INATIVO = "O cliente está inativo e não pode comprar."
+CADASTRO_INCOMPLETO = "Complete o cadastro do cliente antes da assinatura."
+OBSERVACAO_A_VISTA = "Pagamento à vista"
+
+
+def _exigir_cliente_que_compra(cliente: Cliente) -> None:
+    """`VEN-14`: a etapa "Documentos". Bloqueado ou inativo: 409 `CLI-05`; cadastro com
+    pendência: 422 `CLI-03` (a lista vem no detalhe, `documentos.pendencias`)."""
+    if cliente.status == StatusCliente.BLOQUEADO:
+        raise Conflito("CLI-05", CLIENTE_BLOQUEADO)
+    if cliente.status == StatusCliente.INATIVO or cliente.anonimizado_em is not None:
+        raise Conflito("CLI-05", CLIENTE_INATIVO)
+    pendencias = clientes_selectors.pendencias(cliente)
+    if pendencias:
+        raise ErroDeRegra("CLI-03", CADASTRO_INCOMPLETO, {"pendencias": pendencias})
+
+
+def preparar_assinatura(venda: Venda, por: Any) -> Venda:
+    """ "Preparar assinatura" (`VEN-15`, ADR 0042, item 6): da etapa "Documentos" para a
+    "Assinatura". A venda continua em `proposta` ou `negociacao`.
+
+    Pede a proposta enviada, o desconto dentro do limite (ou aprovado), o cliente sem pendência
+    (`CLI-03`), nem bloqueado nem inativo (`CLI-05`), e o veículo ainda à venda (`VEN-01`). Na
+    mesma transação: o contrato do modelo publicado de compra e venda (422 `IMP-04` sem ele; o
+    PDF e o envio saem depois do commit, como na retirada) e a conta da entrada (ou do total à
+    vista) com vencimento hoje, esperando a conclusão (`aguarda_retirada`: sem régua, sem bloqueio,
+    sem multa nem juros)."""
+    _exigir_mexer(venda, por)
+    with transaction.atomic():
+        venda = _travar(venda)
+        if venda.status == StatusVenda.AGUARDANDO_APROVACAO:
+            raise Conflito("APR-01", EM_APROVACAO)
+        if venda.status not in NA_ASSINATURA:
+            raise Conflito("transicao_venda", "A assinatura sai de uma proposta enviada.")
+        if venda.contrato_id is not None:
+            raise Conflito("VEN-06", "A assinatura desta venda já foi preparada.")
+        conta = calculo_da_venda(venda)
+        if conta.precisa_aprovacao:
+            raise Conflito("VEN-02", ACIMA_DO_LIMITE)
+        _exigir_proposta_completa(venda.cliente, conta)
+        cliente = venda.cliente
+        if cliente is None:  # já conferido acima; para o mypy
+            raise ErroDeValidacao({"cliente_id": ["Cadastre o cliente."]})
+        _exigir_cliente_que_compra(cliente)
+        veiculo = veiculos_services.travar(venda.veiculo)
+        if veiculo.status != StatusVeiculo.A_VENDA:
+            raise Conflito("VEN-01", "Este veículo não está mais à venda.")
+        contrato = contrato_da_venda.gerar(venda)
+        hoje = _data_local(venda.filial, relogio.agora())
+        contas = financeiro.criar_contas(
+            _origem(venda),
+            filial_id=venda.filial_id,
+            cliente_id=cliente.pk,
+            contas=[
+                financeiro.NovaConta(
+                    tipo=TipoConta.ENTRADA,
+                    vencimento=hoje,
+                    valor_centavos=venda.entrada_centavos or 0,
+                    observacao=OBSERVACAO_A_VISTA if venda.forma == FormaVenda.A_VISTA else "",
+                )
+            ],
+            aguarda_retirada=True,
+        )
+        with auditar(venda, "venda.preparar_assinatura", Categoria.OPERACAO, regra="VEN-15"):
+            venda.contrato = contrato
+            venda.conta_entrada = contas[0] if contas else None
+            venda.ultimo_contato_em = relogio.agora()
+            venda.save(
+                update_fields=["contrato", "conta_entrada", "ultimo_contato_em", "atualizado_em"]
+            )
+    return venda
+
+
+def cancelar_assinatura(venda: Venda, por: Any) -> Venda:
+    """ "Cancelar a assinatura" (`VEN-19`): o contrato não assinado vai para `cancelado` e a
+    conta da entrada em aberto para `cancelada`, nada se apaga, e a venda volta a se editar no
+    estado em que estava. Entrada paga ou contrato assinado: 409 `VEN-06` (ADR 0042, item 6a)."""
+    _exigir_mexer(venda, por)
+    with transaction.atomic():
+        venda = _travar(venda)
+        if venda.contrato_id is None or venda.status not in NA_ASSINATURA:
+            raise Conflito("transicao_venda", "Esta venda não tem assinatura para cancelar.")
+        if venda.entrada_paga_em is not None or _entrada_paga(venda) is not None:
+            raise Conflito("VEN-06", ENTRADA_JA_PAGA)
+        contrato = Contrato.objects.select_for_update().get(pk=venda.contrato_id)
+        if contrato.status == StatusContrato.ASSINADO or venda.contrato_assinado_em is not None:
+            raise Conflito("VEN-06", CONTRATO_JA_ASSINADO)
+        motivo = "Assinatura cancelada para mudar a proposta"
+        if contrato.status != StatusContrato.CANCELADO:
+            contratos_services.cancelar(contrato, motivo)
+        if venda.conta_entrada_id is not None:
+            financeiro.cancelar_conta(venda.conta_entrada_id, motivo=motivo, regra="VEN-19")
+        with auditar(venda, "venda.cancelar_assinatura", Categoria.OPERACAO, regra="VEN-19"):
+            venda.contrato = None
+            venda.conta_entrada = None
+            venda.ultimo_contato_em = relogio.agora()
+            venda.save(
+                update_fields=["contrato", "conta_entrada", "ultimo_contato_em", "atualizado_em"]
+            )
+    return venda
+
+
+def _contrato_que_falta_assinar(venda: Venda) -> Contrato:
+    contrato = contrato_da_venda.vigente(venda) if venda.status in NA_ASSINATURA else None
+    if contrato is None or venda.contrato_id != contrato.pk:
+        raise Conflito("sem_contrato", "Esta venda ainda não tem contrato. Prepare a assinatura.")
+    return contrato
+
+
+def copiar_link_do_contrato(venda: Venda, por: Any, ip: str | None) -> tuple[str, Contrato]:
+    """ "Copiar link para assinar" (`VEN-15`), como na retirada (T-411): token novo agora; o
+    link anterior deixa de valer. Devolve o link e o contrato."""
+    _exigir_mexer(venda, por)
+    contrato = _contrato_que_falta_assinar(venda)
+    token, contrato = contratos_services.gerar_link(contrato, por, ip)
+    host = contratos_selectors.marca_e_host()[1]
+    return contratos_services.link_de_assinatura(host, token), contrato
+
+
+def reenviar_contrato(venda: Venda, por: Any) -> Contrato:
+    """Reenvia o contrato (novo link; o assinado manda o PDF assinado), como na retirada."""
+    _exigir_mexer(venda, por)
+    return contratos_services.reenviar(_contrato_que_falta_assinar(venda))
+
+
+def _venda_da_fase(venda_id: int) -> Venda | None:
+    if not Venda.objects.filter(pk=venda_id, origem=OrigemVenda.BALCAO).exists():
+        return None
+    return _travar(venda_id)
+
+
+def registrar_contrato_assinado(
+    venda_id: int, contrato_id: int | None, assinado_em: datetime | None
+) -> None:
+    """Assinante de `contratos.contrato_assinado` (ADR 0042, item 1): grava a data e tenta a
+    conclusão, na transação da assinatura. Só o contrato vigente da venda conta; idempotente."""
+    with transaction.atomic():
+        venda = _venda_da_fase(venda_id)
+        if venda is None or venda.contrato_assinado_em is not None:
+            return
+        if contrato_id is not None and venda.contrato_id != contrato_id:
+            return
+        with (
+            usar_ator(ATOR_SISTEMA),
+            auditar(venda, "venda.registrar_assinatura", Categoria.OPERACAO, regra="VEN-15"),
+        ):
+            venda.contrato_assinado_em = assinado_em or relogio.agora()
+            venda.ultimo_contato_em = relogio.agora()
+            venda.save(update_fields=["contrato_assinado_em", "ultimo_contato_em", "atualizado_em"])
+        concluir_se_pronto(venda.pk)
+
+
+def registrar_entrada_paga(venda_id: int, conta_id: int | None, pago_em: datetime | None) -> None:
+    """Assinante de `financeiro.parcela_paga` com `tipo = entrada` (ADR 0042, item 1): grava a
+    data e tenta a conclusão, na transação da baixa. Só a conta da entrada da venda conta."""
+    with transaction.atomic():
+        venda = _venda_da_fase(venda_id)
+        if venda is None or venda.entrada_paga_em is not None:
+            return
+        if venda.conta_entrada_id is None or (
+            conta_id is not None and venda.conta_entrada_id != conta_id
+        ):
+            return
+        with auditar(venda, "venda.registrar_entrada", Categoria.OPERACAO, regra="VEN-15"):
+            venda.entrada_paga_em = pago_em or relogio.agora()
+            venda.ultimo_contato_em = relogio.agora()
+            venda.save(update_fields=["entrada_paga_em", "ultimo_contato_em", "atualizado_em"])
+        concluir_se_pronto(venda.pk)
+
+
+def pronta_para_concluir(venda: Venda) -> bool:
+    """O contrato assinado e a entrada paga (ou sem conta de entrada), em qualquer ordem, com a
+    venda em `proposta` ou `negociacao` (`VEN-15`)."""
+    return (
+        venda.origem == OrigemVenda.BALCAO
+        and venda.status in NA_ASSINATURA
+        and venda.contrato_id is not None
+        and venda.contrato_assinado_em is not None
+        and (venda.conta_entrada_id is None or venda.entrada_paga_em is not None)
+    )
+
+
+def _titulo_da_transferencia(venda: Venda) -> str:
+    """`VEN-17` (proposta do arquiteto, ADR 0042, item 7): "Fazer a transferência no Detran:
+    RTA-2C55 para Diego Martins. VEN-0177 vendida em 07/10/2026."."""
+    vendida = data_da_quitacao(venda).strftime("%d/%m/%Y")
+    return (
+        f"Fazer a transferência no Detran: {placa_com_hifen(venda.veiculo.placa)} para "
+        f"{nome_do_comprador(venda)}. {venda.codigo} vendida em {vendida}."
+    )
+
+
+def _avisar_transferencia(venda_id: int) -> None:
+    venda = Venda.objects.select_related("filial", "veiculo", "cliente").get(pk=venda_id)
+    notificacoes.avisar(
+        destinatarios_da_transferencia(venda.filial),
+        tipo="transferencia_venda",
+        titulo=_titulo_da_transferencia(venda),
+        link=f"/vendas/{venda.pk}",
+        urgente=False,
+        chave=f"venda-transferencia-{venda.pk}",
+        por_email=True,
+    )
+
+
+def _avisar_fora_do_estoque(venda: Venda) -> None:
+    """ADR 0042, item 7: o veículo saiu do estoque antes da conclusão (a trava da `VEN-10`
+    impede). A venda fica como está, a baixa e a assinatura gravam e os gerentes são avisados."""
+    logger.error(
+        "Venda %s pronta para concluir com o veículo %s fora de a_venda.",
+        venda.codigo,
+        venda.veiculo_id,
+    )
+    notificacoes.avisar(
+        destinatarios_da_transferencia(venda.filial),
+        tipo="venda_nao_concluida",
+        titulo=(
+            f"A {venda.codigo} tem o contrato assinado e a entrada paga, mas o veículo não está "
+            "mais à venda. Confira o veículo."
+        )[:200],
+        link=f"/vendas/{venda.pk}",
+        chave=f"venda-nao-concluida-{venda.pk}",
+    )
+
+
+def _criar_parcelas(venda: Venda, dia: date) -> int:
+    """`VEN-04`: as parcelas em Contas a receber, a 1ª um mês depois do dia da venda, as outras
+    no mesmo dia dos meses seguintes; a diferença de centavos na última. Nascem normais (régua,
+    multa e juros da `FIN-03`)."""
+    if venda.forma != FormaVenda.ENTRADA_PARCELAS or not venda.num_parcelas:
+        return 0
+    if venda.cliente_id is None:
+        raise ValueError(f"{venda.codigo} sem cliente.")
+    conta = calculo_da_venda(venda)
+    n = venda.num_parcelas
+    parcela = conta.parcela_centavos or 0
+    ultima = conta.ultima_parcela_centavos or parcela
+    novas = [
+        financeiro.NovaConta(
+            tipo=TipoConta.PARCELA,
+            vencimento=vencimento,
+            valor_centavos=ultima if numero == n else parcela,
+            numero_parcela=numero,
+            total_parcelas=n,
+        )
+        for numero, vencimento in enumerate(calculo.vencimentos(dia, n), start=1)
+    ]
+    criadas = financeiro.criar_contas(
+        _origem(venda), filial_id=venda.filial_id, cliente_id=venda.cliente_id, contas=novas
+    )
+    return len(criadas)
+
+
+def concluir_se_pronto(venda_id: int) -> bool:
+    """`VEN-06`, `VEN-15` (ADR 0042, item 7), na transação do evento que completou a segunda
+    condição; idempotente. A venda vira `vendida`; o veículo vai para `vendido` e os outros
+    interessados dele, para `perdida` (`VEN-10`); as parcelas entram em Contas a receber; a
+    comissão é recalculada e confirmada (`FIN-09`); a transferência no Detran vira tarefa
+    (`VEN-17`). O ator é o Sistema. Com o veículo fora do estoque, não conclui e avisa."""
+    with transaction.atomic():
+        venda = _venda_da_fase(venda_id)
+        if venda is None or not pronta_para_concluir(venda):
+            return False
+        veiculo = veiculos_services.travar(venda.veiculo)
+        if veiculo.status != StatusVeiculo.A_VENDA:
+            _avisar_fora_do_estoque(venda)
+            return False
+        agora = relogio.agora()
+        with usar_ator(ATOR_SISTEMA):
+            venda.vendida_em = agora
+            venda.ultimo_contato_em = agora
+            estados.transicionar(
+                venda,
+                StatusVenda.VENDIDA,
+                acao="venda.concluir",
+                regra="VEN-06",
+                mais_campos=("vendida_em", "ultimo_contato_em"),
+            )
+            veiculos_services.transicionar(
+                veiculo,
+                StatusVeiculo.VENDIDO,
+                origem=veiculos_services.OrigemDaMudanca(ORIGEM, venda.pk, venda.codigo),
+                motivo=f"Venda {venda.codigo}",
+            )
+            _perder_interessados(veiculo.pk, venda.pk)
+            dia = _data_local(venda.filial, agora)
+            _criar_parcelas(venda, dia)
+            financeiro.liberar_contas_da_retirada(_origem(venda), dia)
+            _lancar_comissao_pendente(venda)
+            financeiro.confirmar_comissao(_origem(venda))
+        empresa = conexao().tenant
+
+        def _depois() -> None:
+            with tenant_context(empresa):
+                _avisar_transferencia(venda.pk)
+
+        transaction.on_commit(_depois)
+        painel.renovar()  # a transferência pendente no Início, na hora
+    return True
+
+
 # --- Textos prontos da lista e do detalhe (a tela mostra como vêm) ---
 
 SITUACAO = {
@@ -953,14 +1357,20 @@ def forma_texto(venda: Venda) -> str:
 
 
 def situacao_texto(venda: Venda) -> str:
-    """A situação da lista (`VEN-19`): "Vendida 06 out", "Perdida · proposta vencida". As da
-    etapa "Assinatura" ("Aguardando assinatura", "Aguardando entrada") entram na fase 1b."""
+    """A situação da lista (`VEN-19`): "Vendida 06 out", "Perdida · proposta vencida" e, na
+    etapa "Assinatura" (a venda ainda em `proposta` ou `negociacao`), "Aguardando assinatura" e
+    "Aguardando entrada"."""
     if venda.origem == OrigemVenda.QUITACAO_LOCACAO:
         return OrigemVenda.QUITACAO_LOCACAO.label
     if venda.status == StatusVenda.VENDIDA and venda.vendida_em is not None:
         return f"Vendida {aprovacoes.dia_curto(_data_local(venda.filial, venda.vendida_em))}"
     if venda.status == StatusVenda.PERDIDA and venda.motivo_perda:
         return f"Perdida · {venda.motivo_perda}"
+    if venda.status in NA_ASSINATURA and venda.contrato_id is not None:
+        if venda.contrato_assinado_em is None:
+            return "Aguardando assinatura"
+        if venda.conta_entrada_id is not None and venda.entrada_paga_em is None:
+            return "Aguardando entrada"
     return SITUACAO.get(StatusVenda(venda.status), "")
 
 

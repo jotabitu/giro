@@ -18,7 +18,7 @@ from comum.models import ModeloBase
 class Finalidade(models.TextChoices):
     LOCACAO = "locacao", "Locação"
     LOCACAO_COMPRA = "locacao_compra", "Locação com intenção de compra"  # LOC-16, ADR 0037
-    VENDA = "venda", "Venda"
+    VENDA = "venda", "Compra e venda"  # VEN-15, ADR 0042, item 6
 
 
 class ModeloContrato(ModeloBase):
@@ -89,7 +89,8 @@ class Contrato(MaquinaDeEstados, ModeloBase):
         # `assinado` direto: o link copiado de um contrato com o PDF pronto e nada enviado (T-411).
         S.GERADO: {S.ENVIADO, S.ASSINADO, S.CANCELADO},
         S.ENVIADO: {S.ASSINADO, S.CANCELADO},
-        S.ASSINADO: set(),
+        # Só o da venda perdida, por `services.cancelar_assinado` (ADR 0042, item 6a).
+        S.ASSINADO: {S.CANCELADO},
         S.CANCELADO: set(),
     }
     REGRA_TRANSICAO = "transicao_contrato"
