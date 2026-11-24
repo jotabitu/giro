@@ -120,14 +120,14 @@ function Opcao({ aoEscolher, titulo, detalhe, selo }: { aoEscolher: () => void; 
 }
 
 /** Procura o cliente por nome, CPF ou telefone. Quem não pode alugar (bloqueado, inativo) a API recusa na simulação. */
-export function EscolherCliente({ aoEscolher, aoFechar }: { aoEscolher: (c: ClienteResumo) => void; aoFechar: () => void }) {
+export function EscolherCliente({ aoEscolher, aoFechar, vazio = "Nenhum cliente encontrado. Cadastre o cliente antes de alugar." }: { aoEscolher: (c: ClienteResumo) => void; aoFechar: () => void; vazio?: string }) {
   const [busca, setBusca] = useState("");
   const consulta = useQuery({ queryKey: ["clientes", "escolher", busca], queryFn: () => clientes.listar({ busca: busca || undefined }), placeholderData: (a) => a });
   return (
     <Busca titulo="Escolher o cliente" descricao="Procure por nome, CPF ou telefone." aoFechar={aoFechar} placeholder="Nome, CPF ou telefone" texto={busca} setTexto={setBusca}>
       {consulta.isError && <p role="alert" className="text-body">{mensagemDoErro(consulta.error)}</p>}
       {consulta.isPending && <p className="text-body text-ink-muted" aria-busy="true">Procurando…</p>}
-      {consulta.data && consulta.data.resultados.length === 0 && <p className="text-body text-ink-muted">Nenhum cliente encontrado. Cadastre o cliente antes de alugar.</p>}
+      {consulta.data && consulta.data.resultados.length === 0 && <p className="text-body text-ink-muted">{vazio}</p>}
       <ul className="flex max-h-[320px] flex-col gap-2 overflow-y-auto">
         {consulta.data?.resultados.map((c) => (
           <Opcao
@@ -147,15 +147,19 @@ export function EscolherCliente({ aoEscolher, aoFechar }: { aoEscolher: (c: Clie
   );
 }
 
-/** Procura entre os veículos disponíveis (e os reservados que a API aceitar na simulação). */
-export function EscolherVeiculo({ aoEscolher, aoFechar }: { aoEscolher: (v: Veiculo) => void; aoFechar: () => void }) {
+/**
+ * Procura entre os veículos disponíveis (e os reservados que a API aceitar na simulação). Na venda, `aVenda` lista só os
+ * veículos à venda (VEN-01).
+ */
+export function EscolherVeiculo({ aoEscolher, aoFechar, aVenda = false }: { aoEscolher: (v: Veiculo) => void; aoFechar: () => void; aVenda?: boolean }) {
   const [busca, setBusca] = useState("");
-  const consulta = useQuery({ queryKey: ["veiculos", "escolher", busca], queryFn: () => veiculos.listar({ status: "disponivel", busca: busca || undefined }), placeholderData: (a) => a });
+  const status = aVenda ? "a_venda" : "disponivel";
+  const consulta = useQuery({ queryKey: ["veiculos", "escolher", status, busca], queryFn: () => veiculos.listar({ status, busca: busca || undefined }), placeholderData: (a) => a });
   return (
-    <Busca titulo="Escolher o veículo" descricao="Só os veículos disponíveis aparecem aqui." aoFechar={aoFechar} placeholder="Placa ou modelo" texto={busca} setTexto={setBusca}>
+    <Busca titulo="Escolher o veículo" descricao={aVenda ? "Só os veículos à venda aparecem aqui." : "Só os veículos disponíveis aparecem aqui."} aoFechar={aoFechar} placeholder="Placa ou modelo" texto={busca} setTexto={setBusca}>
       {consulta.isError && <p role="alert" className="text-body">{mensagemDoErro(consulta.error)}</p>}
       {consulta.isPending && <p className="text-body text-ink-muted" aria-busy="true">Procurando…</p>}
-      {consulta.data && consulta.data.resultados.length === 0 && <p className="text-body text-ink-muted">Nenhum veículo disponível com essa busca.</p>}
+      {consulta.data && consulta.data.resultados.length === 0 && <p className="text-body text-ink-muted">{aVenda ? "Nenhum veículo à venda com essa busca." : "Nenhum veículo disponível com essa busca."}</p>}
       <ul className="flex max-h-[320px] flex-col gap-2 overflow-y-auto">
         {consulta.data?.resultados.map((v) => (
           <Opcao key={v.id} aoEscolher={() => aoEscolher(v)} titulo={`${v.marca} ${v.modelo}`} detalhe={`${placa(v.placa)} · ${km(v.km_atual)}`} />
