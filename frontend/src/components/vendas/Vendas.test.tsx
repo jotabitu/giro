@@ -51,6 +51,7 @@ const BASE: Venda = {
   vendida_em: null,
   comissao_centavos: 63204,
   transferencia: { feita_em: null, registrada_por: null, pendente: false },
+  contrato_pdf_disponivel: false,
   acoes: { ...NENHUMA, perder: true },
 };
 
