@@ -10,6 +10,7 @@ transferência.
 
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -174,6 +175,8 @@ def test_ven_15_ven_0177_assinatura_e_entrada_concluem_a_venda(cenario, relogio)
         "vencimento": "2026-10-07",
         "rotulo": "Entrada de R$ 5.000,00",
         "texto": "Aguardando pagamento · vence hoje",
+        "pago_em": None,
+        "forma_texto": None,
     }
     assert detalhe["acoes"]["cancelar_assinatura"] and not detalhe["acoes"]["editar"]
     assert detalhe["documentos"] is None
@@ -462,3 +465,64 @@ def test_ven_15_marcadores_da_venda_e_previa(cenario, modelo_de_venda):  # noqa:
     assert ModeloContrato.objects.get(pk=modelo_de_venda.pk).get_finalidade_display() == (
         "Compra e venda"
     )
+
+
+# --- Lacunas das telas da 1b (#655): o envio, o pagamento e o PDF na lista ---
+
+EMAIL_DO_DIEGO = "diego.martins@exemplo.com.br"
+
+
+def test_ven_15_contrato_enviado_com_o_email_do_cliente(cenario, relogio):  # noqa: F811
+    Cliente.objects.filter(pk=cenario.cliente("Diego").pk).update(email=EMAIL_DO_DIEGO)
+    venda = _preparada(cenario)
+    antes = _detalhe(cenario, venda)["contrato"]
+    assert (antes["enviado_para"], antes["enviado_texto"]) == (None, None)
+    relogio.em("2026-10-07 10:20")
+    contratos_services.marcar_enviado(_contrato(venda))
+    contrato = _detalhe(cenario, venda)["contrato"]
+    assert contrato["enviado_para"] == EMAIL_DO_DIEGO
+    assert contrato["enviado_texto"] == f"Contrato enviado · 07 out, 10:20 · {EMAIL_DO_DIEGO}"
+    # AUD-09: o suporte vê o e-mail mascarado.
+    suporte = selectors._contrato(Venda.objects.get(pk=venda.pk), SimpleNamespace(e_suporte=True))
+    assert suporte is not None and suporte["enviado_para"] == "d***@e***.br"
+
+
+def test_ven_15_contrato_enviado_sem_email_mostra_so_a_hora(cenario, relogio):  # noqa: F811
+    Cliente.objects.filter(pk=cenario.cliente("Diego").pk).update(email="")
+    venda = _preparada(cenario)
+    relogio.em("2026-10-07 10:20")
+    contratos_services.marcar_enviado(_contrato(venda))
+    contrato = _detalhe(cenario, venda)["contrato"]
+    assert (contrato["enviado_para"], contrato["enviado_texto"]) == (
+        None,
+        "Contrato enviado · 07 out, 10:20",
+    )
+
+
+def test_ven_19_entrada_paga_com_a_hora_e_a_forma(cenario, relogio):  # noqa: F811
+    venda = _preparada(cenario)
+    antes = _detalhe(cenario, venda)["conta_entrada"]
+    assert (antes["pago_em"], antes["forma_texto"]) == (None, None)
+    relogio.em("2026-10-07 11:02")
+    _pagar_entrada(venda)
+    entrada = _detalhe(cenario, venda)["conta_entrada"]
+    assert entrada["texto"] == "Paga em 07 out, 11:02 · Pix"
+    assert entrada["forma_texto"] == "Pix" and entrada["pago_em"] is not None
+
+
+def test_ven_15_lista_diz_se_o_contrato_tem_pdf(cenario):  # noqa: F811
+    venda = _ven_0177(cenario)
+
+    def _da_lista() -> dict[int, bool]:
+        resposta = _api(cenario).get(VENDAS)
+        assert resposta.status_code == 200
+        return {v["id"]: v["contrato_pdf_disponivel"] for v in resposta.json()["resultados"]}
+
+    assert _da_lista()[venda.pk] is False  # sem contrato
+    assert _assinatura(cenario, venda).status_code == 200
+    venda.refresh_from_db()
+    assert _da_lista()[venda.pk] is False  # PDF na fila
+    Contrato.objects.filter(pk=_contrato(venda).pk).update(pdf="contratos/ven-0177.pdf")
+    assert _da_lista()[venda.pk] is True
+    assert _detalhe(cenario, venda)["contrato_pdf_disponivel"] is True
+    assert _detalhe(cenario, venda)["contrato"]["pdf_disponivel"] is True

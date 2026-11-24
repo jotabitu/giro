@@ -119,8 +119,12 @@ class VendasView(ViewDeVendas):
         paginacao.ordering = ("-id",)  # type: ignore[assignment]
         pagina = list(paginacao.paginate_queryset(qs, request, view=self) or [])
         comissoes = selectors.comissoes(pagina)
+        com_pdf = selectors.contratos_com_pdf(pagina)
         dados = VendaSerializer(
-            [selectors.representacao(v, request.user, comissoes.get(v.pk)) for v in pagina],
+            [
+                selectors.representacao(v, request.user, comissoes.get(v.pk), com_pdf)
+                for v in pagina
+            ],
             many=True,
         )
         return paginacao.get_paginated_response(dados.data)
