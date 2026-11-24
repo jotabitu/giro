@@ -1,10 +1,13 @@
 """Entrada e saída das vendas (`docs/api/vendas.md`): a venda da quitação (T-420) e o fluxo de
-balcão da fase 1a da T-502 (ADR 0042, item 14)."""
+balcão das fases 1a e 1b da T-502 (ADR 0042, item 14)."""
 
 from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
+
+from apps.contratos.api.serializers import ContratoResumoSerializer
+from apps.financeiro.models import StatusConta
 
 from ..models import FormaVenda, OrigemVenda, SituacaoAprovacao, StatusVenda
 from ..services import Acao
@@ -59,6 +62,11 @@ class AcoesDaVendaSerializer(serializers.Serializer[Any]):
     perder = serializers.BooleanField()
     cancelar = serializers.BooleanField()
     registrar_transferencia = serializers.BooleanField()
+    # Fase 1b (VEN-15, VEN-19): a etapa "Assinatura".
+    preparar_assinatura = serializers.BooleanField()
+    cancelar_assinatura = serializers.BooleanField()
+    copiar_link_contrato = serializers.BooleanField()
+    reenviar_contrato = serializers.BooleanField()
 
 
 class VendaSerializer(serializers.Serializer[Any]):
@@ -127,12 +135,53 @@ class AprovacaoDaVendaSerializer(serializers.Serializer[Any]):
     texto = serializers.CharField(allow_null=True)
 
 
+class ContratoDaVendaSerializer(ContratoResumoSerializer):
+    class Meta:
+        ref_name = "ContratoDaVenda"
+
+    situacao_texto = serializers.CharField()
+
+
+class ContaEntradaSerializer(serializers.Serializer[Any]):
+    """A entrada (ou o total à vista) em Contas a receber (VEN-15): "Entrada de R$ 5.000,00",
+    "Aguardando pagamento · vence hoje"."""
+
+    class Meta:
+        ref_name = "ContaEntradaDaVenda"
+
+    id = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=StatusConta.choices)
+    valor_centavos = serializers.IntegerField()
+    vencimento = serializers.DateField()
+    rotulo = serializers.CharField()
+    texto = serializers.CharField()
+
+
+class DocumentosDaVendaSerializer(serializers.Serializer[Any]):
+    """A etapa "Documentos" (VEN-14, VEN-19): as pendências do cadastro (`CLI-03`, os códigos
+    de `clientes`) e o texto pronto do cliente bloqueado ou inativo (`CLI-05`)."""
+
+    class Meta:
+        ref_name = "DocumentosDaVenda"
+
+    pendencias = serializers.ListField(child=serializers.CharField())
+    # Texto, não enum: a lista `critica`/`alerta` colidiria com o `GravidadeEnum` do painel.
+    gravidade = serializers.CharField(
+        allow_null=True, help_text="`critica` (CLI-05) ou `alerta` (CLI-03)"
+    )
+    texto = serializers.CharField(allow_null=True)
+    pode_preparar = serializers.BooleanField()
+
+
 class VendaDetalheSerializer(VendaSerializer):
     calculo = CalculoDaVendaSerializer(allow_null=True)
     aprovacao = AprovacaoDaVendaSerializer(allow_null=True)
-    # Fase 1b (assinatura e entrada): nulos até lá.
-    contrato = serializers.JSONField(allow_null=True)
-    conta_entrada = serializers.JSONField(allow_null=True)
+    # Fase 1b (VEN-15, VEN-19): assinatura e entrada, com os textos prontos.
+    contrato = ContratoDaVendaSerializer(allow_null=True)
+    conta_entrada = ContaEntradaSerializer(allow_null=True)
+    documentos = DocumentosDaVendaSerializer(allow_null=True)
+    perder_texto = serializers.CharField(allow_null=True)
+    conclusao_texto = serializers.CharField(allow_null=True)
 
 
 class ListaDeVendasSerializer(serializers.Serializer[Any]):

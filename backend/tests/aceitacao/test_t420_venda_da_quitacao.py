@@ -203,11 +203,15 @@ def test_ven_11_bloco_vazio_sem_venda(cenario):  # noqa: F811
 
 
 def test_ven_11_transferencias_pendentes(quitada):
-    filial = _venda().filial_id
+    venda = _venda()
+    filial = venda.filial_id
     assert selectors.transferencias_pendentes([filial]) == [
         {
             "tipo": "transferencia_quitacao",
             "locacao_id": quitada["id"],
+            # T-502, fase 1b: o destino do painel vem da venda (a de balcão leva a /vendas).
+            "venda_id": venda.pk,
+            "destino": {"chave": "locacoes", "id": quitada["id"]},
             "rotulo": "Transferência no Detran · SAK-1D39",
             "detalhe": "Lucas Ferreira · LOC-2856 quitada em 07/10/2026",
             "link": f"/locacoes/{quitada['id']}",

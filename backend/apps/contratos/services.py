@@ -65,12 +65,14 @@ class NomeNaoConfere(ErroDeValidacao):
         self.mensagem = "Digite seu nome completo como está no cadastro"
 
 
-def sem_modelo_publicado() -> ErroDeRegra:
-    return ErroDeRegra(
-        "IMP-04",
-        "Publique um modelo de contrato antes de concluir a locação",
-        {"link": LINK_MODELOS},
-    )
+def sem_modelo_publicado(finalidade: str = Finalidade.LOCACAO) -> ErroDeRegra:
+    """422 `IMP-04` com o atalho para publicar. A venda tem o texto dela (VEN-15, ADR 0042,
+    item 6); a locação e a locação com compra, o de sempre."""
+    if finalidade == Finalidade.VENDA:
+        mensagem = "Publique um modelo de contrato de compra e venda antes de concluir a venda."
+    else:
+        mensagem = "Publique um modelo de contrato antes de concluir a locação"
+    return ErroDeRegra("IMP-04", mensagem, {"link": LINK_MODELOS})
 
 
 # --- Modelos (S-09, LOC-15, IMP-04) ---
@@ -261,9 +263,10 @@ def contrato_existente() -> Conflito:
 def gerar(dados: DadosDoContrato) -> Contrato:
     """O contrato com a versão publicada do modelo da finalidade. 422 `IMP-04` sem modelo; 409
     `contrato_existente` se já há um vigente. O PDF e o link saem depois do commit."""
-    modelo = selectors.modelo_publicado(dados.finalidade or dados.origem_tipo)
+    finalidade = dados.finalidade or dados.origem_tipo
+    modelo = selectors.modelo_publicado(finalidade)
     if modelo is None:
-        raise sem_modelo_publicado()
+        raise sem_modelo_publicado(finalidade)
     if selectors.contrato_vigente(dados.origem_tipo, dados.origem_id) is not None:
         raise contrato_existente()
     return _criar(
@@ -287,8 +290,15 @@ def gerar_aditivo(dados: DadosDoContrato) -> Contrato:
     )
 
 
+def contrato_ja_assinado() -> Conflito:
+    return Conflito("contrato_assinado", "Este contrato já foi assinado.")
+
+
 def cancelar(contrato: Contrato, motivo: str) -> Contrato:
-    """O link deixa de valer na hora."""
+    """O contrato não assinado: o link deixa de valer na hora. O assinado não sai por aqui (a
+    venda perdida usa `cancelar_assinado`)."""
+    if contrato.status == S.ASSINADO:
+        raise contrato_ja_assinado()
     contrato.token_assinatura_hash = None
     contrato.token_assinatura_expira_em = None
     contrato.cancelado_em = relogio.agora()
@@ -303,6 +313,27 @@ def cancelar(contrato: Contrato, motivo: str) -> Contrato:
             "cancelado_em",
             "motivo_cancelamento",
         ),
+    )
+    return contrato
+
+
+def cancelar_assinado(contrato: Contrato, motivo: str) -> Contrato:
+    """`assinado` → `cancelado`, só no contrato de uma venda (`VEN-13`, `VEN-07`; ADR 0042, item
+    6a, padrão A): a venda perdida não deixa um contrato de compra e venda em vigor. O PDF
+    assinado, o hash e a prova da assinatura (IP, data e hora, aparelho) ficam guardados, e o
+    token não muda (o link do assinado já responde 410). A locação não passa por aqui."""
+    if contrato.origem_tipo != OrigemContrato.VENDA:
+        raise Conflito("contrato_assinado", "O contrato assinado de uma locação não se cancela.")
+    if contrato.status != S.ASSINADO:
+        raise Conflito("transicao_contrato", "Este contrato não está assinado.")
+    contrato.cancelado_em = relogio.agora()
+    contrato.motivo_cancelamento = motivo[:200]
+    transicionar(
+        contrato,
+        S.CANCELADO,
+        motivo=motivo,
+        acao="contrato.cancelar_assinado",
+        mais_campos=("cancelado_em", "motivo_cancelamento"),
     )
     return contrato
 

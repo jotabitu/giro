@@ -7,6 +7,10 @@
 set $giro_backend  ${BACKEND_UPSTREAM};
 set $giro_frontend ${FRONTEND_UPSTREAM};
 
+# T-506: acessos em JSON na saída do contêiner (formato `painel`, em giro.conf.template),
+# lidos pelo painel de monitoramento da VPS pela API do Docker. Substitui o formato padrão.
+access_log /var/log/nginx/access.log painel;
+
 ssl_certificate     ${CERT_DIR}/fullchain.pem;
 ssl_certificate_key ${CERT_DIR}/privkey.pem;
 ssl_protocols TLSv1.2 TLSv1.3;

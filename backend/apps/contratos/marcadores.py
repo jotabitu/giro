@@ -73,14 +73,37 @@ MARCADORES_COMPRA: tuple[Marcador, ...] = (
     Marcador("compra.ultima_parcela", "Última parcela (com a caução abatida)", "R$ 890,00"),
     Marcador("compra.prazo", "Prazo da compra", "24 meses"),
 )
+# VEN-15 (T-502, fase 1b; ADR 0042, item 6): só no modelo de finalidade `venda`. Os valores vêm
+# do montador que `vendas` registra em `origens`. A troca (`venda.troca`) entra na fase 2.
+MARCADORES_VENDA: tuple[Marcador, ...] = (
+    Marcador("venda.codigo", "Código da venda", "VEN-0177"),
+    Marcador("venda.preco_tabela", "Preço de tabela", "R$ 22.900,00"),
+    Marcador("venda.desconto", "Desconto", "R$ 1.832,00 (8,00%)"),
+    Marcador("venda.preco_final", "Preço final", "R$ 21.068,00"),
+    Marcador("venda.forma", "Forma de pagamento", "Entrada e parcelas"),
+    Marcador("venda.entrada", "Entrada", "R$ 5.000,00"),
+    Marcador("venda.parcelas", "Parcelas", "12 parcelas mensais de R$ 1.339,00"),
+    Marcador("venda.juros_mes", "Juros das parcelas por mês", "0,00%"),
+    Marcador(
+        "venda.primeiro_vencimento",
+        "Primeiro vencimento",
+        "um mês depois da conclusão da venda",
+    ),
+)
 FINALIDADE_COMPRA = "locacao_compra"
+FINALIDADE_VENDA = "venda"
 CHAVES = frozenset(m.chave for m in MARCADORES)
 CHAVES_COMPRA = CHAVES | frozenset(m.chave for m in MARCADORES_COMPRA)
-EXEMPLOS = {m.chave: m.exemplo for m in (*MARCADORES, *MARCADORES_COMPRA)}
+CHAVES_VENDA = CHAVES | frozenset(m.chave for m in MARCADORES_VENDA)
+EXEMPLOS = {m.chave: m.exemplo for m in (*MARCADORES, *MARCADORES_COMPRA, *MARCADORES_VENDA)}
 
 
 def chaves_da_finalidade(finalidade: str) -> frozenset[str]:
-    return CHAVES_COMPRA if finalidade == FINALIDADE_COMPRA else CHAVES
+    if finalidade == FINALIDADE_COMPRA:
+        return CHAVES_COMPRA
+    if finalidade == FINALIDADE_VENDA:
+        return CHAVES_VENDA
+    return CHAVES
 
 
 # FIN-03: o contrato só permite cobrar juros e multa se o modelo usa os dois.

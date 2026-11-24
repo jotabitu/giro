@@ -134,7 +134,8 @@ from .situacao_cnpj import MENSAGEM_FATURA_EM_ATRASO, Situacao, situacao_do_cnpj
 logger = logging.getLogger(__name__)
 
 SUBDOMINIOS_RESERVADOS = frozenset(
-    {"admin", "www", "api", "app", "suporte", "status", "public", "information-schema"}
+    # "painel": painel de monitoramento da VPS (T-506), servido pelo mesmo proxy.
+    {"admin", "www", "api", "app", "suporte", "status", "painel", "public", "information-schema"}
 )
 # Schemas do próprio Postgres (`pg_catalog`, `pg_toast`...): o subdomínio `pg-*` viraria um deles.
 _PREFIXO_DO_POSTGRES = "pg-"

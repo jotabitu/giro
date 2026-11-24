@@ -118,12 +118,16 @@ class PreviaModeloView(APIView):
     )
     def post(self, request: Request, pk: int) -> Response:
         modelo = _modelo(pk)
-        locacao_id = _entrada(PreviaEntradaSerializer, request).get("locacao_id")
+        entrada = _entrada(PreviaEntradaSerializer, request)
         valores = None
-        if locacao_id is not None:
-            valores = origens.valores("locacao", locacao_id)
+        for origem_tipo, campo in (("locacao", "locacao_id"), ("venda", "venda_id")):
+            origem_id = entrada.get(campo)
+            if origem_id is None:
+                continue
+            valores = origens.valores(origem_tipo, origem_id)
             if valores is None:
                 raise Http404
+            break
         return Response({"html": services.previa(modelo, valores)})
 
 
@@ -150,19 +154,32 @@ class MarcadoresView(APIView):
 
     @extend_schema(responses=ListaDeMarcadoresSerializer, summary="Campos automáticos (S-09)")
     def get(self, request: Request) -> Response:
-        dados = [
-            {"chave": m.chave, "rotulo": m.rotulo, "exemplo": m.exemplo, "finalidade": None}
-            for m in marcadores.MARCADORES
-        ] + [
-            # LOC-16 (T-420): só no modelo da locação com intenção de compra.
-            {
-                "chave": m.chave,
-                "rotulo": m.rotulo,
-                "exemplo": m.exemplo,
-                "finalidade": marcadores.FINALIDADE_COMPRA,
-            }
-            for m in marcadores.MARCADORES_COMPRA
-        ]
+        dados = (
+            [
+                {"chave": m.chave, "rotulo": m.rotulo, "exemplo": m.exemplo, "finalidade": None}
+                for m in marcadores.MARCADORES
+            ]
+            + [
+                # LOC-16 (T-420): só no modelo da locação com intenção de compra.
+                {
+                    "chave": m.chave,
+                    "rotulo": m.rotulo,
+                    "exemplo": m.exemplo,
+                    "finalidade": marcadores.FINALIDADE_COMPRA,
+                }
+                for m in marcadores.MARCADORES_COMPRA
+            ]
+            + [
+                # VEN-15 (T-502, fase 1b): só no modelo de compra e venda.
+                {
+                    "chave": m.chave,
+                    "rotulo": m.rotulo,
+                    "exemplo": m.exemplo,
+                    "finalidade": marcadores.FINALIDADE_VENDA,
+                }
+                for m in marcadores.MARCADORES_VENDA
+            ]
+        )
         return envelope_sem_paginas(dados)
 
 
