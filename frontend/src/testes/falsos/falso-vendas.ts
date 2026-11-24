@@ -30,6 +30,7 @@ export const VENDA_DA_QUITACAO: Venda = {
   comissao_centavos: null,
   vendida_em: "2028-10-10T13:20:00Z",
   transferencia: { feita_em: null, registrada_por: null, pendente: true },
+  contrato_pdf_disponivel: false,
   acoes: {
     editar: false,
     enviar: false,
