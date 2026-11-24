@@ -13,6 +13,7 @@ from typing import Any
 from apps.auditoria import textos as auditoria_textos
 from apps.auditoria.models import EventoAuditoria
 from apps.financeiro import services as financeiro
+from apps.locacoes import services
 from apps.locacoes.models import Locacao, PlanoCompra
 from comum import relogio
 from comum.auditoria import Categoria as CategoriaAuditoria
@@ -164,18 +165,26 @@ def test_aud_loc_16_quitar_e_encerrar_por_atraso_em_portugues(cenario: Cenario) 
     )
 
 
-def test_aud_loc_16_plano_de_compra_em_portugues(compra: Cenario, plano: dict[str, Any]) -> None:
-    """Criar, editar e desativar pela tela `Precos` (a Mariana)."""
+def test_aud_loc_16_plano_de_compra_em_portugues(compra: Cenario) -> None:
+    """Os eventos do plano de compra da categoria (as locações de antes da T-495; o cadastro
+    novo responde 410) continuam em português."""
+    antigo = services.criar_plano_compra(
+        {
+            "nome": "Compra Street 24 meses",
+            "categoria_id": compra.frota.categorias["Street 150–160"].pk,
+            "periodicidade": "mensal",
+            "parcelas": 24,
+            "valor_parcela_centavos": 119000,
+        }
+    )
     assert _texto("plano_compra.criar")[0] == "Criou o plano de compra Compra Street 24 meses"
-    url = f"/api/planos-compra/{plano['id']}/"
-    editado = compra.moto.api("Mariana").patch(url, {"nome": "Compra Street 2 anos"}, format="json")
-    assert editado.status_code == 200, editado.json()
+    services.editar_plano_compra(antigo, {"nome": "Compra Street 2 anos"})
     assert _texto("plano_compra.editar")[0] == "Editou o plano de compra Compra Street 2 anos"
     # Evento sem o nome gravado: o nome de hoje do plano.
     registrar_evento(
         "plano_compra.desativar",
         CategoriaAuditoria.CONFIGURACOES,
-        objeto=PlanoCompra.objects.get(pk=plano["id"]),
+        objeto=PlanoCompra.objects.get(pk=antigo.pk),
     )
     assert _texto("plano_compra.desativar")[0] == (
         "Desativou o plano de compra Compra Street 2 anos"

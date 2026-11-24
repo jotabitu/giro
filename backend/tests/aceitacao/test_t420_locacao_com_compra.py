@@ -1,11 +1,12 @@
 """T-420 · Locação com intenção de compra, parte de locações (`docs/qa/criterios/T-420.md`).
 
 Regras: LOC-16 (nova), LOC-04, LOC-05, LOC-10, LOC-12, LOC-15, IMP-04; ADR 0037. Valores de
-teste, não do seed (preparação dos critérios): a Moto Rápida, Filial Centro; a Mariana cadastra
-o plano "Compra Street 24 meses" (Street 150–160, mensal, 24 parcelas de R$ 1.190,00) e publica o
-modelo "Locação com intenção de compra"; caução da Street R$ 300,00; o Lucas aluga o SAK-1D39 com
-início em 10 nov 2026, 10:00. A venda da quitação (VEN-11) é do Backend 2: aqui, `compra.venda`
-vem do fornecedor `compra_venda` (ADR 0015) e é nula sem ele.
+teste, não do seed (preparação dos critérios): a Moto Rápida, Filial Centro; a Mariana liga a
+locação com compra do SAK-1D39 (mensal, 24 parcelas de R$ 1.190,00, caução R$ 300,00; desde a
+T-495, o plano é do veículo, VEI-16, ADR 0041) e publica o modelo "Locação com intenção de
+compra"; o Lucas aluga o SAK-1D39 com início em 10 nov 2026, 10:00. A venda da quitação
+(VEN-11) é do Backend 2: aqui, `compra.venda` vem do fornecedor `compra_venda` (ADR 0015) e é
+nula sem ele.
 """
 
 from datetime import date, datetime
@@ -23,9 +24,10 @@ from apps.financeiro import services as financeiro
 from apps.financeiro.models import ContaReceber, Reembolso
 from apps.locacoes import contrato as contrato_da_locacao
 from apps.locacoes import selectors, services
-from apps.locacoes.models import Locacao, PlanoCompra
+from apps.locacoes.models import Locacao
 from apps.plataforma.models import Empresa
-from apps.veiculos.models import Veiculo
+from apps.veiculos import services as veiculos_services
+from apps.veiculos.models import PlanoCompraVeiculo, Veiculo
 from apps.vendas import leituras as vendas_leituras
 from comum import estados, eventos, leituras
 from comum import relogio as relogio_do_giro
@@ -66,18 +68,43 @@ def compra(cenario: Cenario, relogio, relogio_jwt) -> Cenario:
     return cenario
 
 
-def _criar_plano(cenario: Cenario, **campos: Any) -> dict[str, Any]:
-    corpo = {
-        "nome": "Compra Street 24 meses",
-        "categoria_id": cenario.frota.categorias[STREET].pk,
-        "periodicidade": "mensal",
-        "parcelas": 24,
-        "valor_parcela_centavos": 119000,
-        **campos,
+NOME_DA_COMPRA = "Locação com compra"
+
+
+def _criar_plano(
+    cenario: Cenario,
+    veiculo: Veiculo | None = None,
+    *,
+    periodicidade: str = "mensal",
+    parcelas: int = 24,
+    valor_parcela_centavos: int = 119000,
+    caucao_centavos: int = 30000,
+    nome: str = "",
+) -> dict[str, Any]:
+    """A locação com compra ligada no veículo (VEI-16, T-495): a parcela digitada, sem juros
+    (a venda é a soma das parcelas), sem entrada nem adicional, e a caução do plano. O `nome` é
+    do plano antigo da categoria e não vale mais (o plano do veículo não tem nome)."""
+    veiculo = veiculo or cenario.sak
+    compra = {
+        "ligado": True,
+        "periodicidade": periodicidade,
+        "parcelas": parcelas,
+        "entrada_centavos": 0,
+        "juros_mes_pct": "0.00",
+        "modo": "digitar",
+        "parcela_moto_centavos": valor_parcela_centavos,
+        "adicional_centavos": 0,
+        "caucao_centavos": caucao_centavos,
     }
-    resposta = cenario.moto.api("Mariana").post(PLANOS, corpo, format="json")
-    assert resposta.status_code == 201, resposta.json()
-    return dict(resposta.json())
+    veiculos_services.salvar_precos(
+        veiculo,
+        {"valor_venda_centavos": valor_parcela_centavos * parcelas, "plano_compra": compra},
+    )
+    return {
+        "id": PlanoCompraVeiculo.objects.get(veiculo=veiculo).pk,
+        "nome": NOME_DA_COMPRA,
+        "ultima_parcela_centavos": max(0, valor_parcela_centavos - caucao_centavos),
+    }
 
 
 @pytest.fixture
@@ -86,6 +113,7 @@ def plano(compra: Cenario) -> dict[str, Any]:
 
 
 def _corpo(cenario: Cenario, plano_id: int, **campos: Any) -> dict[str, Any]:
+    """`plano_compra_id` é ignorado desde a T-495: a compra usa o plano ligado do veículo."""
     return {
         "tipo": "intencao_compra",
         "plano_compra_id": plano_id,
@@ -143,72 +171,22 @@ def _compra(cenario: Cenario, locacao: Locacao, quem: str = "Bruna") -> dict[str
     return dict(cenario.detalhe(locacao.pk, quem)["compra"])
 
 
-# --- Planos de compra (tela Precos) ---
+# --- O plano de compra do veículo (VEI-16, T-495) ---
 
 
-def test_loc_16_plano_de_compra_na_tela_precos(compra: Cenario, plano: dict[str, Any]) -> None:
-    """A Mariana cadastra o plano; a lista traz a caução vigente da categoria e a última parcela
-    já abatida, para a tela mostrar sem conta. Quem cria locação lê; só o administrador grava."""
-    assert {k: plano[k] for k in ("nome", "periodicidade", "parcelas", "ativo")} == {
-        "nome": "Compra Street 24 meses",
-        "periodicidade": "mensal",
-        "parcelas": 24,
-        "ativo": True,
-    }
-    assert plano["categoria"]["nome"] == STREET
-    assert (plano["valor_parcela_centavos"], plano["caucao_centavos"]) == (119000, 30000)
-    assert plano["ultima_parcela_centavos"] == 89000
-    lista = compra.moto.api("Bruna").get(PLANOS, {"ativo": "true"}).json()["resultados"]
-    assert [p["nome"] for p in lista] == ["Compra Street 24 meses"]
-    corpo = {**plano, "nome": "Outro", "categoria_id": plano["categoria"]["id"]}
-    assert compra.moto.api("Bruna").post(PLANOS, corpo, format="json").status_code == 403
-    assert compra.moto.api("Rodrigo").post(PLANOS, corpo, format="json").status_code == 403
-    assert compra.moto.api("João").get(PLANOS).status_code == 403  # vistoriador
-    assert EventoAuditoria.objects.filter(acao="plano_compra.criar").exists()
-
-
-@pytest.mark.parametrize(
-    ("campos", "campo"),
-    [
-        ({"parcelas": 1}, "parcelas"),
-        ({"parcelas": 261}, "parcelas"),
-        ({"valor_parcela_centavos": 0}, "valor_parcela_centavos"),
-        ({"nome": "compra street 24 meses"}, "nome"),
-    ],
-)
-def test_loc_16_plano_de_compra_recusas(
-    compra: Cenario, plano: dict[str, Any], campos: dict[str, Any], campo: str
-) -> None:
-    corpo = {
-        "nome": "Outro plano",
-        "categoria_id": plano["categoria"]["id"],
-        "periodicidade": "mensal",
-        "parcelas": 24,
-        "valor_parcela_centavos": 119000,
-        **campos,
-    }
-    resposta = compra.moto.api("Mariana").post(PLANOS, corpo, format="json")
-    assert resposta.status_code == 400, resposta.json()
-    assert campo in resposta.json()["campos"]
-
-
-def test_loc_16_plano_desativado_sai_da_nova_locacao(
-    compra: Cenario, plano: dict[str, Any]
-) -> None:
-    api = compra.moto.api("Mariana")
-    assert api.post(f"{PLANOS}{plano['id']}/desativar/").json()["ativo"] is False
-    assert api.get(PLANOS, {"ativo": "true"}).json()["resultados"] == []
-    assert len(api.get(PLANOS).json()["resultados"]) == 1
+def test_loc_16_plano_desligado_sai_da_nova_locacao(compra: Cenario, plano: dict[str, Any]) -> None:
+    """Desligada a locação com compra do veículo, a Nova locação desse tipo responde 409
+    `VEI-15` (ADR 0041, item 4)."""
+    PlanoCompraVeiculo.objects.filter(pk=plano["id"]).update(ligado=False)
     resposta = compra.moto.api("Bruna").post(SIMULAR, _corpo(compra, plano["id"]), format="json")
-    assert resposta.status_code == 400
-    assert "plano_compra_id" in resposta.json()["campos"]
+    assert (resposta.status_code, resposta.json()["codigo"]) == (409, "VEI-15")
 
 
 def test_loc_16_isolamento_do_plano_entre_empresas(compra: Cenario, plano: dict[str, Any]) -> None:
     """O plano da empresa A não aparece na empresa B."""
-    assert PlanoCompra.objects.count() == 1
+    assert PlanoCompraVeiculo.objects.count() == 1
     connection.set_tenant(Empresa.objects.get(schema_name="empresa_b"))
-    assert not PlanoCompra.objects.exists()
+    assert not PlanoCompraVeiculo.objects.exists()
     assert not Locacao.objects.filter(tipo="intencao_compra").exists()
 
 
@@ -238,8 +216,12 @@ def test_loc_16_ca_420_01_simulacao_plano_e_parcelas(
     assert previstas[22] == {"numero": 23, "vencimento": "2028-09-10", "valor_centavos": 119000}
     assert previstas[23] == {"numero": 24, "vencimento": "2028-10-10", "valor_centavos": 89000}
     assert corpo["compra"] == {
+        "periodicidade": "mensal",
         "parcelas_total": 24,
         "valor_parcela_centavos": 119000,
+        "parcela_moto_centavos": 119000,
+        "adicional_centavos": 0,
+        "entrada_centavos": 0,
         "ultima_parcela_centavos": 89000,
         "sobra_caucao_centavos": 0,
     }
@@ -273,7 +255,9 @@ def test_loc_16_ca_420_01_confirmar_com_o_plano(compra: Cenario, plano: dict[str
         "Com intenção de compra",
     )
     assert detalhe["compra"] == {
-        "plano": {"id": plano["id"], "nome": "Compra Street 24 meses"},
+        "plano": {"id": plano["id"], "nome": NOME_DA_COMPRA},
+        "periodicidade": "mensal",
+        "entrada_centavos": 0,
         "parcelas_total": 24,
         "parcelas_pagas": 0,
         "valor_parcela_centavos": 119000,
@@ -323,13 +307,13 @@ def test_loc_16_ca_420_02_periodicidade_igual_a_do_plano_passa(
     assert compra.moto.api("Bruna").post(SIMULAR, corpo, format="json").status_code == 200
 
 
-def test_loc_16_veiculo_fora_da_categoria_do_plano(compra: Cenario, plano: dict[str, Any]) -> None:
+def test_loc_16_veiculo_sem_a_compra_ligada(compra: Cenario, plano: dict[str, Any]) -> None:
+    """O plano é de cada veículo: outro veículo sem a compra ligada responde 409 `VEI-15`."""
     urbana = compra.veiculo("Urbana 110–125")
     resposta = compra.moto.api("Bruna").post(
         SIMULAR, _corpo(compra, plano["id"], veiculo_id=urbana.pk), format="json"
     )
-    assert resposta.status_code == 400
-    assert resposta.json()["campos"]["veiculo_id"] == ["O veículo não é da categoria do plano."]
+    assert (resposta.status_code, resposta.json()["codigo"]) == (409, "VEI-15")
 
 
 def test_loc_16_ca_420_03_sem_modelo_publicado(
@@ -359,20 +343,18 @@ def test_loc_16_ca_420_03_sem_modelo_publicado(
 
 
 def test_loc_16_ca_420_04_plano_congelado(compra: Cenario, plano: dict[str, Any]) -> None:
+    """Mudar a parcela do veículo depois não muda a locação confirmada (LOC-15, VEI-17)."""
     locacao = _confirmada(compra, plano["id"])
-    editado = compra.moto.api("Mariana").patch(
-        f"{PLANOS}{plano['id']}/", {"valor_parcela_centavos": 125000}, format="json"
-    )
-    assert editado.status_code == 200, editado.json()
-    assert editado.json()["valor_parcela_centavos"] == 125000
+    outra = compra.veiculo(STREET, exceto=(compra.sak.placa,))
+    _criar_plano(compra, outra, valor_parcela_centavos=125000)
+    _criar_plano(compra, valor_parcela_centavos=125000)
     assert _compra(compra, locacao)["valor_parcela_centavos"] == 119000
     assert {p.valor_centavos for p in _contas(locacao)[:-1]} == {119000}
-    outra = compra.veiculo(STREET, exceto=(compra.sak.placa,))
     nova = compra.moto.api("Bruna").post(
         SIMULAR, _corpo(compra, plano["id"], veiculo_id=outra.pk), format="json"
     )
     assert nova.json()["valor_periodo_centavos"] == 125000
-    assert EventoAuditoria.objects.filter(acao="plano_compra.editar").exists()
+    assert EventoAuditoria.objects.filter(acao="veiculo.precos_salvar").exists()
 
 
 def test_loc_16_check_do_tipo_no_banco(compra: Cenario, plano: dict[str, Any]) -> None:
@@ -692,7 +674,6 @@ def test_loc_16_m01_caucao_cancelada_nao_quita_nem_devolve_sobra(compra: Cenario
     a locação não quita e não nasce reembolso; a ficha diz que falta a caução."""
     plano = _criar_plano(
         compra,
-        nome="Compra Street 104 semanas",
         periodicidade="semanal",
         parcelas=104,
         valor_parcela_centavos=19900,
@@ -908,7 +889,6 @@ def test_loc_16_ca_420_14_caucao_maior_que_a_parcela(compra: Cenario) -> None:
     (e, zerada, não vira conta); paga a 103ª, quita, e os R$ 101,00 voltam como sobra."""
     plano = _criar_plano(
         compra,
-        nome="Compra Street 104 semanas",
         periodicidade="semanal",
         parcelas=104,
         valor_parcela_centavos=19900,
@@ -998,7 +978,7 @@ def test_loc_16_contrato_da_compra_com_os_valores_do_plano(
     locacao = _confirmada(compra, plano["id"])
     valores = contrato_da_locacao.valores(Locacao.objects.get(pk=locacao.pk))
     assert {k: v for k, v in valores.items() if k.startswith("compra.")} == {
-        "compra.plano": "Compra Street 24 meses",
+        "compra.plano": NOME_DA_COMPRA,
         "compra.parcelas": "24",
         "compra.valor_parcela": "R$ 1.190,00",
         "compra.ultima_parcela": "R$ 890,00",

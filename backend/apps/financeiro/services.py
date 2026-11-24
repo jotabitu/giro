@@ -158,7 +158,7 @@ def vencer_na_retirada(origem: Origem, dia: date) -> int:
     juros contam do dia seguinte (FIN-03). As outras parcelas seguem o calendário do início.
     Chamar antes de `liberar_contas_da_retirada`, na mesma transação. Devolve quantas mudaram."""
     contas = ContaReceber.objects.select_for_update().filter(
-        Q(tipo=TipoConta.CAUCAO) | Q(tipo=TipoConta.PARCELA, numero_parcela=1),
+        selectors.q_primeiro_pagamento(),
         origem_tipo=origem.tipo,
         origem_id=origem.id,
         status=StatusConta.ABERTA,

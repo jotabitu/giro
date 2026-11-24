@@ -20,6 +20,16 @@ locacoes/
 
 Contrato da API: `docs/api/locacoes.md` (escrito pelo arquiteto antes da implementação).
 
+## O preço vem do plano do veículo (T-495, ADR 0041)
+
+Desde a T-495, a locação não lê mais o preço da categoria (`preco_vigente`) nem oferece plano especial ou o plano de compra da categoria. O que está abaixo, das tarefas antigas, vale com estas trocas:
+
+- **De onde vem o preço:** `veiculos.selectors.plano_para_locacao`, `plano_do_mesmo_tipo` e `plano_compra_para_locacao` devolvem o plano ligado do veículo pelo preço do dia (`valor_em`), com as regras do veículo (`PrecoDoPlano`, `PrecoDaCompra`). Sem o plano ligado, 409 `VEI-15`. O rascunho recebe `plano_veiculo_id`; sem ele, a `periodicidade` escolhe o plano do mesmo tipo (caminho antigo, até a T-497).
+- **O que a confirmação congela** (`Locacao`, migração `0010`): `plano_veiculo`, `caucao_parcelas`, `franquia_km`, `km_excedente_centavos`, `desconto_sem_aprovacao_pct` (`LOC-03`), `multa_minima_centavos` (`LOC-12`, `services.multa_minima`), `prazo_devolucao_caucao_dias`; na compra, `plano_compra_veiculo` e `compra_entrada_centavos`, `compra_adicional_centavos`, `compra_valor_venda_centavos`, `compra_juros_mes_pct`. `diaria_centavos` passa a ser o dia de atraso do veículo (`LOC-10`). Nulos nas locações de antes, que seguem como eram.
+- **Calendário** (`calculo.py`): o mensal em "2 quinzenais" (`duas_quinzenais`, a cada 15 dias de cada mês) além das 4 semanais (`PARTES_DO_MES`); na compra, a quinzenal a cada 14 dias e a diária com uma parcela por dia. A caução parcelada (`parcelas_da_caucao`, `LOC-04`) vira uma conta por vencimento, e a entrada da compra, uma conta `entrada`; as duas entram no 1º pagamento (`financeiro.selectors.q_primeiro_pagamento`).
+- **Renovação e troca:** `plano_da_renovacao` (o mesmo plano, com o preço de hoje) e `preco_da_troca` (o plano do mesmo tipo do veículo novo). O plano especial de preço fixo ou de desconto continua só nas locações de antes que o têm.
+- **Cadastro antigo:** `POST` e `PATCH` de `planos-especiais` e `planos-compra` respondem 410; os serviços `criar_plano*` ficam para as locações de antes e os testes. A migração `0009` copia o plano de compra da categoria para cada veículo dela, desligado.
+
 ## Implementado (T-015)
 
 - `models.py`:
