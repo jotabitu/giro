@@ -1790,6 +1790,21 @@ MENSAGEM_VALOR_PARA_LIGAR = "Informe um valor maior que zero para ligar o plano.
 MENSAGEM_FORMA_PARA_LIGAR = "Escolha ao menos uma forma de pagamento para ligar o plano."
 MENSAGEM_CAUCAO_PARA_LIGAR = "Informe a caução para ligar o plano. Pode ser R$ 0,00."
 MENSAGEM_VENDA_PARA_COMPRA = "Informe o valor de venda para ligar a locação com compra."
+
+
+def aviso_aluguel_desativado(veiculo: Veiculo) -> str:
+    """VEI-21: o texto da recusa (e do aviso da Nova locação) com o aluguel desligado."""
+    deste = "deste carro" if veiculo.categoria.tipo_veiculo == TipoVeiculo.CARRO else "desta moto"
+    return f"O aluguel {deste} está desativado. O administrador ativa em Planos e preços."
+
+
+def conferir_aluguel_ligado(veiculo: Veiculo) -> None:
+    """VEI-21: 409 ao criar locação de aluguel ou pedir a troca (LOC-09) com o aluguel
+    desligado. A locação com compra e a renovação das abertas (LOC-15) não passam por aqui."""
+    if not veiculo.aluguel_ligado:
+        raise Conflito("VEI-21", aviso_aluguel_desativado(veiculo))
+
+
 MENSAGEM_ENTRADA = "A entrada precisa ser menor que o valor de venda."
 MENSAGEM_AGENDADO_DATA = "Escolha uma data a partir de amanhã."
 FORMAS_TODAS = [forma.value for forma in FormaAceita]
@@ -2086,6 +2101,7 @@ class DocumentoDePrecos:
     """O estado novo, montado e validado, ainda sem gravar."""
 
     valor_venda_centavos: int | None
+    aluguel_ligado: bool  # VEI-21
     planos: list[PlanoVeiculo]
     regras: RegrasVeiculo
     custos: CustosVeiculo
@@ -2313,6 +2329,7 @@ def montar_documento(
         if campo in CAMPOS_DOS_CUSTOS:
             setattr(custos, campo, valor)
     valor_venda = dados.get("valor_venda_centavos", veiculo.valor_venda_centavos)
+    aluguel_ligado = bool(dados.get("aluguel_ligado", veiculo.aluguel_ligado))  # VEI-21
     compra = _aplicar_compra(veiculo, dados.get("plano_compra"), erros)
     if compra is not None:
         if compra.ligado and not valor_venda:
@@ -2338,7 +2355,7 @@ def montar_documento(
             erros["plano_compra.parcela_moto_centavos"] = [precos.MENSAGEM_PARCELA_NAO_COBRE]
     if erros:
         raise ErroDeValidacao(erros)
-    return DocumentoDePrecos(valor_venda, planos, regras, custos, compra, resultado)
+    return DocumentoDePrecos(valor_venda, aluguel_ligado, planos, regras, custos, compra, resultado)
 
 
 def pede_confirmacao_juros(veiculo: Veiculo, compra: PlanoCompraVeiculo | None) -> bool:
@@ -2426,6 +2443,14 @@ def _gravar_documento(veiculo: Veiculo, documento: DocumentoDePrecos, lote: _Lot
         )
         veiculo.valor_venda_centavos = documento.valor_venda_centavos
         veiculo.save(update_fields=["valor_venda_centavos", "atualizado_em"])
+    # VEI-21: o liga e desliga do aluguel inteiro, com o antes e o depois (VEI-17). Os planos
+    # ficam como estão; a VEI-15 continua olhando o ligado de cada um.
+    if documento.aluguel_ligado != veiculo.aluguel_ligado:
+        lote.mudou(
+            AlvoPreco.ALUGUEL, "aluguel_ligado", veiculo.aluguel_ligado, documento.aluguel_ligado
+        )
+        veiculo.aluguel_ligado = documento.aluguel_ligado
+        veiculo.save(update_fields=["aluguel_ligado", "atualizado_em"])
 
 
 def ligar_plano(
