@@ -16,14 +16,18 @@ import pytest
 from django.core import mail
 from django.core.cache import cache
 from django.db import connection
+from django_tenants.utils import schema_context
 
 from apps.aprovacoes import services as aprovacoes_services
 from apps.auditoria.models import EventoAuditoria
+from apps.clientes import services as clientes_services
 from apps.clientes import titular
+from apps.contas.models import Usuario
 from apps.plataforma.models import Empresa
 from apps.relatorios import selectors as relatorios_selectors
 from apps.vendas import envio
 from apps.vendas.models import MetaVenda, Venda
+from comum import arquivos
 from comum import relogio as relogio_do_giro
 from comum.empresa import nome_da_empresa
 from comum.estados import transicionar
@@ -630,13 +634,50 @@ def test_s_15_editar_a_proposta_anula_o_link_e_o_pdf(cenario, django_capture_on_
     assert outro.nome in envio.corpo(salva)
 
 
-def test_s_15_anonimizar_o_titular_anula_o_link_da_proposta(
+def test_aud_06_anonimizar_apaga_o_pdf_da_proposta_e_anula_o_link(
     cenario,  # noqa: F811
     django_capture_on_commit_callbacks,
 ):
-    venda = _enviada(cenario, django_capture_on_commit_callbacks)
+    """Padrão A do dono (`pontos-em-aberto.md`, #665) e item 3 da Segurança no #650: a
+    anonimização do titular (AUD-06) apaga o PDF da proposta de todas as vendas dele, com as
+    versões antigas, e anula o link; a venda continua, com o cliente anonimizado."""
+    paula = clientes_services.cadastrar(
+        {
+            "tipo": "pf",
+            "nome": "Paula Souza",
+            "documento": "52998224725",
+            "celular": "85988880000",
+            "email": "paula@exemplo.test",
+        }
+    )
+    venda = _enviada(cenario, django_capture_on_commit_callbacks, cliente_id=paula.pk)
+    primeiro_pdf = Venda.objects.get(pk=venda["id"]).proposta_pdf.name
     token = _token(_copiar(cenario, venda["id"]).json()["link"])
-    titular._anular_links(cenario.cliente("Diego"))
+    pdf_do_link = Venda.objects.get(pk=venda["id"]).proposta_pdf.name
+    assert primeiro_pdf != pdf_do_link  # o link grava o PDF de agora
+    assert arquivos.provedor().existe(primeiro_pdf) and arquivos.provedor().existe(pdf_do_link)
+    perdida = _post(cenario, venda["id"], "perder", motivo="Desistiu da compra")
+    assert perdida.status_code == 200, perdida.json()
+
+    with schema_context("public"):
+        dono = Usuario.objects.create_user(
+            "dono-1c@giro.test",
+            "senha-longa-2026",
+            nome="Ana Dono",
+            funcao_plataforma="dono",
+            status="ativo",
+        )
+    empresa = Empresa.objects.get(schema_name="empresa_a")
+    pedido = titular.Pedido(dono=dono, motivo="Chamado 4522: pedido da titular")
+    apagados = titular.anonimizar(empresa, paula.pk, pedido, "Paula Souza")
+    connection.set_tenant(empresa)
+
+    assert apagados >= 2
+    assert not arquivos.provedor().existe(primeiro_pdf)
+    assert not arquivos.provedor().existe(pdf_do_link)
     salva = Venda.objects.get(pk=venda["id"])
+    assert not salva.proposta_pdf
     assert (salva.token_proposta_hash, salva.token_proposta_expira_em) == (None, None)
+    assert salva.cliente_id == paula.pk  # a venda fica, com o cliente anonimizado
+    assert salva.cliente is not None and salva.cliente.anonimizado_em is not None
     assert _abrir(token).status_code == 404

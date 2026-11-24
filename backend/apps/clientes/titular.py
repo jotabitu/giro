@@ -22,6 +22,7 @@ from django_tenants.utils import get_public_schema_name, schema_context, tenant_
 from comum import arquivos, relogio
 from comum.auditoria import Ator, Categoria, TipoAtor, auditar, registrar_evento, usar_ator
 from comum.campos import CampoCifrado, CampoHashBusca, anonimizar_cifrado
+from comum.conexao import schema_atual
 from comum.erros import Conflito, ErroDeNegocio, ErroDeRegra, ErroDeValidacao, SemPermissao
 
 from . import selectors, services
@@ -202,10 +203,15 @@ def exportar(empresa: Any, cliente_id: int, pedido: Pedido) -> bytes:
 # --- Anonimizar ---
 
 
-def _anular_links(cliente: Cliente) -> None:
+def _anular_links(cliente: Cliente) -> list[str]:
     """T-411 (`copiar-link.md`): os links vivos do titular deixam de abrir (404): o de assinatura
     dos contratos não assinados, o do recibo das devoluções e o da proposta das vendas (T-502).
-    Pelo registro do app, sem importar os apps de cima (ADR 0011)."""
+    Pelo registro do app, sem importar os apps de cima (ADR 0011).
+
+    O PDF da proposta tem o nome completo do titular (padrão A do dono, `pontos-em-aberto.md`,
+    #665): a venda deixa de apontar para ele e a venda segue com o cliente anonimizado. Devolve as
+    pastas das vendas (`<schema>/vendas/venda/<id>/`, com as versões antigas do PDF), que saem
+    do armazenamento depois do commit."""
     contrato = apps.get_model("contratos", "Contrato")
     contrato.objects.filter(cliente=cliente, token_assinatura_hash__isnull=False).exclude(
         status="assinado"
@@ -215,9 +221,10 @@ def _anular_links(cliente: Cliente) -> None:
         token_recibo_hash=None, token_recibo_expira_em=None
     )
     venda = apps.get_model("vendas", "Venda")
-    venda.objects.filter(cliente=cliente, token_proposta_hash__isnull=False).update(
-        token_proposta_hash=None, token_proposta_expira_em=None
-    )
+    vendas = venda.objects.filter(cliente=cliente)
+    pastas = [f"{schema_atual()}/vendas/venda/{pk}/" for pk in vendas.values_list("pk", flat=True)]
+    vendas.update(token_proposta_hash=None, token_proposta_expira_em=None, proposta_pdf=None)
+    return pastas
 
 
 def anonimizar(empresa: Any, cliente_id: int, pedido: Pedido, confirmacao: str) -> int:
@@ -269,9 +276,10 @@ def anonimizar(empresa: Any, cliente_id: int, pedido: Pedido, confirmacao: str) 
                     documento.save(update_fields=["arquivo", "ativo", "atualizado_em"])
             # Sem documento e sem CPF, o cadastro volta a `incompleto` (CLI-03).
             services.acertar_cadastro(cliente)
-            _anular_links(cliente)
+            pastas = _anular_links(cliente)
     _registrar_na_plataforma(empresa, "empresa.anonimizar_titular", pedido, cliente_id)
     # Depois do commit: se algo antes falhar, nenhum arquivo some sem o registro mudar.
     for caminho in caminhos:
         arquivos.provedor().apagar(caminho)
-    return len(caminhos)
+    apagados = sum(arquivos.provedor().apagar_prefixo(pasta) for pasta in pastas)
+    return len(caminhos) + apagados
