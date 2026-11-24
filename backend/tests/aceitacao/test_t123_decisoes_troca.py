@@ -28,7 +28,16 @@ from comum.documentos import placa_com_hifen
 from . import carteira
 from .frota import montar_frota
 from .test_t012_filiais import MotoRapida
-from .test_t015_locacoes import LISTA, Cenario, _assinar, _pagar, _parcelas, _plano, _vistoriar
+from .test_t015_locacoes import (
+    LISTA,
+    Cenario,
+    _assinar,
+    _pagar,
+    _parcelas,
+    _plano,
+    _vistoriar,
+    com_plano_especial,
+)
 from .test_t016_vistorias import (
     VISTORIAS,
     _abrir_devolucao,
@@ -261,9 +270,13 @@ def test_loc_09_parcela_refeita_mensal_fidelidade_3o_mes(cenario, relogio):
         desconto_pct="10.00",
         a_partir_do_periodo=3,
     )
-    locacao = _mensal_ativa(
-        cenario, periodos=4, plano_especial_id=fidelidade["id"], parcelamento_mensal="a_vista"
-    )
+    locacao = _mensal_ativa(cenario, periodos=4, parcelamento_mensal="a_vista")
+    # VEI-12 (ADR 0041, item 2): a Nova locação não aceita mais o plano especial. A locação de
+    # antes, confirmada com ele, tinha o 3º e o 4º mês com 10% (1.190,00 − 10% = 1.071,00).
+    locacao = com_plano_especial(locacao.pk, fidelidade["id"])
+    ContaReceber.objects.filter(
+        origem_tipo="locacao", origem_id=locacao.pk, tipo="parcela", numero_parcela__gte=3
+    ).update(valor_centavos=107100)
     assert [v for _, v in _parcelas(locacao.pk)] == [119000, 119000, 107100, 107100]
 
     troca = _troca_concluida(cenario, locacao, relogio, "2026-10-08 10:00")

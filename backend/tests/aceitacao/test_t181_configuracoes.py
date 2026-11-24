@@ -18,7 +18,10 @@ from apps.plataforma.models import Empresa, UsoEmpresa
 from apps.relatorios import configuracoes as textos
 
 from .test_t014_clientes import _suporte
-from .test_t015_locacoes import cenario  # noqa: F401 - fixture
+from .test_t015_locacoes import (
+    _plano,
+    cenario,  # noqa: F401 - fixture
+)
 
 URL = "/api/configuracoes/"
 TODOS_OS_MODULOS = [
@@ -151,7 +154,7 @@ def test_plt_03_configuracoes_usuarios_conta_convites(moto_rapida):
 
 
 def test_loc_01_configuracoes_planos_especiais(moto_rapida):
-    api = moto_rapida.moto.api("Mariana")
+    """Os planos especiais de antes da ADR 0041 (o cadastro pela API agora é 410 `VEI-12`)."""
     for dados in (
         {
             "nome": "Entregador",
@@ -167,7 +170,7 @@ def test_loc_01_configuracoes_planos_especiais(moto_rapida):
             "a_partir_do_periodo": 3,
         },
     ):
-        assert api.post("/api/planos-especiais/", dados, format="json").status_code == 201
+        _plano(moto_rapida, **dados)
     assert _resumo(_get(moto_rapida), "precos") == "4 categorias · 2 planos especiais"
 
 

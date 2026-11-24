@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- ajustada no repositório: 23/11/2026, T-486 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -44,7 +45,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1900px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2520px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 <header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><a href="Config-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn wl-icon-btn--sm" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a><div style="flex: 1; min-width: 0;"><div style="font-size: 13px; color: var(--ink-muted); display: flex; align-items: center; gap: 4px;"><svg class="wl-i" viewBox="0 0 24 24" style="width:12px;height:12px"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Administração</div><div style="font-size: 22px; line-height: 28px; font-weight: 600;">Empresa e marca</div></div></header>
 <section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Marca</div><div style="display: flex; flex-direction: column; gap: 18px;">
 <div class="wl-field"><span class="wl-field__label">Logo</span><div style="display: flex; align-items: center; gap: 16px;"><div class="wl-logo-slot" style="width: 60px; height: 60px; font-size: 22px; border-radius: 20px;">MR</div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; gap: 8px;"><button class="wl-btn wl-btn--sm">Trocar logo</button><button class="wl-btn wl-btn--quiet wl-btn--sm">Remover</button></div><span class="wl-field__hint">PNG ou SVG, fundo transparente, até 2 MB</span></div></div></div>
@@ -61,11 +62,18 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <div style="width: 100%; height: 44px; border-radius: 999px; background: var(--brand); color: var(--on-brand); display: grid; place-items: center; font-weight: 500;">Entrar</div>
 <div class="lbl" style="font-size: 11px;">contrato e recibos também saem com a sua marca</div>
 </div></div></section>
+<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Estoque à venda</div>
+<label class="wl-field" style="width: 100%;"><span class="wl-field__label">Limite de dias em estoque</span><input class="wl-input wl-mono" inputmode="numeric" value="30"><span class="wl-field__hint">Acima disso, o veículo à venda aparece como parado e o gerente da filial é avisado. De 1 a 365 dias, igual para todas as filiais.</span></label></section>
 <section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Dados da empresa</div><div class="kv"><span>Razão social</span><span>Moto Rápida Locações Ltda</span></div><div class="kv"><span>CNPJ</span><span>12.345.678/0001-95</span></div><div class="kv"><span>Endereço</span><span>Av. Bezerra de Menezes, 1200 · Fortaleza</span></div><div class="kv"><span>Telefone</span><span>(85) 3222-4410</span></div><div class="kv"><span>E-mail financeiro</span><span>financeiro@motorapida.com.br</span></div></section>
+<section class="card"><div style="font-weight: 600; font-size: 18px;">Estados desta tela</div><div class="lbl" style="font-size: 14px; margin-top: 4px;">Caso da VEI-19. Na tela real, aparece um de cada vez.</div>
+<div style="margin-top: 16px; font-size: 15px; font-weight: 600;">Limite recusado no campo (0, 366 ou vazio)</div>
+<label class="wl-field wl-field--error" style="width: 100%; margin-top: 8px;"><span class="wl-field__label">Limite de dias em estoque</span><input class="wl-input wl-mono" inputmode="numeric" value="366" aria-invalid="true"><span class="wl-field__hint">Informe um número inteiro de 1 a 365.</span></label>
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Perfil sem permissão (gerente, vendedor, financeiro)</div>
+<label class="wl-field" style="width: 100%; margin-top: 8px;"><span class="wl-field__label">Limite de dias em estoque</span><input class="wl-input wl-mono" value="30" disabled><span class="wl-field__hint">Só o administrador altera.</span></label></section>
 <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line); display: flex; gap: 8px;"><button class="wl-btn wl-btn--solid" style="flex: 1; justify-content: center;">Salvar</button></div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1900}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2520}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');

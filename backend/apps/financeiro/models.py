@@ -67,6 +67,8 @@ class Renegociacao(ModeloBase, ComOrigem):
 class TipoConta(models.TextChoices):
     PARCELA = "parcela", "Parcela"
     CAUCAO = "caucao", "Caução"  # não é receita (LOC-04, FIN-13)
+    # LOC-16: a entrada da locação com compra, cobrada na retirada com a 1ª parcela e a caução.
+    ENTRADA = "entrada", "Entrada"
     MULTA = "multa", "Multa"
     AVARIA = "avaria", "Avaria"
     ACERTO = "acerto", "Acerto"

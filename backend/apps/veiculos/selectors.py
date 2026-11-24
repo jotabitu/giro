@@ -6,6 +6,7 @@ Interface para os outros apps (contrato de veículos): `preco_vigente(categoria,
 """
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
@@ -18,6 +19,7 @@ from comum import arquivos, leituras, relogio
 from comum.autenticacao import suporte_so_ver
 from comum.documentos import placa_com_hifen
 from comum.empresa import tem_recurso
+from comum.erros import ErroDeValidacao
 from comum.permissoes import filiais_permitidas
 
 from . import precos
@@ -36,6 +38,7 @@ from .models import (
     PlanoCompraVeiculo,
     PlanoVeiculo,
     PrecoCategoria,
+    RegrasVeiculo,
     StatusVeiculo,
     TipoPlano,
     TipoVeiculo,
@@ -56,6 +59,7 @@ from .services import (
     normalizar_placa,
     pago_na_moto,
     plano_novo,
+    sem_preco,
     situacao_do_documento,
     tem_plano_ligado,
     valores_pontuados,
@@ -556,6 +560,134 @@ def anotar_tem_plano_ligado(queryset: QuerySet[Veiculo]) -> QuerySet[Veiculo]:
     )
 
 
+@dataclass(frozen=True)
+class PrecoDoPlano:
+    """O plano ligado do veículo com o valor e a caução do dia (`valor_em`), mais as regras do
+    veículo (VEI-14): o que a locação congela na confirmação (LOC-15, ADR 0041, item 4)."""
+
+    plano_id: int
+    tipo: str
+    nome: str
+    rotulo: str
+    periodo: str
+    valor_centavos: int
+    como_paga: str
+    formas_aceitas: tuple[str, ...]
+    caucao_centavos: int
+    caucao_parcelas: int
+    franquia_km: int | None
+    prazo_minimo_periodos: int | None
+    dia_atraso_centavos: int
+    multa_minima_centavos: int
+    desconto_sem_aprovacao_pct: Decimal
+    km_excedente_centavos: int
+    prazo_devolucao_caucao_dias: int | None
+
+
+@dataclass(frozen=True)
+class PrecoDaCompra:
+    """O plano de compra ligado do veículo (VEI-16, LOC-16), com as regras do veículo."""
+
+    plano_id: int
+    periodicidade: str
+    parcelas: int
+    entrada_centavos: int
+    parcela_moto_centavos: int
+    adicional_centavos: int
+    parcela_cliente_centavos: int
+    caucao_centavos: int
+    valor_venda_centavos: int | None
+    juros_mes_pct: Decimal
+    dia_atraso_centavos: int
+    multa_minima_centavos: int
+    km_excedente_centavos: int
+    prazo_devolucao_caucao_dias: int | None
+
+
+def regras_para_locacao(veiculo: Veiculo) -> dict[str, Any]:
+    regras = RegrasVeiculo.objects.filter(veiculo_id=veiculo.pk).first() or RegrasVeiculo()
+    return {
+        "dia_atraso_centavos": int(regras.dia_atraso_centavos),
+        "multa_minima_centavos": int(regras.multa_minima_centavos),
+        "desconto_sem_aprovacao_pct": Decimal(regras.desconto_sem_aprovacao_pct),
+        "km_excedente_centavos": int(regras.km_excedente_centavos),
+        "prazo_devolucao_caucao_dias": regras.prazo_devolucao_caucao_dias,
+    }
+
+
+def _preco_do_plano(plano: PlanoVeiculo, dia: date, regras: dict[str, Any]) -> PrecoDoPlano:
+    return PrecoDoPlano(
+        plano_id=plano.pk,
+        tipo=plano.tipo,
+        nome=plano.nome,
+        rotulo=plano.rotulo,
+        periodo=plano.periodo,
+        valor_centavos=plano.valor_em(dia),
+        como_paga=plano.como_paga,
+        formas_aceitas=tuple(plano.formas_aceitas),
+        caucao_centavos=plano.caucao_em(dia) or 0,
+        caucao_parcelas=int(plano.caucao_parcelas),
+        franquia_km=plano.franquia_km,
+        prazo_minimo_periodos=plano.prazo_minimo_periodos,
+        **regras,
+    )
+
+
+def planos_para_locacao(veiculo: Veiculo, dia: date) -> list[PrecoDoPlano]:
+    """Os planos ativos e ligados do veículo, pelo preço do `dia` (LOC-01, LOC-15)."""
+    planos = PlanoVeiculo.ativos.filter(veiculo_id=veiculo.pk, ligado=True).order_by("id")
+    if not planos:
+        return []
+    regras = regras_para_locacao(veiculo)
+    return [_preco_do_plano(p, dia, regras) for p in planos]
+
+
+def plano_para_locacao(veiculo: Veiculo, plano_id: Any, dia: date) -> PrecoDoPlano:
+    """O plano escolhido, se for deste veículo, ativo e ligado; senão 409 `VEI-15` (o veículo
+    sem esse plano ligado não entra na locação, ADR 0041, item 4)."""
+    plano = PlanoVeiculo.objects.filter(pk=plano_id).first() if str(plano_id).isdigit() else None
+    if plano is None or plano.veiculo_id != veiculo.pk:
+        raise ErroDeValidacao({"plano_veiculo_id": ["Escolha um plano deste veículo."]})
+    if not (plano.ativo and plano.ligado):
+        raise sem_preco()
+    return _preco_do_plano(plano, dia, regras_para_locacao(veiculo))
+
+
+def plano_do_mesmo_tipo(veiculo: Veiculo, tipo: str, nome: str, dia: date) -> PrecoDoPlano:
+    """LOC-09: o plano ligado do veículo novo do mesmo tipo do contratado (no `outro`, o de mesmo
+    nome); sem ele, 409 `VEI-15`. Também a renovação das locações confirmadas antes dos planos
+    por veículo, pelo tipo da periodicidade."""
+    planos = PlanoVeiculo.ativos.filter(veiculo_id=veiculo.pk, tipo=tipo, ligado=True)
+    if tipo == TipoPlano.OUTRO:
+        planos = planos.filter(nome__iexact=nome)
+    plano = planos.order_by("id").first()
+    if plano is None:
+        raise sem_preco()
+    return _preco_do_plano(plano, dia, regras_para_locacao(veiculo))
+
+
+def plano_compra_para_locacao(veiculo: Veiculo) -> PrecoDaCompra:
+    """VEI-16, LOC-16: o plano de compra ligado do veículo; desligado ou ausente, 409 `VEI-15`."""
+    compra = PlanoCompraVeiculo.objects.filter(veiculo_id=veiculo.pk, ligado=True).first()
+    if compra is None:
+        raise sem_preco()
+    regras = regras_para_locacao(veiculo)
+    regras.pop("desconto_sem_aprovacao_pct")  # a compra não tem desconto (LOC-16)
+    return PrecoDaCompra(
+        plano_id=compra.pk,
+        periodicidade=compra.periodicidade,
+        parcelas=int(compra.parcelas),
+        entrada_centavos=int(compra.entrada_centavos),
+        parcela_moto_centavos=int(compra.parcela_moto_centavos),
+        adicional_centavos=int(compra.adicional_centavos),
+        parcela_cliente_centavos=int(compra.parcela_moto_centavos + compra.adicional_centavos),
+        caucao_centavos=int(compra.caucao_centavos),
+        valor_venda_centavos=veiculo.valor_venda_centavos,
+        juros_mes_pct=Decimal(compra.juros_mes_pct),
+        **regras,
+    )
+
+
 def aviso_preco(veiculo: Veiculo) -> str | None:
     """O aviso da tabela não preenchida (VEI-15), ou `None`."""
     tem = getattr(veiculo, "tem_plano_ligado", None)
@@ -639,6 +771,7 @@ def _margem(valor: precos.Margem | None) -> dict[str, Any] | None:
         "lucro_mes_centavos": valor.lucro_mes_centavos,
         "margem_pct": valor.margem_pct,
         "abaixo_da_minima": valor.abaixo_da_minima,
+        "sem_custo_compra": valor.sem_custo_compra,
     }
 
 
@@ -685,6 +818,7 @@ def _compra(
             calculo["margem_sobre_pago_pct"] = resultado.margem_sobre_pago_pct
             calculo["pago_sobre_recebe_pct"] = resultado.pago_sobre_recebe_pct
             calculo["lucro_sobre_recebe_pct"] = resultado.lucro_sobre_recebe_pct
+            calculo["sem_custo_compra"] = resultado.sem_custo_compra
         dados["resultado"] = calculo
     return dados
 
@@ -747,6 +881,8 @@ def precos_do_veiculo(
             # VEI-13: o IPVA entra no custo ÷ 12; a tela mostra "R$ 39,00 por mês".
             "ipva_mes_centavos": precos.centavos(Decimal(custos.ipva_ano_centavos) / 12),
             "custo_mes_centavos": resultado.custo_mes_centavos,
+            "sem_custo_compra": resultado.sem_custo_compra,
+            "revenda_acima_do_pago": resultado.revenda_acima_do_pago,
         }
     return dados
 

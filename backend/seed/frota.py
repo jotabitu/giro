@@ -199,6 +199,9 @@ NOMEADOS_DA_CONFERENCIA: dict[str, dict[str, Any]] = {
 # `a_venda` genéricos que dão lugar aos veículos do estoque parado (T-499): a frota segue com 86
 # veículos e 12 à venda (9 genéricos, colocados à venda em 07 out, e os 3 de `seed/estoque.py`).
 SUBSTITUIDOS_PELO_ESTOQUE_PARADO = {"Urbana 110–125": 1, "Street 150–160": 2}
+# `disponivel` genérico que dá lugar à Pop TBC-5H21 da locação com compra (T-495,
+# `seed/precos.py`): a frota segue com 86 veículos.
+SUBSTITUIDOS_PELA_COMPRA = {"Urbana 110–125": 1}
 
 CORES = ("preta", "vermelha", "branca", "azul", "prata", "cinza")
 ANOS = (2023, 2024, 2025, 2024, 2023)
@@ -318,11 +321,14 @@ def montar_frota(centro: Filial, empresa: Any, relogio: RelogioDoSeed) -> Frota:
             )
         # O estoque parado (T-499, `seed/estoque.py`) ocupa parte dos `a_venda` da categoria: os
         # últimos números ficam sem veículo, para os outros manterem a placa de sempre.
-        trocados = SUBSTITUIDOS_PELO_ESTOQUE_PARADO.get(nome, 0)
+        trocados = {
+            "a_venda": SUBSTITUIDOS_PELO_ESTOQUE_PARADO.get(nome, 0),
+            "disponivel": SUBSTITUIDOS_PELA_COMPRA.get(nome, 0),
+        }
         for status, quantos in faltam.items():
             for posicao in range(quantos):
                 numero += 1
-                if status == "a_venda" and posicao >= quantos - trocados:
+                if posicao >= quantos - trocados.get(status, 0):
                     continue
                 marca, modelo = modelos[numero % len(modelos)]
                 tanque = {"capacidade_tanque_litros": TANQUE[nome]} if nome in TANQUE else {}

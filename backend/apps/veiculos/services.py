@@ -16,7 +16,7 @@ from decimal import Decimal
 from typing import Any
 
 from django.db import IntegrityError, transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.db.models.functions import Lower
 
 from apps.empresas import selectors as empresas_selectors
@@ -25,15 +25,17 @@ from apps.filiais.models import Filial
 from apps.notificacoes.services import avisar
 from apps.plataforma.services import atualizar_uso, exigir_limite, registrar_passo_implantacao
 from comum import aprovacoes, arquivos, comprovante_leitura, estados, leituras, relogio
-from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.auditoria import (
+    ATOR_SISTEMA,
     TipoAtor,
     ator_atual,
     auditar,
     diferenca,
     registrar_evento,
     retrato,
+    usar_ator,
 )
+from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.documentos import placa_com_hifen
 from comum.erros import (
     Conflito,
@@ -2475,4 +2477,26 @@ def consolidar_precos_agendados(hoje: date) -> dict[str, int]:
             lote.gravar("veiculo.precos_agendado_vigente")
             _alinhar_status_sem_preco(veiculo)
             contagem["veiculos"] += 1
+    return contagem
+
+
+def alinhar_veiculos_sem_preco() -> dict[str, int]:
+    """VEI-15 (ADR 0041, item 3, passo 6): depois do `migrate_schemas`, no deploy e no
+    `make seed`, os veículos `disponivel` sem plano ligado vão para `indisponivel` "sem preço",
+    e os `indisponivel` "sem preço" que já têm plano voltam a `disponivel`, pelo serviço de
+    sempre (`_alinhar_status_sem_preco`), com histórico de status e auditoria do Sistema. Fica
+    fora da migration porque a mudança de status só sai por serviço. Idempotente."""
+    contagem = {"sem_preco": 0, "com_preco": 0}
+    candidatos = Veiculo.objects.filter(
+        Q(status=S.DISPONIVEL) | Q(status=S.INDISPONIVEL, motivo_status=MOTIVO_SEM_PRECO)
+    ).order_by("pk")
+    with usar_ator(ATOR_SISTEMA):
+        for veiculo in candidatos:
+            with transaction.atomic():
+                antes = veiculo.status
+                _alinhar_status_sem_preco(veiculo)
+                if veiculo.status == antes:
+                    continue
+                chave = "sem_preco" if veiculo.status == S.INDISPONIVEL else "com_preco"
+                contagem[chave] += 1
     return contagem

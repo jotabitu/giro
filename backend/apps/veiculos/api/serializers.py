@@ -837,6 +837,8 @@ class MargemDoPlanoSerializer(serializers.Serializer[Any]):
     lucro_mes_centavos = serializers.IntegerField()
     margem_pct = serializers.DecimalField(max_digits=9, decimal_places=2, allow_null=True)
     abaixo_da_minima = serializers.BooleanField()
+    # VEI-13: sem valor de compra, a margem não conta a compra (marca "sem custo de compra").
+    sem_custo_compra = serializers.BooleanField()
 
 
 class SemAsChavesAusentes(serializers.Serializer[Any]):
@@ -889,6 +891,7 @@ class ResultadoCompraSerializer(SemAsChavesAusentes):
         "margem_sobre_pago_pct",
         "pago_sobre_recebe_pct",
         "lucro_sobre_recebe_pct",
+        "sem_custo_compra",
     )
 
     financiado_centavos = serializers.IntegerField()
@@ -914,6 +917,8 @@ class ResultadoCompraSerializer(SemAsChavesAusentes):
     lucro_sobre_recebe_pct = serializers.DecimalField(
         max_digits=9, decimal_places=2, allow_null=True, required=False
     )
+    # VEI-16: sem valor de compra, lucro e margem sobre o pago vêm nulos (T-505).
+    sem_custo_compra = serializers.BooleanField(required=False)
 
 
 class PlanoCompraDoVeiculoSerializer(serializers.Serializer[Any]):
@@ -948,6 +953,9 @@ class CustosDoVeiculoSerializer(serializers.Serializer[Any]):
         max_digits=5, decimal_places=2, allow_null=True
     )
     custo_mes_centavos = serializers.IntegerField()
+    # VEI-13 (T-505): sem valor de compra, sem desvalorização; revenda acima do pago, R$ 0,00.
+    sem_custo_compra = serializers.BooleanField()
+    revenda_acima_do_pago = serializers.BooleanField()
 
 
 class PagoNaMotoSerializer(serializers.Serializer[Any]):

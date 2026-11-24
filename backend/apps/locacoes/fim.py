@@ -244,7 +244,7 @@ def depois_da_retirada(
     fuso: str,
     dia: date,
     preco_do_periodo: Any,  # (k) -> centavos do período k, com os descontos
-    diaria_centavos: int,
+    multa_minima_centavos: int,  # LOC-12: o mínimo da multa, o do veículo (VEI-14)
     momento: datetime | None = None,
     parcelas_canceladas_centavos: int = 0,
 ) -> Encerramento | None:
@@ -281,7 +281,7 @@ def depois_da_retirada(
     restantes = (fim - dia).days
     preco = preco_do_periodo(k)
     restante = proporcional(preco, restantes, dias_do_periodo)
-    multa = max(aplicar_percentual(restante, MULTA_ENCERRAMENTO_PCT), diaria_centavos)
+    multa = max(aplicar_percentual(restante, MULTA_ENCERRAMENTO_PCT), multa_minima_centavos)
     credito = 0
     semanas = 0
     canceladas = 0
