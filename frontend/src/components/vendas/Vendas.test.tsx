@@ -184,9 +184,9 @@ describe("Nova venda", () => {
   });
 
   it("test_ven_02_formulario_manda_o_que_se_digitou_sem_conta", () => {
-    expect(propostaDoFormulario({ forma: "entrada_parcelas", desconto: "8", entrada: "5.000,00", parcelas: "12" })).toEqual({ forma: "entrada_parcelas", desconto_pct: "8.00", entrada_centavos: 500000, num_parcelas: 12 });
+    expect(propostaDoFormulario({ forma: "entrada_parcelas", desconto: "8%", entrada: "R$ 5.000,00", parcelas: "12" })).toEqual({ forma: "entrada_parcelas", desconto_pct: "8.00", entrada_centavos: 500000, num_parcelas: 12 });
     expect(propostaDoFormulario({ forma: "a_vista", desconto: "", entrada: "5.000,00", parcelas: "12" })).toEqual({ forma: "a_vista", desconto_pct: "0" });
-    expect(formularioDaVenda(VEN_0177)).toEqual({ forma: "entrada_parcelas", desconto: "8", entrada: "5000,00", parcelas: "12" });
+    expect(formularioDaVenda(VEN_0177)).toEqual({ forma: "entrada_parcelas", desconto: "8%", entrada: "R$ 5.000,00", parcelas: "12" });
   });
 });
 

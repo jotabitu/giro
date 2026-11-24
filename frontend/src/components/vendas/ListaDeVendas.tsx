@@ -59,7 +59,7 @@ function Abrir({ v, rotulo }: { v: Venda; rotulo: string }) {
 // `comprador_nome`: o cliente, ou o interessado sem cadastro (VEN-14); a API escolhe.
 const celulaCliente = (v: Venda) => <CelulaDupla principal={v.comprador_nome} secundaria={<span className="wl-mono">{codigoEVendedor(v)}</span>} />;
 const celulaVeiculo = (v: Venda) => <CelulaDupla principal={<span className="font-normal">{v.veiculo.modelo}</span>} secundaria={placa(v.veiculo.placa)} />;
-const celulaValor = (v: Venda) => <CelulaDupla principal={<span className="wl-mono">{dinheiro(v.preco_final_centavos)}</span>} secundaria={v.forma_texto || (v.locacao ? v.origem_rotulo : null)} />;
+const celulaValor = (v: Venda) => <CelulaDupla principal={<span className="font-semibold">{dinheiro(v.preco_final_centavos)}</span>} secundaria={v.forma_texto || (v.locacao ? v.origem_rotulo : null)} />;
 
 const COLUNAS_PENDENTES: ColunaTabela<Venda>[] = [
   { chave: "cliente", titulo: "Cliente", celula: celulaCliente },
@@ -91,7 +91,7 @@ const COLUNAS_VENDIDAS: ColunaTabela<Venda>[] = [
   { chave: "veiculo", titulo: "Veículo", celula: celulaVeiculo },
   { chave: "valor", titulo: "Valor", celula: celulaValor },
   { chave: "situacao", titulo: "Situação", celula: (v) => <Situacao v={v} /> },
-  { chave: "comissao", titulo: "Comissão", mono: true, celula: (v) => (v.comissao_centavos == null ? "—" : dinheiro(v.comissao_centavos)) },
+  { chave: "comissao", titulo: "Comissão", celula: (v) => (v.comissao_centavos == null ? "—" : dinheiro(v.comissao_centavos)) },
   { chave: "abrir", titulo: "", celula: (v) => <Abrir v={v} rotulo="Ver venda" /> },
 ];
 
@@ -115,7 +115,7 @@ function CartaoDaVenda({ v, agora, comissao }: { v: Venda; agora: Date; comissao
         )}
       </div>
       <div className="flex items-center justify-between gap-3 text-caption text-ink-muted">
-        <span className="wl-mono text-body font-medium text-ink">{dinheiro(v.preco_final_centavos)}</span>
+        <span className="text-body font-semibold text-ink">{dinheiro(v.preco_final_centavos)}</span>
         <span>{comissao ? (v.comissao_centavos == null ? "" : `comissão ${dinheiro(v.comissao_centavos)}`) : ultimoContato(v.ultimo_contato_em, agora)}</span>
       </div>
     </Link>

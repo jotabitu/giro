@@ -1,6 +1,6 @@
 // T-503 · Vendas: só formatação. As contas são da API (VEN-0177 de docs/regras/dados-de-teste.md).
 import { describe, expect, it } from "vitest";
-import { campoDoPct, codigoEVendedor, linhasDoResumo, linkDoWhatsApp, mesDoDia, mesPorExtenso, pctDoCampo, pctTexto, tomDaVenda, ultimoContato } from "./vendas";
+import { campoDoPct, codigoEVendedor, comPorcento, linhasDoResumo, linkDoWhatsApp, mascaraReais, mesDoDia, mesPorExtenso, pctDoCampo, pctTexto, tomDaVenda, ultimoContato } from "./vendas";
 
 const VEN_0177 = {
   preco_tabela_centavos: 2290000,
@@ -43,11 +43,22 @@ describe("campos e textos", () => {
     expect(pctDoCampo("8")).toBe("8.00");
     expect(pctDoCampo("7,5")).toBe("7.50");
     expect(pctDoCampo("")).toBe("0");
-    expect(campoDoPct("8.00")).toBe("8");
-    expect(campoDoPct("7.50")).toBe("7,5");
+    expect(pctDoCampo("8%")).toBe("8.00");
+    expect(campoDoPct("8.00")).toBe("8%");
+    expect(campoDoPct("7.50")).toBe("7,5%");
     expect(campoDoPct("0.00")).toBe("");
     expect(pctTexto("5.00")).toBe("5%");
     expect(pctTexto("7.50")).toBe("7,5%");
+    expect(comPorcento("8")).toBe("8%");
+    expect(comPorcento("7,5%")).toBe("7,5%");
+    expect(comPorcento("")).toBe("");
+  });
+
+  it("test_ven_03_entrada_com_a_mascara_de_reais", () => {
+    expect(mascaraReais("500000")).toBe("R$ 5.000,00");
+    expect(mascaraReais("5.000,00")).toBe("R$ 5.000,00");
+    expect(mascaraReais("R$ 5.000,0")).toBe("R$ 500,00");
+    expect(mascaraReais("")).toBe("");
   });
 
   it("test_ven_16_ultimo_contato", () => {

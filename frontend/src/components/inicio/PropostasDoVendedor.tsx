@@ -36,7 +36,7 @@ export function PropostasDoVendedor() {
               }
               apoio={
                 <>
-                  {v.veiculo.modelo} · <span className="wl-mono">{dinheiroSemZeros(v.preco_final_centavos)}</span> · {ultimoContato(v.ultimo_contato_em, agora)}
+                  {v.veiculo.modelo} · <span className="font-semibold text-ink">{dinheiroSemZeros(v.preco_final_centavos)}</span> · {ultimoContato(v.ultimo_contato_em, agora)}
                 </>
               }
               fim={

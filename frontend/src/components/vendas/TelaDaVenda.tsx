@@ -10,9 +10,8 @@ import { EscolherCliente, EscolherVeiculo } from "@/components/locacoes/Seletore
 import { vendas, veiculos, type FormaDaVenda, type PropostaDaVenda, type Veiculo, type VendaDetalhe } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { celular, dinheiro, km, mascaraCelular, placa, soDigitos } from "@/lib/formatos";
-import { reaisDoCentavos } from "@/lib/precos";
 import { centavosDoCampo } from "@/lib/precos-veiculo";
-import { atualizarVendas, campoDoPct, dataDaProposta, FORMAS, linhasDoResumo, linkDoWhatsApp, pctDoCampo, pctTexto, tomDaVenda } from "@/lib/vendas";
+import { atualizarVendas, campoDoPct, comPorcento, dataDaProposta, FORMAS, linhasDoResumo, linkDoWhatsApp, mascaraReais, pctDoCampo, pctTexto, tomDaVenda } from "@/lib/vendas";
 import { PerderVenda, RespostaDoCliente } from "./DialogosDaVenda";
 
 // Referência: docs/telas/html/Venda-Desktop.dc.html e Venda-Mobile.dc.html (T-503; VEN-01 a VEN-04, VEN-10, VEN-13 a VEN-19).
@@ -46,7 +45,7 @@ export function formularioDaVenda(v?: VendaDetalhe): Formulario {
   return {
     forma,
     desconto: campoDoPct(c?.desconto_pct),
-    entrada: forma === "entrada_parcelas" && c?.entrada_centavos != null ? reaisDoCentavos(c.entrada_centavos) : "",
+    entrada: forma === "entrada_parcelas" && c?.entrada_centavos != null ? dinheiro(c.entrada_centavos) : "",
     parcelas: forma === "entrada_parcelas" && c?.num_parcelas ? String(c.num_parcelas) : "",
   };
 }
@@ -156,6 +155,7 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
   });
   const calculo = editavel && !quitacao ? (simulacao.data ?? venda?.calculo ?? null) : (venda?.calculo ?? null);
   const precisaGerente = !!calculo?.precisa_aprovacao;
+  const dicaDoDesconto = `Acima de ${pctTexto(calculo?.limite_desconto_pct ?? "5")} precisa do gerente`;
 
   const quem = semCadastro ? { interessado: { nome: interessado.nome.trim(), celular: soDigitos(interessado.celular) } } : { cliente_id: comprador?.id ?? null };
   const executar = useMutation({
@@ -298,22 +298,24 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
               <Escolha rotulo="Forma de pagamento" opcoes={FORMAS} valor={form.forma} aoMudar={(f) => definir({ forma: f as FormaDaVenda })} desabilitado={!editavel} />
               {erro("forma") && <p className="m-0 text-caption text-critical-ink">{erro("forma")}</p>}
               <div className="grid gap-3 md:grid-cols-2">
-                <TextField cheio mono rotulo="Preço de tabela" value={calculo ? dinheiro(calculo.preco_tabela_centavos) : ""} readOnly disabled />
+                <TextField cheio rotulo="Preço de tabela" value={calculo ? dinheiro(calculo.preco_tabela_centavos) : ""} readOnly disabled />
                 <TextField
                   cheio
-                  mono
-                  rotulo="Desconto (%)"
+                  rotulo="Desconto"
                   inputMode="decimal"
                   value={form.desconto}
                   disabled={!editavel}
                   onChange={(e) => definir({ desconto: e.target.value })}
-                  dica={`Acima de ${pctTexto(calculo?.limite_desconto_pct ?? "5")} precisa do gerente`}
-                  erro={erro("desconto_pct")}
+                  onFocus={() => definir({ desconto: form.desconto.replace("%", "") })}
+                  onBlur={() => definir({ desconto: comPorcento(form.desconto) })}
+                  dica={dicaDoDesconto}
+                  // Acima do limite (a API diz em `precisa_aprovacao`), a dica fica crítica, como na referência.
+                  erro={erro("desconto_pct") ?? (editavel && precisaGerente ? dicaDoDesconto : undefined)}
                 />
                 {form.forma === "entrada_parcelas" && (
                   <>
-                    <TextField cheio mono rotulo="Entrada (R$)" inputMode="decimal" value={form.entrada} disabled={!editavel} onChange={(e) => definir({ entrada: e.target.value })} erro={erro("entrada_centavos")} />
-                    <TextField cheio mono rotulo="Parcelas" inputMode="numeric" value={form.parcelas} disabled={!editavel} onChange={(e) => definir({ parcelas: soDigitos(e.target.value).slice(0, 2) })} dica="De 2 a 24" erro={erro("num_parcelas")} />
+                    <TextField cheio rotulo="Entrada" inputMode="numeric" placeholder="R$ 0,00" value={form.entrada} disabled={!editavel} onChange={(e) => definir({ entrada: mascaraReais(e.target.value) })} erro={erro("entrada_centavos")} />
+                    <TextField cheio rotulo="Parcelas" inputMode="numeric" value={form.parcelas} disabled={!editavel} onChange={(e) => definir({ parcelas: soDigitos(e.target.value).slice(0, 2) })} dica="De 2 a 24" erro={erro("num_parcelas")} />
                   </>
                 )}
               </div>
