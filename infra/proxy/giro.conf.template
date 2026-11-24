@@ -3,7 +3,8 @@
 # Modelo do nginx: a imagem oficial troca ${VARIAVEL} ao subir (pasta /etc/nginx/templates).
 # Variáveis: DOMINIO_BASE (giro.ceo), SUBDOMINIO_PLATAFORMA (admin), BACKEND_UPSTREAM
 # (host:porta do Django), FRONTEND_UPSTREAM (host:porta do Next), ESTATICOS_DIR (collectstatic do
-# backend, ADR 0027) e CERT_DIR (pasta de fullchain.pem e privkey.pem do certificado curinga). O
+# backend, ADR 0027), CERT_DIR (pasta de fullchain.pem e privkey.pem do certificado curinga) e
+# PAINEL_UPSTREAM (host:porta do painel de monitoramento da VPS, T-506). O
 # corpo comum dos servidores está em snippets/giro-locais.conf.template. Este arquivo é a
 # referência do comportamento; se o ambiente usar outro proxy, a lista de `infra/README.md`
 # ("Proxy reverso") diz o que ele precisa fazer igual.
@@ -15,6 +16,13 @@ limit_req_zone $binary_remote_addr zone=giro_webhook:10m rate=120r/m;
 # 30 por hora por usuário e 200 por hora por empresa; a borda só segura rajada por IP.
 limit_req_zone $binary_remote_addr zone=giro_leitura:10m rate=20r/m;
 limit_req_status 429;
+
+# T-506: formato dos acessos lido pelo painel de monitoramento da VPS (rota, status, tempo,
+# user-agent, país quando a Cloudflare estiver com proxy). Usado no snippet giro-locais.
+log_format painel escape=json
+  '{"t":"$time_iso8601","ip":"$remote_addr","m":"$request_method","u":"$uri",'
+  '"s":$status,"b":$body_bytes_sent,"rt":$request_time,'
+  '"ua":"$http_user_agent","cc":"$http_cf_ipcountry","h":"$host"}';
 
 # T-478: o DNS do Docker é consultado a cada 10 s, não só ao subir. Com proxy_pass por variável
 # (definidas no snippet), o backend ou o frontend recriado com outro IP volta a ser achado sem
@@ -72,6 +80,47 @@ server {
     server_name ${DOMINIO_BASE};
 
     include /etc/nginx/conf.d/snippets/giro-locais.conf;
+}
+
+# Painel de monitoramento da VPS (T-506): binário fora do Giro, no host, em PAINEL_UPSTREAM
+# (host.docker.internal = gateway do Docker, extra_hosts no compose). Nome exato vence o curinga;
+# "painel" está nos SUBDOMINIOS_RESERVADOS. O painel tem login próprio com 2FA. Se ele estiver
+# parado, só este host responde 502; o Giro não depende dele.
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name painel.${DOMINIO_BASE};
+
+    ssl_certificate     ${CERT_DIR}/fullchain.pem;
+    ssl_certificate_key ${CERT_DIR}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    access_log off;
+    client_max_body_size 5m;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Robots-Tag "noindex, nofollow" always;
+
+    proxy_http_version 1.1;
+    proxy_set_header Host       $host;
+    proxy_set_header X-Real-IP  $remote_addr;
+    proxy_set_header Connection "";
+
+    # Telemetria ao vivo (SSE): sem buffer, conexão longa.
+    location = /api/live {
+        proxy_buffering off;
+        proxy_read_timeout 1h;
+        proxy_pass http://${PAINEL_UPSTREAM};
+    }
+
+    # Login com o mesmo limite de /api/auth/ do Giro (10 por minuto por IP).
+    location = /api/login {
+        limit_req zone=giro_auth burst=10 nodelay;
+        proxy_pass http://${PAINEL_UPSTREAM};
+    }
+
+    location / {
+        proxy_pass http://${PAINEL_UPSTREAM};
+    }
 }
 
 # Hosts das empresas (<subdominio>.<DOMINIO_BASE>): /admin/ é a Administração da locadora, no Next.

@@ -335,6 +335,14 @@ def test_plt_01_subdominio_de_schema_existente_recusado(criar_empresa, subdomini
     _sem_empresa_nem_usuario(subdominio)
 
 
+def test_plt_01_subdominio_do_painel_da_vps_recusado(criar_empresa):
+    """T-506: painel.<domínio> é o painel de monitoramento da VPS, no mesmo proxy."""
+    with pytest.raises(ErroDeValidacao) as erro:
+        criar_empresa(subdominio="painel", cnpj=OUTRO_CNPJ)
+    assert erro.value.campos == {"subdominio": ["Este endereço é reservado. Escolha outro."]}
+    _sem_empresa_nem_usuario("painel")
+
+
 def test_plt_01_subdominio_de_schema_de_fora_do_giro_recusado(criar_empresa):
     with connection.cursor() as cursor:
         cursor.execute('CREATE SCHEMA "ferramenta_externa"')  # volta com a transação do teste
