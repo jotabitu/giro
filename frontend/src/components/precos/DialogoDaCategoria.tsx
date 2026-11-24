@@ -2,13 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, Dialogo, TextField } from "@/design-system";
+import { Button, CampoDeDinheiro, Dialogo, TextField } from "@/design-system";
 import { precos as api, ErroApi, type CategoriaDePreco, type TipoDaCategoria } from "@/lib/api";
 import { useAmbiente } from "@/lib/ambiente";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { dataCurta, dinheiro } from "@/lib/formatos";
 import { avisoDePrecoGravado, CAMPOS_DE_PRECO, precoDosTextos, precoIgual, textosDoPreco, type ChaveDePreco, type TextosDePreco } from "@/lib/precos";
-import { CampoDeDinheiro } from "./CampoDeDinheiro";
 
 export type DialogoDaCategoriaProps = {
   /** `null` cria uma categoria; com categoria, edita nome, tipo e preço. */
@@ -157,7 +156,7 @@ export function DialogoDaCategoria({ categoria, filialId = null, aoFechar, aoCon
         </div>
         <div className="grid grid-cols-2 gap-3">
           {CAMPOS_DE_PRECO.map(({ chave, rotulo }) => (
-            <CampoDeDinheiro key={chave} rotulo={rotulo} valor={textos[chave]} aoMudar={(v) => setTextos((t) => ({ ...t, [chave]: v }))} erro={erroDoCampo(chave)} />
+            <CampoDeDinheiro key={chave} cheio mono rotulo={rotulo} value={textos[chave]} onChange={(e) => setTextos((t) => ({ ...t, [chave]: e.target.value }))} erro={erroDoCampo(chave)} />
           ))}
         </div>
         {categoria && (

@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Button, Dialogo, Gaveta } from "@/design-system";
+import { Button, Dialogo, Gaveta, InputDeDinheiro } from "@/design-system";
 import { ErroApi, veiculos, type CustosDoVeiculo, type PrecosDoVeiculo } from "@/lib/api";
 import { useAtrasado } from "@/lib/atrasado";
 import { aparelhoAtual, mensagemDoErro } from "@/lib/erros";
@@ -12,14 +12,18 @@ import { custosParaCorpo, custosParaRascunho, errosDaApi, textoDaOcupacao, type 
 // Referência: "Modal 'Editar custos mensais'" (desktop) e a gaveta de baixo (celular) de Veiculo-Precos-*.dc.html.
 // O "Custos por mês" é o que a API devolve no `simular`; a tela não soma nem divide o IPVA.
 
-function Campo({ rotulo, dica, erro, valor, aoMudar, id }: { rotulo: string; dica?: string; erro?: string; valor: string; aoMudar: (v: string) => void; id: string }) {
+function Campo({ rotulo, dica, erro, valor, aoMudar, id, reais }: { rotulo: string; dica?: string; erro?: string; valor: string; aoMudar: (v: string) => void; id: string; reais?: boolean }) {
   const apoio = erro ?? dica;
   return (
     <div className={`wl-field wl-field--cheio ${erro ? "wl-field--error" : ""}`}>
       <label className="wl-field__label" htmlFor={id}>
         {rotulo}
       </label>
-      <input id={id} className="wl-input" inputMode="decimal" autoComplete="off" value={valor} aria-invalid={erro ? true : undefined} onChange={(e) => aoMudar(e.target.value)} />
+      {reais ? (
+        <InputDeDinheiro id={id} prefixo value={valor} aria-invalid={erro ? true : undefined} onChange={(e) => aoMudar(e.target.value)} />
+      ) : (
+        <input id={id} className="wl-input" inputMode="decimal" autoComplete="off" value={valor} aria-invalid={erro ? true : undefined} onChange={(e) => aoMudar(e.target.value)} />
+      )}
       {apoio && <span className="wl-field__hint">{apoio}</span>}
     </div>
   );
@@ -62,10 +66,10 @@ function Formulario({ veiculoId, atual, ocupacaoReal, aoSalvar, aoFechar }: { ve
   return (
     <>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Campo id="c-manutencao" rotulo="Manutenção por mês" valor={r.manutencao} aoMudar={campo("manutencao")} erro={erros["custos.manutencao_mes_centavos"]} />
-        <Campo id="c-seguro" rotulo="Seguro por mês" valor={r.seguro} aoMudar={campo("seguro")} erro={erros["custos.seguro_mes_centavos"]} />
-        <Campo id="c-ipva" rotulo="IPVA do ano" valor={r.ipvaAno} aoMudar={campo("ipvaAno")} erro={erros["custos.ipva_ano_centavos"]} dica={`Entra como ${dinheiro(simulado.data?.custos?.ipva_mes_centavos ?? atual.ipva_mes_centavos)} por mês no custo`} />
-        <Campo id="c-rastreador" rotulo="Rastreador por mês" valor={r.rastreador} aoMudar={campo("rastreador")} erro={erros["custos.rastreador_mes_centavos"]} />
+        <Campo reais id="c-manutencao" rotulo="Manutenção por mês" valor={r.manutencao} aoMudar={campo("manutencao")} erro={erros["custos.manutencao_mes_centavos"]} />
+        <Campo reais id="c-seguro" rotulo="Seguro por mês" valor={r.seguro} aoMudar={campo("seguro")} erro={erros["custos.seguro_mes_centavos"]} />
+        <Campo reais id="c-ipva" rotulo="IPVA do ano" valor={r.ipvaAno} aoMudar={campo("ipvaAno")} erro={erros["custos.ipva_ano_centavos"]} dica={`Entra como ${dinheiro(simulado.data?.custos?.ipva_mes_centavos ?? atual.ipva_mes_centavos)} por mês no custo`} />
+        <Campo reais id="c-rastreador" rotulo="Rastreador por mês" valor={r.rastreador} aoMudar={campo("rastreador")} erro={erros["custos.rastreador_mes_centavos"]} />
       </div>
       <Campo id="c-ocupacao" rotulo="Ocupação esperada" valor={r.ocupacao} aoMudar={campo("ocupacao")} erro={erros["custos.ocupacao_esperada_pct"]} dica={`Frota nos últimos 90 dias: ${textoDaOcupacao(ocupacaoReal)}`} />
       <div className="flex justify-between gap-3 border-b border-line py-[9px] text-[14px]">

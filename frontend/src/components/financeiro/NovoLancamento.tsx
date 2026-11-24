@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, Dialogo, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, Dialogo, TextField } from "@/design-system";
 import { EscolherCliente } from "@/components/locacoes/SeletoresDaLocacao";
 import { financeiro, type ClienteResumo, type LancamentoAvulso } from "@/lib/api";
 import { campoDoErro } from "@/lib/erros";
@@ -79,7 +79,7 @@ export function NovoLancamento({ aoFechar, aoConcluir }: { aoFechar: () => void;
         <EscolhaDeOpcao rotulo="Tipo" opcoes={TIPOS} valor={tipo} aoMudar={setTipo} />
         <TextField cheio rotulo="Descrição" value={descricao} onChange={(e) => setDescricao(e.target.value)} erro={campoDoErro(lancar.error, "descricao")} />
         <div className="grid gap-4 md:grid-cols-2">
-          <TextField cheio rotulo="Valor (R$)" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} erro={valor !== "" && centavos === null ? "Informe um valor, como 150,00" : campoDoErro(lancar.error, "valor_centavos")} />
+          <CampoDeDinheiro cheio rotulo="Valor (R$)" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} erro={valor !== "" && centavos === null ? "Informe um valor, como 150,00" : campoDoErro(lancar.error, "valor_centavos")} />
           <TextField cheio rotulo="Vencimento" type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} erro={campoDoErro(lancar.error, "vencimento")} />
         </div>
         {lancar.isError && !["descricao", "valor_centavos", "vencimento"].some((c) => campoDoErro(lancar.error, c)) && <ErroDoFinanceiro erro={lancar.error} />}

@@ -34,6 +34,7 @@ import {
   SelectField,
   Sidebar,
   StatusBadge,
+  CampoDeDinheiro,
   TextField,
   VehicleCard,
 } from "@/design-system";
@@ -322,6 +323,15 @@ function ExemploSearchField() {
         Nova locação
       </Button>
     </Linha>
+  );
+}
+
+function ExemploCampoDeDinheiro() {
+  return (
+    <div style={{ display: "grid", gap: 16, maxWidth: 320 }}>
+      <CampoDeDinheiro cheio mono rotulo="Diária" defaultValue="54,90" dica="Digite só os números: 500000 vira 5.000,00" />
+      <CampoDeDinheiro cheio prefixo rotulo="Entrada" placeholder="R$ 0,00" />
+    </div>
   );
 }
 
@@ -648,6 +658,7 @@ const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "select-field": ExemploSelectField,
   "sidebar": ExemploSidebar,
   "status-badge": ExemploStatusBadge,
+  "campo-de-dinheiro": ExemploCampoDeDinheiro,
   "text-field": ExemploTextField,
   "vehicle-card": ExemploVehicleCard,
 };

@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, Dialogo, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, Dialogo, TextField } from "@/design-system";
 import { financeiro, type ContaReceberDetalhe } from "@/lib/api";
 import { campoDoErro } from "@/lib/erros";
 import { dinheiro } from "@/lib/formatos";
@@ -75,7 +75,7 @@ export function DialogoRenegociarConta({ conta, aoFechar, aoConcluir }: { conta:
                 <span className="wl-field__label">Vencimento {i + 1}</span>
                 <input className="wl-input" type="date" value={l.vencimento} onChange={(e) => mudar(i, "vencimento", e.target.value)} />
               </label>
-              <TextField cheio rotulo={`Valor ${i + 1} (R$)`} mono inputMode="decimal" autoComplete="off" value={l.valor} onChange={(e) => mudar(i, "valor", e.target.value)} />
+              <CampoDeDinheiro cheio rotulo={`Valor ${i + 1} (R$)`} mono autoComplete="off" value={l.valor} onChange={(e) => mudar(i, "valor", e.target.value)} />
               {linhas.length > 1 ? (
                 <Button compacto variante="quieto" aria-label={`Tirar a conta nova ${i + 1}`} onClick={() => setLinhas((ls) => ls.filter((_, j) => j !== i))}>
                   Tirar

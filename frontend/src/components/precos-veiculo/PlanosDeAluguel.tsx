@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Aviso, Button, LigaDesliga, StatusBadge } from "@/design-system";
+import { Aviso, InputDeDinheiro, Button, LigaDesliga, StatusBadge } from "@/design-system";
 import type { PlanoDoVeiculo } from "@/lib/api";
 import { dinheiro } from "@/lib/formatos";
 import {
@@ -102,7 +102,7 @@ function DetalheDoPlano({ p, atual, erros, somenteLeitura, acoes, ocupado, hoje 
           <div className="grid grid-cols-2 gap-3 md:contents">
             <label className="wl-field wl-field--cheio min-w-0">
               <span className="wl-field__label">Novo valor {porPeriodo(p.periodo)}</span>
-              <input className="wl-input" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} />
+              <InputDeDinheiro prefixo value={valor} onChange={(e) => setValor(e.target.value)} />
             </label>
             <label className={`wl-field wl-field--cheio min-w-0 ${erros[k("agendado")] ? "wl-field--error" : ""}`}>
               <span className="wl-field__label">A partir de</span>
@@ -153,11 +153,11 @@ function LinhaDoPlano({ p, atual, erros, somenteLeitura, acoes, aberto, aoAbrir,
       {mostrarCampos ? (
         <>
           <Campo rotulo="Valor" erro={erros[k("valor_centavos")]} classe="md:order-3">
-            <input className="wl-input" inputMode="decimal" placeholder="R$ 0,00" aria-label={`Valor ${p.rotulo.toLowerCase()}`} aria-invalid={erros[k("valor_centavos")] ? true : undefined} value={p.valor} disabled={somenteLeitura} onChange={(e) => acoes.editar(p.chave, { valor: e.target.value })} />
+            <InputDeDinheiro prefixo placeholder="R$ 0,00" aria-label={`Valor ${p.rotulo.toLowerCase()}`} aria-invalid={erros[k("valor_centavos")] ? true : undefined} value={p.valor} disabled={somenteLeitura} onChange={(e) => acoes.editar(p.chave, { valor: e.target.value })} />
             {atual?.agendado && <span className="text-[13px] text-ink-muted">{textoDoAgendado(atual.agendado)}</span>}
           </Campo>
           <Campo rotulo="Caução" erro={erros[k("caucao_centavos")]} classe="md:order-5">
-            <input className="wl-input" inputMode="decimal" placeholder="R$ 0,00" aria-label={`Caução ${p.rotulo.toLowerCase()}`} aria-invalid={erros[k("caucao_centavos")] ? true : undefined} value={p.caucao} disabled={somenteLeitura} onChange={(e) => acoes.editar(p.chave, { caucao: e.target.value })} />
+            <InputDeDinheiro prefixo placeholder="R$ 0,00" aria-label={`Caução ${p.rotulo.toLowerCase()}`} aria-invalid={erros[k("caucao_centavos")] ? true : undefined} value={p.caucao} disabled={somenteLeitura} onChange={(e) => acoes.editar(p.chave, { caucao: e.target.value })} />
           </Campo>
           <Campo rotulo="Como o cliente paga" erro={erros[k("como_paga")]} classe="col-span-2 md:order-4 md:col-span-1">
             <select className="wl-input" aria-label={`Pagamento ${p.rotulo.toLowerCase()}`} value={p.comoPaga} disabled={somenteLeitura} onChange={(e) => acoes.editar(p.chave, { comoPaga: e.target.value as PlanoRascunho["comoPaga"] })}>

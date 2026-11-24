@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { Icone, Panel, SelectField, StatusBadge, TextField } from "@/design-system";
+import { CampoDeDinheiro, Icone, Panel, SelectField, StatusBadge, TextField } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo, type VeiculoDetalhe } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa as placaComHifen } from "@/lib/formatos";
@@ -252,7 +252,7 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
           <Panel titulo="Compra e valores">
             <div className="grid gap-4 md:grid-cols-2">
               <TextField cheio mono type="date" rotulo="Data da compra" erro={erro("data_compra")} {...register("data_compra")} />
-              <TextField cheio rotulo="Valor de compra" inputMode="decimal" placeholder="R$ 0,00" dica="Base da rentabilidade do veículo" erro={erro("valor_compra")} {...register("valor_compra")} />
+              <CampoDeDinheiro prefixo cheio rotulo="Valor de compra" placeholder="R$ 0,00" dica="Base da rentabilidade do veículo" erro={erro("valor_compra")} {...register("valor_compra")} />
             </div>
           </Panel>
         </div>

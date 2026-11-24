@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Wallet } from "lucide-react";
 import { useState } from "react";
-import { Button, Dialogo, Icone, KpiGrid, KpiTile, Panel, SegmentedControl, StatusBadge, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, Dialogo, Icone, KpiGrid, KpiTile, Panel, SegmentedControl, StatusBadge, TextField } from "@/design-system";
 import { caixaAberto, financeiro, type Caixa, type MovimentoDoCaixa } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { useFilial } from "@/lib/filial-escolhida";
@@ -40,7 +40,7 @@ function Abrir({ aoConcluir }: { aoConcluir: () => void }) {
           if (centavos !== null) abrir.mutate();
         }}
       >
-        <TextField cheio rotulo="Troco na gaveta (R$)" inputMode="decimal" placeholder="200,00" value={troco} onChange={(e) => setTroco(e.target.value)} erro={troco !== "" && centavos === null ? "Informe um valor, como 200,00" : campoDoErro(abrir.error, "troco_centavos")} />
+        <CampoDeDinheiro cheio rotulo="Troco na gaveta (R$)" placeholder="200,00" value={troco} onChange={(e) => setTroco(e.target.value)} erro={troco !== "" && centavos === null ? "Informe um valor, como 200,00" : campoDoErro(abrir.error, "troco_centavos")} />
         {abrir.isError && !campoDoErro(abrir.error, "troco_centavos") && <ErroDoFinanceiro erro={abrir.error} />}
         <div>
           <Button type="submit" variante="solido" disabled={centavos === null || abrir.isPending}>
@@ -85,7 +85,7 @@ function Sangria({ caixa, aoFechar, aoConcluir }: { caixa: Caixa; aoFechar: () =
       }
     >
       <div className="flex flex-col gap-4">
-        <TextField cheio data-autofocus rotulo="Valor (R$)" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} erro={valor !== "" && centavos === null ? "Informe um valor, como 500,00" : campoDoErro(sangrar.error, "valor_centavos")} />
+        <CampoDeDinheiro cheio data-autofocus rotulo="Valor (R$)" value={valor} onChange={(e) => setValor(e.target.value)} erro={valor !== "" && centavos === null ? "Informe um valor, como 500,00" : campoDoErro(sangrar.error, "valor_centavos")} />
         <TextField cheio rotulo="Descrição" placeholder="Depósito no banco" value={descricao} onChange={(e) => setDescricao(e.target.value)} erro={campoDoErro(sangrar.error, "descricao")} />
         {sangrar.isError && !campos.some((c) => campoDoErro(sangrar.error, c)) && <ErroDoFinanceiro erro={sangrar.error} />}
       </div>
@@ -128,7 +128,7 @@ function Fechar({ caixa, aoFechar, aoConcluir }: { caixa: Caixa; aoFechar: () =>
         <div className="rounded-md bg-surface-sunken px-4 py-1">
           <LinhasDeValor linhas={[{ rotulo: "Deve ter na gaveta", valor: dinheiro(caixa.resumo.gaveta.esperado_centavos), forte: true }]} />
         </div>
-        <TextField cheio data-autofocus rotulo="Dinheiro contado (R$)" inputMode="decimal" placeholder={emReais(caixa.resumo.gaveta.esperado_centavos)} value={contado} onChange={(e) => setContado(e.target.value)} erro={contado !== "" && centavos === null ? "Informe um valor, como 281,00" : campoDoErro(fechar.error, "contado_centavos")} />
+        <CampoDeDinheiro cheio data-autofocus rotulo="Dinheiro contado (R$)" placeholder={emReais(caixa.resumo.gaveta.esperado_centavos)} value={contado} onChange={(e) => setContado(e.target.value)} erro={contado !== "" && centavos === null ? "Informe um valor, como 281,00" : campoDoErro(fechar.error, "contado_centavos")} />
         <TextField cheio rotulo="Motivo da diferença, se houver" value={motivo} onChange={(e) => setMotivo(e.target.value)} erro={campoDoErro(fechar.error, "motivo_diferenca")} />
         {fechar.isError && !["contado_centavos", "motivo_diferenca"].some((c) => campoDoErro(fechar.error, c)) && <ErroDoFinanceiro erro={fechar.error} />}
       </div>
