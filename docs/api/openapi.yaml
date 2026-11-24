@@ -5933,6 +5933,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/Subdominio'
           description: ''
+  /api/publico/propostas/consultar/:
+    post:
+      operationId: publico_propostas_consultar_create
+      description: |-
+        Página pública `/proposta` (VEN-15): sem login, no host da empresa, com limites próprios
+        por IP e por token, como o recibo da devolução (T-411).
+      summary: Ler a proposta do link (VEN-15, S-15)
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenDaProposta'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenDaProposta'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenDaProposta'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaDaProposta'
+          description: ''
   /api/publico/recibos/consultar/:
     post:
       operationId: publico_recibos_consultar_create
@@ -7352,6 +7382,13 @@ paths:
           type: string
         description: AAAA-MM
       - in: query
+        name: ordem
+        schema:
+          type: string
+          enum:
+          - ultimo_contato
+        description: 'VEN-16: da mais antiga para a mais recente pelo último contato'
+      - in: query
         name: origem
         schema:
           type: string
@@ -7582,8 +7619,8 @@ paths:
     post:
       operationId: vendas_enviar_create
       description: 'As ações do fluxo: só quem vende (administrador, gerente, vendedor).'
-      summary: Enviar ou reenviar a proposta (VEN-13, VEN-15; o e-mail entra na fase
-        1c)
+      summary: Enviar ou reenviar a proposta, com o PDF por e-mail (VEN-13, VEN-15,
+        VEN-19)
       parameters:
       - in: path
         name: id
@@ -7669,6 +7706,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/VendaDetalhe'
           description: ''
+  /api/vendas/{id}/proposta/link/:
+    post:
+      operationId: vendas_proposta_link_create
+      description: |-
+        "Copiar link" (`VEN-15`, `VEN-19`): o link sai só nesta resposta. Ordem da T-252:
+        permissão e 403 `PLT-07`, depois o limite, depois o serviço.
+      summary: Copiar link da proposta (VEN-15, S-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkDaProposta'
+          description: ''
   /api/vendas/{id}/resposta/:
     post:
       operationId: vendas_resposta_create
@@ -7737,6 +7798,84 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
+  /api/vendas/metas/:
+    get:
+      operationId: vendas_metas_retrieve
+      summary: Metas dos vendedores da filial no mês (VEN-09)
+      parameters:
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      - in: query
+        name: mes
+        schema:
+          type: string
+        description: AAAA-MM; sem ele, o mês de hoje
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuadroDeMetas'
+          description: ''
+    put:
+      operationId: vendas_metas_update
+      summary: Definir as metas dos vendedores da filial (VEN-09); valor nulo tira
+        a meta
+      tags:
+      - vendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefinirMetas'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DefinirMetas'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DefinirMetas'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuadroDeMetas'
+          description: ''
+  /api/vendas/resumo/:
+    get:
+      operationId: vendas_resumo_retrieve
+      summary: 'Resumo das vendas: funil, conversão, vendido, ticket, meta (VEN-08,
+        VEN-09, VEN-12, VEN-16)'
+      parameters:
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      - in: query
+        name: mes
+        schema:
+          type: string
+        description: AAAA-MM; sem ele, o mês de hoje
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumoDeVendas'
           description: ''
   /api/vendas/simular/:
     post:
@@ -9496,6 +9635,11 @@ components:
           type: integer
         comissao_centavos:
           type: integer
+        comissao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: 'FIN-09: o percentual da comissão (3,00)'
         precisa_aprovacao:
           type: boolean
         limite_desconto_pct:
@@ -9504,6 +9648,7 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
       required:
       - comissao_centavos
+      - comissao_pct
       - desconto_centavos
       - desconto_pct
       - entrada_centavos
@@ -10946,6 +11091,16 @@ components:
       required:
       - contrato
       - empresa
+    ConsultaDaProposta:
+      type: object
+      properties:
+        empresa:
+          $ref: '#/components/schemas/EmpresaDaProposta'
+        proposta:
+          $ref: '#/components/schemas/PropostaPublica'
+      required:
+      - empresa
+      - proposta
     ConsultaDoRecibo:
       type: object
       properties:
@@ -11678,6 +11833,21 @@ components:
       - pdf_disponivel
       - status
       - versao
+    Conversao:
+      type: object
+      properties:
+        vendidas:
+          type: integer
+        criadas:
+          type: integer
+        pct:
+          type: integer
+          nullable: true
+          description: últimos 30 dias, para baixo
+      required:
+      - criadas
+      - pct
+      - vendidas
     Convidar:
       type: object
       properties:
@@ -11994,6 +12164,23 @@ components:
       - inicio
       - lembrete
       - primeira_fatura
+    DefinirMetas:
+      type: object
+      properties:
+        filial_id:
+          type: integer
+        mes:
+          type: string
+          description: AAAA-MM
+          pattern: ^\d{4}-\d{2}$
+        metas:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetaPedida'
+      required:
+      - filial_id
+      - mes
+      - metas
     DesbloquearVeiculo:
       type: object
       properties:
@@ -12551,6 +12738,19 @@ components:
         * `15` - 15
         * `30` - 30
         * `60` - 60
+    EmNegociacao:
+      type: object
+      properties:
+        quantidade:
+          type: integer
+        soma_centavos:
+          type: integer
+        aguardando_aprovacao:
+          type: integer
+      required:
+      - aguardando_aprovacao
+      - quantidade
+      - soma_centavos
     Email:
       type: object
       properties:
@@ -12596,6 +12796,21 @@ components:
       - razao_social
       - subdominio
       - uf
+    EmpresaDaProposta:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        cor_marca:
+          type: string
+          nullable: true
+      required:
+      - cor_marca
+      - logo_url
+      - nome_exibicao
     EmpresaDetalhe:
       type: object
       properties:
@@ -14500,6 +14715,22 @@ components:
       - nota
       - ocupacao_pct
       - segmentos
+    Funil:
+      type: object
+      properties:
+        interessados:
+          type: integer
+        proposta:
+          type: integer
+        negociacao:
+          type: integer
+        vendido:
+          type: integer
+      required:
+      - interessados
+      - negociacao
+      - proposta
+      - vendido
     Galeria:
       type: object
       description: 'Bloco `galeria` da ficha: as ativas, capa primeiro, para todos
@@ -15247,16 +15478,20 @@ components:
             $ref: '#/components/schemas/LocacaoQuePrecisaDeAcao'
         meta:
           nullable: true
-          description: 'Fase 2: sempre `null`.'
+          description: 'VEN-09 (T-502, 1c): a `meta` de `GET /api/vendas/resumo/`;
+            `null` sem o módulo.'
         funil:
           nullable: true
-          description: 'Fase 2: sempre `null`.'
+          description: 'VEN-08: o `funil` do resumo, com `conversao`; `null` sem o
+            módulo de vendas.'
         comissao_prevista:
           nullable: true
-          description: 'Fase 2: sempre `null`.'
+          description: Sempre `null` (Comissões).
         propostas:
           nullable: true
-          description: 'Fase 2: sempre `null`.'
+          description: 'VEN-16: `{abertas, para_retornar, vazio}`, as abertas da mais
+            antiga para a mais recente pelo último contato; `null` sem o módulo de
+            vendas.'
       required:
       - atualizado_em
       - comissao_prevista
@@ -15936,6 +16171,21 @@ components:
       required:
       - rotulo
       - valor_centavos
+    LinkDaProposta:
+      type: object
+      properties:
+        link:
+          type: string
+          description: /proposta#<token>; o token só aparece aqui
+        expira_em:
+          type: string
+          format: date-time
+        aviso:
+          type: string
+      required:
+      - aviso
+      - expira_em
+      - link
     LinkDoContrato:
       type: object
       description: 'Copiar link para assinar (T-411): o link sai só nesta resposta,
@@ -17081,6 +17331,51 @@ components:
           type: string
       required:
       - mensagem
+    MetaDoResumo:
+      type: object
+      properties:
+        valor_centavos:
+          type: integer
+          nullable: true
+        vendido_centavos:
+          type: integer
+        pct:
+          type: integer
+          nullable: true
+        faltam_dias:
+          type: integer
+          nullable: true
+        texto:
+          type: string
+      required:
+      - faltam_dias
+      - pct
+      - texto
+      - valor_centavos
+      - vendido_centavos
+    MetaDoVendedor:
+      type: object
+      properties:
+        vendedor:
+          $ref: '#/components/schemas/RefDaMeta'
+        valor_centavos:
+          type: integer
+          nullable: true
+      required:
+      - valor_centavos
+      - vendedor
+    MetaPedida:
+      type: object
+      properties:
+        vendedor_id:
+          type: integer
+        valor_centavos:
+          type: integer
+          minimum: 1
+          nullable: true
+      required:
+      - valor_centavos
+      - vendedor_id
     MinhaFilial:
       type: object
       properties:
@@ -20632,6 +20927,64 @@ components:
       - pronto
       type: string
       description: '* `pronto` - pronto'
+    PropostaParaRetornar:
+      type: object
+      properties:
+        venda_id:
+          type: integer
+        codigo:
+          type: string
+        comprador_nome:
+          type: string
+        celular:
+          type: string
+        veiculo:
+          type: string
+        valor_centavos:
+          type: integer
+          nullable: true
+        situacao_texto:
+          type: string
+        ultimo_contato_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - celular
+      - codigo
+      - comprador_nome
+      - situacao_texto
+      - ultimo_contato_em
+      - valor_centavos
+      - veiculo
+      - venda_id
+    PropostaPublica:
+      type: object
+      properties:
+        codigo:
+          type: string
+        cliente_primeiro_nome:
+          type: string
+        veiculo:
+          type: string
+          description: marca e modelo, sem a placa
+        vence_em:
+          type: string
+          format: date
+          nullable: true
+        pdf_url:
+          type: string
+          description: URL assinada de 15 minutos (AUD-05)
+        pdf_url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - cliente_primeiro_nome
+      - codigo
+      - pdf_url
+      - pdf_url_expira_em
+      - veiculo
+      - vence_em
     ProximaAgenda:
       type: object
       properties:
@@ -20703,6 +21056,32 @@ components:
             $ref: '#/components/schemas/Coluna'
       required:
       - colunas
+    QuadroDeMetas:
+      type: object
+      properties:
+        filial:
+          $ref: '#/components/schemas/RefDaMeta'
+        mes:
+          type: string
+          format: date
+        vendedores:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetaDoVendedor'
+        soma_centavos:
+          type: integer
+          nullable: true
+        texto:
+          type: string
+        ajuda:
+          type: string
+      required:
+      - ajuda
+      - filial
+      - mes
+      - soma_centavos
+      - texto
+      - vendedores
     Ramo:
       type: object
       properties:
@@ -20958,6 +21337,16 @@ components:
         * `a_fazer` - a_fazer
         * `feito` - feito
     Ref:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
+    RefDaMeta:
       type: object
       properties:
         id:
@@ -21375,6 +21764,47 @@ components:
       - gaveta
       - por_forma
       - recebimentos
+    ResumoDeVendas:
+      type: object
+      properties:
+        mes:
+          type: string
+          format: date
+        subtitulo:
+          type: string
+        funil:
+          $ref: '#/components/schemas/Funil'
+        conversao:
+          $ref: '#/components/schemas/Conversao'
+        vendido:
+          $ref: '#/components/schemas/Vendido'
+        em_negociacao:
+          $ref: '#/components/schemas/EmNegociacao'
+        a_venda:
+          type: integer
+        meta:
+          $ref: '#/components/schemas/MetaDoResumo'
+        transferencias_pendentes:
+          type: integer
+        propostas_para_retornar:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropostaParaRetornar'
+        propostas_vazio:
+          type: string
+          nullable: true
+      required:
+      - a_venda
+      - conversao
+      - em_negociacao
+      - funil
+      - mes
+      - meta
+      - propostas_para_retornar
+      - propostas_vazio
+      - subtitulo
+      - transferencias_pendentes
+      - vendido
     ResumoDoPedido:
       type: object
       properties:
@@ -21621,6 +22051,11 @@ components:
           type: integer
         comissao_centavos:
           type: integer
+        comissao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: 'FIN-09: o percentual da comissão (3,00)'
         precisa_aprovacao:
           type: boolean
         limite_desconto_pct:
@@ -21635,6 +22070,7 @@ components:
               type: string
       required:
       - comissao_centavos
+      - comissao_pct
       - desconto_centavos
       - desconto_pct
       - entrada_centavos
@@ -22531,6 +22967,14 @@ components:
         token:
           type: string
           maxLength: 100
+      required:
+      - token
+    TokenDaProposta:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 200
       required:
       - token
     TokenDeAssinatura:
@@ -23780,6 +24224,10 @@ components:
           nullable: true
         comprador_nome:
           type: string
+        comprador_celular:
+          type: string
+          description: 'VEN-16: só dígitos, do cliente ou do interessado; vazio sem
+            celular'
         veiculo:
           $ref: '#/components/schemas/VeiculoDaVenda'
         filial:
@@ -23841,6 +24289,7 @@ components:
       - cliente
       - codigo
       - comissao_centavos
+      - comprador_celular
       - comprador_nome
       - contrato_pdf_disponivel
       - descricao
@@ -23909,6 +24358,10 @@ components:
           nullable: true
         comprador_nome:
           type: string
+        comprador_celular:
+          type: string
+          description: 'VEN-16: só dígitos, do cliente ou do interessado; vazio sem
+            celular'
         veiculo:
           $ref: '#/components/schemas/VeiculoDaVenda'
         filial:
@@ -23998,6 +24451,7 @@ components:
       - cliente
       - codigo
       - comissao_centavos
+      - comprador_celular
       - comprador_nome
       - conclusao_texto
       - conta_entrada
@@ -24029,14 +24483,21 @@ components:
       - vendida_em
     VendaEnviada:
       type: object
-      description: '`email_enviado` fica `false` até o envio por e-mail da fase 1c.'
+      description: |-
+        VEN-15, VEN-19 (fase 1c): `email_enviado` falso sem e-mail no cadastro; `texto` pronto
+        para a tela.
       properties:
         email_enviado:
           type: boolean
+        texto:
+          type: string
+          description: '"Proposta enviada para diego@exemplo.com em 07 out. Sem resposta
+            do cliente, ela vence em 14 out." ou a variante sem e-mail'
         venda:
           $ref: '#/components/schemas/VendaDetalhe'
       required:
       - email_enviado
+      - texto
       - venda
     VendasDoMes:
       type: object
@@ -24055,6 +24516,42 @@ components:
       - soma_centavos
       - ticket_centavos
       - vendas
+    VendidasDoMes:
+      type: object
+      properties:
+        quantidade:
+          type: integer
+        soma_centavos:
+          type: integer
+        ticket_centavos:
+          type: integer
+          nullable: true
+      required:
+      - quantidade
+      - soma_centavos
+      - ticket_centavos
+    Vendido:
+      type: object
+      properties:
+        quantidade:
+          type: integer
+        soma_centavos:
+          type: integer
+        ticket_centavos:
+          type: integer
+          nullable: true
+        vazio:
+          type: string
+          nullable: true
+          description: '"Sem vendas em outubro."'
+        mes_anterior:
+          $ref: '#/components/schemas/VendidasDoMes'
+      required:
+      - mes_anterior
+      - quantidade
+      - soma_centavos
+      - ticket_centavos
+      - vazio
     Verificar2FA:
       type: object
       properties:

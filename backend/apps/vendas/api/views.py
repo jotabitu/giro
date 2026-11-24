@@ -37,7 +37,7 @@ from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao, exige_perfil
 from comum.rede import ip_do_cliente
 
-from .. import selectors, services
+from .. import envio, selectors, services
 from ..models import OrigemVenda, StatusVenda, Venda
 from .serializers import (
     CriarVendaSerializer,
@@ -109,6 +109,11 @@ class VendasView(ViewDeVendas):
             OpenApiParameter("transferencia_pendente", enum=["true"]),
             OpenApiParameter("veiculo", int),
             OpenApiParameter("cliente", int),
+            OpenApiParameter(
+                "ordem",
+                enum=["ultimo_contato"],
+                description="VEN-16: da mais antiga para a mais recente pelo último contato",
+            ),
         ],
         summary="Vendas (VEN-08, VEN-11, VEN-13)",
     )
@@ -116,7 +121,12 @@ class VendasView(ViewDeVendas):
         # B-03: a filial escolhida no cabeçalho, como as outras listas (USR-07).
         qs = filtrar_por_filial(selectors.filtrar(request.user, request.query_params), request)
         paginacao = PaginacaoPorCursor()
-        paginacao.ordering = ("-id",)  # type: ignore[assignment]
+        ordem: Any = (
+            ("ultimo_contato_em", "id")
+            if request.query_params.get("ordem") == "ultimo_contato"
+            else ("-id",)
+        )
+        paginacao.ordering = ordem
         pagina = list(paginacao.paginate_queryset(qs, request, view=self) or [])
         comissoes = selectors.comissoes(pagina)
         com_pdf = selectors.contratos_com_pdf(pagina)
@@ -183,11 +193,17 @@ class EnviarView(ViewDeAcao):
     @extend_schema(
         request=None,
         responses=VendaEnviadaSerializer,
-        summary="Enviar ou reenviar a proposta (VEN-13, VEN-15; o e-mail entra na fase 1c)",
+        summary="Enviar ou reenviar a proposta, com o PDF por e-mail (VEN-13, VEN-15, VEN-19)",
     )
     def post(self, request: Request, pk: int) -> Response:
         venda, enviado = services.enviar_proposta(_venda(request, pk), request.user)
-        return Response({"email_enviado": enviado, "venda": _detalhe(venda, request)})
+        return Response(
+            {
+                "email_enviado": enviado,
+                "texto": envio.texto_do_envio(venda),
+                "venda": _detalhe(venda, request),
+            }
+        )
 
 
 class RespostaView(ViewDeAcao):

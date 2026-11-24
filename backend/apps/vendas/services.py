@@ -642,6 +642,8 @@ def criar(dados: dict[str, Any], por: Any, acao: str) -> Venda:
                 venda.save()
 
         _salvar_abrindo(_gravar, veiculo.pk, None)
+        if acao == Acao.ENVIAR:
+            _agendar_envio(venda)
         if acao == Acao.PEDIR_APROVACAO:
             _abrir_pedido(venda, por, str(dados.get("motivo") or "").strip())
             _lancar_comissao_pendente(venda)
@@ -684,6 +686,12 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
             _aplicar(venda, conta)
             venda.motivo_recusa = ""  # o vendedor refez a proposta (VEN-13)
             venda.ultimo_contato_em = relogio.agora()
+            # S-15 (revisão da Segurança no #650): a proposta mudou, e o link e o PDF de antes
+            # (com o cliente e os valores de antes) deixam de valer. O arquivo fica guardado
+            # (ADR 0009); só a venda deixa de apontar para ele.
+            venda.token_proposta_hash = None
+            venda.token_proposta_expira_em = None
+            venda.proposta_pdf = None
             venda.save(
                 update_fields=[
                     "cliente",
@@ -692,6 +700,9 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
                     *CAMPOS_DO_CALCULO,
                     "motivo_recusa",
                     "ultimo_contato_em",
+                    "token_proposta_hash",
+                    "token_proposta_expira_em",
+                    "proposta_pdf",
                     "atualizado_em",
                 ]
             )
@@ -709,10 +720,17 @@ def _marcar_envio(venda: Venda) -> tuple[str, ...]:
     return ("proposta_enviada_em", "entrou_proposta_em", "ultimo_contato_em")
 
 
+def _agendar_envio(venda: Venda) -> bool:
+    """`VEN-15` (fase 1c): o PDF e o e-mail saem depois do commit (`vendas.envio`)."""
+    from . import envio
+
+    return envio.agendar_envio(venda)
+
+
 def enviar_proposta(venda: Venda, por: Any) -> tuple[Venda, bool]:
     """ "Salvar proposta e enviar ao cliente" (`VEN-15`): `interessado` → `proposta`, ou o
-    reenvio em `proposta` e `negociacao` (o estado não muda). Nesta fase só o estado e a data:
-    o PDF e o e-mail entram na 1c, e a resposta traz `email_enviado: false`."""
+    reenvio em `proposta` e `negociacao` (o estado não muda). O PDF e o e-mail saem depois do
+    commit; devolve `email_enviado` (falso sem e-mail no cadastro, para o "Copiar link")."""
     _exigir_mexer(venda, por)
     with transaction.atomic():
         venda = _travar(venda)
@@ -722,7 +740,7 @@ def enviar_proposta(venda: Venda, por: Any) -> tuple[Venda, bool]:
             with auditar(venda, "venda.reenviar_proposta", Categoria.OPERACAO, regra="VEN-15"):
                 campos = _marcar_envio(venda)
                 venda.save(update_fields=[*campos, "atualizado_em"])
-            return venda, False
+            return venda, _agendar_envio(venda)
         if venda.status == StatusVenda.INTERESSADO:
             conta = calculo_da_venda(venda)
             _exigir_proposta_completa(venda.cliente, conta)
@@ -741,7 +759,8 @@ def enviar_proposta(venda: Venda, por: Any) -> tuple[Venda, bool]:
             )
 
         _salvar_abrindo(_transicionar, venda.veiculo_id, venda.pk)
-    return venda, False
+        enviado = _agendar_envio(venda)
+    return venda, enviado
 
 
 def registrar_resposta(venda: Venda, por: Any, nota: str = "") -> Venda:
@@ -882,6 +901,12 @@ def aplicar_decisao_desconto(
         )
         if status != "aprovado":
             _recalcular_comissao(venda)
+        if status == "aprovado" and antes == StatusVenda.INTERESSADO:
+            # VEN-13 (decisão do dono de 18 nov 2026, #665): o pedido tomou o lugar do "Salvar
+            # proposta e enviar"; o cliente ainda não recebeu nada, e a proposta sai sozinha na
+            # aprovação. Sem e-mail, vale o "Cliente sem e-mail" da VEN-19 (só o PDF). A que
+            # vinha de `proposta` ou `negociacao` não é reenviada: o vendedor usa "Enviar".
+            _agendar_envio(venda)
         if status == "recusado" and venda.vendedor_id is not None:
             notificacoes.avisar(
                 [venda.vendedor_id],

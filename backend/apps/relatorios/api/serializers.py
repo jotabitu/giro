@@ -324,10 +324,24 @@ class InicioVendedorSerializer(CabecalhoDoInicioSerializer):
     kpis = KpiSerializer(many=True)
     parcelas_atrasadas = ParcelaAtrasadaSerializer(many=True)
     precisam_acao = LocacaoQuePrecisaDeAcaoSerializer(many=True)
-    meta = serializers.JSONField(allow_null=True, help_text="Fase 2: sempre `null`.")
-    funil = serializers.JSONField(allow_null=True, help_text="Fase 2: sempre `null`.")
-    comissao_prevista = serializers.JSONField(allow_null=True, help_text="Fase 2: sempre `null`.")
-    propostas = serializers.JSONField(allow_null=True, help_text="Fase 2: sempre `null`.")
+    meta = serializers.JSONField(
+        allow_null=True,
+        help_text="VEN-09 (T-502, 1c): a `meta` de `GET /api/vendas/resumo/`; `null` sem o módulo.",
+    )
+    funil = serializers.JSONField(
+        allow_null=True,
+        help_text="VEN-08: o `funil` do resumo, com `conversao`; `null` sem o módulo de vendas.",
+    )
+    comissao_prevista = serializers.JSONField(
+        allow_null=True, help_text="Sempre `null` (Comissões)."
+    )
+    propostas = serializers.JSONField(
+        allow_null=True,
+        help_text=(
+            "VEN-16: `{abertas, para_retornar, vazio}`, as abertas da mais antiga para a mais "
+            "recente pelo último contato; `null` sem o módulo de vendas."
+        ),
+    )
 
 
 # --- vistoriador ---
