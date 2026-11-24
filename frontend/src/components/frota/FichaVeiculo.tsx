@@ -4,6 +4,7 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { ArrowLeftRight, ChevronLeft, Ellipsis, Tag, Truck, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { AluguelDesativado } from "./AluguelDesativado";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   veiculos,
@@ -216,10 +217,11 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
           <h1 className="text-display">
             {v.marca} {v.modelo}
           </h1>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
               {v.situacao.rotulo}
             </StatusBadge>
+            <AluguelDesativado v={v} />
             {v.reserva && (
               <Link href={`/locacoes/${v.reserva.locacao_id}`} className="text-body text-ink underline">
                 Ver {v.reserva.codigo}
@@ -321,8 +323,9 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
               )}
               {v.referencia_fipe_centavos != null && <Linha rotulo="Valor de venda (FIPE)">{dinheiroSemZeros(v.referencia_fipe_centavos)}</Linha>}
               {v.valor_venda_centavos != null && <Linha rotulo="À venda por">{dinheiroSemZeros(v.valor_venda_centavos)}</Linha>}
-              <Linha rotulo="Categoria">{v.categoria.nome}</Linha>
-              {v.preco_vigente && <Linha rotulo="Preço de hoje">Semanal {dinheiro(v.preco_vigente.semanal_centavos)}</Linha>}
+              <Linha rotulo="Tipo de plano">{v.categoria.nome}</Linha>
+              {/* VEI-21: com o aluguel desligado, a ficha não mostra preço de aluguel. */}
+              {v.preco_vigente && v.aluguel_ligado !== false && <Linha rotulo="Preço de hoje">Semanal {dinheiro(v.preco_vigente.semanal_centavos)}</Linha>}
             </dl>
           </section>
           <section className="wl-panel">
@@ -405,9 +408,12 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
         <CartaoDoCelular
           titulo="Agora"
           acao={
-            <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
-              {v.situacao.rotulo}
-            </StatusBadge>
+            <span className="flex flex-wrap justify-end gap-1">
+              <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
+                {v.situacao.rotulo}
+              </StatusBadge>
+              <AluguelDesativado v={v} />
+            </span>
           }
         >
           <dl>

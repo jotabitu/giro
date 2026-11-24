@@ -181,6 +181,9 @@ function CartaoDaCompra({ d, desabilitado, aoLigar, erro }: { d: PrecosDoVeiculo
 
 type Confirmar = { quem: "compra" | PlanoDoVeiculo; ligar: boolean; ultimo: boolean };
 
+/** VEI-21: o texto da ficha com o aluguel desligado (produto, T-507). */
+export const AVISO_ALUGUEL_NA_FICHA = "Aluguel desativado. Os planos ficam guardados em Planos e preços.";
+
 /** Painel "Preços desta moto" da ficha: os planos como cartões, as regras e a locação com compra. Só o administrador liga e desliga. */
 export function PrecosNaFicha({ id }: { id: number }) {
   const cliente = useQueryClient();
@@ -279,14 +282,22 @@ export function PrecosNaFicha({ id }: { id: number }) {
           <Aviso>{d.aviso_preco}</Aviso>
         </div>
       )}
+      {/* VEI-21: com o aluguel desligado, a ficha não mostra os planos de aluguel; a locação com compra fica. */}
+      {!d.aluguel_ligado && (
+        <div className="mb-3 mt-3">
+          <Aviso tom="info">{AVISO_ALUGUEL_NA_FICHA}</Aviso>
+        </div>
+      )}
       <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(230px,1fr))]">
-        {ligados.map((p) => (
-          <CartaoDoPlano key={chaveDoPlano(p)} p={p} desabilitado={somenteLeitura || gravar.isPending} aoLigar={(l) => pedir(p, l)} erro={erros[chaveDoPlano(p)]} />
-        ))}
+        {d.aluguel_ligado &&
+          ligados.map((p) => (
+            <CartaoDoPlano key={chaveDoPlano(p)} p={p} desabilitado={somenteLeitura || gravar.isPending} aoLigar={(l) => pedir(p, l)} erro={erros[chaveDoPlano(p)]} />
+          ))}
         <CartaoDaCompra d={d} desabilitado={somenteLeitura || gravar.isPending} aoLigar={(l) => pedir("compra", l)} erro={erros["compra"]} />
-        {desligados.map((p) => (
-          <Desligado key={chaveDoPlano(p)} nome={p.rotulo} ligado={false} desabilitado={somenteLeitura || gravar.isPending || p.id == null} aoLigar={(l) => pedir(p, l)} erro={erros[chaveDoPlano(p)]} />
-        ))}
+        {d.aluguel_ligado &&
+          desligados.map((p) => (
+            <Desligado key={chaveDoPlano(p)} nome={p.rotulo} ligado={false} desabilitado={somenteLeitura || gravar.isPending || p.id == null} aoLigar={(l) => pedir(p, l)} erro={erros[chaveDoPlano(p)]} />
+          ))}
       </div>
       <div className="mt-3 grid gap-x-6 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
         <Linha rotulo="Km excedente">{dinheiro(d.regras.km_excedente_centavos)} por km</Linha>
