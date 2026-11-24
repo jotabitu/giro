@@ -15,7 +15,7 @@ from comum.classificacao import mascarar_nome, mascarar_telefone
 from comum.documentos import placa_com_hifen
 from comum.permissoes import PERFIS_QUE_VEEM_TODAS, filiais_permitidas
 
-from . import calculo, services
+from . import calculo, resumo, services
 from .models import EM_ANDAMENTO, OrigemVenda, StatusVenda, Venda
 
 RELACIONADOS = (
@@ -85,6 +85,9 @@ def filtrar(usuario: Any, parametros: Any) -> QuerySet[Venda]:
         qs = qs.filter(status=StatusVenda.AGUARDANDO_APROVACAO)
     elif aba == "vendidas":
         qs = qs.filter(status=StatusVenda.VENDIDA)
+    if parametros.get("ordem") == "ultimo_contato":
+        # VEN-16: "Propostas para retornar", da mais antiga para a mais recente (T-502, 1c).
+        qs = qs.filter(origem=OrigemVenda.BALCAO, ultimo_contato_em__isnull=False)
     limites = _limites_do_mes(parametros.get("mes", ""))
     if limites is not None:
         inicio, fim = limites
@@ -165,6 +168,7 @@ def _calculo(venda: Venda) -> dict[str, Any] | None:
         "ultima_parcela_centavos": conta.ultima_parcela_centavos,
         "total_parcelas_centavos": conta.total_parcelas_centavos,
         "comissao_centavos": conta.comissao_centavos,
+        "comissao_pct": conta.comissao_pct,
         "precisa_aprovacao": conta.precisa_aprovacao,
         "limite_desconto_pct": calculo.limite_efetivo(venda.desconto_aprovado_pct),
     }
@@ -214,6 +218,8 @@ def representacao(
         "cliente": _cliente(venda),
         "interessado": _interessado(venda, usuario),
         "comprador_nome": _comprador(venda, usuario),
+        # VEN-16: o celular do "Chamar no WhatsApp", do cliente ou do interessado (T-502, 1c).
+        "comprador_celular": resumo.celular_do_comprador(venda, _suporte(usuario)),
         "veiculo": {
             "id": veiculo.pk,
             "placa": veiculo.placa,
@@ -322,19 +328,21 @@ def vendas_do_veiculo(veiculo_id: int) -> list[dict[str, Any]]:
     return itens
 
 
-def vendidas_entre(filiais: Iterable[int], inicio: Any, fim: Any) -> tuple[int, int]:
+def vendidas_entre(
+    filiais: Iterable[int], inicio: Any, fim: Any, vendedor_id: int | None = None
+) -> tuple[int, int]:
     """VEN-12: (número, soma dos preços finais) das vendas das filiais que viraram `vendida`
     entre `inicio` (inclusive) e `fim` (exclusive) e continuam `vendida`. A venda da quitação
-    (VEN-11, R$ 0,00) fica fora, como no funil e na meta."""
-    totais = (
-        Venda.objects.filter(
-            filial_id__in=list(filiais),
-            status="vendida",
-            origem=OrigemVenda.BALCAO,
-            vendida_em__gte=inicio,
-            vendida_em__lt=fim,
-        )
-        .order_by()
-        .aggregate(quantidade=Count("id"), soma=Sum("preco_final_centavos"))
+    (VEN-11, R$ 0,00) fica fora, como no funil e na meta. Com `vendedor_id`, só as dele (USR-08,
+    o resumo das vendas da T-502)."""
+    vendas = Venda.objects.filter(
+        filial_id__in=list(filiais),
+        status="vendida",
+        origem=OrigemVenda.BALCAO,
+        vendida_em__gte=inicio,
+        vendida_em__lt=fim,
     )
+    if vendedor_id is not None:
+        vendas = vendas.filter(vendedor_id=vendedor_id)
+    totais = vendas.order_by().aggregate(quantidade=Count("id"), soma=Sum("preco_final_centavos"))
     return int(totais["quantidade"] or 0), int(totais["soma"] or 0)

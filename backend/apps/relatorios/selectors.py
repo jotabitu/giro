@@ -27,11 +27,14 @@ from apps.filiais.models import Filial
 from apps.financeiro import selectors as financeiro_selectors
 from apps.locacoes import selectors as locacoes_selectors
 from apps.plataforma import selectors as plataforma_selectors
+from apps.plataforma.models import Recurso
 from apps.veiculos import selectors as veiculos_selectors
+from apps.vendas import resumo as vendas_resumo
 from apps.vendas import selectors as vendas_selectors
 from apps.vistorias import selectors as vistorias_selectors
 from comum import relogio
 from comum.dinheiro import formatar_reais
+from comum.empresa import tem_recurso
 
 from . import configuracoes as textos_de_configuracoes
 
@@ -218,6 +221,12 @@ CONTADORES: dict[str, Callable[[Any, Escopo], int | None]] = {
     # T-358: os reembolsos pela filial de origem; as pendências do pagamento, da empresa toda.
     "reembolsos": lambda u, e: financeiro_selectors.reembolsos_a_fazer(e.filiais).count(),
     "pendencias_pagamento": lambda u, e: financeiro_selectors.pendencias_abertas().count(),
+    # VEN-19: "Propostas" com o número de vendas abertas (as do vendedor, para ele, USR-08).
+    "propostas": lambda u, e: (
+        vendas_resumo.em_negociacao(e.filiais, vendas_resumo.vendedor_id(u))["quantidade"]
+        if tem_recurso(Recurso.VENDAS_COMISSOES)
+        else None
+    ),
 }
 
 
@@ -379,27 +388,23 @@ def _mes_anterior(ano: int, mes: int) -> tuple[int, int]:
 
 
 def _vendas_do_mes(escopo: Escopo, ano: int, mes: int) -> dict[str, Any]:
-    fuso = ZoneInfo("America/Sao_Paulo")  # VEN-12: a data de `vendida` em São Paulo
+    """VEN-12: as vendas de balcão concluídas do mês (`vendas.selectors.vendidas_entre`, a mesma
+    leitura do resumo das vendas da T-502), com a data de `vendida` em São Paulo."""
+    fuso = ZoneInfo("America/Sao_Paulo")
     inicio = _inicio_do_mes(ano, mes, fuso)
     fim = _inicio_do_mes(*_mes_seguinte(ano, mes), fuso)
     quantidade, soma = vendas_selectors.vendidas_entre(escopo.filiais, inicio, fim)
-    ticket = (
-        int((Decimal(soma) / quantidade).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-        if quantidade
-        else None
-    )
     return {
         "mes": MESES_POR_EXTENSO[mes - 1],
         "vendas": quantidade,
         "soma_centavos": soma,
-        "ticket_centavos": ticket,
+        "ticket_centavos": vendas_resumo.ticket(quantidade, soma),
     }
 
 
 def _ticket_medio(escopo: Escopo) -> dict[str, Any]:
-    """VEN-12: ticket médio das vendas concluídas do mês e a comparação com o mês anterior
-    inteiro. Até o fluxo de venda entrar (T-502), não há venda concluída fora da quitação, e o
-    bloco diz "Sem vendas em <mês>."."""
+    """VEN-12: ticket médio das vendas de balcão concluídas do mês (as do fluxo da T-502) e a
+    comparação com o mês anterior inteiro. Sem venda concluída no mês, "Sem vendas em <mês>."."""
     ano, mes = _mes_e_ano(relogio.hoje())
     atual = _vendas_do_mes(escopo, ano, mes)
     anterior = _vendas_do_mes(escopo, *_mes_anterior(ano, mes))
@@ -851,10 +856,25 @@ def _vendedor(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
                 "fim_previsto", "id"
             )
         ],
-        "meta": None,  # vendas e comissões (fase 2)
-        "funil": None,
+        **_vendas_do_vendedor(usuario, escopo),
         "comissao_prevista": None,
-        "propostas": None,
+    }
+
+
+def _vendas_do_vendedor(usuario: Any, escopo: Escopo) -> dict[str, Any]:
+    """VEN-08, VEN-09, VEN-16 (T-502, fase 1c): a meta, o funil do mês e as propostas para
+    retornar do vendedor, do resumo das vendas. Sem o módulo de vendas (PLT-12), nulos."""
+    if not tem_recurso(Recurso.VENDAS_COMISSOES):
+        return {"meta": None, "funil": None, "propostas": None}
+    dados = vendas_resumo.resumo(usuario, escopo.filiais, relogio.hoje(), _onde(escopo))
+    return {
+        "meta": dados["meta"],
+        "funil": {**dados["funil"], "conversao": dados["conversao"]},
+        "propostas": {
+            "abertas": dados["em_negociacao"]["quantidade"],
+            "para_retornar": dados["propostas_para_retornar"],
+            "vazio": dados["propostas_vazio"],
+        },
     }
 
 

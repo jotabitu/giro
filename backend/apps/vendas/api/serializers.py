@@ -73,6 +73,9 @@ class VendaSerializer(serializers.Serializer[Any]):
     cliente = RefDaVendaSerializer(allow_null=True)
     interessado = InteressadoSerializer(allow_null=True)
     comprador_nome = serializers.CharField()
+    comprador_celular = serializers.CharField(
+        help_text="VEN-16: só dígitos, do cliente ou do interessado; vazio sem celular"
+    )
     veiculo = VeiculoDaVendaSerializer()
     filial = RefDaVendaSerializer()
     vendedor = RefDaVendaSerializer(allow_null=True)
@@ -112,6 +115,9 @@ class CalculoDaVendaSerializer(serializers.Serializer[Any]):
     ultima_parcela_centavos = serializers.IntegerField(allow_null=True)
     total_parcelas_centavos = serializers.IntegerField()
     comissao_centavos = serializers.IntegerField()
+    comissao_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, help_text="FIN-09: o percentual da comissão (3,00)"
+    )
     precisa_aprovacao = serializers.BooleanField()
     limite_desconto_pct = serializers.DecimalField(max_digits=5, decimal_places=2)
 
@@ -203,7 +209,14 @@ class PerderSerializer(serializers.Serializer[Any]):
 
 
 class VendaEnviadaSerializer(serializers.Serializer[Any]):
-    """`email_enviado` fica `false` até o envio por e-mail da fase 1c."""
+    """VEN-15, VEN-19 (fase 1c): `email_enviado` falso sem e-mail no cadastro; `texto` pronto
+    para a tela."""
 
     email_enviado = serializers.BooleanField()
+    texto = serializers.CharField(
+        help_text=(
+            '"Proposta enviada para diego@exemplo.com em 07 out. Sem resposta do cliente, ela '
+            'vence em 14 out." ou a variante sem e-mail'
+        )
+    )
     venda = VendaDetalheSerializer()

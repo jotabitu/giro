@@ -601,6 +601,8 @@ def criar(dados: dict[str, Any], por: Any, acao: str) -> Venda:
                 venda.save()
 
         _salvar_abrindo(_gravar, veiculo.pk, None)
+        if acao == Acao.ENVIAR:
+            _agendar_envio(venda)
         if acao == Acao.PEDIR_APROVACAO:
             _abrir_pedido(venda, por, str(dados.get("motivo") or "").strip())
             _lancar_comissao_pendente(venda)
@@ -668,10 +670,17 @@ def _marcar_envio(venda: Venda) -> tuple[str, ...]:
     return ("proposta_enviada_em", "entrou_proposta_em", "ultimo_contato_em")
 
 
+def _agendar_envio(venda: Venda) -> bool:
+    """`VEN-15` (fase 1c): o PDF e o e-mail saem depois do commit (`vendas.envio`)."""
+    from . import envio
+
+    return envio.agendar_envio(venda)
+
+
 def enviar_proposta(venda: Venda, por: Any) -> tuple[Venda, bool]:
     """ "Salvar proposta e enviar ao cliente" (`VEN-15`): `interessado` → `proposta`, ou o
-    reenvio em `proposta` e `negociacao` (o estado não muda). Nesta fase só o estado e a data:
-    o PDF e o e-mail entram na 1c, e a resposta traz `email_enviado: false`."""
+    reenvio em `proposta` e `negociacao` (o estado não muda). O PDF e o e-mail saem depois do
+    commit; devolve `email_enviado` (falso sem e-mail no cadastro, para o "Copiar link")."""
     _exigir_mexer(venda, por)
     with transaction.atomic():
         venda = _travar(venda)
@@ -681,7 +690,7 @@ def enviar_proposta(venda: Venda, por: Any) -> tuple[Venda, bool]:
             with auditar(venda, "venda.reenviar_proposta", Categoria.OPERACAO, regra="VEN-15"):
                 campos = _marcar_envio(venda)
                 venda.save(update_fields=[*campos, "atualizado_em"])
-            return venda, False
+            return venda, _agendar_envio(venda)
         if venda.status == StatusVenda.INTERESSADO:
             conta = calculo_da_venda(venda)
             _exigir_proposta_completa(venda.cliente, conta)
@@ -700,7 +709,8 @@ def enviar_proposta(venda: Venda, por: Any) -> tuple[Venda, bool]:
             )
 
         _salvar_abrindo(_transicionar, venda.veiculo_id, venda.pk)
-    return venda, False
+        enviado = _agendar_envio(venda)
+    return venda, enviado
 
 
 def registrar_resposta(venda: Venda, por: Any, nota: str = "") -> Venda:

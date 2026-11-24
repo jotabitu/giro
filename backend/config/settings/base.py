@@ -244,6 +244,11 @@ REST_FRAMEWORK = {
         "link_recibo_usuario": "20/hour",
         "recibo_publico_ip": "10/min",
         "recibo_publico_token": "20/min",
+        # Copiar link da proposta e a consulta pública dela (VEN-15, T-502 fase 1c).
+        "link_proposta_venda": "5/hour",
+        "link_proposta_usuario": "20/hour",
+        "proposta_publica_ip": "10/min",
+        "proposta_publica_token": "20/min",
         # Leitura do CRLV-e e da CNH-e em PDF, somadas (ADR 0026, item 6).
         "leitura_documento_usuario": "30/hour",
         "leitura_documento_empresa": "200/hour",
@@ -612,6 +617,10 @@ GIRO_NFSE_ASSINATURA_ATIVA = env.bool("GIRO_NFSE_ASSINATURA_ATIVA", default=Fals
 # Desligado, `acoes.copiar_link_recibo` vem false, copiar responde 409 `recibo_publico_desligado`
 # e a consulta pública responde 404.
 GIRO_RECIBO_PUBLICO = env.bool("GIRO_RECIBO_PUBLICO", default=False)
+# Link público da proposta de venda (VEN-15, T-502 fase 1c): desligado até a revisão da
+# Segurança e a página `/proposta` no frontend. Desligado, copiar responde 409
+# `proposta_publica_desligada` e a consulta pública responde 404.
+GIRO_PROPOSTA_PUBLICA = env.bool("GIRO_PROPOSTA_PUBLICA", default=False)
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

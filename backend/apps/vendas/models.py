@@ -7,10 +7,11 @@ quitação (`VEN-11`) fica igual. Muda só por `vendas.services`; o status, só 
 """
 
 from decimal import Decimal
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from django.db import models
 
+from comum import arquivos
 from comum.campos import CentavosField, PercentualField
 from comum.estados import MaquinaDeEstados
 from comum.models import ModeloBase, ModeloComCodigo
@@ -149,6 +150,18 @@ class Venda(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
     transferencia_registrada_por = models.ForeignKey(
         "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
+    # Fase 1c (VEN-15, ADR 0042, item 8): o PDF da proposta enviada, no armazenamento privado
+    # (AUD-05), sem versão (o envio novo substitui), e o link público copiado (S-15): o banco
+    # guarda só o hash do token, por 7 dias, um vivo por venda.
+    proposta_pdf = models.FileField(
+        storage=arquivos.armazenamento_privado,
+        upload_to=arquivos.caminho_privado,
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+    token_proposta_hash = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    token_proposta_expira_em = models.DateTimeField(null=True, blank=True)
 
     # ADR 0042, item 2 (VEN-13). `aguardando_aprovacao` volta ao estado de antes do pedido; a
     # que vinha de `interessado` volta a ele só na recusa (aprovada, vira `proposta`). Reenviar a
@@ -164,9 +177,11 @@ class Venda(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
     }
     REGRA_TRANSICAO: ClassVar[str] = "transicao_venda"
 
-    # O interessado sem cadastro é dado pessoal: mascarado na auditoria, como o do cliente.
-    CAMPOS_AUDITORIA: ClassVar[dict[str, dict[str, str]]] = {
-        "mascarar": {"interessado_nome": "nome", "interessado_celular": "telefone"}
+    # O interessado sem cadastro é dado pessoal: mascarado na auditoria, como o do cliente. O
+    # `token_proposta_hash` sai sozinho (termina em `_hash`); o vencimento do link vai inteiro.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, Any]] = {
+        "mascarar": {"interessado_nome": "nome", "interessado_celular": "telefone"},
+        "inteiro": ["token_proposta_expira_em"],
     }
 
     class Meta:
@@ -240,8 +255,8 @@ class Venda(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
 
 
 class MetaVenda(ModeloBase):
-    """Meta de vendas do vendedor na filial e no mês (`VEN-09`, ADR 0042, item 3). O serviço e as
-    rotas entram na fase 1c. "Sem meta" é não ter linha."""
+    """Meta de vendas do vendedor na filial e no mês (`VEN-09`, ADR 0042, item 3). Muda só por
+    `vendas.metas.definir_metas` (fase 1c). "Sem meta" é não ter linha."""
 
     vendedor = models.ForeignKey("contas.Usuario", on_delete=models.PROTECT, related_name="+")
     filial = models.ForeignKey("filiais.Filial", on_delete=models.PROTECT, related_name="+")

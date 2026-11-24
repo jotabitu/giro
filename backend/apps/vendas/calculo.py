@@ -76,6 +76,7 @@ class Calculo:
     total_parcelas_centavos: int
     comissao_centavos: int
     precisa_aprovacao: bool
+    comissao_pct: Decimal = Decimal("3.00")  # "Comissão Bruna (3%)" (FIN-09, T-503)
     erros: dict[str, list[str]] = field(default_factory=dict)
 
     @property
@@ -144,6 +145,7 @@ def calcular(entrada: Entrada) -> Calculo:
         total_parcelas_centavos=total,
         comissao_centavos=arredondar(Decimal(final) * Decimal(entrada.comissao_pct) / CEM),
         precisa_aprovacao=precisa_aprovacao(pct, entrada.desconto_aprovado_pct),
+        comissao_pct=Decimal(entrada.comissao_pct),
         erros=erros,
     )
 

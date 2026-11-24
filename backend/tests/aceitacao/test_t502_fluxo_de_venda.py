@@ -153,7 +153,8 @@ def test_ven_14_interessado_vira_proposta_com_o_cliente(cenario):  # noqa: F811
     assert editada.json()["interessado"] is None
     enviada = _post(cenario, criada["id"], "enviar")
     assert enviada.status_code == 200, enviada.json()
-    assert enviada.json()["email_enviado"] is False  # o e-mail entra na fase 1c
+    # VEN-15 (fase 1c): o Diego tem e-mail no cadastro, e a proposta vai por e-mail com o PDF.
+    assert enviada.json()["email_enviado"] is True
     assert enviada.json()["venda"]["status"] == "proposta"
 
 

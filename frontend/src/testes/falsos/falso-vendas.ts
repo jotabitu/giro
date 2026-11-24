@@ -17,6 +17,7 @@ export const VENDA_DA_QUITACAO: Venda = {
   locacao: { id: 2901, codigo: "LOC-2901" },
   interessado: null,
   comprador_nome: "Lucas Ferreira",
+  comprador_celular: "85988771203",
   valor: 0,
   preco_final_centavos: 0,
   forma: "",

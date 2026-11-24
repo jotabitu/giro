@@ -29,7 +29,8 @@ Convenções gerais em `docs/api/README.md`. A estrutura do menu e a variante do
 | **Contadores** `veiculos`, `locacoes`, `aprovacoes`, `usuarios`, `agenda`, `avarias` | sim | `veiculos`, `locacoes`, `aprovacoes` (sem os da própria pessoa, `APR-09`), `contas` (convites pendentes), `vistorias` |
 | `receber` | sim, quando o item `receber` aparecer (com `financeiro` em `GIRO_MODULOS_ATIVOS`, T-017) | `financeiro.selectors`: contas com status exibido `atrasada` (`FIN-01`) |
 | `despesas`, `contas_a_pagar` | `null` até existir a despesa (`FIN-05`) | — |
-| `manutencoes`, `conciliacao`, `propostas` | `null` (fase 2) | — |
+| `manutencoes`, `conciliacao` | `null` (fase 2) | — |
+| `propostas` | vendas abertas (`interessado` fora), as do vendedor para ele (`USR-08`); `null` sem o módulo de vendas (T-502, fase 1c, `VEN-19`) | `vendas.resumo.em_negociacao` |
 | **`geral`** `atencao`, `pendencias.titulo` | sim | aba `precisam_acao` de `locacoes.selectors` |
 | `frota_ativa`, `alugados_agora`, `frota.segmentos`, `ocupacao_pct` | sim | `veiculos.selectors` (`contagens`, `ocupacao_da_frota`, `VEI-06`); a tendência "6 a mais esta semana" sai do histórico de status do veículo |
 | `meta_ocupacao_pct` | sim | `empresas.selectors.meta_ocupacao_pct()` (campo novo, padrão 80,00; `empresas.md`) |
@@ -41,7 +42,8 @@ Convenções gerais em `docs/api/README.md`. A estrutura do menu e a variante do
 | **`gerente`** `aprovacoes`, `ocupacao`, `receita_semana`, `devolucoes_atrasadas`, `equipe_hoje`, `frota_filial` | sim | como acima; `equipe_hoje` com `contas.Sessao.ultimo_uso` e o resumo do dia de `vistorias` e `locacoes` |
 | `em_manutencao` | `valor: null` (fase 2) | — |
 | **`vendedor`** `kpis`, `parcelas_atrasadas`, `precisam_acao` | sim | `locacoes` (`Locacao.vendedor`), `financeiro` |
-| `meta`, `funil`, `comissao_prevista`, `propostas` | `null` (fase 2) | — |
+| `meta`, `funil`, `propostas` | do resumo das vendas (T-502, fase 1c); `null` sem o módulo de vendas | `vendas.resumo.resumo` |
+| `comissao_prevista` | `null` (tela Comissões) | — |
 | **`vistoriador`** inteira | sim | `vistorias.selectors` (o mesmo corpo da agenda) |
 | **`financeiro`** `entra_hoje`, `em_atraso` | sim | `financeiro.selectors` (`FIN-15`, `FIN-01`) |
 | `sai_hoje` | sim (T-017) | `financeiro.selectors` (despesas `a_pagar` com vencimento hoje) |
@@ -206,7 +208,7 @@ Só para **administrador** (variante `geral`) e **gerente** (variante `gerente`)
 
 - `estoque_a_venda` (`VEI-20`): custo = compra + despesas ligadas sem as `recusada` (o "pago na moto" da `VEI-13`). O veículo sem valor de compra fica fora do capital, do custo médio e da margem (contado em `sem_valor_compra`); o com compra e sem valor de venda entra no capital e no custo médio e fica fora da margem (`sem_valor_venda`). `margem_pct` = soma das margens ÷ soma dos valores de venda, 2 casas, `ROUND_HALF_UP`. Sem nenhum com compra: capital 0, `custo_medio_centavos`, `margem_*` e as legendas de custo e margem `null`, e `legenda_capital` "Nenhum veículo à venda com valor de compra.". Margem negativa: `margem_negativa: true`, `margem_texto` "−R$ 750,00" e `legenda_margem` "−5,68% sobre o valor de venda" (sinal de menos U+2212); a tela usa o tom crítico.
 - `parados_a_venda` (`VEI-18`, `VEI-19`): os 5 `a_venda` da filial com mais dias, na ordem da lista com `?ordem=em_estoque`; `acima_do_limite` conta todos os `parado` da filial (não só os 5). Sem nenhum, `itens` vazio e a tela diz "Nenhum veículo à venda nesta filial.". `placa` sem hífen. "Ver todos" abre a Frota com `?status=a_venda`.
-- `ticket_medio` (`VEN-12`): vendas `vendida` no mês corrente (data de `vendida_em` em `America/Sao_Paulo`) que continuam `vendida`, sem a venda da quitação (`VEN-11`). `ticket_centavos` = soma ÷ número, `ROUND_HALF_UP`; `variacao_pct` contra o mês anterior inteiro, 2 casas, com o sinal. Sem venda no mês: `vazio` "Sem vendas em novembro." e sem comparação; sem venda no mês anterior: `comparacao` "Sem vendas em setembro para comparar.". Com vendas: `resumo` "4 vendas · R$ 31.200,00" e `comparacao` "−43,27% em relação a setembro (R$ 13.750,00)". **Até o fluxo de venda (T-502) concluir vendas, o bloco vem sempre vazio**: não há venda `vendida` fora da quitação.
+- `ticket_medio` (`VEN-12`): vendas `vendida` no mês corrente (data de `vendida_em` em `America/Sao_Paulo`) que continuam `vendida`, sem a venda da quitação (`VEN-11`). `ticket_centavos` = soma ÷ número, `ROUND_HALF_UP`; `variacao_pct` contra o mês anterior inteiro, 2 casas, com o sinal. Sem venda no mês: `vazio` "Sem vendas em novembro." e sem comparação; sem venda no mês anterior: `comparacao` "Sem vendas em setembro para comparar.". Com vendas: `resumo` "4 vendas · R$ 31.200,00" e `comparacao` "−43,27% em relação a setembro (R$ 13.750,00)". Conta as vendas de balcão concluídas do fluxo da T-502 (`vendas.selectors.vendidas_entre`, a mesma leitura de `GET /api/vendas/resumo/`); até a fase 1b concluir vendas pela assinatura e pela entrada, o mês fica vazio.
 
 ### Variante `vendedor` (fase 1: locação; tela `Vendedor` completa na fase 2)
 
@@ -219,11 +221,14 @@ Só para **administrador** (variante `geral`) e **gerente** (variante `gerente`)
   ],
   "parcelas_atrasadas": [ { "conta_id": 9010, "cliente": "Carlos Menezes", "locacao": "LOC-2841", "vencimento": "2026-09-30", "valor_centavos": 29940, "dias": 7, "acao": "cobrar" } ],
   "precisam_acao": [ { "locacao_id": 2856, "codigo": "LOC-2856", "cliente": "Lucas Ferreira", "situacao": { "rotulo": "Aguardando assinatura", "tom": "alerta" } } ],
-  "meta": null, "funil": null, "comissao_prevista": null, "propostas": null
+  "meta": { "valor_centavos": 5000000, "vendido_centavos": 3120000, "pct": 62, "faltam_dias": 24, "texto": "62% de R$ 50.000,00 · faltam 24 dias" },
+  "funil": { "interessados": 12, "proposta": 6, "negociacao": 3, "vendido": 4, "conversao": { "vendidas": 4, "criadas": 12, "pct": 33 } },
+  "comissao_prevista": null,
+  "propostas": { "abertas": 3, "para_retornar": [ { "venda_id": 177, "codigo": "VEN-0177", "comprador_nome": "Diego Martins", "celular": "85983332211", "veiculo": "Honda CB 300F · RTA-2C55", "valor_centavos": 2106800, "situacao_texto": "Aguardando gerente", "ultimo_contato_em": "2026-10-07T12:00:00Z" } ], "vazio": null }
 }
 ```
 - "Meus" (`USR-08`): as locações que o vendedor criou (`Locacao.vendedor`). `parcelas_atrasadas`: contas atrasadas dessas locações.
-- `meta`, `funil`, `comissao_prevista` e `propostas` vêm `null` até vendas e comissões existirem (fase 2, `FIN-09`).
+- `meta` (`VEN-09`), `funil` (`VEN-08`, com a `conversao` dos últimos 30 dias) e `propostas` (`VEN-16`: as abertas da mais antiga para a mais recente pelo último contato; `vazio` "Você não tem propostas abertas.") vêm de `GET /api/vendas/resumo/` (`vendas.md`, T-502 fase 1c), só com os números da vendedora; sem o módulo de vendas (`PLT-12`), `null`. `comissao_prevista` segue `null` até a tela Comissões.
 
 ### Variante `vistoriador` (tela `Vistoriador`)
 
