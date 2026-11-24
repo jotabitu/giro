@@ -26,6 +26,7 @@ import {
   KpiVariacao,
   LigaDesliga,
   LinhaDeLista,
+  ListaComRolagem,
   ListaDeLinhas,
   Panel,
   ProgressBar,
@@ -310,6 +311,23 @@ function ExemploLinhaDeLista() {
         <LinhaDeLista titulo="Rafael Lima" apoio="LOC-2839 · R$ 1.347,00 · 25 dias" acao={<Button variante="quieto" compacto>Cobrar</Button>} />
         <LinhaDeLista titulo="Sem ação" apoio="Linha só informativa" />
       </ListaDeLinhas>
+    </Panel>
+  );
+}
+
+function ExemploListaComRolagem() {
+  return (
+    <Panel titulo="Histórico" acao={<span className="text-caption text-ink-muted">12 eventos</span>}>
+      <ListaComRolagem rotulo="Histórico de exemplo">
+        <ol className="flex flex-col">
+          {Array.from({ length: 12 }, (_, n) => (
+            <li key={n} className="border-b border-line py-2 last:border-b-0">
+              <div className="text-body">Evento {n + 1}</div>
+              <div className="text-caption text-ink-muted">0{(n % 9) + 1} out · 10:30</div>
+            </li>
+          ))}
+        </ol>
+      </ListaComRolagem>
     </Panel>
   );
 }
@@ -654,6 +672,7 @@ const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "kpi-tile": ExemploKpiTile,
   "liga-desliga": ExemploLigaDesliga,
   "linha-de-lista": ExemploLinhaDeLista,
+  "lista-com-rolagem": ExemploListaComRolagem,
   "progress-bar": ExemploProgressBar,
   "search-field": ExemploSearchField,
   "segmented-control": ExemploSegmentedControl,
