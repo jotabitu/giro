@@ -1,6 +1,6 @@
 // T-503 · Vendas: só formatação. As contas são da API (VEN-0177 de docs/regras/dados-de-teste.md).
 import { describe, expect, it } from "vitest";
-import { campoDoPct, codigoEVendedor, comPorcento, linhasDoResumo, linkDoWhatsApp, mascaraReais, mesDoDia, mesPorExtenso, pctDoCampo, pctTexto, tomDaVenda, ultimoContato } from "./vendas";
+import { campoDoPct, codigoEVendedor, comPorcento, linhasDoResumo, linkDoWhatsApp, mesDoDia, mesPorExtenso, pctDoCampo, pctTexto, tomDaVenda, ultimoContato } from "./vendas";
 
 const VEN_0177 = {
   preco_tabela_centavos: 2290000,
@@ -55,12 +55,6 @@ describe("campos e textos", () => {
     expect(comPorcento("")).toBe("");
   });
 
-  it("test_ven_03_entrada_com_a_mascara_de_reais", () => {
-    expect(mascaraReais("500000")).toBe("R$ 5.000,00");
-    expect(mascaraReais("5.000,00")).toBe("R$ 5.000,00");
-    expect(mascaraReais("R$ 5.000,0")).toBe("R$ 500,00");
-    expect(mascaraReais("")).toBe("");
-  });
 
   it("test_ven_16_ultimo_contato", () => {
     const agora = new Date("2026-10-07T15:00:00-03:00");

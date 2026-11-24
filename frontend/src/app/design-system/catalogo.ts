@@ -22,6 +22,7 @@ export const CATALOGO = [
   { slug: "sidebar", nome: "Sidebar", resumo: "Logo da empresa, seletor de filial e menu por módulo" },
   { slug: "valores", nome: "Valores", resumo: "Rótulo e valor em lista, como o resumo da venda" },
   { slug: "status-badge", nome: "StatusBadge", resumo: "Status do veículo, prioridade e contadores" },
+  { slug: "campo-de-dinheiro", nome: "CampoDeDinheiro", resumo: "Valor em reais com ponto e vírgula ao digitar" },
   { slug: "text-field", nome: "TextField", resumo: "Campo com rótulo, dica e erro" },
   { slug: "vehicle-card", nome: "VehicleCard", resumo: "Veículo em destaque com contrato em andamento" },
 ] as const;

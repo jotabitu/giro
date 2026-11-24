@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button, Icone, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, Icone, TextField } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { financeiro, veiculos, type Despesa, type Eu, type Veiculo } from "@/lib/api";
 import { useAgora } from "@/lib/ambiente";
@@ -160,10 +160,9 @@ export function NovaDespesa({ eu, aoLancar, veiculoFixo }: { eu: Eu; aoLancar: (
     >
       <TextField cheio rotulo="Descrição" placeholder="Ex.: troca de pneu" value={descricao} onChange={(e) => setDescricao(e.target.value)} erro={campoDoErro(lancar.error, "descricao")} />
       <div className="grid grid-cols-2 gap-[10px]">
-        <TextField
+        <CampoDeDinheiro prefixo
           cheio
           rotulo="Valor"
-          inputMode="decimal"
           placeholder="R$ 0,00"
           value={valor}
           onChange={(e) => setValor(e.target.value)}

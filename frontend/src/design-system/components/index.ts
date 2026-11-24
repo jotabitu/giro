@@ -23,5 +23,7 @@ export { SegmentedControl, type OpcaoSegmento } from "./SegmentedControl/Segment
 export { Sidebar, type FilialAtiva, type GrupoMenu, type ItemMenu, type MarcaDaSidebar } from "./Sidebar/Sidebar";
 export { Contador, StatusBadge, type TomStatus } from "./StatusBadge/StatusBadge";
 export { TextField, type TextFieldProps } from "./TextField/TextField";
+export { CampoDeDinheiro, InputDeDinheiro, propsDeDinheiro, type CampoDeDinheiroProps } from "./CampoDeDinheiro/CampoDeDinheiro";
+export { centavosDoColado, digitosDoDinheiro, mascaraDinheiro } from "./CampoDeDinheiro/logica";
 export { IlustracaoVeiculo, type TipoVeiculo } from "./VehicleCard/IlustracaoVeiculo";
 export { VehicleCard, type FatoVeiculo } from "./VehicleCard/VehicleCard";

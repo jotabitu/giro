@@ -6,7 +6,7 @@ import { Bike, Car, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { Icone, Panel, SelectField, TextField } from "@/design-system";
+import { CampoDeDinheiro, Icone, Panel, SelectField, TextField } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
@@ -383,7 +383,7 @@ export function NovoVeiculoForm() {
           <Panel titulo="Compra e valores">
             <div className="grid gap-4 md:grid-cols-2">
               <TextField cheio mono type="date" rotulo="Data da compra" erro={erro("data_compra")} {...register("data_compra")} />
-              <TextField cheio rotulo="Valor de compra" inputMode="decimal" placeholder="R$ 0,00" dica="Base da rentabilidade do veículo" erro={erro("valor_compra")} {...register("valor_compra")} />
+              <CampoDeDinheiro prefixo cheio rotulo="Valor de compra" placeholder="R$ 0,00" dica="Base da rentabilidade do veículo" erro={erro("valor_compra")} {...register("valor_compra")} />
               <TextField cheio rotulo="Referência FIPE" disabled dica="A consulta FIPE ainda não está disponível" />
             </div>
           </Panel>

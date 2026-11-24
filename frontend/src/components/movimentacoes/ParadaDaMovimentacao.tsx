@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Aviso } from "@/components/acesso/Aviso";
-import { Button, Icone, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, Icone } from "@/design-system";
 import { ErroApi, movimentacoes, type Movimentacao } from "@/lib/api";
 import { TAMANHO_MAXIMO_DA_NOTA } from "@/lib/despesas";
 import { mensagemDoErro } from "@/lib/erros";
@@ -135,11 +135,10 @@ export function ParadaDaMovimentacao({ id }: { id: number }) {
             sair.mutate();
           }}
         >
-          <TextField
+          <CampoDeDinheiro
             rotulo="Valor pago"
             mono
             cheio
-            inputMode="decimal"
             placeholder="0,00"
             value={valor}
             onChange={(e) => setValor(e.target.value)}

@@ -3,7 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
-import { Aviso, Button, Dialogo, Panel } from "@/design-system";
+import { Aviso, InputDeDinheiro, Button, Dialogo, Panel } from "@/design-system";
 import { ErroApi, veiculos, type PrecosDoVeiculo as Precos, type PrecosEntrada } from "@/lib/api";
 import { useAmbiente } from "@/lib/ambiente";
 import { useAtrasado, useCelular } from "@/lib/atrasado";
@@ -376,9 +376,8 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
           )}
           <label className={`flex min-w-0 flex-col gap-[2px] rounded-md bg-surface-sunken px-4 py-[14px] ${venda ? "wl-field--error" : ""}`}>
             <span className="text-[13px] text-ink-muted">Valor de venda</span>
-            <input
+            <InputDeDinheiro prefixo
               className="wl-input w-full bg-surface text-[18px] font-semibold"
-              inputMode="decimal"
               placeholder="R$ 0,00"
               value={rascunho.valorVenda}
               disabled={somenteLeitura}
@@ -394,9 +393,8 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
           {exibido.custos && (
             <label className={`flex min-w-0 flex-col gap-[2px] rounded-md bg-surface-sunken px-4 py-[14px] ${erros["custos.revenda_estimada_centavos"] ? "wl-field--error" : ""}`}>
               <span className="text-[13px] text-ink-muted">Revenda estimada em 24 meses</span>
-              <input
+              <InputDeDinheiro prefixo
                 className="wl-input w-full bg-surface text-[18px] font-semibold"
-                inputMode="decimal"
                 placeholder="R$ 0,00"
                 value={rascunho.revenda}
                 disabled={somenteLeitura}
