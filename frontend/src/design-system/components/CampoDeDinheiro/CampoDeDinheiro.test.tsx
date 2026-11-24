@@ -114,3 +114,15 @@ describe("CampoDeDinheiro", () => {
     expect(renderToStaticMarkup(<InputDeDinheiro className="wl-input w-full" onChange={() => {}} />)).toContain('class="wl-input w-full"');
   });
 });
+
+describe("onPaste do chamador", () => {
+  it("roda antes da colagem e, com preventDefault, a colagem com máscara não acontece", () => {
+    let chamou = 0;
+    const { onPaste } = propsDeDinheiro({ onPaste: (e) => { chamou++; e.preventDefault(); } });
+    let barrou = false;
+    const evento = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; barrou = true; } };
+    onPaste(evento as never);
+    expect(chamou).toBe(1);
+    expect(barrou).toBe(true);
+  });
+});

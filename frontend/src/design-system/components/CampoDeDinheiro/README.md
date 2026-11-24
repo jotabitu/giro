@@ -19,3 +19,5 @@ import { CampoDeDinheiro, InputDeDinheiro } from "@/design-system";
 ```
 
 A máscara é aplicada no próprio evento, antes de `onChange` ler `e.target.value`; por isso serve a campo controlado e a `register` do React Hook Form sem adaptador. O texto do campo ("5.000,00" ou "R$ 5.000,00") é o que `centavosDoTexto` e `centavosDoCampo` convertem em centavos; o valor enviado à API continua sendo `valor_centavos`, e a validação final é da API. `InputDeDinheiro` é o mesmo comportamento num `<input>` solto, para linhas de tabela que montam o próprio rótulo. `mascaraDinheiro` e `centavosDoColado` ficam exportadas para quem formata fora de um campo.
+
+`onChange` e `onPaste` do chamador são mantidos: `onChange` roda depois da máscara; `onPaste` roda antes da colagem e, se chamar `preventDefault()`, a colagem com máscara não acontece. A colagem substitui o valor inteiro do campo.

@@ -331,6 +331,8 @@ function ExemploCampoDeDinheiro() {
     <div style={{ display: "grid", gap: 16, maxWidth: 320 }}>
       <CampoDeDinheiro cheio mono rotulo="Diária" defaultValue="54,90" dica="Digite só os números: 500000 vira 5.000,00" />
       <CampoDeDinheiro cheio prefixo rotulo="Entrada" placeholder="R$ 0,00" />
+      <CampoDeDinheiro cheio prefixo rotulo="Caução" defaultValue="R$ 500,00" erro="Informe um valor de até R$ 10.000,00" />
+      <CampoDeDinheiro cheio prefixo rotulo="Preço de tabela" defaultValue="R$ 22.900,00" disabled dica="Vem da API" />
     </div>
   );
 }
