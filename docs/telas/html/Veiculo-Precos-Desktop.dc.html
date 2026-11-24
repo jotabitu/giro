@@ -2,6 +2,7 @@
 <!-- origem: canvas, 18/11/2026, T-491 -->
 <!-- ajustada no repositório: 18/11/2026, T-496 -->
 <!-- ajustada no repositório: 22/11/2026, T-505 -->
+<!-- ajustada no repositório: 24/11/2026, T-507 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -83,7 +84,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </nav>
 
 <main style="flex: 999 1 560px; min-width: 0; max-width: 1080px; display: flex; flex-direction: column; gap: 24px;">
-<header style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;"><div><div style="font-size: 14px; color: var(--ink-muted);"><a href="Frota-Desktop.dc.html" style="color: var(--ink-muted);">Veículos</a> / <a href="Veiculo-Desktop.dc.html" style="color: var(--ink-muted);">TBC-5H21</a> / Preços</div><h1 style="margin: 6px 0 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Planos e preços</h1><div class="lbl" style="font-size: 15px; margin-top: 6px;">Honda Pop 110i ES · <span class="wl-mono">TBC-5H21</span></div></div><div style="margin-left: auto; display: flex; gap: 8px;"><a href="Veiculo-Desktop.dc.html" class="wl-btn wl-btn--quiet" style="text-decoration: none;">Cancelar</a><a href="Veiculo-Desktop.dc.html" class="wl-btn wl-btn--solid" style="text-decoration: none;">Salvar preços</a></div></header>
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;"><div><a href="Veiculo-Desktop.dc.html" class="wl-btn wl-btn--quiet wl-btn--sm" style="text-decoration: none; margin: 0 0 12px -8px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg>Voltar</a><div style="font-size: 14px; color: var(--ink-muted);"><a href="Frota-Desktop.dc.html" style="color: var(--ink-muted);">Veículos</a> / <a href="Veiculo-Desktop.dc.html" style="color: var(--ink-muted);">TBC-5H21</a> / Preços</div><h1 style="margin: 6px 0 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Planos e preços</h1><div class="lbl" style="font-size: 15px; margin-top: 6px;">Honda Pop 110i ES · <span class="wl-mono">TBC-5H21</span></div></div><div style="margin-left: auto; display: flex; gap: 8px;"><a href="Veiculo-Desktop.dc.html" class="wl-btn wl-btn--quiet" style="text-decoration: none;">Cancelar</a><a href="Veiculo-Desktop.dc.html" class="wl-btn wl-btn--solid" style="text-decoration: none;">Salvar preços</a></div></header>
 
 <section class="wl-panel">
 <div class="wl-panel__head"><div><h2 class="wl-panel__title">Custo e venda</h2><p class="wl-panel__sub" style="margin: 4px 0 0;">Base de todas as margens desta moto.</p></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Editar custos mensais</button></div>
@@ -97,7 +98,8 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </section>
 
 <section class="wl-panel">
-<div class="wl-panel__head"><div><h2 class="wl-panel__title">Aluguel</h2><p class="wl-panel__sub" style="margin: 4px 0 0;">Ligue os planos que esta moto oferece. Margem = lucro por mês ÷ receita, já com a desvalorização até a venda.</p></div></div>
+<div class="wl-panel__head"><div style="display: flex; align-items: center; gap: 12px;"><button class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer aluguel"></button><div><h2 class="wl-panel__title">Aluguel</h2><p class="wl-panel__sub" style="margin: 4px 0 0;">Ligue os planos que esta moto oferece. Margem = lucro por mês ÷ receita, já com a desvalorização até a venda.</p></div></div><button type="button" class="wl-icon-btn" aria-expanded="true" aria-controls="aluguel-corpo" aria-label="Recolher o aluguel"><svg class="wl-i" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"></path></svg></button></div>
+<div id="aluguel-corpo">
 <div style="overflow-x: auto;"><table class="pt" style="min-width: 820px;"><thead><tr><th style="width: 52px;"></th><th>Plano</th><th style="width: 130px;">Valor</th><th style="width: 190px;">Como o cliente paga</th><th style="width: 130px;">Caução</th><th style="width: 120px;">Caução em</th><th style="width: 120px; text-align: right;">Margem</th></tr></thead><tbody>
 <tr><td><button class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer diária"></button></td><td><b>Diária</b><div class="lbl">150 km por dia</div></td><td><input class="wl-input" value="R$ 44,90" aria-label="Valor da diária"></td><td><select class="wl-input" aria-label="Pagamento da diária"><option>Tudo na retirada</option></select></td><td><input class="wl-input" value="R$ 300,00" aria-label="Caução da diária"></td><td><select class="wl-input" aria-label="Parcelas da caução da diária"><option>À vista</option></select></td><td style="text-align: right;"><span class="wl-badge wl-badge--sm wl-badge--success">57,4%</span><div class="lbl">R$ 656,78/mês</div></td></tr>
 <tr><td><button class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer semanal"></button></td><td><b>Semanal</b><div class="lbl">1.000 km por semana</div></td><td><input class="wl-input" value="R$ 269,00" aria-label="Valor semanal"><div class="lbl" style="margin-top: 4px;">R$ 289,00 a partir de 01 dez</div></td><td><select class="wl-input" aria-label="Pagamento semanal"><option>Toda semana, adiantado</option></select></td><td><input class="wl-input" value="R$ 300,00" aria-label="Caução semanal"></td><td><select class="wl-input" aria-label="Parcelas da caução semanal"><option>À vista</option></select></td><td style="text-align: right;"><span class="wl-badge wl-badge--sm wl-badge--success">50,7%</span><div class="lbl">R$ 502,65/mês</div></td></tr>
@@ -112,6 +114,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <tr class="off"><td><button class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer entregador"></button></td><td><b>Entregador</b><div class="lbl">desligado</div></td><td colspan="5" class="lbl">Ligue para definir valor, prazo mínimo e caução.</td></tr>
 </tbody></table></div>
 <p class="lbl" style="margin: 10px 0 0;">Formas aceitas, franquia e prazo mínimo ficam em cada linha ao tocar no plano. Mudar um preço vale só para as próximas locações.</p>
+</div>
 </section>
 
 <section class="wl-panel">
@@ -225,6 +228,38 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </div>
 </div>
 <span class="lbl">Se a locação com compra for o último plano ligado, vale o texto do último plano.</span></div>
+
+<div class="est"><h3>Liga e desliga confirmado: o aluguel inteiro</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 16px;">
+<div class="dlg" role="dialog" aria-label="Desligar o aluguel?">
+<h4>Desligar o aluguel?</h4>
+<p>O aluguel deixa de aparecer na Nova locação. Os planos e os valores ficam guardados, e as locações já confirmadas continuam com o preço delas.</p>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Continuar ligado</button><button class="wl-btn wl-btn--solid">Desligar o aluguel</button></div>
+</div>
+<div class="dlg" role="dialog" aria-label="Ligar o aluguel?">
+<h4>Ligar o aluguel?</h4>
+<p>Os planos guardados voltam a aparecer na Nova locação, com os valores de antes.</p>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Continuar desligado</button><button class="wl-btn wl-btn--solid">Ligar o aluguel</button></div>
+</div>
+</div></div>
+
+<div class="est"><h3>Aluguel desligado: planos guardados</h3>
+<section class="wl-panel" style="background: var(--surface-sunken);">
+<div class="wl-panel__head"><div style="display: flex; align-items: center; gap: 12px;"><button class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer aluguel"></button><div><h2 class="wl-panel__title">Aluguel</h2><p class="wl-panel__sub" style="margin: 4px 0 0;">Desligado. Esta moto não aparece na Nova locação para aluguel. Os planos ficam guardados e voltam como estavam ao ligar.</p></div></div><button type="button" class="wl-icon-btn" aria-expanded="true" aria-controls="aluguel-guardado" aria-label="Recolher o aluguel"><svg class="wl-i" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"></path></svg></button></div>
+<div id="aluguel-guardado" style="opacity: .55;">
+<div style="overflow-x: auto;"><table class="pt" style="min-width: 820px;"><tbody>
+<tr class="off"><td style="width: 52px;"><button class="wl-toggle" role="switch" aria-checked="true" aria-label="Plano diária (guardado)" disabled></button></td><td><b>Diária</b><div class="lbl">150 km por dia</div></td><td style="width: 130px;"><input class="wl-input" value="R$ 44,90" aria-label="Valor da diária" disabled></td><td colspan="4" class="lbl">Guardado. Ligue o aluguel para editar.</td></tr>
+<tr class="off"><td><button class="wl-toggle" role="switch" aria-checked="true" aria-label="Plano semanal (guardado)" disabled></button></td><td><b>Semanal</b><div class="lbl">1.000 km por semana</div></td><td><input class="wl-input" value="R$ 269,00" aria-label="Valor semanal" disabled></td><td colspan="4" class="lbl">Guardado. Ligue o aluguel para editar.</td></tr>
+<tr class="off"><td><button class="wl-toggle" role="switch" aria-checked="true" aria-label="Plano mensal (guardado)" disabled></button></td><td><b>Mensal</b><div class="lbl">4.000 km por mês</div></td><td><input class="wl-input" value="R$ 990,00" aria-label="Valor mensal" disabled></td><td colspan="4" class="lbl">Guardado. Ligue o aluguel para editar.</td></tr>
+</tbody></table></div>
+</div>
+</section></div>
+
+<div class="est"><h3>Aluguel recolhido</h3>
+<section class="wl-panel">
+<div class="wl-panel__head"><div style="display: flex; align-items: center; gap: 12px;"><button class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer aluguel"></button><div><h2 class="wl-panel__title">Aluguel</h2><p class="wl-panel__sub" style="margin: 4px 0 0;">3 planos ligados</p></div></div><button type="button" class="wl-icon-btn" aria-expanded="false" aria-controls="aluguel-corpo" aria-label="Abrir o aluguel"><svg class="wl-i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button></div>
+</section>
+<span class="lbl">A seta recolhe e abre o bloco. Ele abre por padrão e não muda o que está ligado.</span></div>
 
 <div class="est"><h3>Liga e desliga recusado pela API: ligar sem os dados do plano</h3>
 <div style="overflow-x: auto;"><table class="pt" style="min-width: 820px;"><tbody>
