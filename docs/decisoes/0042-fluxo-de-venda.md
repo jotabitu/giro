@@ -195,7 +195,7 @@ Erro em qualquer passo desfaz tudo, inclusive a baixa da entrada ou a assinatura
 
 - PDF da proposta montado em `vendas` (texto fixo do sistema, com a marca da locadora, pelo `contratos.pdf.gerar` que já existe): veículo, preço de tabela, desconto, preço final, forma, entrada, parcelas e, na fase 2, troca. Guardado no armazenamento privado, sem versão (o envio novo substitui).
 - E-mail ao cliente com o PDF anexo depois do commit (`notificacoes`, só e-mail na fase 1, sem WhatsApp do sistema). Sem e-mail no cadastro, a venda muda de estado do mesmo jeito e a resposta traz `email_enviado: false`, para a tela mostrar "Copiar link".
-- "Copiar link": `POST /api/vendas/{id}/proposta/link/` gera um token como o da assinatura (`S-15`: só o hash guardado, 7 dias, um vivo por venda) e a rota pública `GET /api/publico/propostas/{token}/` devolve o PDF. A Segurança revisa na T-502.
+- "Copiar link": `POST /api/vendas/{id}/proposta/link/` gera um token como o da assinatura (`S-15`: só o hash guardado, 7 dias, um vivo por venda) e a rota pública devolve a proposta. A Segurança revisa na T-502. A rota pública mudou em 24 nov 2026: ver a nota do item 14.
 - O "Recibo" da venda `vendida` vira "Contrato" e abre o PDF assinado pela rota de contratos que já existe; não há recibo à parte.
 
 ### 9. Vencimento da proposta (`VEN-13`, `AUT-19`)
@@ -253,7 +253,7 @@ Todas com o recurso `vendas_comissoes` (403 `PLT-12` sem ele, ADR 0024), exceto 
 | `PATCH /api/vendas/{id}/` | idem | campos da proposta (item 5) |
 | `POST /api/vendas/{id}/enviar/` | idem | envia ou reenvia a proposta; devolve `email_enviado` |
 | `POST /api/vendas/{id}/proposta/link/` | idem | o link público da proposta (item 8) |
-| `GET /api/publico/propostas/{token}/` | público | o PDF; 404 token desconhecido, 410 vencido |
+| `POST /api/publico/propostas/consultar/` | público | `{ token }` no corpo; a proposta resumida e a URL assinada do PDF; 404 token desconhecido ou anulado, 410 vencido (nota abaixo) |
 | `POST /api/vendas/{id}/resposta/` | idem | `{ nota }`: `proposta` → `negociacao` |
 | `POST /api/vendas/{id}/pedir-aprovacao/` | idem | `{ desconto_pct, motivo }` |
 | (decisão) `POST /api/aprovacoes/{id}/aprovar/` e `/recusar/` | gerente, administrador | as rotas que já existem; o cartão do `Gerente` mostra o `resumo` da venda |
@@ -265,6 +265,8 @@ Todas com o recurso `vendas_comissoes` (403 `PLT-12` sem ele, ADR 0024), exceto 
 | `GET /api/vendas/resumo/?filial=&mes=` | administrador, gerente, vendedor (o dele), financeiro | funil, conversão, vendido, ticket, em negociação, aguardando, à venda, meta, transferências pendentes |
 | `GET /api/vendas/metas/?filial=&mes=` | administrador, gerente | vendedores da filial com a meta de cada um e a soma |
 | `PUT /api/vendas/metas/` | administrador, gerente da filial | `{ filial_id, mes, metas: [{ vendedor_id, valor_centavos \| null }] }` |
+
+**Nota de 24 nov 2026 (T-502, fase 1c, PR #650): a rota pública da proposta.** Este item previa `GET /api/publico/propostas/{token}/`. Ficou `POST /api/publico/propostas/consultar/` com `{ "token": "<token>" }` no corpo, e o link que o "Copiar link" devolve leva o token no fragmento (`https://<host>/proposta#<token>`); a página lê o fragmento e manda o POST. Motivo: com o token no caminho, ele chegaria aos logs do servidor e do proxy, ao histórico do navegador e ao `Referer`; no fragmento e no corpo, não chega. É o mesmo padrão da assinatura e do recibo (`S-15`, T-411). O resto do item 8 não muda: só o hash guardado, 7 dias, um link vivo por venda. Aprovado pela Segurança no #650; não pede ADR nova. O contrato completo está em `docs/api/vendas.md`.
 
 Erros de negócio com código: `VEN-01` (veículo fora de `a_venda`), `VEN-02` (desconto acima do limite numa edição), `VEN-06` (proposta com assinatura, entrada paga), `VEN-07`, `VEN-10`, `VEN-11`, `APR-01`, `CLI-03`, `CLI-05`, `IMP-04`, `VEI-07` (fase 2), `transicao_venda`.
 
