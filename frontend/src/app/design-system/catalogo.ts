@@ -14,6 +14,7 @@ export const CATALOGO = [
   { slug: "kpi-tile", nome: "KpiTile", resumo: "Indicadores do painel; o primeiro em destaque" },
   { slug: "liga-desliga", nome: "LigaDesliga", resumo: "Interruptor de um plano ou opção, com confirmação por quem usa" },
   { slug: "linha-de-lista", nome: "LinhaDeLista", resumo: "Linha com título, apoio e ação, para listas dentro de painéis" },
+  { slug: "lista-com-rolagem", nome: "ListaComRolagem", resumo: "Lista longa com altura máxima e rolagem própria dentro de um painel" },
   { slug: "progress-bar", nome: "ProgressBar", resumo: "Andamento em porcentagem, como os primeiros passos" },
   { slug: "search-field", nome: "SearchField", resumo: "Busca global com atalho Ctrl K" },
   { slug: "segmented-control", nome: "SegmentedControl", resumo: "Período e filtros de visão" },

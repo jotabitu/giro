@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, TextField } from "@/design-system";
+import { Button, ListaComRolagem, TextField } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { usuarios, type Eu, type LinkDoConvite, type Perfil, type PermissaoExtra, type UsuarioDetalhado } from "@/lib/api";
 import { copiarQuandoChegar } from "@/lib/area-de-transferencia";
@@ -156,17 +156,21 @@ function Edicao({ u, eu, aoConcluir }: { u: UsuarioDetalhado; eu: Eu; aoConcluir
           <h3 className="text-body font-medium">Sessões abertas</h3>
           {sessoes.isPending && <p className="text-caption text-ink-muted">Carregando as sessões…</p>}
           {sessoes.data?.length === 0 && <p className="text-caption text-ink-muted">Nenhuma sessão aberta.</p>}
-          {sessoes.data?.map((s) => (
-            <div key={s.id} className="flex items-center gap-3">
-              <span className="min-w-0 flex-1 text-caption">
-                {s.aparelho}
-                <span className="block text-ink-muted">Último uso {dataHoraCurta(s.ultimo_uso)}</span>
-              </span>
-              <Button compacto variante="quieto" disabled={encerrar.isPending} onClick={() => encerrar.mutate(s.id)}>
-                Encerrar
-              </Button>
-            </div>
-          ))}
+          {!!sessoes.data?.length && (
+            <ListaComRolagem rotulo="Sessões abertas" className="flex flex-col gap-2">
+              {sessoes.data.map((s) => (
+                <div key={s.id} className="flex items-center gap-3">
+                  <span className="min-w-0 flex-1 text-caption">
+                    {s.aparelho}
+                    <span className="block text-ink-muted">Último uso {dataHoraCurta(s.ultimo_uso)}</span>
+                  </span>
+                  <Button compacto variante="quieto" disabled={encerrar.isPending} onClick={() => encerrar.mutate(s.id)}>
+                    Encerrar
+                  </Button>
+                </div>
+              ))}
+            </ListaComRolagem>
+          )}
           {u.dois_fatores_ativo && !u.eu && (
             <div>
               <Button compacto variante="quieto" disabled={ocupado} onClick={() => setConfirmar("redefinir")}>
