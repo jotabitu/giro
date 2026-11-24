@@ -400,8 +400,9 @@ function BotoesDaVenda({ venda, semCadastro, precisaGerente, ocupado, aoExecutar
       {rotulo}
     </Button>
   );
+  // No painel branco, as ações de apoio são quietas; a sólida é uma por estado (referência).
   const secundario = (rotulo: string, a: Acao) => (
-    <Button disabled={ocupado} onClick={() => aoExecutar(a)}>
+    <Button variante="quieto" disabled={ocupado} onClick={() => aoExecutar(a)}>
       {rotulo}
     </Button>
   );
@@ -418,12 +419,17 @@ function BotoesDaVenda({ venda, semCadastro, precisaGerente, ocupado, aoExecutar
 
   const a = venda.acoes;
   const botoes: ReactNode[] = [];
+  // Na proposta enviada, a ação do estado é registrar a resposta do cliente: ela é a sólida, e o reenvio fica quieto.
+  const respostaPrincipal = a.registrar_resposta && !(a.pedir_aprovacao && precisaGerente);
   if (a.pedir_aprovacao && precisaGerente) botoes.push(<span key="pedir">{principal("Pedir aprovação do gerente", "pedir_aprovacao")}</span>);
-  else if (a.enviar) botoes.push(<span key="enviar">{principal(venda.status === "interessado" ? "Salvar proposta e enviar ao cliente" : "Reenviar proposta", "enviar")}</span>);
+  else if (a.enviar) {
+    const rotulo = venda.status === "interessado" ? "Salvar proposta e enviar ao cliente" : "Reenviar proposta";
+    botoes.push(<span key="enviar">{respostaPrincipal ? secundario(rotulo, "enviar") : principal(rotulo, "enviar")}</span>);
+  }
   if (a.editar) botoes.push(<span key="salvar">{secundario("Salvar alterações", "salvar")}</span>);
   if (a.registrar_resposta)
-    botoes.push(
-      <Button key="resposta" disabled={ocupado} onClick={aoResponder}>
+    botoes.unshift(
+      <Button key="resposta" variante={respostaPrincipal ? "solido" : "quieto"} disabled={ocupado} onClick={aoResponder}>
         Registrar resposta do cliente
       </Button>,
     );
@@ -435,7 +441,7 @@ function BotoesDaVenda({ venda, semCadastro, precisaGerente, ocupado, aoExecutar
     );
   if (venda.status === "aguardando_aprovacao" && venda.aprovacao?.pedido_id)
     botoes.push(
-      <Link key="pedido" href={`/aprovacoes/${venda.aprovacao.pedido_id}`} className="wl-btn">
+      <Link key="pedido" href={`/aprovacoes/${venda.aprovacao.pedido_id}`} className="wl-btn wl-btn--quiet no-underline">
         Ver o pedido
       </Link>,
     );

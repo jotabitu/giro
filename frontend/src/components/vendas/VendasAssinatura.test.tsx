@@ -110,6 +110,13 @@ describe("Venda: passo 2 · Documentos (VEN-14, VEN-19)", () => {
     expect(h).toMatch(/<button[^>]*disabled[^>]*>Preparar assinatura</);
   });
 
+  it("test_ven_13_registrar_resposta_e_a_acao_solida_da_proposta_enviada", () => {
+    const h = html(<FormularioDaVenda venda={PROPOSTA} />);
+    expect(h).toMatch(/class="wl-btn wl-btn--solid"[^>]*>Registrar resposta do cliente</);
+    expect(h).toMatch(/class="wl-btn wl-btn--quiet"[^>]*>Reenviar proposta</);
+    expect(h).toMatch(/class="wl-btn wl-btn--quiet"[^>]*>Salvar alterações</);
+  });
+
   it("test_ven_15_cadastro_completo_libera_preparar_assinatura", () => {
     const h = html(<FormularioDaVenda venda={PROPOSTA} />);
     expect(texto(h)).toContain("Cadastro completo");

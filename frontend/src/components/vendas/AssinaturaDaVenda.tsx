@@ -91,7 +91,7 @@ export function DocumentosDaVenda({ venda }: { venda: VendaDetalhe }) {
       {d.pendencias.length > 0 && (
         <ul className="m-0 flex list-none flex-wrap gap-2 p-0" aria-label="O que falta no cadastro">
           {d.pendencias.map((p) => (
-            <li key={p} className="wl-badge wl-badge--surface">
+            <li key={p} className="wl-badge">
               {comMaiuscula(ROTULO_PENDENCIA[p] ?? p)}
             </li>
           ))}
@@ -99,7 +99,7 @@ export function DocumentosDaVenda({ venda }: { venda: VendaDetalhe }) {
       )}
       <div className="flex flex-wrap gap-2">
         {d.pendencias.length > 0 && venda.cliente && (
-          <Link href={`/clientes/${venda.cliente.id}`} className="wl-btn">
+          <Link href={`/clientes/${venda.cliente.id}`} className="wl-btn wl-btn--quiet no-underline">
             Completar cadastro
           </Link>
         )}
@@ -200,7 +200,10 @@ export function AssinaturaDaVenda({ venda }: { venda: VendaDetalhe }) {
 
   return (
     <Painel titulo="Assinatura" acao={vendida && c?.pdf_disponivel ? <BotaoDoContrato vendaId={venda.id} /> : undefined}>
-      <Etapas etapas={etapas} rotulo="Assinatura e entrada" />
+      {/* No painel branco, o botão padrão das etapas ganha o contorno fino da referência (Copiar link, Pix, boleto, caixa). */}
+      <div className="[&_.wl-btn:not(.wl-btn--quiet):not(.wl-btn--solid)]:shadow-[inset_0_0_0_1px_var(--line)]">
+        <Etapas etapas={etapas} rotulo="Assinatura e entrada" />
+      </div>
       {link.resultado && (
         <LinkCopiado resultado={link.resultado} copiado={!link.falhouACopia} aviso="Mande o link só ao cliente. Só ele pode assinar, e o contrato registra que você copiou o link." aoFechar={link.limpar} />
       )}
@@ -215,7 +218,7 @@ export function AssinaturaDaVenda({ venda }: { venda: VendaDetalhe }) {
         <Aviso tom="critico">{link.erro ?? mensagemDoErro(reenviar.error ?? gerar.error ?? conta.error)}</Aviso>
       )}
       {a.cancelar_assinatura && (
-        <div>
+        <div className="flex justify-end">
           <Button compacto variante="quieto" onClick={() => setCancelando(true)}>
             Cancelar assinatura
           </Button>

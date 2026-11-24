@@ -108,7 +108,8 @@ const COLUNAS_VENDIDAS: ColunaTabela<Venda>[] = [
   },
 ];
 
-function CartaoDaVenda({ v, agora, comissao }: { v: Venda; agora: Date; comissao?: boolean }) {
+/** `transferencia`: no bloco das pendentes, o selo é o da transferência; nas outras listas, a situação da venda. */
+function CartaoDaVenda({ v, agora, comissao, transferencia }: { v: Venda; agora: Date; comissao?: boolean; transferencia?: boolean }) {
   const href = v.locacao ? `/locacoes/${v.locacao.id}` : `/vendas/${v.id}`;
   return (
     <Link href={href} className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-4 text-ink no-underline">
@@ -121,7 +122,7 @@ function CartaoDaVenda({ v, agora, comissao }: { v: Venda; agora: Date; comissao
             </div>
           </div>
           <div>
-            {v.transferencia.pendente ? (
+            {transferencia && v.transferencia.pendente ? (
               <StatusBadge tom="alerta" compacto>
                 {situacaoDaTransferencia(v)}
               </StatusBadge>
@@ -255,7 +256,7 @@ export function ListaDeVendas() {
           </div>
           <div className="flex flex-col gap-3 md:hidden">
             {pend.map((v) => (
-              <CartaoDaVenda key={v.id} v={v} agora={agora} />
+              <CartaoDaVenda key={v.id} v={v} agora={agora} transferencia />
             ))}
           </div>
         </section>
