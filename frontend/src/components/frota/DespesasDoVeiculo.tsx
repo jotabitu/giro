@@ -8,7 +8,7 @@ import { Confirmacao } from "@/components/financeiro/Comuns";
 import { CartaoDaDespesa } from "@/components/financeiro/ListaDespesas";
 import { DetalheDaDespesa } from "@/components/financeiro/DetalheDaDespesa";
 import { NovaDespesa } from "@/components/financeiro/NovaDespesa";
-import { Paginacao } from "@/components/lista/Paginacao";
+import { Paginacao, usePaginaLocal } from "@/components/lista/Paginacao";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { financeiro, type Despesa, type VeiculoDetalhe } from "@/lib/api";
 import { useAgora } from "@/lib/ambiente";
@@ -29,7 +29,7 @@ const origemNaFicha = (d: Despesa, v: VeiculoDetalhe) => [rotuloDaCategoria(d.ca
 function ListaDoAno({ v, aoAbrir }: { v: VeiculoDetalhe; aoAbrir: (d: Despesa) => void }) {
   const anoDeHoje = Number(diaDe(useAgora().toISOString()).slice(0, 4));
   const [ano, setAno] = useState(anoDeHoje);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const { cursor, pagina, aoIr, voltarAoInicio } = usePaginaLocal();
   const consulta = useQuery({
     queryKey: ["despesas", "veiculo", v.id, { ano, cursor }],
     queryFn: () => financeiro.despesasDoVeiculo(v.id, { ano, cursor: cursor ?? undefined }),
@@ -47,7 +47,7 @@ function ListaDoAno({ v, aoAbrir }: { v: VeiculoDetalhe; aoAbrir: (d: Despesa) =
             value={String(ano)}
             onChange={(e) => {
               setAno(Number(e.target.value));
-              setCursor(null);
+              voltarAoInicio();
             }}
             opcoes={anos.map((a) => ({ valor: a, rotulo: a }))}
           />
@@ -77,7 +77,7 @@ function ListaDoAno({ v, aoAbrir }: { v: VeiculoDetalhe; aoAbrir: (d: Despesa) =
               <CartaoDaDespesa key={x.id} d={x} origem={origemNaFicha(x, v)} aoAbrir={aoAbrir} />
             ))}
           </div>
-          {(d.proximo !== null || d.anterior !== null) && <Paginacao texto={`Mostrando ${d.resultados.length}`} anterior={d.anterior} proximo={d.proximo} aoIr={setCursor} />}
+          {(d.proximo !== null || d.anterior !== null) && <Paginacao texto={`Mostrando ${d.resultados.length}`} anterior={d.anterior} proximo={d.proximo} pagina={pagina} aoIr={aoIr} />}
         </>
       )}
     </div>

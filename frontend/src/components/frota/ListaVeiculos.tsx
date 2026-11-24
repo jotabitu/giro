@@ -165,7 +165,7 @@ function CartaoDoVeiculo({ v }: { v: Veiculo }) {
 export function ListaVeiculos() {
   const router = useRouter();
   const { eu } = useSessao();
-  const { valor, definir } = useFiltrosNaUrl();
+  const { valor, definir, paginacao } = useFiltrosNaUrl();
   const status = valor("status") ?? "todos";
   const tipo = (valor("tipo") ?? "todos") as TipoVeiculo | "todos";
   const cursor = valor("cursor") ?? undefined;
@@ -269,7 +269,7 @@ export function ListaVeiculos() {
               texto={`Mostrando ${d.resultados.length} de ${total} veículos`}
               anterior={d.anterior}
               proximo={d.proximo}
-              aoIr={(c) => definir({ cursor: c })}
+              {...paginacao}
             />
           </>
         )}

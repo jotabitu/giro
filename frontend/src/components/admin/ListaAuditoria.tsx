@@ -48,7 +48,7 @@ function Quem({ e }: { e: EventoDeAuditoria }) {
 /** Auditoria da empresa: o que cada pessoa fez, filtrado por categoria, pessoa e período. Só leitura; nada se edita nem se apaga. */
 export function ListaAuditoria() {
   const { eu } = useSessao();
-  const { valor, definir } = useFiltrosNaUrl();
+  const { valor, definir, paginacao } = useFiltrosNaUrl();
   const aba = (valor("categoria") ?? "tudo") as Aba;
   const periodo = (valor("periodo") ?? "7d") as PeriodoDaAuditoria;
   const pessoa = valor("pessoa");
@@ -210,7 +210,7 @@ export function ListaAuditoria() {
                 </button>
               ))}
             </div>
-            <Paginacao texto={`Mostrando ${eventos.length}`} anterior={d.anterior} proximo={d.proximo} aoIr={(cur) => definir({ cursor: cur })} />
+            <Paginacao texto={`Mostrando ${eventos.length}`} anterior={d.anterior} proximo={d.proximo} {...paginacao} />
           </>
         )}
       </section>

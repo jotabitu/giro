@@ -138,7 +138,7 @@ function FaixasDeAtraso({ faixas, totalCentavos, parcelas }: { faixas: Record<"1
 /** Contas a receber: indicadores, faixas de atraso, abas, busca e lista com as ações de cobrança e baixa. */
 export function ListaReceber() {
   const { eu } = useSessao();
-  const { valor, definir } = useFiltrosNaUrl();
+  const { valor, definir, paginacao } = useFiltrosNaUrl();
   const aba = (valor("aba") ?? "atrasadas") as Aba;
   const periodo = (valor("periodo") ?? "mes") as PeriodoReceber;
   const cursor = valor("cursor") ?? undefined;
@@ -274,7 +274,7 @@ export function ListaReceber() {
               texto={total === undefined ? `Mostrando ${contas.length}` : `Mostrando ${contas.length} de ${total} ${aba === "atrasadas" ? "parcelas em atraso" : "parcelas"}`}
               anterior={d.anterior}
               proximo={d.proximo}
-              aoIr={(cur) => definir({ cursor: cur })}
+              {...paginacao}
               extra={
                 aba === "atrasadas" && paraCobrar.length > 0 ? (
                   <Button compacto variante="marca" icone={<Icone de={MessageCircle} />} disabled={ocupado} onClick={() => cobrarTodos.mutate(paraCobrar.slice(0, 100))}>
