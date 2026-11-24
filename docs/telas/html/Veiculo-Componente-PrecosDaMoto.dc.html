@@ -1,6 +1,7 @@
 <!doctype html>
 <!-- origem: canvas, 18/11/2026, T-491 -->
 <!-- ajustada no repositório: 18/11/2026, T-496 -->
+<!-- ajustada no repositório: 24/11/2026, T-507 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -64,6 +65,17 @@ body{padding:16px !important}
 </div>
 <div class="lbl">No cabeçalho da ficha, o status mostra "Indisponível" com o motivo "Sem preço · ligue um plano", quando a moto estaria disponível. Alugada ou em manutenção, o status fica e o aviso aparece.</div>
 </div>
+
+<div class="est"><h3>Aluguel desativado: sem as opções de aluguel</h3>
+<section class="wl-panel">
+<div class="wl-panel__head"><div><h2 class="wl-panel__title">Preços desta moto</h2><p class="wl-panel__sub" style="margin: 4px 0 0;">Aluguel desativado. Os planos ficam guardados em Planos e preços.</p></div><a href="Veiculo-Precos-Desktop.dc.html" class="wl-btn wl-btn--sm" style="text-decoration: none;">Editar preços</a></div>
+<div class="plans">
+<div class="plan" style="grid-column: 1/-1;"><div class="ph"><span>Locação com compra <span class="wl-badge wl-badge--sm" style="margin-left: 6px;">a moto vira do cliente</span></span><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer locação com compra"></button></div><div class="pp">R$ 135,05 <small>por semana · 104× · juros 1,00% ao mês</small></div><div class="mgn"><span class="lbl">Lucro R$ 145,20</span><span class="wl-badge wl-badge--sm wl-badge--warning">margem 1,0%</span></div></div>
+<div class="plan off" style="grid-column: 1/-1;"><div class="ph"><span>Aluguel</span><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer aluguel"></button></div><div class="pp" style="color: var(--ink-muted);">Aluguel desativado</div><div class="lbl" style="font-size: 14px; line-height: 20px;">Os planos ficam guardados em Planos e preços e não aparecem na Nova locação.</div></div>
+</div>
+<div class="lbl" style="font-size: 13px; margin-top: 10px;">Sem as regras de aluguel (km excedente, atraso, desconto e caução) e sem os planos diária, semanal, mensal e entregador.</div>
+</section>
+<span class="lbl">Se a locação com compra também estiver desligada, vale o estado "Tabela não preenchida".</span></div>
 
 <div class="est"><h3>Ligar um plano pelo cartão</h3>
 <div class="dlg" role="dialog" aria-label="Ligar o plano Diária?">

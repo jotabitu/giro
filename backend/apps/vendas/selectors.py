@@ -14,9 +14,15 @@ from apps.clientes.models import StatusCliente
 from apps.contratos import selectors as contratos_selectors
 from apps.contratos.models import Contrato, StatusContrato
 from apps.filiais import selectors as filiais_selectors
-from apps.financeiro.models import Comissao, ContaReceber, StatusComissao, StatusConta
+from apps.financeiro.models import (
+    Comissao,
+    ContaReceber,
+    FormaPagamento,
+    StatusComissao,
+    StatusConta,
+)
 from comum import relogio
-from comum.classificacao import mascarar_nome, mascarar_telefone
+from comum.classificacao import mascarar_email, mascarar_nome, mascarar_telefone
 from comum.dinheiro import formatar_reais
 from comum.documentos import placa_com_hifen
 from comum.permissoes import PERFIS_QUE_VEEM_TODAS, filiais_permitidas
@@ -155,6 +161,25 @@ def comissoes(vendas: Iterable[Venda]) -> dict[int, int]:
     return {origem_id: valor for origem_id, valor in linhas}
 
 
+def contratos_com_pdf(vendas: Iterable[Venda]) -> set[int]:
+    """Os contratos das vendas que já têm PDF, numa consulta (`VEN-15`): o botão "Contrato"
+    da lista segue o mesmo `pdf_disponivel` do detalhe."""
+    ids = [v.contrato_id for v in vendas if v.contrato_id is not None]
+    if not ids:
+        return set()
+    linhas = Contrato.objects.filter(pk__in=ids).values_list("pk", "pdf", "pdf_assinado")
+    return {pk for pk, pdf, assinado in linhas if pdf or assinado}
+
+
+def _pdf_disponivel(venda: Venda, com_pdf: set[int] | None) -> bool:
+    if venda.contrato_id is None:
+        return False
+    if com_pdf is not None:
+        return venda.contrato_id in com_pdf
+    contrato = _contrato_vigente(venda)
+    return bool(contrato is not None and (contrato.pdf_assinado or contrato.pdf))
+
+
 def _calculo(venda: Venda) -> dict[str, Any] | None:
     if venda.origem != OrigemVenda.BALCAO or venda.preco_tabela_centavos is None:
         return None
@@ -241,8 +266,27 @@ SITUACAO_DO_CONTRATO = {
 }
 
 
-def _contrato(venda: Venda) -> dict[str, Any] | None:
-    """O bloco `contrato` (VEN-15, VEN-19): o resumo de `contratos` e a situação pronta."""
+MESES = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
+
+
+def _dia_e_hora(momento: datetime, venda: Venda) -> str:
+    """O dia e a hora no fuso da filial: "07 out, 10:20"."""
+    local = momento.astimezone(ZoneInfo(venda.filial.fuso))
+    return f"{local.day:02d} {MESES[local.month - 1]}, {local:%H:%M}"
+
+
+def _enviado_para(contrato: Contrato, usuario: Any) -> str | None:
+    """O e-mail do cliente para onde o link foi (`VEN-15`). O envio só sai por e-mail quando o
+    cliente tem e-mail (ADR 0034); o suporte vê mascarado (`AUD-09`)."""
+    email = contrato.cliente.email if contrato.enviado_em is not None else ""
+    if not email:
+        return None
+    return mascarar_email(email) if _suporte(usuario) else email
+
+
+def _contrato(venda: Venda, usuario: Any) -> dict[str, Any] | None:
+    """O bloco `contrato` (VEN-15, VEN-19): o resumo de `contratos` e a situação pronta, com
+    o envio "Contrato enviado · 07 out, 10:20 · e-mail do cliente"."""
     contrato = _contrato_vigente(venda)
     resumo = contratos_selectors.resumo(contrato)
     if contrato is None or resumo is None:
@@ -250,7 +294,17 @@ def _contrato(venda: Venda) -> dict[str, Any] | None:
     texto = SITUACAO_DO_CONTRATO[StatusContrato(contrato.status)]
     if contrato.status == StatusContrato.CANCELADO and venda.status == StatusVenda.PERDIDA:
         texto = "Cancelado · venda perdida"
-    return {**resumo, "situacao_texto": texto}
+    enviado_para = _enviado_para(contrato, usuario)
+    enviado_texto = None
+    if contrato.enviado_em is not None:
+        partes = ["Contrato enviado", _dia_e_hora(contrato.enviado_em, venda)]
+        enviado_texto = " · ".join([*partes, enviado_para] if enviado_para else partes)
+    return {
+        **resumo,
+        "situacao_texto": texto,
+        "enviado_para": enviado_para,
+        "enviado_texto": enviado_texto,
+    }
 
 
 def _conta_entrada(venda: Venda) -> dict[str, Any] | None:
@@ -260,9 +314,12 @@ def _conta_entrada(venda: Venda) -> dict[str, Any] | None:
     conta: ContaReceber | None = ContaReceber.objects.filter(pk=venda.conta_entrada_id).first()
     if conta is None:
         return None
-    if conta.status == StatusConta.PAGA and conta.pago_em is not None:
-        dia = conta.pago_em.astimezone(ZoneInfo(venda.filial.fuso)).date()
-        texto = f"Paga em {dia:%d/%m/%Y}"
+    pago_em = conta.pago_em if conta.status == StatusConta.PAGA else None
+    forma_texto = FormaPagamento(conta.forma).label if pago_em and conta.forma else None
+    if pago_em is not None:
+        texto = f"Paga em {_dia_e_hora(pago_em, venda)}"
+        if forma_texto:
+            texto += f" · {forma_texto}"
     elif conta.status == StatusConta.CANCELADA:
         texto = "Cobrança cancelada"
     elif conta.vencimento == relogio.hoje():
@@ -275,6 +332,8 @@ def _conta_entrada(venda: Venda) -> dict[str, Any] | None:
         "valor_centavos": conta.valor_centavos,
         "vencimento": conta.vencimento,
         "texto": texto,
+        "pago_em": pago_em,
+        "forma_texto": forma_texto,
         "rotulo": f"Entrada de {formatar_reais(conta.valor_centavos)}",
     }
 
@@ -348,9 +407,13 @@ def _conclusao(venda: Venda, comissao_centavos: int | None) -> str | None:
 
 
 def representacao(
-    venda: Venda, usuario: Any, comissao_centavos: int | None = None
+    venda: Venda,
+    usuario: Any,
+    comissao_centavos: int | None = None,
+    com_pdf: set[int] | None = None,
 ) -> dict[str, Any]:
-    """O item da lista de `docs/api/vendas.md`."""
+    """O item da lista de `docs/api/vendas.md`. Na lista, `com_pdf` vem de
+    `contratos_com_pdf`; sem ele, o contrato é lido aqui."""
     veiculo = venda.veiculo
     return {
         "id": venda.pk,
@@ -387,6 +450,7 @@ def representacao(
         "vendida_em": venda.vendida_em,
         "comissao_centavos": comissao_centavos,
         "transferencia": _transferencia(venda),
+        "contrato_pdf_disponivel": _pdf_disponivel(venda, com_pdf),
         "acoes": _acoes(venda, usuario),
     }
 
@@ -399,7 +463,7 @@ def detalhe(venda: Venda, usuario: Any) -> dict[str, Any]:
         **representacao(venda, usuario, comissao),
         "calculo": _calculo(venda),
         "aprovacao": _aprovacao(venda),
-        "contrato": _contrato(venda),
+        "contrato": _contrato(venda, usuario),
         "conta_entrada": _conta_entrada(venda),
         "documentos": _documentos(venda, usuario),
         "perder_texto": _texto_de_perder(venda, usuario),

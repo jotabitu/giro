@@ -101,6 +101,9 @@ class VendaSerializer(serializers.Serializer[Any]):
     vendida_em = serializers.DateTimeField(allow_null=True)
     comissao_centavos = serializers.IntegerField(allow_null=True)
     transferencia = TransferenciaSerializer()
+    contrato_pdf_disponivel = serializers.BooleanField(
+        help_text="O contrato da venda tem PDF (o mesmo `contrato.pdf_disponivel` do detalhe)."
+    )
     acoes = AcoesDaVendaSerializer()
 
 
@@ -146,6 +149,14 @@ class ContratoDaVendaSerializer(ContratoResumoSerializer):
         ref_name = "ContratoDaVenda"
 
     situacao_texto = serializers.CharField()
+    enviado_para = serializers.CharField(
+        allow_null=True,
+        help_text="O e-mail do cliente para onde o link foi. O suporte vê mascarado (AUD-09).",
+    )
+    enviado_texto = serializers.CharField(
+        allow_null=True,
+        help_text='"Contrato enviado · 07 out, 10:20 · diego@exemplo.com.br". Nulo antes do envio.',
+    )
 
 
 class ContaEntradaSerializer(serializers.Serializer[Any]):
@@ -160,7 +171,11 @@ class ContaEntradaSerializer(serializers.Serializer[Any]):
     valor_centavos = serializers.IntegerField()
     vencimento = serializers.DateField()
     rotulo = serializers.CharField()
-    texto = serializers.CharField()
+    texto = serializers.CharField(help_text='"Paga em 07 out, 11:02 · Pix" quando paga.')
+    pago_em = serializers.DateTimeField(allow_null=True)
+    forma_texto = serializers.CharField(
+        allow_null=True, help_text='A forma do pagamento ("Pix"). Nula antes de pagar.'
+    )
 
 
 class DocumentosDaVendaSerializer(serializers.Serializer[Any]):

@@ -1,6 +1,6 @@
 # Vendas
 
-**Dono:** backend (a partir da T-502, ADR 0042, item 14) · **Versão:** 24 nov 2026 (T-502, fase 1c: envio da proposta, link público, metas e resumo; a 1b, do mesmo dia, trouxe a assinatura e `vendida`; a 1a, de 22 nov, estados, proposta e aprovação) · **App:** `vendas` (schema da empresa) · **Regras:** VEN-01 a VEN-19, APR-01, AUT-19, FIN-09, IMP-04, CLI-03, CLI-05, DEV-02, LOC-16, FIL-02, PLT-12 · **ADRs:** 0011, 0015, 0019, 0024, 0037, 0042 · **Telas:** Vendas, Venda (Negócio → Documentos → Assinatura), Vendedor, Gerente, Locacao-Detalhe, Veiculo · **Critérios:** `docs/qa/criterios/T-420.md` (CA-420-11, 12, 16)
+**Dono:** backend (a partir da T-502, ADR 0042, item 14) · **Versão:** 24 nov 2026 (T-502, fase 1c: envio da proposta, link público, metas e resumo; a 1b, do mesmo dia, trouxe a assinatura e `vendida`, com as lacunas das telas do #655; a 1a, de 22 nov, estados, proposta e aprovação) · **App:** `vendas` (schema da empresa) · **Regras:** VEN-01 a VEN-19, APR-01, AUT-19, FIN-09, IMP-04, CLI-03, CLI-05, DEV-02, LOC-16, FIL-02, PLT-12 · **ADRs:** 0011, 0015, 0019, 0024, 0037, 0042 · **Telas:** Vendas, Venda (Negócio → Documentos → Assinatura), Vendedor, Gerente, Locacao-Detalhe, Veiculo · **Critérios:** `docs/qa/criterios/T-420.md` (CA-420-11, 12, 16)
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 17 (`Venda`) em `docs/decisoes/modelo-de-dados.md` e item 3 da ADR 0042.
 
@@ -85,6 +85,7 @@ VEN-0177: tabela R$ 22.900,00, 8% → desconto R$ 1.832,00, final R$ 21.068,00; 
   "perdida_em": null, "vendida_em": null,
   "comissao_centavos": 63204,
   "transferencia": { "feita_em": null, "registrada_por": null, "pendente": false },
+  "contrato_pdf_disponivel": false,
   "acoes": {
     "editar": false, "enviar": false, "registrar_resposta": false, "pedir_aprovacao": false,
     "perder": true, "cancelar": false, "registrar_transferencia": false,
@@ -99,6 +100,7 @@ VEN-0177: tabela R$ 22.900,00, 8% → desconto R$ 1.832,00, final R$ 21.068,00; 
 - `forma_texto`: "Pix à vista", "entrada + 12×" ou vazio. `situacao_texto` (`VEN-19`): "Interessado", "Proposta enviada", "Em negociação", "Aguardando gerente", "Aguardando assinatura" e "Aguardando entrada" (na etapa "Assinatura"), "Vendida 06 out", "Perdida · proposta vencida" (com o motivo da perda); na quitação, "Quitação de locação".
 - `proposta_vence_em`: na `proposta`, a data em que ela vence sem resposta (último envio + 7 dias corridos, no fuso da filial, `VEN-13`); nos outros estados, nula.
 - `comissao_centavos`: a comissão viva da venda (não estornada), ou nula.
+- `contrato_pdf_disponivel` (`VEN-15`): o contrato da venda tem PDF (o assinado ou o gerado), o mesmo `contrato.pdf_disponivel` do detalhe. Na lista, o botão "Contrato" da vendida aparece só com ele; sem contrato, `false`.
 - `acoes`: o que a pessoa pode fazer agora. `editar`, `enviar` e `pedir_aprovacao` só em `interessado`, `proposta` e `negociacao`, sem contrato; `registrar_resposta` só em `proposta`; `perder` nos estados em andamento (com a entrada paga, só gerente e administrador); `preparar_assinatura` em `proposta` e `negociacao` sem contrato; `cancelar_assinatura` com o contrato não assinado e a entrada não paga; `copiar_link_contrato` com o contrato enviado (ou gerado com o PDF pronto) e não assinado; `reenviar_contrato` com contrato; `registrar_transferencia` na `vendida` sem transferência, para administrador e gerente.
 
 ### Detalhe
@@ -123,11 +125,14 @@ O item da lista mais:
   "contrato": {
     "id": 88, "status": "enviado", "modelo": "Compra e venda", "versao": 1,
     "enviado_em": "2026-10-07T13:05:00Z", "assinado_em": null, "pdf_disponivel": true,
-    "situacao_texto": "Aguardando assinatura. O cliente assina pelo celular."
+    "situacao_texto": "Aguardando assinatura. O cliente assina pelo celular.",
+    "enviado_para": "diego.martins@exemplo.com.br",
+    "enviado_texto": "Contrato enviado · 07 out, 10:05 · diego.martins@exemplo.com.br"
   },
   "conta_entrada": {
     "id": 5120, "status": "aberta", "valor_centavos": 500000, "vencimento": "2026-10-07",
-    "rotulo": "Entrada de R$ 5.000,00", "texto": "Aguardando pagamento · vence hoje"
+    "rotulo": "Entrada de R$ 5.000,00", "texto": "Aguardando pagamento · vence hoje",
+    "pago_em": null, "forma_texto": null
   },
   "documentos": null,
   "perder_texto": "A venda sai das abertas e o veículo fica livre para outra proposta.",
@@ -138,7 +143,9 @@ O item da lista mais:
 - `calculo` é nulo na venda da quitação. `comissao_pct` (fase 1c, `FIN-09`): o percentual da comissão da empresa, para "Comissão Bruna (3%)"; vem também no `simular`.
 - `aprovacao` é nula sem pedido; `situacao`: `pendente`, `aprovado`, `recusado` ou `cancelado` (o último pedido). `texto` (`VEN-19`): pendente, "Pedido de 8% enviado para Rodrigo Pinheiro. Você não edita a proposta até ele decidir." (com mais de um gerente na filial, "para o gerente"); recusado, "Desconto de 8% recusado por Rodrigo Pinheiro: margem baixa neste mês. Dê até 5% ou peça uma nova aprovação."; nos outros, nulo.
 - `contrato` (`VEN-15`): o contrato ligado à venda, com o resumo de `contratos` e a `situacao_texto`: "Contrato gerado", "Aguardando assinatura. O cliente assina pelo celular.", "Contrato assinado", "Contrato cancelado" e, na venda perdida, "Cancelado · venda perdida". Nulo antes de preparar a assinatura e depois de cancelá-la.
-- `conta_entrada` (`VEN-15`): a entrada (ou o total à vista) em Contas a receber. `texto`: "Aguardando pagamento · vence hoje", "Aguardando pagamento · venceu em 07/10/2026", "Paga em 07/10/2026" ou "Cobrança cancelada". Nula sem assinatura.
+  - `enviado_para`: o e-mail do cliente para onde o link foi (o envio sai por e-mail quando o cliente tem e-mail, ADR 0034). Nulo antes do envio e sem e-mail no cadastro; o suporte vê mascarado (`AUD-09`).
+  - `enviado_texto` (`VEN-19`): "Contrato enviado · 07 out, 10:20 · diego.martins@exemplo.com.br", no fuso da filial; sem e-mail, "Contrato enviado · 07 out, 10:20". Nulo antes do envio.
+- `conta_entrada` (`VEN-15`): a entrada (ou o total à vista) em Contas a receber. `texto`: "Aguardando pagamento · vence hoje", "Aguardando pagamento · venceu em 07/10/2026", "Paga em 07 out, 11:02 · Pix" (no fuso da filial; sem a forma, "Paga em 07 out, 11:02") ou "Cobrança cancelada". `pago_em` e `forma_texto` ("Pix", "Dinheiro", "Cartão de débito"...) só na paga; nulos nos outros. Nula sem assinatura.
 - `documentos` (etapa "Documentos", `VEN-14`, `VEN-19`): só em `proposta` ou `negociacao` com cliente e sem contrato. `pendencias`: os códigos de `clientes` (`CLI-03`, os mesmos do cadastro: `cnh_frente`, `consentimento`, `endereco`…); `gravidade` `alerta` ou `critica`; `texto`: "Falta completar o cadastro de Diego Martins para preparar a assinatura."; bloqueado, "Diego Martins está bloqueado e não pode comprar. A assinatura fica liberada depois do desbloqueio." (mais "Peça o desbloqueio ao gerente." para o vendedor); inativo, "Diego Martins está inativo e não pode comprar. O gerente ou o administrador reativa o cadastro."; `pode_preparar` falso em todos esses.
 - `perder_texto` (`VEN-19`): o texto do diálogo "Marcar como perdida": "A venda sai das abertas e o veículo fica livre para outra proposta."; com a entrada paga, "A entrada de R$ 5.000,00 já foi paga. O valor vira um reembolso a fazer para o cliente." (gerente e administrador) ou "Só o gerente ou o administrador marca como perdida uma venda com a entrada paga." (vendedor). Nulo quando a pessoa não marca.
 - `conclusao_texto` (`VEN-19`), na venda de balcão `vendida`: "Venda concluída. As 12 parcelas estão em Contas a receber, a comissão de R$ 632,04 foi lançada e o veículo saiu da frota de locação." (sem parcelas na venda à vista; sem a comissão sem o recurso `vendas_comissoes`).

@@ -34,9 +34,11 @@ export function haQuanto(iso: string, agora: Date): string {
   return `há ${d} ${d === 1 ? "dia" : "dias"}`;
 }
 
-/** Para onde o "Ver ..." do pedido leva. Venda e ordem de serviço ainda não têm tela: sem link. */
+/** Para onde o "Ver ..." do pedido leva. Ordem de serviço ainda não tem tela: sem link. */
 export function linkDaOrigem(o: PedidoDeAprovacao["origem"]): { href: string; rotulo: string } | null {
   switch (o.tipo) {
+    case "venda":
+      return { href: `/vendas/${o.id}`, rotulo: "Ver venda" };
     case "despesa":
       return { href: `/financeiro/despesas/${o.id}`, rotulo: "Ver despesa" };
     case "locacao":

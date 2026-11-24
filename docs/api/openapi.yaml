@@ -11377,8 +11377,19 @@ components:
           type: string
         texto:
           type: string
+          description: '"Paga em 07 out, 11:02 · Pix" quando paga.'
+        pago_em:
+          type: string
+          format: date-time
+          nullable: true
+        forma_texto:
+          type: string
+          nullable: true
+          description: A forma do pagamento ("Pix"). Nula antes de pagar.
       required:
+      - forma_texto
       - id
+      - pago_em
       - rotulo
       - status
       - texto
@@ -11761,9 +11772,21 @@ components:
           type: boolean
         situacao_texto:
           type: string
+        enviado_para:
+          type: string
+          nullable: true
+          description: O e-mail do cliente para onde o link foi. O suporte vê mascarado
+            (AUD-09).
+        enviado_texto:
+          type: string
+          nullable: true
+          description: '"Contrato enviado · 07 out, 10:20 · diego@exemplo.com.br".
+            Nulo antes do envio.'
       required:
       - assinado_em
       - enviado_em
+      - enviado_para
+      - enviado_texto
       - id
       - modelo
       - pdf_disponivel
@@ -24237,6 +24260,10 @@ components:
           nullable: true
         transferencia:
           $ref: '#/components/schemas/Transferencia'
+        contrato_pdf_disponivel:
+          type: boolean
+          description: O contrato da venda tem PDF (o mesmo `contrato.pdf_disponivel`
+            do detalhe).
         acoes:
           $ref: '#/components/schemas/AcoesDaVenda'
       required:
@@ -24246,6 +24273,7 @@ components:
       - comissao_centavos
       - comprador_celular
       - comprador_nome
+      - contrato_pdf_disponivel
       - descricao
       - filial
       - forma
@@ -24366,6 +24394,10 @@ components:
           nullable: true
         transferencia:
           $ref: '#/components/schemas/Transferencia'
+        contrato_pdf_disponivel:
+          type: boolean
+          description: O contrato da venda tem PDF (o mesmo `contrato.pdf_disponivel`
+            do detalhe).
         acoes:
           $ref: '#/components/schemas/AcoesDaVenda'
         calculo:
@@ -24406,6 +24438,7 @@ components:
       - conclusao_texto
       - conta_entrada
       - contrato
+      - contrato_pdf_disponivel
       - descricao
       - documentos
       - filial
