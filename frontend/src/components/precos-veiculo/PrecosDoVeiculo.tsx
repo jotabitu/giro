@@ -58,6 +58,22 @@ type Confirmacao = { tipo: "plano" | "compra"; chave: string; nome: string; liga
 const textos = (c: Confirmacao) => textosDaConfirmacao({ alvo: c.tipo, nome: c.nome, ligar: c.ligar, ultimo: c.ultimo });
 type Juros = { mensagem: string; aoConfirmar: () => void };
 
+/** VEI-21: os diálogos de desligar e ligar o aluguel inteiro do veículo (textos do produto, T-507). */
+export const TEXTOS_DO_ALUGUEL = {
+  desligar: {
+    titulo: "Desativar o aluguel desta moto?",
+    texto: "Os planos de aluguel ficam guardados como estão e voltam quando você ativar o aluguel de novo. A moto deixa de aparecer para aluguel na Nova locação. As locações já confirmadas continuam com o preço delas.",
+    confirmar: "Desativar aluguel",
+    cancelar: "Continuar com aluguel",
+  },
+  ligar: {
+    titulo: "Ativar o aluguel desta moto?",
+    texto: "Os planos de aluguel voltam como estavam, e os ligados passam a aparecer na Nova locação.",
+    confirmar: "Ativar aluguel",
+    cancelar: "Continuar desativado",
+  },
+} as const;
+
 function Tela({ id, dados }: { id: number; dados: Precos }) {
   const cliente = useQueryClient();
   const celular = useCelular();
@@ -73,6 +89,7 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
   const [custos, setCustos] = useState(false);
   const [confirmando, setConfirmando] = useState<Confirmacao | null>(null);
   const [juros, setJuros] = useState<Juros | null>(null);
+  const [aluguelPara, setAluguelPara] = useState<boolean | null>(null);
   const somenteLeitura = !dados.pode_editar;
 
   // Simulação: o documento com as mudanças, debounced. Sem mudança (ou com texto inválido) vale o que a API mostrou por último.
@@ -186,6 +203,21 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
     await gravarLiga("compra", m, (resposta) => setRascunho((r) => ({ ...r, compra: compraParaRascunho(resposta.plano_compra) })), () => void mudarLigadoDaCompra(ligado, true));
   }
 
+  /** VEI-21: grava só o liga e desliga do aluguel; os planos ficam como estão (a API guarda). */
+  async function mudarAluguel(ligado: boolean) {
+    setErroGeral(null);
+    setAviso(null);
+    setOcupado("aluguel");
+    try {
+      guardar(await gravar.mutateAsync({ aluguel_ligado: ligado, confirmar_juros: false }));
+      setAviso(ligado ? "Aluguel ativado." : "Aluguel desativado.");
+    } catch (e) {
+      setErroGeral(mensagemDoErro(e));
+    } finally {
+      setOcupado(null);
+    }
+  }
+
   function pedirParaLigar(chave: string, ligar: boolean) {
     const p = rascunho.planos.find((x) => x.chave === chave);
     setConfirmando({ tipo: "plano", chave, nome: p?.rotulo ?? "", ligar, ultimo: !ligar && ehOUltimoLigado(dados, chave) });
@@ -275,10 +307,17 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
       </nav>
 
       <header className="flex flex-wrap items-center gap-3 md:items-end md:gap-4">
-        <Link href={`/veiculos/${v.id}`} aria-label="Voltar" className="wl-icon-btn md:hidden" style={{ width: 44, height: 44 }}>
+        <Link href={`/veiculos/${v.id}`} aria-label="Voltar para o veículo" className="wl-icon-btn md:hidden" style={{ width: 44, height: 44 }}>
           <svg className="wl-i" viewBox="0 0 24 24" aria-hidden="true">
             <path d="m15 6-6 6 6 6" />
           </svg>
+        </Link>
+        {/* T-507: no desktop também, o voltar para a ficha do veículo. */}
+        <Link href={`/veiculos/${v.id}`} aria-label="Voltar para o veículo" className="wl-btn wl-btn--quiet wl-btn--sm hidden no-underline md:inline-flex md:self-center">
+          <svg className="wl-i" viewBox="0 0 24 24" aria-hidden="true" style={{ width: 18, height: 18 }}>
+            <path d="m15 6-6 6 6 6" />
+          </svg>
+          Voltar
         </Link>
         <div className="min-w-0 flex-1 md:flex-none">
           <h1 className="text-[20px] font-semibold leading-6 md:text-display">Planos e preços</h1>
@@ -408,6 +447,8 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
         tentaram={tentaram}
         hoje={hoje}
         mensagemDaLiga={null}
+        aluguelLigado={exibido.aluguel_ligado}
+        aoLigarAluguel={setAluguelPara}
       />
 
       <LocacaoComCompra
@@ -472,6 +513,31 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
               }}
             >
               {confirmando ? textos(confirmando).confirmar : ""}
+            </Button>
+          </>
+        }
+      />
+
+      <Dialogo
+        aberto={aluguelPara !== null}
+        aoFechar={() => setAluguelPara(null)}
+        tamanho="pequeno"
+        titulo={TEXTOS_DO_ALUGUEL[aluguelPara ? "ligar" : "desligar"].titulo}
+        descricao={TEXTOS_DO_ALUGUEL[aluguelPara ? "ligar" : "desligar"].texto}
+        acoes={
+          <>
+            <Button variante="quieto" onClick={() => setAluguelPara(null)}>
+              {TEXTOS_DO_ALUGUEL[aluguelPara ? "ligar" : "desligar"].cancelar}
+            </Button>
+            <Button
+              variante="solido"
+              onClick={() => {
+                const ligar = aluguelPara;
+                setAluguelPara(null);
+                if (ligar !== null) void mudarAluguel(ligar);
+              }}
+            >
+              {TEXTOS_DO_ALUGUEL[aluguelPara ? "ligar" : "desligar"].confirmar}
             </Button>
           </>
         }

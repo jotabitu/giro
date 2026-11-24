@@ -30,7 +30,7 @@ from .. import envio, metas, resumo, services
 from .views import LEEM, ViewDeAcao, ViewDeVendas, _venda
 
 DEFINEM: list[type[BasePermission]] = com_padrao(exige_perfil("administrador", "gerente"))
-SUPORTE_NAO_GERA_LINK = "No modo suporte você não gera link para o cliente."
+SUPORTE_NAO_GERA_LINK = ("PLT-07", "No modo suporte você não gera link para o cliente.")
 MES = re.compile(r"^(\d{4})-(\d{2})$")
 
 
@@ -323,3 +323,6 @@ class MetasView(ViewDeVendas):
         ]
         metas.definir_metas(filial, mes, pedidas, request.user)
         return Response(QuadroDeMetasSerializer(metas.quadro(filial, mes)).data)
+
+
+VIEWS_DA_PROPOSTA_PUBLICA = (ConsultarPropostaView,)

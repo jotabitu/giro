@@ -42,7 +42,7 @@ function CategoriaDaLinha({ imp, linha, valor, aoMudar }: { imp: Importacao; lin
   return (
     <SelectField
       cheio
-      rotulo="Tipo de veículo desta linha"
+      rotulo="Tipo de plano desta linha"
       vazio={doModelo ? `Segue o modelo: ${doModelo.nome}` : "Segue o modelo"}
       opcoes={opcoes.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
       value={valor}
@@ -131,14 +131,14 @@ function CategoriaDeCadaModelo({ imp }: { imp: Importacao }) {
   const prontos = categorias.modelos.reduce((soma, m) => soma + m.veiculos, 0);
   const comCategoria = modelosComCategoria(categorias);
   return (
-    <section aria-label="Tipo de veículo de cada modelo" className="rounded-[18px] bg-surface px-3 pt-3 pb-1">
+    <section aria-label="Tipo de plano de cada modelo" className="rounded-[18px] bg-surface px-3 pt-3 pb-1">
       <div className="flex flex-wrap items-baseline gap-2">
-        <span className="font-semibold">Tipo de veículo de cada modelo</span>
+        <span className="font-semibold">Tipo de plano de cada modelo</span>
         <span className="text-caption text-ink-muted">
           {plural(total, "modelo", "modelos")} · {plural(prontos, "veículo pronto", "veículos prontos")}
         </span>
       </div>
-      <p className="m-0 mt-1 text-caption text-ink-muted">Todos os veículos do mesmo modelo entram no tipo de veículo que você escolher.</p>
+      <p className="m-0 mt-1 text-caption text-ink-muted">Todos os veículos do mesmo modelo entram no tipo de plano que você escolher.</p>
       <ListaDeLinhas rotulo="Modelos da planilha">
         {categorias.modelos.map((m) => {
           const nome = nomeDoModelo(m);
@@ -155,9 +155,9 @@ function CategoriaDeCadaModelo({ imp }: { imp: Importacao }) {
               acao={
                 <div className="w-full md:w-[200px] md:[&_.wl-field]:!w-[200px] md:[&_.wl-input]:!h-10 md:[&_.wl-input]:!text-[14px]">
                 <SelectField
-                  rotulo={`Tipo de veículo de ${nome}`}
+                  rotulo={`Tipo de plano de ${nome}`}
                   rotuloOculto
-                  vazio="Escolha o tipo de veículo"
+                  vazio="Escolha o tipo de plano"
                   opcoes={opcoes}
                   value={m.categoria_id ? String(m.categoria_id) : ""}
                   disabled={escolher.isPending}
@@ -170,7 +170,7 @@ function CategoriaDeCadaModelo({ imp }: { imp: Importacao }) {
         })}
       </ListaDeLinhas>
       <div className="py-2">
-        <StatusBadge tom={comCategoria === total ? "sucesso" : "alerta"}>{`${comCategoria} de ${plural(total, "modelo", "modelos")} com tipo de veículo`}</StatusBadge>
+        <StatusBadge tom={comCategoria === total ? "sucesso" : "alerta"}>{`${comCategoria} de ${plural(total, "modelo", "modelos")} com tipo de plano`}</StatusBadge>
       </div>
       {escolher.isError && <Falha erro={escolher.error} />}
     </section>
@@ -310,7 +310,7 @@ export function CaixaDeImportacao({ tipo, atual }: { tipo: TipoDeImportacao; atu
           {mostrandoModelos && <CategoriaDeCadaModelo imp={atual} />}
           {cat?.falta_escolher && c.prontas > 0 && (
             <p role="alert" className="m-0 text-caption text-critical-ink">
-              Escolha o tipo de veículo de cada modelo.
+              Escolha o tipo de plano de cada modelo.
             </p>
           )}
           <div className="flex flex-wrap gap-2">

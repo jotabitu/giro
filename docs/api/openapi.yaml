@@ -20718,6 +20718,11 @@ components:
         valor_venda_centavos:
           type: integer
           nullable: true
+        aluguel_ligado:
+          type: boolean
+        aviso_aluguel:
+          type: string
+          nullable: true
         fipe_centavos:
           type: integer
           nullable: true
@@ -20757,6 +20762,8 @@ components:
           $ref: '#/components/schemas/CustosDoVeiculo'
       required:
       - alertas
+      - aluguel_ligado
+      - aviso_aluguel
       - aviso_preco
       - fipe_centavos
       - margem_minima_pct
@@ -20777,6 +20784,8 @@ components:
           type: integer
           minimum: 0
           nullable: true
+        aluguel_ligado:
+          type: boolean
         custos:
           $ref: '#/components/schemas/CustosEntrada'
         planos:
@@ -23559,6 +23568,8 @@ components:
         aviso_preco:
           type: string
           nullable: true
+        aluguel_ligado:
+          type: boolean
         a_venda_desde:
           type: string
           format: date
@@ -23572,6 +23583,7 @@ components:
           description: Dias em estoque acima do limite da empresa (VEI-19).
       required:
       - acoes
+      - aluguel_ligado
       - ano_fabricacao
       - ano_modelo
       - aviso_preco
@@ -23779,6 +23791,8 @@ components:
         aviso_preco:
           type: string
           nullable: true
+        aluguel_ligado:
+          type: boolean
         a_venda_desde:
           type: string
           format: date
@@ -23799,6 +23813,7 @@ components:
           nullable: true
       required:
       - acoes
+      - aluguel_ligado
       - ano_fabricacao
       - ano_modelo
       - anotacoes
@@ -23993,6 +24008,8 @@ components:
         aviso_preco:
           type: string
           nullable: true
+        aluguel_ligado:
+          type: boolean
         a_venda_desde:
           type: string
           format: date
@@ -24033,6 +24050,7 @@ components:
           type: integer
       required:
       - acoes
+      - aluguel_ligado
       - ano_fabricacao
       - ano_modelo
       - anotacoes

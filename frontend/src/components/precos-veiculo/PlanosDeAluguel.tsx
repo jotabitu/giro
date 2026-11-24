@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Aviso, Button, LigaDesliga, Panel, StatusBadge } from "@/design-system";
+import { Aviso, Button, LigaDesliga, StatusBadge } from "@/design-system";
 import type { PlanoDoVeiculo } from "@/lib/api";
 import { dinheiro } from "@/lib/formatos";
 import {
@@ -23,6 +23,7 @@ import {
   type ErrosDeCampo,
   type PlanoRascunho,
 } from "@/lib/precos-veiculo";
+import { SetaDoBloco, useBlocoRecolhivel } from "./SetaDoBloco";
 
 // Referência: docs/telas/html/Veiculo-Precos-Desktop.dc.html e Veiculo-Precos-Mobile.dc.html, painel "Aluguel".
 // Uma árvore só: a linha é uma grade de 7 colunas no desktop e um cartão de duas colunas no celular (ordem pelas classes).
@@ -214,8 +215,41 @@ function LinhaDoPlano({ p, atual, erros, somenteLeitura, acoes, aberto, aoAbrir,
   );
 }
 
-/** Painel "Aluguel": um plano por linha, com o que a pessoa edita no rascunho e o que a API calculou ao lado. */
-export function PlanosDeAluguel({ rascunho, exibidos, erros, somenteLeitura, acoes, ocupado, tentaram, hoje, mensagemDaLiga }: { rascunho: PlanoRascunho[]; exibidos: PlanoDoVeiculo[]; erros: ErrosDeCampo; somenteLeitura: boolean; acoes: AcoesDoPlano; ocupado: string | null; tentaram: Set<string>; hoje: string; mensagemDaLiga: string | null }) {
+/** VEI-21: com o aluguel desligado, no lugar dos planos (que ficam recolhidos e editáveis). */
+export const AVISO_ALUGUEL_DESATIVADO = "Aluguel desativado. Os planos abaixo ficam guardados e não aparecem na Nova locação.";
+
+/**
+ * Painel "Aluguel": um plano por linha, com o que a pessoa edita no rascunho e o que a API calculou ao lado.
+ * No cabeçalho, o "Oferecer aluguel" do veículo inteiro (VEI-21, como o "Oferecer locação com compra") e a seta que
+ * recolhe e abre o bloco (T-507): aberto por padrão; com o aluguel desligado, começa recolhido. Erro num plano abre.
+ */
+export function PlanosDeAluguel({
+  rascunho,
+  exibidos,
+  erros,
+  somenteLeitura,
+  acoes,
+  ocupado,
+  tentaram,
+  hoje,
+  mensagemDaLiga,
+  aluguelLigado,
+  aoLigarAluguel,
+}: {
+  rascunho: PlanoRascunho[];
+  exibidos: PlanoDoVeiculo[];
+  erros: ErrosDeCampo;
+  somenteLeitura: boolean;
+  acoes: AcoesDoPlano;
+  ocupado: string | null;
+  tentaram: Set<string>;
+  hoje: string;
+  mensagemDaLiga: string | null;
+  aluguelLigado: boolean;
+  aoLigarAluguel: (ligado: boolean) => void;
+}) {
+  const comErro = Object.keys(erros).some((k) => k.startsWith("plano."));
+  const { aberto, alternar: alternarBloco } = useBlocoRecolhivel(!aluguelLigado, comErro);
   const [abertos, setAbertos] = useState<Set<string>>(() => new Set(rascunho.filter((p) => p.tipo === "semanal" && p.ligado).map((p) => p.chave)));
   const alternar = (chave: string) =>
     setAbertos((s) => {
@@ -226,12 +260,28 @@ export function PlanosDeAluguel({ rascunho, exibidos, erros, somenteLeitura, aco
   const chaveDe = (x: PlanoDoVeiculo) => (x.id != null ? String(x.id) : x.tipo);
 
   return (
-    <Panel titulo="Aluguel" subtitulo="Ligue os planos que esta moto oferece. Margem = lucro por mês ÷ receita, já com a desvalorização até a venda.">
+    <section className="wl-panel" aria-label="Aluguel">
+      <div className="wl-panel__head">
+        <div className="flex min-w-0 items-center gap-3">
+          <LigaDesliga ligado={aluguelLigado} rotulo="Oferecer aluguel" desabilitado={somenteLeitura || ocupado === "aluguel"} aoMudar={aoLigarAluguel} />
+          <div className="min-w-0">
+            <h2 className="wl-panel__title">Aluguel</h2>
+            <p className="wl-panel__sub">Ligue os planos que esta moto oferece. Margem = lucro por mês ÷ receita, já com a desvalorização até a venda.</p>
+          </div>
+        </div>
+        <SetaDoBloco aberto={aberto} oQue="os planos de aluguel" controla="planos-de-aluguel" aoAlternar={alternarBloco} />
+      </div>
+      {!aluguelLigado && (
+        <div className="mb-3">
+          <Aviso tom="info">{AVISO_ALUGUEL_DESATIVADO}</Aviso>
+        </div>
+      )}
       {mensagemDaLiga && (
         <div className="mb-3">
           <Aviso tom="critico">{mensagemDaLiga}</Aviso>
         </div>
       )}
+      <div id="planos-de-aluguel" hidden={!aberto}>
       <div className="overflow-x-auto">
         <div className="min-w-0 md:min-w-[820px]">
           <div className={`hidden gap-3 border-b border-line py-2 text-[13px] text-ink-muted md:grid ${COLUNAS}`} aria-hidden="true">
@@ -261,6 +311,7 @@ export function PlanosDeAluguel({ rascunho, exibidos, erros, somenteLeitura, aco
         </div>
       </div>
       <p className="mt-3 text-[13px] text-ink-muted">Formas aceitas, franquia e prazo mínimo ficam em cada linha ao tocar no plano. Mudar um preço vale só para as próximas locações.</p>
-    </Panel>
+      </div>
+    </section>
   );
 }

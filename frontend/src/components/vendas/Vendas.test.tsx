@@ -35,7 +35,6 @@ const BASE: Venda = {
   interessado: null,
   comprador_nome: "Diego Martins",
   comprador_celular: "85983332211",
-  contrato_pdf_disponivel: false,
   veiculo: { id: 702, placa: "RTA2C55", modelo: "Honda CB 300F" },
   filial: { id: 1, nome: "Filial Centro" },
   vendedor: { id: 3, nome: "Bruna Alves" },
@@ -53,6 +52,7 @@ const BASE: Venda = {
   vendida_em: null,
   comissao_centavos: 63204,
   transferencia: { feita_em: null, registrada_por: null, pendente: false },
+  contrato_pdf_disponivel: false,
   acoes: { ...NENHUMA, perder: true },
 };
 

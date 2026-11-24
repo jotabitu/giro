@@ -356,7 +356,7 @@ export function NovoVeiculoForm() {
               <SelectField cheio rotulo="Moto ou carro" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} />
               <Selecao
                 id="categoria"
-                rotulo="Tipo de veículo"
+                rotulo="Tipo de plano"
                 vazio={categorias.isPending ? "Carregando…" : "Escolha"}
                 opcoes={lista.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
                 dica={semCategoria ?? "Modelo de preço dos planos deste veículo; depois você ajusta em Planos e preços"}

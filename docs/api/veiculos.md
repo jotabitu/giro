@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 18 nov 2026 (T-494, preços do veículo, `VEI-12` a `VEI-17`, ADR 0041); 05 nov 2026 (T-422, referência FIPE, ADR 0038); 03 nov 2026 (T-414, fotos do veículo, `VEI-10`, ADR 0036; T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-10, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026, 0036, 0038 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
+**Dono:** arquiteto · **Versão:** 24 nov 2026 (T-507, aluguel ligado ou desligado, `VEI-21`); 18 nov 2026 (T-494, preços do veículo, `VEI-12` a `VEI-17`, ADR 0041); 05 nov 2026 (T-422, referência FIPE, ADR 0038); 03 nov 2026 (T-414, fotos do veículo, `VEI-10`, ADR 0036; T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-10, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026, 0036, 0038 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -47,11 +47,13 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
              "desbloquear": false, "transferir": true, "baixar": false, "registrar_km": true, "corrigir_km": true,
              "movimentar": true, "motivo_movimentar": null },
   "movimentacao_aberta": null,
-  "aviso_preco": null
+  "aviso_preco": null,
+  "aluguel_ligado": true
 }
 ```
 
 - `aviso_preco` (T-494, `VEI-15`, ADR 0041): na lista e na ficha, em qualquer status, `"A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda."` quando o veículo não tem nenhum plano ligado (de aluguel ou a locação com compra); senão `null`. Não é status: o veículo `disponivel` sem plano vai para `indisponivel` com `motivo_status` "Sem preço · ligue um plano" (seção "Preços do veículo").
+- `aluguel_ligado` (T-507, `VEI-21`): o "Oferecer aluguel" do veículo. `false` não é status: a Frota e a ficha mostram o selo neutro "Aluguel desativado" ao lado do status, que continua o dele (seção "Aluguel desligado").
 
 - **Dias em estoque** (T-486, `VEI-18`, `VEI-19`): na lista e na ficha, `a_venda_desde` (data da última entrada no estoque, em `America/Sao_Paulo`), `dias_em_estoque` (inteiro, 0 = colocado à venda hoje) e `parado` (`dias_em_estoque` acima do limite da empresa). Exemplo do PVE-1A07 em 07 out: `"a_venda_desde": "2026-08-15", "dias_em_estoque": 53, "parado": true`.
   - A entrada é a última passagem para `a_venda` no histórico de status, vinda de qualquer estado menos `vendido`: a venda cancelada (`VEN-07`) não recomeça a contagem; voltar para a frota e ser colocado à venda de novo recomeça do zero.
@@ -631,6 +633,8 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
 {
   "veiculo": { "id": 900, "placa": "TBC5H21", "marca": "Honda", "modelo": "Pop 110i", "status": "disponivel" },
   "valor_venda_centavos": 1590000,
+  "aluguel_ligado": true,
+  "aviso_aluguel": null,
   "fipe_centavos": 1390000,
   "ocupacao_real_90d_pct": "84.00",
   "margem_minima_pct": null,
@@ -695,11 +699,12 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
 - `plano_compra` `null` enquanto o veículo não tem um; `resultado` `null` sem valor de venda ou com entrada maior ou igual a ele. O "recebe pela moto" usa a parcela arredondada × `n` + entrada (padrão A: Pop R$ 17.768,96). A parcela nas 4 periodicidades usa o mesmo prazo em meses; a parcela da moto e o adicional se arredondam cada um.
 - `alertas`: `{ "codigo": "venda_abaixo_do_pago", "mensagem": "Valor de venda abaixo do que foi pago: o lucro vem só dos juros." }` e, com juros acima de 1% ao mês, `{ "codigo": "VEI-16", "mensagem": "Locadora não é financeira: juros acima de 1% ao mês (12% ao ano) pedem confirmação. Valide o contrato com seu advogado." }`.
 - `aviso_preco`: o mesmo da representação do veículo, calculado sobre o documento mostrado.
+- `aluguel_ligado` e `aviso_aluguel` (`VEI-21`): com o aluguel desligado, `aviso_aluguel` traz "O aluguel desta moto está desativado. O administrador ativa em Planos e preços." ("deste carro" no carro, pelo tipo da categoria); ligado, `null`. A Nova locação mostra esse texto no lugar dos planos de aluguel.
 - `pode_editar`: `true` só para o administrador; `false` para o suporte Giro, nos dois modos.
 
 ### PUT /api/veiculos/{id}/precos/
 
-Corpo com o documento da tela; bloco ausente fica como está, e campo ausente dentro de um plano também. Devolve o mesmo corpo do `GET`.
+Corpo com o documento da tela; bloco ausente fica como está, e campo ausente dentro de um plano também. Devolve o mesmo corpo do `GET`. `aluguel_ligado` (`VEI-21`, opcional) liga e desliga o aluguel inteiro: o "Oferecer aluguel" manda só `{ "aluguel_ligado": false }` (ou `true`).
 
 ```json
 {
@@ -764,6 +769,16 @@ O mesmo corpo do `PUT` (o `confirmar_juros` é ignorado), sem gravar nada (ADR 0
   - **As idas a `indisponivel` a partir de `alugado`, `reservado`, `em_manutencao` e `a_venda`** existem só por essa volta. Bloquear um veículo nesses status continua 409 `transicao_veiculo`.
 - "Colocar à venda" sem plano ligado: 409 `{ "codigo": "VEI-15", "mensagem": "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda." }` (`VEN-01`).
 
+### Aluguel desligado (`VEI-21`, T-507)
+
+- `PUT .../precos/` com `aluguel_ligado`: só o administrador (o gerente recebe 403; o suporte Giro, 403 `PLT-07`), como os preços. Grava `Veiculo.aluguel_ligado` e uma linha de histórico (`alvo` `aluguel`, `campo` `aluguel_ligado`, `de` e `para`) no evento `veiculo.precos_salvar` (`VEI-17`). O mesmo valor de novo não grava nada.
+- Os planos ficam como estão, com o ligado de cada um, o valor, o agendado e o histórico, e continuam editáveis. O agendado que chega à data entra em vigor do mesmo jeito.
+- **Status (padrão A, decisão do dono de 24 nov 2026):** não muda e não é "sem preço". A `VEI-15` continua olhando o ligado de cada plano, e o `aviso_preco` também.
+- **Nova locação de aluguel e troca de veículo (`LOC-09`):** 409 `{ "codigo": "VEI-21", "mensagem": "O aluguel desta moto está desativado. O administrador ativa em Planos e preços." }` no `simular`, no rascunho e no pedido de troca (`veiculos.services.conferir_aluguel_ligado`).
+- **Locação com compra (padrão A):** independente; com a compra ligada, o veículo segue na Nova locação só para ela.
+- **Locação aberta:** desligar é aceito, e a locação segue com o preço e as renovações dela (`LOC-15`); a renovação não confere o aluguel.
+- Veículo novo, importado ou migrado começa com o aluguel ligado (migration `veiculos 0012`, `default` `true`).
+
 ### Preço agendado
 
 Um por plano. Quem lê o preço pergunta pelo dia: o agendado vale a partir de `a_partir_de`. A rotina `consolidar_precos_agendados` (Celery Beat, 00:05, uma por empresa, idempotente) passa o agendado vencido a vigente e limpa os campos, com histórico (origem `agendamento`, sem pessoa) e o evento `veiculo.precos_agendado_vigente` do Sistema. O plano que nasceu sem preço na migração e só com o agendado liga no dia, se tiver forma e caução.
@@ -779,6 +794,7 @@ Um por plano. Quem lê o preço pergunta pelo dia: o agendado vale a partir de `
 | --- | --- |
 | `veiculos.services.tem_plano_ligado(veiculo)` | algum plano ativo e ligado, ou a compra ligada |
 | `veiculos.services.sem_preco()` | o `Conflito` 409 `VEI-15` com o aviso, para a Nova locação e a troca (T-495) |
+| `veiculos.services.conferir_aluguel_ligado(veiculo)` | 409 `VEI-21` com o aluguel desligado, para a Nova locação de aluguel e a troca (T-507) |
 | `veiculos.services.MOTIVO_SEM_PRECO`, `AVISO_PRECO` | os textos |
 | `PlanoVeiculo.valor_em(dia)`, `caucao_em(dia)` | o preço do dia, com o agendado |
 | `veiculos.precos` | o cálculo puro (`simular`, `simular_compra`, `pmt`, `juros_por_bissecao`, `margem`) |

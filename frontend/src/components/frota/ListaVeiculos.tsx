@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, Bike, Car, ChevronsUpDown, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AluguelDesativado } from "./AluguelDesativado";
 import { CelulaDupla, DataTable, Icone, SearchField, SegmentedControl, StatusBadge, type ColunaTabela } from "@/design-system";
 import { FiltroChips, type OpcaoChip } from "@/components/lista/FiltroChips";
 import { Paginacao } from "@/components/lista/Paginacao";
@@ -65,9 +66,12 @@ const TODAS_AS_COLUNAS: ColunaTabela<Veiculo>[] = [
     titulo: "Situação",
     celula: (v) => (
       <>
-        <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
-          {v.situacao.rotulo}
-        </StatusBadge>
+        <span className="inline-flex flex-wrap items-center gap-1">
+          <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
+            {v.situacao.rotulo}
+          </StatusBadge>
+          <AluguelDesativado v={v} />
+        </span>
         {/* VEI-15: o aviso vem pronto da API, em qualquer situação; some quando um plano é ligado. */}
         {v.aviso_preco && <span className="mt-1 block max-w-[260px] text-[13px] leading-[18px] text-ink-muted">{v.aviso_preco}</span>}
       </>
@@ -122,9 +126,12 @@ function CartaoDoVeiculo({ v }: { v: Veiculo }) {
           </span>
           <span className="wl-mono block text-caption text-ink-muted">{placa(v.placa)}</span>
         </span>
-        <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
-          {v.situacao.rotulo}
-        </StatusBadge>
+        <span className="flex shrink-0 flex-col items-end gap-1">
+          <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
+            {v.situacao.rotulo}
+          </StatusBadge>
+          <AluguelDesativado v={v} />
+        </span>
       </span>
       <span className={`grid ${valorDiaria ? "grid-cols-3" : "grid-cols-2"} border-t border-line pt-3 text-body`}>
         <span>

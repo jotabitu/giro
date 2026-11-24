@@ -425,6 +425,8 @@ class VeiculoSerializer(serializers.Serializer[Any]):
     acoes = AcoesDoVeiculoSerializer()
     # VEI-15 (ADR 0041): a tabela de preços não preenchida, em qualquer status; `null` sem aviso.
     aviso_preco = serializers.CharField(allow_null=True)
+    # VEI-21 (T-507): "Oferecer aluguel"; desligado, a Frota e a ficha mostram "Aluguel desativado".
+    aluguel_ligado = serializers.BooleanField()
     # VEI-18, VEI-19 (T-486): só no veículo `a_venda`; nulos fora do estoque ou sem entrada no
     # histórico. Ausentes para o vistoriador.
     a_venda_desde = serializers.DateField(
@@ -820,6 +822,7 @@ class PrecosEntradaSerializer(serializers.Serializer[Any]):
     """O documento inteiro da tela de preços (`PUT` e `simular`). Bloco ausente fica como está."""
 
     valor_venda_centavos = _centavos(required=False, allow_null=True)
+    aluguel_ligado = serializers.BooleanField(required=False)  # VEI-21
     custos = CustosEntradaSerializer(required=False)
     planos = PlanoEntradaSerializer(many=True, required=False)
     regras = RegrasEntradaSerializer(required=False)
@@ -991,6 +994,10 @@ class VeiculoDosPrecosSerializer(serializers.Serializer[Any]):
 class PrecosDoVeiculoSerializer(serializers.Serializer[Any]):
     veiculo = VeiculoDosPrecosSerializer()
     valor_venda_centavos = serializers.IntegerField(allow_null=True)
+    aluguel_ligado = serializers.BooleanField()  # VEI-21
+    aviso_aluguel = serializers.CharField(
+        allow_null=True
+    )  # "O aluguel desta moto está desativado..."
     fipe_centavos = serializers.IntegerField(allow_null=True)
     ocupacao_real_90d_pct = serializers.DecimalField(max_digits=5, decimal_places=2)
     margem_minima_pct = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True)

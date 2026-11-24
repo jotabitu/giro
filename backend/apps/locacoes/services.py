@@ -372,6 +372,7 @@ def _plano_do_veiculo(dados: dict[str, Any], veiculo: Veiculo, dia: date) -> Pre
     """LOC-01, VEI-15 (ADR 0041, item 4): o plano ligado escolhido do veículo, pelo preço do
     `dia`. Veículo sem plano ligado: 409 `VEI-15`. Enquanto a Nova locação não manda o plano
     (T-497), a `periodicidade` escolhe o plano do mesmo nome (diária, semanal ou mensal)."""
+    veiculos.conferir_aluguel_ligado(veiculo)  # VEI-21
     if dados.get("plano_veiculo_id"):
         return veiculos_selectors.plano_para_locacao(veiculo, dados["plano_veiculo_id"], dia)
     if not veiculos_selectors.planos_para_locacao(veiculo, dia):
@@ -1532,6 +1533,7 @@ def preco_da_troca(locacao: Locacao, veiculo: Veiculo, dia: date) -> PrecoDaTroc
     pedido, como na renovação (LOC-15): período, dia de atraso e caução. Sem esse plano, 409
     `VEI-15` (decisão do dono de 18 nov 2026). Nas locações de antes, o plano especial de preço
     fixo continua se valer para a categoria do veículo novo."""
+    veiculos.conferir_aluguel_ligado(veiculo)  # VEI-21: a troca não oferece o veículo para aluguel
     tipo, nome = _tipo_contratado(locacao)
     preco = veiculos_selectors.plano_do_mesmo_tipo(veiculo, tipo, nome, dia)
     periodo = preco.valor_centavos
