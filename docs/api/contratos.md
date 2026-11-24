@@ -33,7 +33,7 @@ O texto do modelo só aceita marcadores desta lista, escritos como `{{grupo.camp
 
 - Valores em dinheiro saem formatados ("R$ 329,00"); datas, no fuso da filial ("07/10/2026").
 - `FIN-03`: o contrato só permite cobrar juros e multa por atraso se o modelo usar `{{cobranca.multa_atraso_pct}}` e `{{cobranca.juros_mes_pct}}`. O contrato gerado grava `clausula_juros = true` nesse caso; sem os dois, `financeiro` não cobra juros daquela locação.
-- Marcadores de venda (`venda.*`) entram na fase 2.
+- Marcadores de venda (`VEN-15`, T-502 fase 1b, ADR 0042, item 6): `venda.codigo`, `venda.preco_tabela`, `venda.desconto` ("R$ 1.832,00 (8,00%)"), `venda.preco_final`, `venda.forma`, `venda.entrada`, `venda.parcelas` ("12 parcelas mensais de R$ 1.339,00"), `venda.juros_mes` e `venda.primeiro_vencimento` ("um mês depois da conclusão da venda"). Só no modelo de `finalidade = venda`; em outro, 400 `marcador_invalido`. Os valores vêm de `vendas.contrato` (registrado em `contratos.origens`). `venda.troca` entra na fase 2.
 
 ### HTML permitido (S-09)
 
@@ -46,21 +46,21 @@ O texto é HTML sanitizado no servidor ao salvar, com lista branca: `p`, `h1`, `
 200: `{ ..., "texto": "<p>...</p>", "marcadores_usados": ["cliente.nome", "..."], "versoes": [ { "versao": 3, "publicado_em": "...", "contratos_gerados": 38 } ] }`.
 
 ### GET /api/contratos/marcadores/
-A lista acima, com rótulo e exemplo para o painel "Campos automáticos": `{ "resultados": [ { "chave": "cliente.nome", "rotulo": "Nome do cliente", "exemplo": "Lucas Ferreira", "finalidade": null } ] }`. `finalidade`: `null` vale em todo modelo; `"locacao_compra"` só no modelo dessa finalidade (o grupo `compra`, T-420), e a tela só o oferece nele.
+A lista acima, com rótulo e exemplo para o painel "Campos automáticos": `{ "resultados": [ { "chave": "cliente.nome", "rotulo": "Nome do cliente", "exemplo": "Lucas Ferreira", "finalidade": null } ] }`. `finalidade`: `null` vale em todo modelo; `"locacao_compra"` só no modelo dessa finalidade (o grupo `compra`, T-420) e `"venda"` só no de compra e venda (o grupo `venda`, T-502), e a tela só os oferece neles.
 
 ### GET /api/contratos/modelos-prontos/
-Modelos prontos para o passo 9 da implantação (`Onboarding-Contrato`) e para "Novo modelo": locação diária, semanal e mensal de moto e de carro, e a "Locação com intenção de compra" (`chave` `locacao_compra`, um só para moto e carro, T-420). Cada item traz `{ chave, nome, texto, finalidade }`. `POST /api/contratos/modelos/` com `{ "a_partir_de": "locacao_semanal_moto" }` cria um rascunho com o texto pronto, na `finalidade` do pronto.
+Modelos prontos para o passo 9 da implantação (`Onboarding-Contrato`) e para "Novo modelo": locação diária, semanal e mensal de moto e de carro, a "Locação com intenção de compra" (`chave` `locacao_compra`, um só para moto e carro, T-420) e a "Compra e venda" (`chave` `compra_venda`, finalidade `venda`, T-502: **rascunho do backend**, só com os marcadores e as cláusulas mínimas, até o texto do dono com o advogado, `VEN-15`). Cada item traz `{ chave, nome, texto, finalidade }`. `POST /api/contratos/modelos/` com `{ "a_partir_de": "locacao_semanal_moto" }` cria um rascunho com o texto pronto, na `finalidade` do pronto.
 
 ### POST /api/contratos/modelos/
 Corpo: `{ nome, finalidade: "locacao", texto }` ou `{ nome, a_partir_de }`. 201: rascunho, versão 1.
-`finalidade`: `locacao`, `locacao_compra` (locação com intenção de compra, `LOC-16`, T-420, ADR 0037) ou `venda`. O modelo pronto do Giro "Locação com intenção de compra" traz o prazo, as parcelas, a caução e o abatimento, a transferência na quitação sem valor extra, a perda do que foi pago no encerramento antes do fim e os custos com a locadora. `contratos.selectors.modelo_publicado(finalidade)` serve às duas finalidades de locação; a locação pede a do seu `tipo`.
+`finalidade`: `locacao`, `locacao_compra` (locação com intenção de compra, `LOC-16`, T-420, ADR 0037) ou `venda` (rótulo "Compra e venda", `VEN-15`). Sem modelo publicado de `venda`, a assinatura da venda responde 422 `IMP-04` "Publique um modelo de contrato de compra e venda antes de concluir a venda." com o `link`; a trava do último modelo publicado no arquivar continua só para a locação. O modelo pronto do Giro "Locação com intenção de compra" traz o prazo, as parcelas, a caução e o abatimento, a transferência na quitação sem valor extra, a perda do que foi pago no encerramento antes do fim e os custos com a locadora. `contratos.selectors.modelo_publicado(finalidade)` serve às duas finalidades de locação; a locação pede a do seu `tipo`.
 400 `{ "codigo": "marcador_invalido", "mensagem": "Campo desconhecido: {{cliente.salario}}", "campos": { "texto": [...] } }` (`S-09`).
 
 ### PATCH /api/contratos/modelos/{id}/
 Corpo: `{ nome?, texto? }`. Editar um modelo publicado cria um rascunho da versão seguinte; a publicada não muda (`LOC-15`: contrato assinado mantém o texto da versão em que foi assinado). 200.
 
 ### POST /api/contratos/modelos/{id}/previa/
-"Ver com dados reais". Corpo: `{ "locacao_id": 2836 }` (opcional; sem ele, usa os dados de exemplo da tela de marcadores). 200: `{ "html": "<...>" }` renderizado e sanitizado, sem gerar PDF nem gravar nada.
+"Ver com dados reais". Corpo: `{ "locacao_id": 2836 }` ou, no modelo de compra e venda, `{ "venda_id": 177 }` (opcionais; sem eles, usa os dados de exemplo da tela de marcadores). 404 se a origem não existe. 200: `{ "html": "<...>" }` renderizado e sanitizado, sem gerar PDF nem gravar nada.
 
 ### POST /api/contratos/modelos/{id}/publicar/
 200: versão nova publicada; a anterior deixa de ser usada em contratos novos. 400 `marcador_invalido`. Publicar o primeiro modelo de locação marca o passo `contrato` da implantação e libera a `IMP-04`.
@@ -92,7 +92,8 @@ Perfis: quem cria locação. Locação `aguardando_retirada`, sem pedido de desc
 | `gerado` | `cancelado` | `cancelar(contrato, motivo)`, por exemplo no cancelamento da locação (`LOC-12`); o link deixa de valer na hora |
 | `enviado` | `assinado` | o cliente assina pelo link enviado ou por um copiado depois |
 | `enviado` | `cancelado` | `cancelar(contrato, motivo)` |
-| `assinado`, `cancelado` | nenhum | estados finais |
+| `assinado` | `cancelado` | só o contrato de uma venda perdida, por `cancelar_assinado(contrato, motivo)` (ADR 0042, item 6a, padrão A; T-502): o PDF assinado, o hash e a prova da assinatura ficam guardados e o token não muda. O `cancelar` comum recusa o assinado (409 `contrato_assinado`), e o da locação nunca se cancela |
+| `cancelado` | nenhum | estado final |
 
 - Copiar o link **não muda o status** (`copiar-link.md`, `locacoes.md`): o `gerado` com o PDF continua `gerado`, e por isso a assinatura também pode sair de `gerado`.
 - O `gerado` sem PDF não abre o link (404 no consultar e no assinar) e não deixa copiar (409 `contrato_em_preparo`).
@@ -133,7 +134,8 @@ Público. Corpo: `{ token, aceite: true, nome_completo }`. Aceita o mesmo contra
 | Item | Uso |
 | --- | --- |
 | `contratos.selectors.modelo_publicado(finalidade)` | `IMP-04` (locações recusam confirmar sem modelo). |
-| `contratos.services.gerar(origem, dados)` / `gerar_aditivo(...)` / `cancelar(contrato, motivo)` | chamados por `locacoes` (e `vendas` na fase 2). |
+| `contratos.services.gerar(origem, dados)` / `gerar_aditivo(...)` / `cancelar(contrato, motivo)` | chamados por `locacoes` e `vendas` (T-502, fase 1b). |
+| `contratos.services.cancelar_assinado(contrato, motivo)` | só `vendas`, na venda perdida (ADR 0042, item 6a). |
 | `contratos.services.gerar_link(contrato, por)` | copiar o link para assinar (T-411); devolve `(link, expira_em)`. |
 | evento `contratos.contrato_assinado` | assinado por `locacoes` (e `vendas`). |
 | `CAMPOS_AUDITORIA` | `token_assinatura_hash` omitido; `assinado_ip` mascarado (/24). |

@@ -16,6 +16,28 @@ urlpatterns: list[URLPattern] = [
         name="venda-pedir-aprovacao",
     ),
     path("vendas/<int:pk>/perder/", views.PerderView.as_view(), name="venda-perder"),
+    # Fase 1b (VEN-15, VEN-17, VEN-19)
+    path("vendas/<int:pk>/assinatura/", views.AssinaturaView.as_view(), name="venda-assinatura"),
+    path(
+        "vendas/<int:pk>/contrato/link/",
+        views.LinkDoContratoView.as_view(),
+        name="venda-contrato-link",
+    ),
+    path(
+        "vendas/<int:pk>/contrato/reenviar/",
+        views.ReenviarContratoView.as_view(),
+        name="venda-contrato-reenviar",
+    ),
+    path(
+        "vendas/<int:pk>/contrato/pdf/",
+        views.PdfDoContratoView.as_view(),
+        name="venda-contrato-pdf",
+    ),
+    path(
+        "vendas/<int:pk>/transferencia/",
+        views.TransferenciaDaVendaView.as_view(),
+        name="venda-transferencia",
+    ),
     path(
         "locacoes/<int:pk>/transferencia/",
         views.TransferenciaView.as_view(),

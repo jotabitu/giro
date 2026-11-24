@@ -64,6 +64,7 @@ VERBOS: dict[str, str] = {
     "bloquear": "Bloqueou",
     "cadastrar": "Cadastrou",
     "cancelar": "Cancelou",
+    "cancelar_assinado": "Cancelou",  # o contrato assinado da venda perdida (ADR 0042, item 6a)
     "cobrar": "Cobrou",
     "concluir": "Concluiu",
     "confirmar": "Confirmou",
