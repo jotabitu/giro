@@ -38,8 +38,10 @@ function clicar(no: ReactNode, rotulo: string): boolean {
 describe("Paginacao com o número da página (T-513)", () => {
   it("mostra o número entre os botões, com aria-current e rótulo acessível", () => {
     const html = renderToStaticMarkup(<Paginacao texto="Mostrando 20" anterior="cD0x" proximo="cD0y" pagina={2} aoIr={() => {}} />);
-    expect(texto(html)).toContain("|Mostrando 20|Anterior|2|Próxima|");
-    expect(html).toContain('<span aria-current="page" aria-label="Página 2"');
+    expect(texto(html)).toContain("|Mostrando 20|Anterior|Página |2|Próxima|");
+    // O leitor de tela lê "Página 2": o rótulo é texto escondido (sr-only), não aria-label.
+    expect(html).toMatch(/<span aria-current="page"[^>]*><span class="sr-only">Página <\/span>2<\/span>/);
+    expect(html).not.toContain("aria-label");
     expect(html).not.toMatch(/ de \d/);
   });
 
@@ -96,9 +98,9 @@ describe("número da página na lista de Clientes (T-513)", () => {
   });
 
   it("abre na página 1 sem cursor e mostra a página da URL quando há cursor", async () => {
-    expect(await tela()).toContain("|Anterior|1|Próxima|");
+    expect(await tela()).toContain("|Anterior|Página |1|Próxima|");
     url.params = new URLSearchParams({ cursor: "cD00MA", pagina: "3" });
-    expect(await tela()).toContain("|Anterior|3|Próxima|");
+    expect(await tela()).toContain("|Anterior|Página |3|Próxima|");
   });
 
   it("Próxima e Anterior levam cursor e número à URL; filtro e busca voltam a 1", () => {
@@ -134,6 +136,6 @@ describe("número da página na lista de Clientes (T-513)", () => {
 
   it("URL com pagina e sem cursor dá 1", async () => {
     url.params = new URLSearchParams({ pagina: "5" });
-    expect(await tela()).toContain("|Anterior|1|Próxima|");
+    expect(await tela()).toContain("|Anterior|Página |1|Próxima|");
   });
 });

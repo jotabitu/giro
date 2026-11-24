@@ -125,7 +125,7 @@ describe("paginação de Contas a receber (T-511)", () => {
     expect(chamadas.at(-1)?.cursor).toBeUndefined();
     expect(primeira).toContain(nome1);
     expect(primeira).not.toContain(nome2);
-    expect(primeira).toContain("|Anterior|1|Próxima|");
+    expect(primeira).toContain("|Anterior|Página |1|Próxima|");
 
     clicarNaPaginacao("Próxima");
     expect(url.replace).toHaveBeenLastCalledWith("/financeiro/receber?cursor=cD0y&pagina=2");
@@ -134,7 +134,7 @@ describe("paginação de Contas a receber (T-511)", () => {
     expect(chamadas.at(-1)).toMatchObject({ periodo: "mes", situacao: "atrasadas", cursor: "cD0y" });
     expect(segunda).toContain(nome2);
     expect(segunda).not.toContain(nome1);
-    expect(segunda).toContain("|Anterior|2|Próxima|");
+    expect(segunda).toContain("|Anterior|Página |2|Próxima|");
 
     // Anterior com "0" é a primeira página: o cursor sai da URL.
     clicarNaPaginacao("Anterior");
@@ -143,7 +143,7 @@ describe("paginação de Contas a receber (T-511)", () => {
 
   it("trocar a aba na página 2 volta para a primeira página e o número sai da URL", async () => {
     url.params = new URLSearchParams({ cursor: "cD0y", pagina: "2" });
-    expect(await telaComDados(new QueryClient())).toContain("|Anterior|2|Próxima|");
+    expect(await telaComDados(new QueryClient())).toContain("|Anterior|Página |2|Próxima|");
     expect(chamadas.at(-1)?.cursor).toBe("cD0y");
     capturado.chips?.aoMudar("pagas");
     expect(url.replace).toHaveBeenLastCalledWith("/financeiro/receber?aba=pagas");

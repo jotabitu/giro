@@ -18,15 +18,19 @@ export function Paginacao({ texto, anterior, proximo, pagina, aoIr, extra }: { t
       <span>{texto}</span>
       <div className="flex flex-wrap items-center gap-2">
         {extra}
-        <Button variante="quieto" compacto disabled={anterior === null} onClick={voltar}>
-          Anterior
-        </Button>
-        <span aria-current="page" aria-label={`Página ${pagina}`} className="min-w-6 text-center tabular-nums text-ink">
-          {pagina}
-        </span>
-        <Button variante="quieto" compacto disabled={proximo === null} onClick={() => aoIr(proximo, pagina + 1)}>
-          Próxima
-        </Button>
+        {/* Anterior, número e Próxima ficam juntos numa linha; se faltar espaço, quem quebra é o extra. */}
+        <div className="flex items-center gap-2">
+          <Button variante="quieto" compacto disabled={anterior === null} onClick={voltar}>
+            Anterior
+          </Button>
+          <span aria-current="page" className="min-w-6 text-center tabular-nums text-ink">
+            <span className="sr-only">Página </span>
+            {pagina}
+          </span>
+          <Button variante="quieto" compacto disabled={proximo === null} onClick={() => aoIr(proximo, pagina + 1)}>
+            Próxima
+          </Button>
+        </div>
       </div>
     </div>
   );
