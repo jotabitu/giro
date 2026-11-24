@@ -22,7 +22,7 @@ function html(el: ReactElement, semear?: (c: QueryClient) => void) {
   return renderToStaticMarkup(<QueryClientProvider client={c}>{el}</QueryClientProvider>);
 }
 
-const NENHUMA = { editar: false, enviar: false, registrar_resposta: false, pedir_aprovacao: false, perder: false, cancelar: false, registrar_transferencia: false };
+const NENHUMA = { editar: false, enviar: false, registrar_resposta: false, pedir_aprovacao: false, perder: false, cancelar: false, registrar_transferencia: false, preparar_assinatura: false, cancelar_assinatura: false, copiar_link_contrato: false, reenviar_contrato: false };
 
 const BASE: Venda = {
   id: 177,
@@ -56,6 +56,9 @@ const BASE: Venda = {
 
 const VEN_0177: VendaDetalhe = {
   ...BASE,
+  documentos: null,
+  perder_texto: null,
+  conclusao_texto: null,
   calculo: {
     preco_tabela_centavos: 2290000,
     desconto_pct: "8.00",
