@@ -107,7 +107,7 @@ export type LocacaoDoCliente = {
   codigo: string;
   status: "aguardando_retirada" | "ativa" | "devolucao_atrasada" | "encerrada" | "cancelada";
   veiculo: { id: number; modelo: string; placa: string; tipo: "moto" | "carro" };
-  periodicidade: "diaria" | "semanal" | "mensal";
+  periodicidade: "diaria" | "semanal" | "quinzenal" | "mensal";
   inicio: string;
   fim_previsto: string;
   situacao: { codigo: string; rotulo: string; tom: TomApi };

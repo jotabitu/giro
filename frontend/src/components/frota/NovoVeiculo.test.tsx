@@ -38,7 +38,7 @@ describe("tela Cadastrar veículo", () => {
   it("mostra os campos do contrato e as filiais da pessoa", () => {
     sessao.veiculos = "editar";
     const h = html(<NovoVeiculoForm />);
-    for (const t of ["Placa", "Marca", "Modelo", "Chassi", "Renavam", "Km atual", "Categoria de preço", "Salvar veículo", "Salvar e cadastrar outro"]) expect(h).toContain(t);
+    for (const t of ["Placa", "Marca", "Modelo", "Chassi", "Renavam", "Km atual", "Tipo de veículo", "Salvar veículo", "Salvar e cadastrar outro"]) expect(h).toContain(t);
     expect(h).toContain("Nunca diminui depois de salvo");
     expect(h).toContain(">Filial Centro</option>");
   });
@@ -55,9 +55,9 @@ describe("tela Cadastrar veículo", () => {
   it("test_vei_11_tipo_antes_da_categoria_com_moto_marcado (CA-438-01)", () => {
     sessao.veiculos = "editar";
     const h = html(<NovoVeiculoForm />);
-    const tipo = h.indexOf(">Tipo de veículo</label>");
+    const tipo = h.indexOf(">Moto ou carro</label>");
     expect(tipo).toBeGreaterThan(h.indexOf(">Filial</label>"));
-    expect(tipo).toBeLessThan(h.indexOf(">Categoria de preço</label>"));
+    expect(tipo).toBeLessThan(h.indexOf(">Tipo de veículo</label>"));
     expect(h).toMatch(/<option value="moto" selected="">Moto<\/option>/);
     expect(h).toContain('<option value="carro">Carro</option>');
     // O controle de tipo saiu do cabeçalho: um só campo de tipo na tela.

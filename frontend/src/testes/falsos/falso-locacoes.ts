@@ -5,6 +5,7 @@ import { pausa, perfilAtualFalso } from "./falso";
 import { ErroApi } from "@/lib/api/tipos";
 import { veiculosFalso } from "./falso-frota";
 import { clientesFalso } from "./falso-clientes";
+import { PLANOS_DA_TABELA } from "./falso-precos-veiculo";
 import type {
   CompraDaLocacao,
   PlanoDeCompra,
@@ -207,7 +208,7 @@ const SEMENTES_COMPRA: Semente[] = [
   },
 ];
 
-const ROTULO_PERIODICIDADE: Record<Periodicidade, string> = { diaria: "diária", semanal: "semana", mensal: "mês" };
+const ROTULO_PERIODICIDADE: Record<Periodicidade, string> = { diaria: "diária", semanal: "semana", quinzenal: "quinzena", mensal: "mês" };
 const FORMA: Record<string, string> = { pix: "pix", pix_automatico: "pix_automatico", cartao: "cartao" };
 const VENDEDOR = { id: 3, nome: "Bruna Alves" };
 const FILIAL = { id: 1, nome: "Filial Centro" };
@@ -239,7 +240,7 @@ function acoesDe(s: Semente, perfil: Perfil | null) {
 }
 
 const recebe = (perfil: Perfil | null) => perfil === "administrador" || perfil === "gerente" || perfil === "vendedor" || perfil === "financeiro";
-const NOME_DA_PRIMEIRA: Record<Periodicidade, string> = { diaria: "diárias", semanal: "1ª semana", mensal: "1º mês" };
+const NOME_DA_PRIMEIRA: Record<Periodicidade, string> = { diaria: "diárias", semanal: "1ª semana", quinzenal: "1ª quinzena", mensal: "1º mês" };
 
 /** Os passos do "Para retirar" (LOC-17), com os textos que a API manda: a tela só mostra. */
 function passosDaRetirada(s: Semente, perfil: Perfil | null): PassoDaRetirada[] {
@@ -593,18 +594,34 @@ function dividirEmParcelas(valor: number, n: number): number[] {
 
 const reais = (centavos: number) => `R$ ${(centavos / 100).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
+/** O plano ligado do veículo escolhido (T-497); de outro veículo ou desligado, a API recusa (400 / 409 VEI-15). */
+function planoDoVeiculoDe(e: EntradaDaLocacao) {
+  if (!e.plano_veiculo_id) return undefined;
+  const p = PLANOS_DA_TABELA.find((x) => x.id === e.plano_veiculo_id);
+  if (!p) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { plano_veiculo_id: "Escolha um plano deste veículo." });
+  if (!p.ligado) throw new ErroApi(409, "VEI-15", "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda.");
+  return p;
+}
+
 /** O que a API faz em POST /api/locacoes/simular/ (calculo.py): preços da categoria, plano especial, extras, desconto e parcelas. */
 async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
   if (e.tipo === "intencao_compra") return simularCompra(e);
   exigirCria();
   const [cliente, veiculo] = await Promise.all([clientesFalso.interno(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
   const campos: Record<string, string> = {};
+  // T-497 (ADR 0041): o plano do veículo dá o período, o parcelamento do mês, o valor e a caução; sem ele, vale o caminho antigo.
+  const pl = planoDoVeiculoDe(e);
+  const per: Periodicidade = pl ? (pl.periodo === "dia" ? "diaria" : pl.periodo === "mes" ? "mensal" : "semanal") : (e.periodicidade ?? "semanal");
+  const parcel = pl ? (pl.como_paga === "mes_quatro_semanais" ? "quatro_semanais" : "a_vista") : e.parcelamento_mensal;
+  const forma = e.forma_pagamento === "pix_automatico" ? "pix" : e.forma_pagamento;
+  if (pl && !pl.formas_aceitas.includes(forma)) campos.forma_pagamento = `Este plano não aceita ${{ pix: "Pix", boleto: "Boleto", cartao: "Cartão", dinheiro: "Dinheiro" }[forma]}.`;
   const plano = e.plano_especial_id ? PLANOS.find((p) => p.id === e.plano_especial_id) : undefined;
-  if (e.plano_especial_id && (!plano || plano.periodicidade !== e.periodicidade)) campos.plano_especial_id = "Este plano não vale para a modalidade escolhida";
-  const passo = e.periodicidade === "diaria" ? DIA : e.periodicidade === "semanal" ? 7 * DIA : 30 * DIA;
+  if (e.plano_especial_id) campos.plano_especial_id = "A Nova locação usa os planos do veículo. O plano especial não vale mais.";
+  else if (e.plano_especial_id && (!plano || plano.periodicidade !== per)) campos.plano_especial_id = "Este plano não vale para a modalidade escolhida";
+  const passo = per === "diaria" ? DIA : per === "semanal" ? 7 * DIA : 30 * DIA;
   const decorrido = e.fim_previsto ? Date.parse(e.fim_previsto) - Date.parse(e.inicio) : 0;
   const periodos = e.periodos || (e.fim_previsto ? Math.ceil(decorrido / passo) : 0);
-  if (e.periodicidade === "mensal" && e.fim_previsto && decorrido < 28 * DIA) campos.fim_previsto = "A locação mensal tem 1 mês ou mais";
+  if (per === "mensal" && e.fim_previsto && decorrido < 28 * DIA) campos.fim_previsto = "A locação mensal tem 1 mês ou mais";
   else if (!Number.isInteger(periodos) || periodos < 1) campos.periodos = "Informe 1 período ou mais";
   if (!/^\d{1,3}(\.\d{1,2})?$/.test(e.desconto_pct) || Number(e.desconto_pct) > 100) campos.desconto_pct = "Informe um percentual de 0 a 100";
   if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
@@ -612,7 +629,7 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
   const pv = veiculo.preco_vigente!;
   const precoDe = (k: number) => {
     if (plano?.regra === "preco_fixo" && plano.preco_centavos) return plano.preco_centavos;
-    const tabela = e.periodicidade === "diaria" ? pv.diaria_centavos : e.periodicidade === "semanal" ? pv.semanal_centavos : pv.mensal_centavos;
+    const tabela = pl ? pl.valor_centavos : per === "diaria" ? pv.diaria_centavos : per === "semanal" ? pv.semanal_centavos : pv.mensal_centavos;
     return plano?.regra === "desconto_a_partir" && plano.a_partir_do_periodo && plano.desconto_pct && k >= plano.a_partir_do_periodo ? Math.round(tabela * (1 - Number(plano.desconto_pct) / 100)) : tabela;
   };
   const escolhidos = (e.extras ?? []).flatMap((x) => {
@@ -627,15 +644,15 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
   const valores = precos.map((p, i) => p - (descontos[i] ?? 0) + porPeriodo);
   valores[0] = (valores[0] ?? 0) + unicos;
   const primeiro = `${e.inicio.slice(0, 10)}T12:00:00Z`;
-  const quatro = e.periodicidade === "mensal" && e.parcelamento_mensal === "quatro_semanais";
+  const quatro = per === "mensal" && parcel === "quatro_semanais";
   const parcelas: ParcelaPrevista[] =
-    e.periodicidade === "diaria"
+    per === "diaria"
       ? [{ numero: 1, vencimento: dia(Date.parse(primeiro)), valor_centavos: valores.reduce((a, v) => a + v, 0) }]
       : quatro
         ? valores.flatMap((v, k) => dividirEmParcelas(v, 4).map((parte, s) => ({ numero: k * 4 + s + 1, vencimento: dia(Date.parse(somarPeriodos(primeiro, "mensal", k)) + s * 7 * DIA), valor_centavos: parte })))
-        : valores.map((v, k) => ({ numero: k + 1, vencimento: dia(Date.parse(somarPeriodos(primeiro, e.periodicidade, k))), valor_centavos: v }));
-  const caucao = pv.caucao_centavos;
-  const unidade = { diaria: ["diária", "diárias"], semanal: ["semana", "semanas"], mensal: ["mês", "meses"] }[e.periodicidade];
+        : valores.map((v, k) => ({ numero: k + 1, vencimento: dia(Date.parse(somarPeriodos(primeiro, per, k))), valor_centavos: v }));
+  const caucao = pl?.caucao_centavos ?? pv.caucao_centavos;
+  const unidade = { diaria: ["diária", "diárias"], semanal: ["semana", "semanas"], quinzenal: ["quinzena", "quinzenas"], mensal: ["mês", "meses"] }[per];
   const proximos = parcelas[1]?.valor_centavos ?? precoDe(2) - Math.round((precoDe(2) * pct) / 100) + porPeriodo;
   const impedimentos: AvisoLocacao[] = [];
   const avisos: AvisoLocacao[] = [];
@@ -647,7 +664,7 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
   if (Date.parse(e.inicio) + 4 * DIA <= Date.parse(AGORA_DO_SEED)) impedimentos.push({ codigo: "inicio_vencido", mensagem: "O início já passou do prazo de retirada. Escolha uma data de início a partir de hoje." });
   if (cliente.status === "incompleto") avisos.push({ codigo: "CLI-03", mensagem: "Cadastro incompleto. Envie os documentos antes da retirada." });
   return {
-    fim_previsto: somarPeriodos(e.inicio, e.periodicidade, periodos),
+    fim_previsto: somarPeriodos(e.inicio, per, periodos),
     periodos,
     linhas: [
       { rotulo: `${periodos} ${periodos === 1 ? unidade[0] : unidade[1]}${new Set(precos).size === 1 ? ` × ${reais(precos[0] ?? 0)}` : ""}`, valor_centavos: precos.reduce((a, p) => a + p, 0) },
@@ -658,10 +675,10 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
     valor_periodo_centavos: (precos[0] ?? 0) - (descontos[0] ?? 0),
     proximos_periodos_centavos: proximos,
     hoje_na_retirada_centavos: (parcelas[0]?.valor_centavos ?? 0) + caucao,
-    texto_retirada: `${e.periodicidade === "diaria" ? "Hoje: todas as diárias" : e.periodicidade === "semanal" ? "Hoje: primeira semana" : quatro ? "Hoje: primeira parcela do mês" : "Hoje: primeiro mês"} mais caução.`,
+    texto_retirada: `${per === "diaria" ? "Hoje: todas as diárias" : per === "semanal" ? "Hoje: primeira semana" : quatro ? "Hoje: primeira parcela do mês" : "Hoje: primeiro mês"} mais caução.`,
     parcelas_previstas: parcelas,
     caucoes_previstas: caucao ? [{ numero: 1, vencimento: parcelas[0]?.vencimento ?? e.inicio.slice(0, 10), valor_centavos: caucao }] : [],
-    plano: null,
+    plano: pl ? { id: pl.id ?? 0, tipo: pl.tipo, rotulo: pl.rotulo, periodo: pl.periodo ?? "semana", como_paga: pl.como_paga ?? "tudo_na_retirada", formas_aceitas: pl.formas_aceitas, caucao_parcelas: pl.caucao_parcelas, franquia_km: pl.franquia_km, prazo_minimo_periodos: pl.prazo_minimo_periodos, multa_minima_centavos: pv.diaria_centavos, desconto_sem_aprovacao_pct: "5.00" } : null,
     caucao_centavos: caucao,
     diaria_centavos: pv.diaria_centavos,
     compra: null, // LOC-16: só na locação com intenção de compra
@@ -672,12 +689,15 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
 }
 
 /** LOC-16: simulação do plano de compra. O prazo, as parcelas e a última (com a caução abatida) vêm do plano; sem desconto nem extras (CA-420-02). */
+/** VEI-16 (ADR 0041): a compra usa o plano do próprio veículo; o falso o tira da tabela da categoria, e o `plano_compra_id` é ignorado. */
+const planoDeCompraDe = (_e: EntradaDaLocacao, categoria: number) => PLANOS_COMPRA.find((p) => p.categoria.id === categoria && p.ativo) ?? PLANOS_COMPRA.find((p) => p.ativo);
+
 async function simularCompra(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
   exigirCria();
   const [cliente, veiculo] = await Promise.all([clientesFalso.interno(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
   const campos: Record<string, string> = {};
-  const plano = PLANOS_COMPRA.find((p) => p.id === e.plano_compra_id);
-  if (!plano || !plano.ativo) campos.plano_compra_id = "Escolha o plano de compra.";
+  const plano = planoDeCompraDe(e, veiculo.categoria.id);
+  if (!plano || !plano.ativo) campos.plano_compra_id = "Este veículo não tem locação com compra ligada.";
   if ((e.extras ?? []).length > 0) campos.extras = "A locação com intenção de compra usa o valor do plano.";
   if (Number(e.desconto_pct) !== 0) campos.desconto_pct = "A locação com intenção de compra usa o valor do plano.";
   if (Object.keys(campos).length > 0 || !plano) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
@@ -724,7 +744,7 @@ async function semente(id: number, e: EntradaDaLocacao, status: StatusLocacao, a
     status,
     cliente: { id: cliente.id, nome: cliente.nome },
     veiculo: { id: veiculo.id, modelo: `${veiculo.marca} ${veiculo.modelo}`, placa: veiculo.placa, tipo: veiculo.tipo_veiculo },
-    periodicidade: e.periodicidade,
+    periodicidade: sim.plano ? (sim.plano.periodo === "dia" ? "diaria" : sim.plano.periodo === "mes" ? "mensal" : "semanal") : (e.periodicidade ?? "semanal"),
     inicio: e.inicio,
     fim: sim.fim_previsto ?? e.inicio,
     situacao: confirmada ? { codigo: "aguardando_assinatura", rotulo: "Aguardando assinatura", tom: "neutro" } : { codigo: "rascunho", rotulo: "Rascunho", tom: "neutro" },
@@ -737,7 +757,7 @@ async function semente(id: number, e: EntradaDaLocacao, status: StatusLocacao, a
     eventos: anterior?.eventos ?? [[AGORA_DO_SEED, "Locação criada", ""]],
     entrada: e,
     ...(e.tipo === "intencao_compra" && sim.compra
-      ? { compra: { plano: { id: e.plano_compra_id ?? 0, nome: PLANOS_COMPRA.find((p) => p.id === e.plano_compra_id)?.nome ?? "" }, total: sim.compra.parcelas_total, valorCentavos: sim.compra.valor_parcela_centavos, ultimaCentavos: sim.compra.ultima_parcela_centavos } }
+      ? { compra: { plano: { id: planoDeCompraDe(e, veiculo.categoria.id)?.id ?? 0, nome: planoDeCompraDe(e, veiculo.categoria.id)?.nome ?? "" }, total: sim.compra.parcelas_total, valorCentavos: sim.compra.valor_parcela_centavos, ultimaCentavos: sim.compra.ultima_parcela_centavos } }
       : {}),
   };
 }

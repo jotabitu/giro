@@ -43,7 +43,7 @@ export function TabelaDePrecos() {
         <div className="min-w-0 flex-1">
           <div className="text-caption text-ink-muted md:text-body">Administração</div>
           <h1 className="text-title md:mt-1.5 md:text-display">Tabelas de preço</h1>
-          <p className="m-0 mt-1.5 text-body text-ink-muted">Valores usados ao criar uma locação. Mudanças valem só para contratos novos.</p>
+          <p className="m-0 mt-1.5 text-body text-ink-muted">Modelos de preço dos tipos de veículo.</p>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           <Button icone={<Icone de={Clock} />} onClick={() => setHistorico(true)}>
@@ -54,6 +54,14 @@ export function TabelaDePrecos() {
           </Button>
         </div>
       </header>
+
+      {/* ADR 0041, item 2: o preço mora em cada veículo; esta tela só guarda os modelos que preenchem os planos dos veículos novos. */}
+      <p role="note" className="rounded-lg bg-surface-sunken p-4 text-body">
+        Os preços agora ficam em cada veículo. Abra o veículo e use Planos e preços. Esta tabela só serve de modelo para preencher os planos dos veículos novos, no cadastro e na importação.{" "}
+        <Link href="/veiculos" className="underline">
+          Ir para Veículos
+        </Link>
+      </p>
 
       {aviso && (
         <p role="status" className="rounded-lg bg-success-soft p-4 text-body text-success-ink">

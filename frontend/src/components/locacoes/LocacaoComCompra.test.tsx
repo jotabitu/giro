@@ -159,15 +159,13 @@ describe("T-420 nova locação com intenção de compra", () => {
   const AGORA = new Date("2026-10-07T12:20:00Z");
 
   it("test_loc_16_corpo_leva_o_tipo_e_o_plano_sem_desconto_nem_extras", async () => {
-    const { resultados } = await locacoes.planosDeCompra();
-    const v = { ...valoresIniciais(1206, 504, AGORA), tipo: "intencao_compra" as const, plano_compra_id: 3, desconto: "10", extras: [1] };
-    expect(corpoDaLocacao(v, [], resultados)).toMatchObject({ tipo: "intencao_compra", plano_compra_id: 3, periodicidade: "mensal", desconto_pct: "0", extras: [] });
-    expect(corpoDaLocacao({ ...v, plano_compra_id: null }, [], resultados)).toBeNull();
+    const v = { ...valoresIniciais(1206, 504, AGORA), tipo: "intencao_compra" as const, desconto: "10", extras: [1] };
+    expect(corpoDaLocacao(v)).toEqual({ tipo: "intencao_compra", cliente_id: 1206, veiculo_id: 504, inicio: "2026-10-07T12:30:00.000Z", extras: [], desconto_pct: "0", forma_pagamento: "pix_automatico" });
+    expect(corpoDaLocacao({ ...v, cliente_id: null })).toBeNull();
   });
 
   it("test_loc_16_simulacao_traz_parcelas_e_a_ultima_com_a_caucao_abatida", async () => {
-    const { resultados } = await locacoes.planosDeCompra();
-    const corpo = corpoDaLocacao({ ...valoresIniciais(1206, 504, AGORA), tipo: "intencao_compra", plano_compra_id: 3 }, [], resultados)!;
+    const corpo = corpoDaLocacao({ ...valoresIniciais(1206, 504, AGORA), tipo: "intencao_compra" })!;
     const sim = await locacoes.simular(corpo);
     expect(sim.parcelas_previstas).toHaveLength(24);
     expect(sim.parcelas_previstas[0]?.valor_centavos).toBe(119000);
@@ -177,8 +175,7 @@ describe("T-420 nova locação com intenção de compra", () => {
   });
 
   it("test_loc_16_sem_modelo_publicado_a_confirmacao_e_recusada_com_o_atalho", async () => {
-    const { resultados } = await locacoes.planosDeCompra();
-    const corpo = corpoDaLocacao({ ...valoresIniciais(1206, 504, AGORA), tipo: "intencao_compra", plano_compra_id: 3 }, [], resultados)!;
+    const corpo = corpoDaLocacao({ ...valoresIniciais(1206, 504, AGORA), tipo: "intencao_compra" })!;
     modeloDeCompra.publicado = false;
     try {
       expect((await locacoes.simular(corpo)).avisos[0]).toMatchObject({ codigo: "LOC-16", link: "/admin/contratos" });
@@ -196,23 +193,21 @@ describe("T-420 nova locação com intenção de compra", () => {
   it("test_loc_16_tela_escolhe_o_tipo_e_o_plano_e_esconde_desconto_e_extras", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(AGORA);
-    const { resultados } = await locacoes.planosDeCompra();
-    const corpo = corpoDaLocacao({ ...valoresIniciais(1206, 504, AGORA), tipo: "intencao_compra", plano_compra_id: 3 }, [], resultados)!;
+    const corpo = corpoDaLocacao({ ...valoresIniciais(1206, 504, AGORA), tipo: "intencao_compra" })!;
     const cache = new QueryClient();
     cache.setQueryData(["cliente", 1206], await clientes.obter(1206));
     cache.setQueryData(["veiculo", 504], await veiculos.obter(504));
     cache.setQueryData(["extras"], await locacoes.extras());
-    cache.setQueryData(["planos-especiais"], await locacoes.planosEspeciais());
-    cache.setQueryData(["planos-compra"], { resultados });
+    cache.setQueryData(["veiculo-precos", 504], await veiculos.precos(504));
     cache.setQueryData(["locacao-simulacao", JSON.stringify(corpo)], await locacoes.simular(corpo));
     const t = texto(
       renderToStaticMarkup(
         <QueryClientProvider client={cache}>
-          <NovaLocacao clienteInicial={1206} veiculoInicial={504} tipoInicial="intencao_compra" planoDeCompraInicial={3} />
+          <NovaLocacao clienteInicial={1206} veiculoInicial={504} tipoInicial="intencao_compra" />
         </QueryClientProvider>,
       ),
     );
-    for (const trecho of ["Tipo de locação", "Comum", "Com intenção de compra", "Plano de compra", "Compra Street 24 meses", "24 parcelas de R$ 1.190,00 · mensal", "Fim previsto", "o veículo passa ao cliente na última parcela", "Abatida na última parcela", "24 parcelas mensais × R$ 1.190,00", "Última parcela", "R$ 890,00", "R$ 1.490,00", "Ao quitar a última parcela, o veículo passa ao cliente sem valor extra."]) {
+    for (const trecho of ["Tipo de locação", "Comum", "Com intenção de compra", "Plano de compra", "Locação com compra", "R$ 191,01", "104 parcelas", "Fim previsto", "o veículo passa ao cliente na última parcela", "Abatida da última parcela", "24 parcelas mensais × R$ 1.190,00", "Última parcela", "R$ 890,00", "R$ 1.490,00", "Ao quitar a última parcela, o veículo passa ao cliente sem valor extra."]) {
       expect(t, trecho).toContain(trecho);
     }
     for (const fora of ["Desconto (%)", "Adicionais", "Plano e período", "Parcelamento"]) expect(t, fora).not.toContain(fora);
@@ -223,7 +218,6 @@ describe("T-420 nova locação com intenção de compra", () => {
     vi.setSystemTime(AGORA);
     const cache = new QueryClient();
     cache.setQueryData(["extras"], await locacoes.extras());
-    cache.setQueryData(["planos-especiais"], await locacoes.planosEspeciais());
     const t = texto(
       renderToStaticMarkup(
         <QueryClientProvider client={cache}>

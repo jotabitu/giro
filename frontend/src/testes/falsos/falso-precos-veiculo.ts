@@ -2,6 +2,7 @@
 // Os números são os da API de exemplo; o fixture não calcula nada. Só os testes importam esta pasta.
 import { ErroApi } from "@/lib/api/tipos";
 import type { PlanoDoVeiculo, PrecosDoVeiculo, PrecosEntrada } from "@/lib/api/tipos-precos-veiculo";
+import { veiculosFalso } from "./falso-frota";
 
 const margem = (receita: number, lucro: number, pct: string) => ({ receita_mes_centavos: receita, lucro_mes_centavos: lucro, margem_pct: pct, abaixo_da_minima: false, sem_custo_compra: false });
 
@@ -135,10 +136,27 @@ export const PRECOS_BIZ_SEM_COMPRA: PrecosDoVeiculo = {
   plano_compra: { ...compraPop, resultado: { ...resultadoPop, lucro_centavos: null, margem_sobre_pago_pct: null, pago_sobre_recebe_pct: null, lucro_sobre_recebe_pct: null, sem_custo_compra: true } },
 };
 
+const TODAS = ["pix", "boleto", "cartao", "dinheiro"] as const;
+
+/** Os planos ligados de um veículo da frota do seed (a tabela Street de dados-de-teste.md): é o que a Nova locação oferece (T-497, LOC-01). */
+export const PLANOS_DA_TABELA: PlanoDoVeiculo[] = [
+  base({ id: 7001, tipo: "diaria", rotulo: "Diária", periodo: "dia", ligado: true, valor_centavos: 5490, como_paga: "tudo_na_retirada", formas_aceitas: [...TODAS], caucao_centavos: 30000, franquia_km: null }),
+  base({ id: 7002, tipo: "semanal", rotulo: "Semanal", periodo: "semana", ligado: true, valor_centavos: 32900, como_paga: "semana_adiantado", formas_aceitas: [...TODAS], caucao_centavos: 30000, franquia_km: null }),
+  base({ id: 7003, tipo: "mensal", rotulo: "Mensal", periodo: "mes", ligado: true, valor_centavos: 119000, como_paga: "mes_uma_parcela", formas_aceitas: [...TODAS], caucao_centavos: 30000, franquia_km: null }),
+  base({ id: 7004, tipo: "entregador", rotulo: "Entregador", periodo: "semana", ligado: true, valor_centavos: 27900, como_paga: "semana_adiantado", formas_aceitas: ["pix", "boleto"], caucao_centavos: 30000, franquia_km: 1200, prazo_minimo_periodos: 4 }),
+];
+
+/** O documento de preços de um veículo do seed: os planos da tabela ligados e, na Pop de exemplo (900), o contrato da T-496. */
+async function precosDoSeed(id: number): Promise<PrecosDoVeiculo> {
+  const v = await veiculosFalso.obter(id).catch(() => null);
+  if (!v) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+  return { ...structuredClone(PRECOS_POP), veiculo: { id: v.id, placa: v.placa, marca: v.marca, modelo: v.modelo, status: v.status }, planos: structuredClone(PLANOS_DA_TABELA), plano_compra: structuredClone(PRECOS_POP.plano_compra) };
+}
+
 /** Só o que `PUT` e `simular` precisam nos testes: devolve o documento do contrato; os testes de tela não conferem conta. */
 export const precosDoVeiculoFalso = {
   async precos(id: number): Promise<PrecosDoVeiculo> {
-    if (id !== 900) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+    if (id !== 900) return precosDoSeed(id);
     return structuredClone(PRECOS_POP);
   },
   async salvarPrecos(_id: number, _corpo: PrecosEntrada): Promise<PrecosDoVeiculo> {

@@ -353,13 +353,13 @@ export function NovoVeiculoForm() {
           <Panel titulo="Uso na frota">
             <div className="grid gap-4 md:grid-cols-2">
               <Selecao id="filial" rotulo="Filial" vazio="Escolha" opcoes={filiais} erro={erro("filial_id")} {...register("filial_id")} />
-              <SelectField cheio rotulo="Tipo de veículo" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} />
+              <SelectField cheio rotulo="Moto ou carro" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} />
               <Selecao
                 id="categoria"
-                rotulo="Categoria de preço"
+                rotulo="Tipo de veículo"
                 vazio={categorias.isPending ? "Carregando…" : "Escolha"}
                 opcoes={lista.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
-                dica={semCategoria}
+                dica={semCategoria ?? "Modelo de preço dos planos deste veículo; depois você ajusta em Planos e preços"}
                 erro={erro("categoria_id")}
                 {...register("categoria_id")}
                 value={v.categoria_id}

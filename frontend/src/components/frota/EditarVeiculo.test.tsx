@@ -67,15 +67,15 @@ describe("editar veículo, gerente", () => {
 
   it("test_vei_11_tipo_antes_da_categoria_e_livre_fora_da_locacao (CA-438-04)", async () => {
     const html = await pagina(504);
-    const campo = html.match(/<label[^>]*>Tipo de veículo<\/label>.*?<\/select>/s)?.[0] ?? "";
+    const campo = html.match(/<label[^>]*>Moto ou carro<\/label>.*?<\/select>/s)?.[0] ?? "";
     expect(campo).not.toContain("disabled");
     expect(campo).toMatch(/<option value="moto" selected="">Moto<\/option>/);
-    expect(html.indexOf(">Tipo de veículo</label>")).toBeLessThan(html.indexOf(">Categoria de preço</label>"));
+    expect(html.indexOf(">Moto ou carro</label>")).toBeLessThan(html.indexOf(">Tipo de veículo</label>"));
   });
 
   it("test_vei_11_tipo_travado_com_locacao_aberta (CA-438-08)", async () => {
     const html = await pagina(501);
-    const campo = html.match(/<label[^>]*>Tipo de veículo<\/label>.*?<\/span>/s)?.[0] ?? "";
+    const campo = html.match(/<label[^>]*>Moto ou carro<\/label>.*?<\/span>/s)?.[0] ?? "";
     expect(campo).toContain("disabled");
     expect(campo).toContain("Este veículo está na LOC-2841. Troque o tipo depois da devolução.");
   });
@@ -149,11 +149,11 @@ describe("corpo do PATCH", () => {
   });
 
   it("test_vei_11_sem_categoria_do_tipo_e_categoria_obrigatoria (CA-438-06, 12)", () => {
-    expect(semCategoriaDoTipo("carro")).toBe("Nenhuma categoria de carro nesta filial. Cadastre uma em Preços.");
-    expect(semCategoriaDoTipo("moto")).toBe("Nenhuma categoria de moto nesta filial. Cadastre uma em Preços.");
+    expect(semCategoriaDoTipo("carro")).toBe("Nenhum tipo de veículo de carro nesta filial.");
+    expect(semCategoriaDoTipo("moto")).toBe("Nenhum tipo de veículo de moto nesta filial.");
     const vazio = esquemaVeiculo.shape.categoria_id.safeParse("");
     expect(vazio.success).toBe(false);
-    expect(vazio.error?.issues[0]?.message).toBe("Escolha a categoria de preço.");
+    expect(vazio.error?.issues[0]?.message).toBe("Escolha o tipo de veículo.");
   });
 
   it("textoDeCentavos", () => {
