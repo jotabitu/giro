@@ -84,7 +84,7 @@ function CartaoDoReembolso({ r, aoMarcar }: { r: Reembolso; aoMarcar: (r: Reembo
 /** Reembolsos ao cliente: indicadores, lista por situação e o registro de que a transferência foi feita. */
 export function ListaReembolsos() {
   const { eu } = useSessao();
-  const { valor, definir } = useFiltrosNaUrl();
+  const { valor, definir, paginacao } = useFiltrosNaUrl();
   const aba = (valor("aba") ?? "a_fazer") as Aba;
   const periodo = (valor("periodo") ?? "mes") as Periodo;
   const cursor = valor("cursor") ?? undefined;
@@ -175,7 +175,7 @@ export function ListaReembolsos() {
                 <CartaoDoReembolso key={x.id} r={x} aoMarcar={setMarcando} />
               ))}
             </div>
-            <Paginacao texto={`Mostrando ${reembolsos.length} de ${total}`} anterior={d.anterior} proximo={d.proximo} aoIr={(cur) => definir({ cursor: cur })} />
+            <Paginacao texto={`Mostrando ${reembolsos.length} de ${total}`} anterior={d.anterior} proximo={d.proximo} {...paginacao} />
           </>
         )}
       </section>

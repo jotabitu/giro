@@ -1,4 +1,5 @@
 // T-511: o "Próxima" de Contas a receber leva o cursor à URL, a lista lê o cursor da URL e o manda à API.
+// T-513: o número da página vai à URL junto com o cursor e aparece entre "Anterior" e "Próxima".
 // Sem DOM nos testes (environment node): o clique é o onClick do botão "Próxima" do Paginacao real.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { isValidElement, type ReactElement, type ReactNode } from "react";
@@ -17,7 +18,7 @@ const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
 vi.mock("@/lib/filial-escolhida", () => ({ useFilial: () => null }));
 
-type PropsPaginacao = { anterior: string | null; proximo: string | null; aoIr: (cursor: string | null) => void; texto: string; extra?: ReactNode };
+type PropsPaginacao = { anterior: string | null; proximo: string | null; pagina: number; aoIr: (cursor: string | null, pagina: number) => void; texto: string; extra?: ReactNode };
 const capturado = vi.hoisted(() => ({ paginacao: null as null | PropsPaginacao, chips: null as null | { aoMudar: (v: string) => void } }));
 vi.mock("@/components/lista/Paginacao", async (original) => {
   const real = await original<typeof import("@/components/lista/Paginacao")>();
@@ -124,23 +125,25 @@ describe("paginação de Contas a receber (T-511)", () => {
     expect(chamadas.at(-1)?.cursor).toBeUndefined();
     expect(primeira).toContain(nome1);
     expect(primeira).not.toContain(nome2);
+    expect(primeira).toContain("|Anterior|1|Próxima|");
 
     clicarNaPaginacao("Próxima");
-    expect(url.replace).toHaveBeenLastCalledWith("/financeiro/receber?cursor=cD0y");
+    expect(url.replace).toHaveBeenLastCalledWith("/financeiro/receber?cursor=cD0y&pagina=2");
 
     const segunda = await telaComDados(cache);
     expect(chamadas.at(-1)).toMatchObject({ periodo: "mes", situacao: "atrasadas", cursor: "cD0y" });
     expect(segunda).toContain(nome2);
     expect(segunda).not.toContain(nome1);
+    expect(segunda).toContain("|Anterior|2|Próxima|");
 
     // Anterior com "0" é a primeira página: o cursor sai da URL.
     clicarNaPaginacao("Anterior");
     expect(url.replace).toHaveBeenLastCalledWith("/financeiro/receber");
   });
 
-  it("trocar a aba na página 2 volta para a primeira página", async () => {
-    url.params = new URLSearchParams({ cursor: "cD0y" });
-    await telaComDados(new QueryClient());
+  it("trocar a aba na página 2 volta para a primeira página e o número sai da URL", async () => {
+    url.params = new URLSearchParams({ cursor: "cD0y", pagina: "2" });
+    expect(await telaComDados(new QueryClient())).toContain("|Anterior|2|Próxima|");
     expect(chamadas.at(-1)?.cursor).toBe("cD0y");
     capturado.chips?.aoMudar("pagas");
     expect(url.replace).toHaveBeenLastCalledWith("/financeiro/receber?aba=pagas");

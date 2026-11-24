@@ -3,14 +3,15 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { CelulaDupla, DataTable, Icone, SegmentedControl, StatusBadge, type ColunaTabela } from "@/design-system";
-import { Paginacao } from "@/components/lista/Paginacao";
+import { Paginacao, usePaginaLocal } from "@/components/lista/Paginacao";
 import { vendas, type FiltroDeVendas, type ListaDeVendas as ListaDeVendasDaApi, type Venda } from "@/lib/api";
 import { useAgora, useAmbiente } from "@/lib/ambiente";
 import { mensagemDoErro } from "@/lib/erros";
 import { useFilial } from "@/lib/filial-escolhida";
 import { useFiltrosNaUrl } from "@/lib/filtros-url";
+import type { AoIrPagina } from "@/lib/paginacao";
 import { dataCompleta, dinheiro, dinheiroSemZeros, placa } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
 import { BotaoDoContrato } from "./AssinaturaDaVenda";
@@ -140,7 +141,7 @@ function CartaoDaVenda({ v, agora, comissao, transferencia }: { v: Venda; agora:
   );
 }
 
-function Lista({ titulo, rotulo, colunas, consulta, vazio, agora, comissao, aoIr, cabeca }: { titulo: string; rotulo: string; colunas: ColunaTabela<Venda>[]; consulta: UseQueryResult<ListaDeVendasDaApi>; vazio: string; agora: Date; comissao?: boolean; aoIr?: (c: string | null) => void; cabeca?: ReactNode }) {
+function Lista({ titulo, rotulo, colunas, consulta, vazio, agora, comissao, paginacao, cabeca }: { titulo: string; rotulo: string; colunas: ColunaTabela<Venda>[]; consulta: UseQueryResult<ListaDeVendasDaApi>; vazio: string; agora: Date; comissao?: boolean; paginacao?: { pagina: number; aoIr: AoIrPagina }; cabeca?: ReactNode }) {
   const d = consulta.data;
   // O número só aparece com a lista inteira na tela (sem próxima página): é a contagem do que está listado, não um total calculado.
   const n = d && !d.proximo && !d.anterior ? d.resultados.length : null;
@@ -174,7 +175,7 @@ function Lista({ titulo, rotulo, colunas, consulta, vazio, agora, comissao, aoIr
               <CartaoDaVenda key={v.id} v={v} agora={agora} comissao={comissao} />
             ))}
           </div>
-          {aoIr && (d.proximo || d.anterior) && <Paginacao texto={`Mostrando ${d.resultados.length}`} anterior={d.anterior} proximo={d.proximo} aoIr={aoIr} />}
+          {paginacao && (d.proximo || d.anterior) && <Paginacao texto={`Mostrando ${d.resultados.length}`} anterior={d.anterior} proximo={d.proximo} {...paginacao} />}
         </>
       )}
     </section>
@@ -191,15 +192,17 @@ export function ListaDeVendas() {
   const { valor, definir } = useFiltrosNaUrl();
   const aba = abaDaUrl(valor("aba"));
   const filtro = ABAS.find((a) => a.valor === aba)?.filtro ?? {};
-  const [cursorAbertas, setCursorAbertas] = useState<string | null>(null);
-  const [cursorVendidas, setCursorVendidas] = useState<string | null>(null);
+  const paginaAbertas = usePaginaLocal();
+  const paginaVendidas = usePaginaLocal();
+  const cursorAbertas = paginaAbertas.cursor;
+  const cursorVendidas = paginaVendidas.cursor;
 
   const pendentes = useQuery({ queryKey: ["vendas", "pendentes"], queryFn: () => vendas.listar({ transferencia_pendente: true }) });
   const abertas = useQuery({ queryKey: ["vendas", "abertas", aba, cursorAbertas], queryFn: () => vendas.listar({ ...filtro, cursor: cursorAbertas ?? undefined }), placeholderData: (a) => a });
   const vendidas = useQuery({ queryKey: ["vendas", "vendidas", mesDoDia(hoje), cursorVendidas], queryFn: () => vendas.listar({ aba: "vendidas", mes: mesDoDia(hoje), cursor: cursorVendidas ?? undefined }), placeholderData: (a) => a });
   const pend = pendentes.data?.resultados ?? [];
   const irPara = (a: Aba) => {
-    setCursorAbertas(null);
+    paginaAbertas.voltarAoInicio();
     definir({ aba: a === "todas" ? null : a });
   };
 
@@ -230,7 +233,7 @@ export function ListaDeVendas() {
         colunas={colunasAbertas(agora)}
         consulta={abertas}
         agora={agora}
-        aoIr={setCursorAbertas}
+        paginacao={{ pagina: paginaAbertas.pagina, aoIr: paginaAbertas.aoIr }}
         vazio={aba === "perdidas" ? "Nenhuma venda perdida." : aba === "aguardando" ? "Nenhuma proposta esperando o gerente." : "Nenhuma proposta aberta."}
         cabeca={
           <>
@@ -262,7 +265,7 @@ export function ListaDeVendas() {
         </section>
       )}
 
-      <Lista titulo={`Vendidas em ${mes}`} rotulo="Vendidas" colunas={COLUNAS_VENDIDAS} consulta={vendidas} agora={agora} comissao aoIr={setCursorVendidas} vazio={`Nenhuma venda concluída em ${mes}.`} />
+      <Lista titulo={`Vendidas em ${mes}`} rotulo="Vendidas" colunas={COLUNAS_VENDIDAS} consulta={vendidas} agora={agora} comissao paginacao={{ pagina: paginaVendidas.pagina, aoIr: paginaVendidas.aoIr }} vazio={`Nenhuma venda concluída em ${mes}.`} />
     </div>
   );
 }

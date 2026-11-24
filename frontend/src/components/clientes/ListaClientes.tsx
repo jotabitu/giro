@@ -126,7 +126,7 @@ const SITUACOES: { valor: string; rotulo: string; chave: "todos" | "com_locacao"
 export function ListaClientes() {
   const router = useRouter();
   const { eu } = useSessao();
-  const { valor, definir } = useFiltrosNaUrl();
+  const { valor, definir, paginacao } = useFiltrosNaUrl();
   const situacao = valor("situacao") ?? "todos";
   const ordem = (valor("ordem") ?? "-criado_em") as Ordem;
   // CLI-10: o filtro da lista é próprio e começa em "Todas as filiais"; o seletor do topo não o muda.
@@ -238,7 +238,7 @@ export function ListaClientes() {
               texto={total === null || total === undefined ? `Mostrando ${d.resultados.length}` : `Mostrando ${d.resultados.length} de ${total}`}
               anterior={d.anterior}
               proximo={d.proximo}
-              aoIr={(cur) => definir({ cursor: cur })}
+              {...paginacao}
             />
           </>
         )}

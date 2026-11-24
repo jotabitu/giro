@@ -62,7 +62,7 @@ function CartaoDaPendencia({ p, aoResolver }: { p: PendenciaPagamento; aoResolve
 
 /** Pendências do pagamento: avisos do parceiro que a baixa automática não resolveu e que o financeiro decide. */
 export function ListaPendencias() {
-  const { valor, definir } = useFiltrosNaUrl();
+  const { valor, definir, paginacao } = useFiltrosNaUrl();
   const aba = (valor("aba") ?? "aberta") as Aba;
   const cursor = valor("cursor") ?? undefined;
   const buscaNaUrl = valor("busca") ?? "";
@@ -160,7 +160,7 @@ export function ListaPendencias() {
                     <CartaoDaPendencia key={x.id} p={x} aoResolver={setResolvendo} />
                   ))}
                 </div>
-                <Paginacao texto={`Mostrando ${pendencias.length} de ${total}`} anterior={d.anterior} proximo={d.proximo} aoIr={(cur) => definir({ cursor: cur })} />
+                <Paginacao texto={`Mostrando ${pendencias.length} de ${total}`} anterior={d.anterior} proximo={d.proximo} {...paginacao} />
               </>
             )}
           </section>
