@@ -97,6 +97,8 @@ export type Veiculo = {
   motivo_status: string | null;
   /** VEI-15 (T-494): o texto pronto de "tabela de preços não preenchida" quando não há plano ligado, em qualquer status; senão `null`. */
   aviso_preco?: string | null;
+  /** VEI-21 (T-507): "Oferecer aluguel"; `false` mostra o selo "Aluguel desativado" ao lado do status. */
+  aluguel_ligado?: boolean;
   km_atual: number;
   km_atualizado_em: string;
   capacidade_tanque_litros: string | null;

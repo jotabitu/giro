@@ -234,12 +234,17 @@ class Veiculo(MaquinaDeEstados, ModeloBase):
     # AUT-18 (VEI-19, T-486): a entrada no estoque (data e hora da passagem para `a_venda`, VEI-18)
     # já avisada aos gerentes. Outra entrada pode ser avisada; a mesma, não.
     estoque_aviso_entrada_em = models.DateTimeField(null=True, blank=True)
+    # VEI-21 (T-507): "Oferecer aluguel". Desligado, os planos de aluguel ficam guardados e a
+    # Nova locação e a troca não oferecem o veículo para aluguel; o status não muda (padrão A).
+    aluguel_ligado = models.BooleanField(default=True)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = TRANSICOES_VEICULO
     REGRA_TRANSICAO: ClassVar[str] = "transicao_veiculo"
     # VEI-09: dados do veículo, não de pessoa; a auditoria da empresa é lida só pelo
     # administrador (modelo de dados, item 9).
-    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": list(CAMPOS_DA_VEI_09.values())}
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
+        "inteiro": [*CAMPOS_DA_VEI_09.values(), "aluguel_ligado"]
+    }
 
     class Meta:
         verbose_name = "veículo"
@@ -571,6 +576,7 @@ class AlvoPreco(models.TextChoices):
     CUSTOS = "custos", "Custos"
     PLANO_COMPRA = "plano_compra", "Locação com compra"
     VALOR_VENDA = "valor_venda", "Valor de venda"
+    ALUGUEL = "aluguel", "Aluguel"  # VEI-21
 
 
 class HistoricoPrecoVeiculo(ModeloBase):

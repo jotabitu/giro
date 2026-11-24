@@ -70,7 +70,7 @@ describe("editar veículo, gerente", () => {
     const campo = html.match(/<label[^>]*>Moto ou carro<\/label>.*?<\/select>/s)?.[0] ?? "";
     expect(campo).not.toContain("disabled");
     expect(campo).toMatch(/<option value="moto" selected="">Moto<\/option>/);
-    expect(html.indexOf(">Moto ou carro</label>")).toBeLessThan(html.indexOf(">Tipo de veículo</label>"));
+    expect(html.indexOf(">Moto ou carro</label>")).toBeLessThan(html.indexOf(">Tipo de plano</label>"));
   });
 
   it("test_vei_11_tipo_travado_com_locacao_aberta (CA-438-08)", async () => {
@@ -149,11 +149,11 @@ describe("corpo do PATCH", () => {
   });
 
   it("test_vei_11_sem_categoria_do_tipo_e_categoria_obrigatoria (CA-438-06, 12)", () => {
-    expect(semCategoriaDoTipo("carro")).toBe("Nenhum tipo de veículo de carro nesta filial.");
-    expect(semCategoriaDoTipo("moto")).toBe("Nenhum tipo de veículo de moto nesta filial.");
+    expect(semCategoriaDoTipo("carro")).toBe("Nenhum tipo de plano de carro nesta filial.");
+    expect(semCategoriaDoTipo("moto")).toBe("Nenhum tipo de plano de moto nesta filial.");
     const vazio = esquemaVeiculo.shape.categoria_id.safeParse("");
     expect(vazio.success).toBe(false);
-    expect(vazio.error?.issues[0]?.message).toBe("Escolha o tipo de veículo.");
+    expect(vazio.error?.issues[0]?.message).toBe("Escolha o tipo de plano.");
   });
 
   it("textoDeCentavos", () => {

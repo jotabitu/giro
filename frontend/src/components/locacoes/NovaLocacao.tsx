@@ -106,10 +106,11 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
   const veiculo = useQuery({ queryKey: ["veiculo", v.veiculo_id], queryFn: () => veiculos.obter(v.veiculo_id ?? 0), enabled: !!v.veiculo_id, retry: false });
   // Os planos ligados do veículo (e o plano de compra dele) vêm da API; plano desligado não aparece (VEI-12).
   const precos = useQuery({ queryKey: ["veiculo-precos", v.veiculo_id], queryFn: () => veiculos.precos(v.veiculo_id ?? 0), enabled: !!v.veiculo_id, retry: false });
-  const ligados = useMemo(() => (precos.data?.planos ?? []).filter((p) => p.ligado), [precos.data]);
+  // VEI-21: com o aluguel desligado, nenhum plano de aluguel; a locação com compra fica.
+  const ligados = useMemo(() => (precos.data?.aluguel_ligado === false ? [] : (precos.data?.planos ?? []).filter((p) => p.ligado)), [precos.data]);
   const plano = ligados.find((p) => p.id === v.plano_veiculo_id);
   const planoDeCompra = precos.data?.plano_compra?.ligado ? precos.data.plano_compra : null;
-  const avisoDoVeiculo = precos.data && ligados.length === 0 ? (precos.data.aviso_preco ?? AVISO_SEM_PLANO) : null;
+  const avisoDoVeiculo = precos.data && ligados.length === 0 ? (precos.data.aviso_aluguel ?? precos.data.aviso_preco ?? AVISO_SEM_PLANO) : null;
 
   // Retomar um rascunho: o formulário volta do detalhe da locação.
   const rascunho = useQuery({ queryKey: ["locacao", rascunhoInicial], queryFn: () => locacoes.obter(rascunhoInicial ?? 0), enabled: !!rascunhoInicial, retry: false });

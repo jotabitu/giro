@@ -28,6 +28,8 @@ const base = (p: Partial<PlanoDoVeiculo> & Pick<PlanoDoVeiculo, "tipo" | "rotulo
 export const PRECOS_POP: PrecosDoVeiculo = {
   veiculo: { id: 900, placa: "TBC5H21", marca: "Honda", modelo: "Pop 110i", status: "disponivel" },
   valor_venda_centavos: 1590000,
+  aluguel_ligado: true,
+  aviso_aluguel: null,
   fipe_centavos: 1390000,
   ocupacao_real_90d_pct: "84.00",
   margem_minima_pct: null,

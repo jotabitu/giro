@@ -63,6 +63,7 @@ from .services import (
     CAMPOS_DOS_CUSTOS,
     DocumentoDePrecos,
     SituacaoDocumento,
+    aviso_aluguel_desativado,
     chave_do_plano,
     despesas_do_veiculo,
     montar_documento,
@@ -534,6 +535,7 @@ def representacao(
         "acoes": acoes(veiculo, usuario, blocos),
         # VEI-15: em qualquer status; não é status (decisão do dono de 18 nov 2026).
         "aviso_preco": aviso_preco(veiculo),
+        "aluguel_ligado": veiculo.aluguel_ligado,  # VEI-21: "Aluguel desativado" na Frota e ficha
     }
     # VEI-18, VEI-19 (T-486): dias em estoque do veículo `a_venda`; o vistoriador não recebe.
     if limite_parado is None:
@@ -885,6 +887,8 @@ def precos_do_veiculo(
             "status": veiculo.status,
         },
         "valor_venda_centavos": documento.valor_venda_centavos,
+        "aluguel_ligado": documento.aluguel_ligado,  # VEI-21
+        "aviso_aluguel": None if documento.aluguel_ligado else aviso_aluguel_desativado(veiculo),
         "fipe_centavos": veiculo.referencia_fipe_centavos,
         "ocupacao_real_90d_pct": ocupacao(veiculo)["pct"],
         "margem_minima_pct": empresas_selectors.margem_minima_pct(),
