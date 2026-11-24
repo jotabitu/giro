@@ -122,7 +122,7 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 </section>
 
 <section class="card">
-<div style="display: flex; align-items: center; gap: 12px;"><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer locação com compra"></button><div><h2 class="h2">Locação com compra</h2><p class="sub" style="margin-top: 2px;">O cliente paga o valor de venda em parcelas e a moto é dele no fim.</p></div></div>
+<div style="display: flex; align-items: flex-start; gap: 12px;"><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer locação com compra"></button><div style="flex: 1; min-width: 0;"><h2 class="h2">Locação com compra</h2><p class="sub" style="margin-top: 2px;">O cliente paga o valor de venda em parcelas e a moto é dele no fim.</p></div><button type="button" class="wl-icon-btn" style="width: 44px; height: 44px; flex: none; margin: -8px -8px 0 0;" aria-expanded="true" aria-controls="compra-corpo" aria-label="Recolher a locação com compra"><svg class="wl-i" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"></path></svg></button></div>
 <div><span class="wl-field__label" style="display: block; margin-bottom: 6px;">Parcelas</span><div class="wl-seg" role="group" aria-label="Periodicidade" style="display: flex;"><button aria-pressed="false" style="flex: 1; padding: 0 4px;">Diárias</button><button aria-pressed="true" style="flex: 1; padding: 0 4px;">Semanais</button><button aria-pressed="false" style="flex: 1; padding: 0 4px;">Quinzenais</button><button aria-pressed="false" style="flex: 1; padding: 0 4px;">Mensais</button></div></div>
 <div class="two">
 <label class="wl-field"><span class="wl-field__label">Quantidade de parcelas</span><input class="wl-input" value="104"><span class="wl-field__hint">104 semanas = 24 meses</span></label>
@@ -264,6 +264,12 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <div style="display: flex; align-items: flex-start; gap: 12px;"><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer aluguel"></button><div style="flex: 1; min-width: 0;"><h2 class="h2">Aluguel</h2><p class="sub" style="margin-top: 2px;">3 planos ligados</p></div><button type="button" class="wl-icon-btn" style="width: 44px; height: 44px; flex: none; margin: -8px -8px 0 0;" aria-expanded="false" aria-controls="aluguel-corpo" aria-label="Abrir o aluguel"><svg class="wl-i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button></div>
 </section>
 <span class="lbl">A seta recolhe e abre o bloco. Ele abre por padrão e não muda o que está ligado.</span></div>
+
+<div class="est"><h3>Locação com compra recolhida</h3>
+<section class="card">
+<div style="display: flex; align-items: flex-start; gap: 12px;"><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer locação com compra"></button><div style="flex: 1; min-width: 0;"><h2 class="h2">Locação com compra</h2><p class="sub" style="margin-top: 2px;">O cliente paga o valor de venda em parcelas e a moto é dele no fim.</p></div><button type="button" class="wl-icon-btn" style="width: 44px; height: 44px; flex: none; margin: -8px -8px 0 0;" aria-expanded="false" aria-controls="compra-corpo" aria-label="Abrir a locação com compra"><svg class="wl-i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button></div>
+</section>
+<span class="lbl">A mesma seta do aluguel. O bloco abre por padrão e começa recolhido com a locação com compra desligada. Erro de campo dentro do bloco o mantém aberto.</span></div>
 
 <div class="est"><h3>Liga e desliga recusado pela API: ligar sem os dados do plano</h3>
 <div class="pl off"><div class="ph"><b style="color: var(--ink-muted);">Entregador</b><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer entregador"></button></div>
