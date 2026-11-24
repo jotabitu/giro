@@ -17,9 +17,12 @@ from django.core import mail
 from django.core.cache import cache
 from django.db import connection
 
+from apps.aprovacoes import services as aprovacoes_services
 from apps.auditoria.models import EventoAuditoria
+from apps.clientes import titular
 from apps.plataforma.models import Empresa
 from apps.relatorios import selectors as relatorios_selectors
+from apps.vendas import envio
 from apps.vendas.models import MetaVenda, Venda
 from comum import relogio as relogio_do_giro
 from comum.empresa import nome_da_empresa
@@ -27,7 +30,7 @@ from comum.estados import transicionar
 
 from .test_t015_locacoes import Cenario, cenario  # noqa: F401
 from .test_t090_contratos import HOST_B, _publica
-from .test_t502_fluxo_de_venda import VEN_0177, _cb, _criada, _post
+from .test_t502_fluxo_de_venda import VEN_0177, _cb, _criada, _pedido, _post
 
 FUSO = ZoneInfo("America/Sao_Paulo")
 VENDAS = "/api/vendas/"
@@ -542,3 +545,98 @@ def test_ven_isolamento_do_resumo_e_das_metas(cenario, vendas):  # noqa: F811
         assert not MetaVenda.objects.exists()
     finally:
         connection.set_tenant(Empresa.objects.get(schema_name="empresa_a"))
+
+
+# --- VEN-13: a aprovada que vinha de interessado é enviada sozinha (decisão de 18 nov, #665) ---
+
+
+def test_ven_13_aprovada_de_interessado_e_enviada(
+    cenario,  # noqa: F811
+    relogio,
+    django_capture_on_commit_callbacks,
+):
+    """De `interessado`, o pedido de aprovação tomou o lugar do "Salvar e enviar": aprovado às
+    11:00, a proposta sai por e-mail com o PDF e a data da aprovação é a do envio (vence em 14
+    out). Sem e-mail, vale o "Cliente sem e-mail" da VEN-19: só o PDF. A que vinha de `proposta`
+    não é reenviada (o vendedor usa "Enviar")."""
+    _com_email(cenario)
+    criada = _criada(cenario, "pedir_aprovacao", **VEN_0177)
+    assert mail.outbox == []
+    relogio.em("2026-10-07 11:00")
+    with django_capture_on_commit_callbacks(execute=True):
+        aprovacoes_services.aprovar(_pedido(criada["id"]), cenario.pessoas["Rodrigo"])
+    venda = Venda.objects.get(pk=criada["id"])
+    assert (venda.status, venda.proposta_enviada_em) == ("proposta", relogio.agora)
+    assert venda.proposta_pdf
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [EMAIL_DO_DIEGO]
+    assert mail.outbox[0].attachments[0][0] == f"proposta-{venda.codigo}.pdf"
+    assert envio.texto_do_envio(venda) == (
+        "Proposta enviada para diego@exemplo.com em 07 out. "
+        "Sem resposta do cliente, ela vence em 14 out."
+    )
+
+    # Sem e-mail: a proposta conta como enviada na aprovação e só o PDF é gravado.
+    _com_email(cenario, email="")
+    sem_email = _criada(cenario, "pedir_aprovacao", **{**VEN_0177, "veiculo": _cb(cenario, 1)})
+    with django_capture_on_commit_callbacks(execute=True):
+        aprovacoes_services.aprovar(_pedido(sem_email["id"]), cenario.pessoas["Rodrigo"])
+    venda = Venda.objects.get(pk=sem_email["id"])
+    assert (venda.status, venda.proposta_enviada_em) == ("proposta", relogio.agora)
+    assert venda.proposta_pdf
+    assert len(mail.outbox) == 1
+    assert envio.texto_do_envio(venda) == (
+        "A proposta foi salva, mas este cliente não tem e-mail cadastrado. "
+        "Copie o link e envie para ele."
+    )
+
+    # A que vinha de `proposta` o cliente já recebeu: aprovada, não sai de novo.
+    _com_email(cenario)
+    enviada = _enviada(cenario, django_capture_on_commit_callbacks, veiculo=_cb(cenario, 2))
+    assert len(mail.outbox) == 2
+    with django_capture_on_commit_callbacks(execute=True):
+        pedido = _post(cenario, enviada["id"], "pedir-aprovacao", desconto_pct="8.00")
+        assert pedido.status_code == 200, pedido.json()
+        aprovacoes_services.aprovar(_pedido(enviada["id"]), cenario.pessoas["Rodrigo"])
+    assert Venda.objects.get(pk=enviada["id"]).status == "proposta"
+    assert len(mail.outbox) == 2
+
+
+# --- S-15: revisão da Segurança no #650 ---
+
+
+def test_s_15_editar_a_proposta_anula_o_link_e_o_pdf(cenario, django_capture_on_commit_callbacks):  # noqa: F811
+    """Trocar o cliente ou os valores em `proposta` anula o token e o PDF de antes: o link não
+    entrega ao cliente novo o PDF com o nome do anterior. O link novo grava o PDF de agora."""
+    venda = _enviada(cenario, django_capture_on_commit_callbacks)
+    token = _token(_copiar(cenario, venda["id"]).json()["link"])
+    assert _abrir(token).status_code == 200
+    pdf_antes = Venda.objects.get(pk=venda["id"]).proposta_pdf.name
+    outro = cenario.cliente("Carlos")
+    editada = cenario.moto.api("Bruna").patch(
+        f"{VENDAS}{venda['id']}/", {"cliente_id": outro.pk, "desconto_pct": "4.00"}, format="json"
+    )
+    assert editada.status_code == 200, editada.json()
+    salva = Venda.objects.get(pk=venda["id"])
+    assert (salva.token_proposta_hash, salva.token_proposta_expira_em) == (None, None)
+    assert not salva.proposta_pdf
+    assert _abrir(token).status_code == 404
+    novo = _token(_copiar(cenario, venda["id"]).json()["link"])
+    aberto = _abrir(novo)
+    assert aberto.status_code == 200, aberto.json()
+    assert aberto.json()["proposta"]["cliente_primeiro_nome"] == outro.nome.split()[0]
+    salva.refresh_from_db()
+    assert salva.proposta_pdf and salva.proposta_pdf.name != pdf_antes
+    assert outro.nome in envio.corpo(salva)
+
+
+def test_s_15_anonimizar_o_titular_anula_o_link_da_proposta(
+    cenario,  # noqa: F811
+    django_capture_on_commit_callbacks,
+):
+    venda = _enviada(cenario, django_capture_on_commit_callbacks)
+    token = _token(_copiar(cenario, venda["id"]).json()["link"])
+    titular._anular_links(cenario.cliente("Diego"))
+    salva = Venda.objects.get(pk=venda["id"])
+    assert (salva.token_proposta_hash, salva.token_proposta_expira_em) == (None, None)
+    assert _abrir(token).status_code == 404

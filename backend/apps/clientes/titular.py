@@ -204,8 +204,8 @@ def exportar(empresa: Any, cliente_id: int, pedido: Pedido) -> bytes:
 
 def _anular_links(cliente: Cliente) -> None:
     """T-411 (`copiar-link.md`): os links vivos do titular deixam de abrir (404): o de assinatura
-    dos contratos não assinados e o do recibo das devoluções. Pelo registro do app, sem importar
-    os apps de cima (ADR 0011)."""
+    dos contratos não assinados, o do recibo das devoluções e o da proposta das vendas (T-502).
+    Pelo registro do app, sem importar os apps de cima (ADR 0011)."""
     contrato = apps.get_model("contratos", "Contrato")
     contrato.objects.filter(cliente=cliente, token_assinatura_hash__isnull=False).exclude(
         status="assinado"
@@ -213,6 +213,10 @@ def _anular_links(cliente: Cliente) -> None:
     devolucao = apps.get_model("vistorias", "Devolucao")
     devolucao.objects.filter(locacao__cliente=cliente, token_recibo_hash__isnull=False).update(
         token_recibo_hash=None, token_recibo_expira_em=None
+    )
+    venda = apps.get_model("vendas", "Venda")
+    venda.objects.filter(cliente=cliente, token_proposta_hash__isnull=False).update(
+        token_proposta_hash=None, token_proposta_expira_em=None
     )
 
 

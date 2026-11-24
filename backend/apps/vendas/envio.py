@@ -258,7 +258,8 @@ def link(host: str, token: str) -> str:
 
 def gerar_link(venda: Venda, por: Any) -> tuple[str, Venda]:
     """ "Copiar link" (`VEN-15`, `VEN-19`): só a venda com a proposta enviada (`proposta` ou
-    `negociacao`); grava o PDF se ainda não existe; token novo, o anterior deixa de valer. Não
+    `negociacao`); grava o PDF de novo (o do link é sempre o da proposta de agora: S-15, revisão
+    da Segurança no #650); token novo, o anterior deixa de valer. Não
     envia nada e não muda o estado nem o vencimento. Devolve o token em claro uma vez."""
     if not proposta_publica_ligada():
         raise proposta_publica_desligada()
@@ -271,8 +272,7 @@ def gerar_link(venda: Venda, por: Any) -> tuple[str, Venda]:
             )
         if travada.cliente is not None and travada.cliente.anonimizado_em is not None:
             raise Conflito("titular_anonimizado", "Os dados deste cliente foram anonimizados.")
-        if not travada.proposta_pdf:
-            gravar_pdf(travada)
+        gravar_pdf(travada)
         token = secrets.token_urlsafe(32)
         travada.token_proposta_hash = hash_do_token(token)
         travada.token_proposta_expira_em = relogio.agora() + VALIDADE_DO_LINK

@@ -183,7 +183,7 @@ A Nova venda.
 
 ### PATCH /api/vendas/{id}/
 
-Campos da proposta: `cliente_id`, `interessado` (só sem cliente), `forma`, `desconto_pct`, `entrada_centavos`, `num_parcelas`. Os juros são copiados da empresa de novo; a comissão pendente acompanha o preço (`FIN-09`); o motivo da recusa sai.
+Campos da proposta: `cliente_id`, `interessado` (só sem cliente), `forma`, `desconto_pct`, `entrada_centavos`, `num_parcelas`. Os juros são copiados da empresa de novo; a comissão pendente acompanha o preço (`FIN-09`); o motivo da recusa sai. O link público e o PDF da proposta de antes deixam de valer (S-15, revisão da Segurança no #650): o token é anulado e a venda deixa de apontar para o PDF (o arquivo fica guardado, ADR 0009); o próximo "Enviar" ou "Copiar link" grava o PDF de agora.
 - 400 em `desconto_pct` acima do limite (até o desconto aprovado, passa). Em `proposta` e `negociacao`, o cliente com CPF e a forma completa continuam obrigatórios.
 - 409 `APR-01` "A venda está esperando o gerente. Espere a decisão ou cancele o pedido." em `aguardando_aprovacao`; 409 `VEN-06` "Cancele a assinatura para mudar a proposta." com contrato; 409 `transicao_venda` "Esta venda não se edita mais." em `vendida`, `perdida` e `cancelada`.
 
@@ -208,7 +208,7 @@ Sem corpo. `interessado` → `proposta` (pede o cliente com CPF, a forma e o des
 - 409 `pedido_pendente` se já há pedido pendente; 409 `VEN-10` vindo de `interessado` com outra venda aberta do veículo.
 
 **A decisão** sai nas rotas de `aprovacoes` (`APR-07`, `APR-09`) e volta pelo evento `aprovacoes.pedido_decidido`:
-- aprovado: `aprovacao = aprovado`, `desconto_aprovado_pct` = o pedido, volta ao estado de antes; a que vinha de `interessado` vira `proposta` e é enviada; a que volta para `proposta` recomeça o prazo (`proposta_enviada_em` = agora);
+- aprovado: `aprovacao = aprovado`, `desconto_aprovado_pct` = o pedido, volta ao estado de antes; a que vinha de `interessado` vira `proposta` e é enviada sozinha na aprovação (`VEN-13`, decisão do dono de 18 nov 2026, #665): a tarefa `vendas_enviar_proposta` grava o PDF e manda o e-mail depois do commit, como no "Enviar", e a data da aprovação é a do envio; sem e-mail no cadastro, vale o "Cliente sem e-mail" da `VEN-19` (só o PDF, para o "Copiar link"). A que vinha de `proposta` ou `negociacao` não é reenviada: o vendedor usa "Enviar". A que volta para `proposta` recomeça o prazo (`proposta_enviada_em` = agora);
 - recusado: desconto 0, preço e comissão pendente refeitos, `motivo_recusa` gravado, volta ao estado de antes (a `proposta` recomeça o prazo) e o vendedor é avisado no sino ("Desconto da VEN-0177 recusado: Margem baixa", `tipo = "desconto_recusado"`, link `/vendas/{id}`);
 - cancelado (quem pediu desistiu): como recusado, sem motivo nem aviso.
 
@@ -278,7 +278,7 @@ Perfis: administrador e gerente da filial (recurso `vendas_comissoes`). `{ "feit
 
 "Copiar link" (`VEN-15`, `VEN-19`), como o link do recibo da devolução (T-411, S-15). Quem mexe na venda (o vendedor nas dele, gerente e administrador nas da filial); o suporte não gera link (403 `PLT-07` "No modo suporte você não gera link para o cliente."). Sem corpo.
 - Só com a proposta enviada e aberta (`proposta` ou `negociacao`); fora disso, 409 `transicao_venda` "O link existe só para a proposta enviada e ainda aberta.". Cliente anonimizado: 409 `titular_anonimizado`.
-- Grava o PDF se ainda não existe; cria um token de 32 bytes (`secrets.token_urlsafe`), guarda só o hash SHA-256 e o vencimento (7 dias); o token anterior deixa de valer (um vivo por venda). Não envia nada e não muda o estado nem o vencimento da proposta.
+- Grava o PDF de novo a cada link (o do link é sempre o da proposta de agora); cria um token de 32 bytes (`secrets.token_urlsafe`), guarda só o hash SHA-256 e o vencimento (7 dias); o token anterior deixa de valer (um vivo por venda). Não envia nada e não muda o estado nem o vencimento da proposta.
 - 200, com `Cache-Control: no-store`: `{ "link": "https://motorapida.giro.ceo/proposta#<token>", "expira_em": "2026-10-14T13:00:00Z", "aviso": "O link anterior deixa de valer." }`. O token vai no fragmento do link: não chega a log de servidor nem ao `Referer`, e aparece só nesta resposta.
 - Limites: 5 por hora por venda e 20 por hora por pessoa (429).
 - Auditoria `venda.copiar_link_proposta` (segurança, regra `S-15`), com o vencimento e sem o token.
@@ -298,7 +298,7 @@ A página pública `/proposta` lê o token do fragmento e o manda no corpo: `{ "
 }
 ```
   Só o primeiro nome do cliente e o veículo sem a placa; o resto está no PDF, por URL assinada de 15 minutos (`AUD-05`).
-- 404 para token desconhecido ou anulado (sem dizer qual), com o link desligado e com o cliente anonimizado; 410 `link_expirado` depois dos 7 dias ou com a venda fora de `proposta`/`negociacao` (vendida, perdida). Não é de uso único.
+- 404 para token desconhecido ou anulado (sem dizer qual: o link novo, a edição da proposta e a anonimização do titular anulam), com o link desligado e com o cliente anonimizado; 410 `link_expirado` depois dos 7 dias ou com a venda fora de `proposta`/`negociacao` (vendida, perdida). Não é de uso único.
 - Limites: 10 por minuto por IP e 20 por minuto por token (429).
 - Cada abertura grava `venda.proposta_aberta` (segurança, ator Sistema, regra `VEN-15`, IP truncado na rede e aparelho), no máximo uma por token por dia.
 

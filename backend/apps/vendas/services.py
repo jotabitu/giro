@@ -686,6 +686,12 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
             _aplicar(venda, conta)
             venda.motivo_recusa = ""  # o vendedor refez a proposta (VEN-13)
             venda.ultimo_contato_em = relogio.agora()
+            # S-15 (revisão da Segurança no #650): a proposta mudou, e o link e o PDF de antes
+            # (com o cliente e os valores de antes) deixam de valer. O arquivo fica guardado
+            # (ADR 0009); só a venda deixa de apontar para ele.
+            venda.token_proposta_hash = None
+            venda.token_proposta_expira_em = None
+            venda.proposta_pdf = None
             venda.save(
                 update_fields=[
                     "cliente",
@@ -694,6 +700,9 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
                     *CAMPOS_DO_CALCULO,
                     "motivo_recusa",
                     "ultimo_contato_em",
+                    "token_proposta_hash",
+                    "token_proposta_expira_em",
+                    "proposta_pdf",
                     "atualizado_em",
                 ]
             )
@@ -892,6 +901,12 @@ def aplicar_decisao_desconto(
         )
         if status != "aprovado":
             _recalcular_comissao(venda)
+        if status == "aprovado" and antes == StatusVenda.INTERESSADO:
+            # VEN-13 (decisão do dono de 18 nov 2026, #665): o pedido tomou o lugar do "Salvar
+            # proposta e enviar"; o cliente ainda não recebeu nada, e a proposta sai sozinha na
+            # aprovação. Sem e-mail, vale o "Cliente sem e-mail" da VEN-19 (só o PDF). A que
+            # vinha de `proposta` ou `negociacao` não é reenviada: o vendedor usa "Enviar".
+            _agendar_envio(venda)
         if status == "recusado" and venda.vendedor_id is not None:
             notificacoes.avisar(
                 [venda.vendedor_id],
