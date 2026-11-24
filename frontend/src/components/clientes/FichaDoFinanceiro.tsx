@@ -4,7 +4,7 @@ import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-quer
 import { Info, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { Button, CelulaDupla, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
+import { Button, CelulaDupla, DataTable, Icone, KpiGrid, KpiTile, ListaComRolagem, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import { clientes, financeiro, type ClienteResumo, type ContaReceber, type LocacaoDoCliente } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { origemDaConta, rotuloDaForma, situacaoDaConta } from "@/lib/financeiro";
@@ -165,13 +165,19 @@ export function FichaDoFinanceiro({ c }: { c: ClienteResumo }) {
         <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-6">
           <Panel titulo="Parcelas atrasadas">
             <Estado consulta={atrasadas} vazio={atrasadas.data?.resultados.length === 0} textoVazio="Nenhuma parcela atrasada.">
-              <ul>{atrasadas.data?.resultados.map((x) => <Atrasada key={x.id} c={x} />)}</ul>
+              <ListaComRolagem rotulo="Parcelas atrasadas do cliente">
+                <ul>{atrasadas.data?.resultados.map((x) => <Atrasada key={x.id} c={x} />)}</ul>
+              </ListaComRolagem>
             </Estado>
           </Panel>
 
           <Panel titulo="Locações">
             <Estado consulta={locacoes} vazio={lista?.resultados.length === 0} textoVazio="Nenhuma locação.">
-              {lista && <DataTable colunas={COLUNAS_LOCACOES} linhas={lista.resultados} chaveDaLinha={(l) => String(l.id)} legenda="Locações do cliente" />}
+              {lista && (
+                <ListaComRolagem rotulo="Locações do cliente">
+                  <DataTable colunas={COLUNAS_LOCACOES} linhas={lista.resultados} chaveDaLinha={(l) => String(l.id)} legenda="Locações do cliente" />
+                </ListaComRolagem>
+              )}
             </Estado>
           </Panel>
         </div>
@@ -186,7 +192,9 @@ export function FichaDoFinanceiro({ c }: { c: ClienteResumo }) {
 
           <Panel titulo="Pagamentos">
             <Estado consulta={pagas} vazio={pagas.data?.resultados.length === 0} textoVazio="Nenhum pagamento ainda.">
-              <ul>{pagas.data?.resultados.map((x) => <Pagamento key={x.id} c={x} />)}</ul>
+              <ListaComRolagem rotulo="Pagamentos do cliente">
+                <ul>{pagas.data?.resultados.map((x) => <Pagamento key={x.id} c={x} />)}</ul>
+              </ListaComRolagem>
             </Estado>
           </Panel>
         </aside>

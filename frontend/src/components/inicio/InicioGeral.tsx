@@ -8,6 +8,7 @@ import {
   DataTable,
   FleetBar,
   Icone,
+  ListaComRolagem,
   Panel,
   SearchField,
   SegmentedControl,
@@ -110,9 +111,11 @@ export function InicioGeral({ d, periodo, aoMudarPeriodo }: { d: InicioDe<"geral
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
         <Panel titulo="Devoluções da semana" subtitulo={d.devolucoes_semana?.subtitulo}>
-          <DataTable colunas={COLUNAS} linhas={devolucoes} chaveDaLinha={(l) => l.codigo} legenda="Devoluções da semana" />
+          <ListaComRolagem rotulo="Devoluções da semana">
+            <DataTable colunas={COLUNAS} linhas={devolucoes} chaveDaLinha={(l) => l.codigo} legenda="Devoluções da semana" />
+          </ListaComRolagem>
         </Panel>
         <div className="flex flex-col gap-6">
           <AlertCard
