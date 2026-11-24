@@ -232,26 +232,32 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <span class="lbl">Se a locação com compra for o último plano ligado, vale o texto do último plano.</span></div>
 
 <div class="est"><h3>Liga e desliga confirmado: o aluguel inteiro</h3>
-<div class="dlg" role="dialog" aria-label="Desligar o aluguel?">
-<h4>Desligar o aluguel?</h4>
-<p>O aluguel deixa de aparecer na Nova locação. Os planos e os valores ficam guardados, e as locações já confirmadas continuam com o preço delas.</p>
-<div class="acts"><button class="wl-btn wl-btn--solid">Desligar o aluguel</button><button class="wl-btn wl-btn--quiet">Continuar ligado</button></div>
+<div class="dlg" role="dialog" aria-label="Desativar o aluguel desta moto?">
+<h4>Desativar o aluguel desta moto?</h4>
+<p>Os planos de aluguel ficam guardados como estão e voltam quando você ativar o aluguel de novo. A moto deixa de aparecer para aluguel na Nova locação. As locações já confirmadas continuam com o preço delas.</p>
+<div class="acts"><button class="wl-btn wl-btn--solid">Desativar aluguel</button><button class="wl-btn wl-btn--quiet">Continuar com aluguel</button></div>
 </div>
-<div class="dlg" role="dialog" aria-label="Ligar o aluguel?">
-<h4>Ligar o aluguel?</h4>
-<p>Os planos guardados voltam a aparecer na Nova locação, com os valores de antes.</p>
-<div class="acts"><button class="wl-btn wl-btn--solid">Ligar o aluguel</button><button class="wl-btn wl-btn--quiet">Continuar desligado</button></div>
+<div class="dlg" role="dialog" aria-label="Ativar o aluguel desta moto?">
+<h4>Ativar o aluguel desta moto?</h4>
+<p>Os planos de aluguel voltam como estavam, e os ligados passam a aparecer na Nova locação.</p>
+<div class="acts"><button class="wl-btn wl-btn--solid">Ativar aluguel</button><button class="wl-btn wl-btn--quiet">Continuar desativado</button></div>
 </div></div>
 
-<div class="est"><h3>Aluguel desligado: planos guardados</h3>
-<section class="card" style="background: var(--surface-sunken);">
-<div style="display: flex; align-items: flex-start; gap: 12px;"><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer aluguel"></button><div style="flex: 1; min-width: 0;"><h2 class="h2">Aluguel</h2><p class="sub" style="margin-top: 2px;">Desligado. Esta moto não aparece na Nova locação para aluguel. Os planos ficam guardados e voltam como estavam ao ligar.</p></div><button type="button" class="wl-icon-btn" style="width: 44px; height: 44px; flex: none; margin: -8px -8px 0 0;" aria-expanded="true" aria-controls="aluguel-guardado" aria-label="Recolher o aluguel"><svg class="wl-i" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"></path></svg></button></div>
-<div id="aluguel-guardado" style="display: flex; flex-direction: column; gap: 14px; opacity: .55;">
-<div class="pl off"><div class="ph"><b>Diária</b><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Plano diária (guardado)" disabled></button></div><span class="lbl">R$ 44,90 · guardado. Ligue o aluguel para editar.</span></div>
-<div class="pl off"><div class="ph"><b>Semanal</b><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Plano semanal (guardado)" disabled></button></div><span class="lbl">R$ 269,00 · guardado. Ligue o aluguel para editar.</span></div>
-<div class="pl off"><div class="ph"><b>Mensal</b><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Plano mensal (guardado)" disabled></button></div><span class="lbl">R$ 990,00 · guardado. Ligue o aluguel para editar.</span></div>
+<div class="est"><h3>Aluguel desativado: planos recolhidos e guardados</h3>
+<section class="card">
+<div style="display: flex; align-items: flex-start; gap: 12px;"><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer aluguel"></button><div style="flex: 1; min-width: 0;"><h2 class="h2">Aluguel</h2><p class="sub" style="margin-top: 2px;">Aluguel desativado. Os planos abaixo ficam guardados e não aparecem na Nova locação.</p></div><button type="button" class="wl-icon-btn" style="width: 44px; height: 44px; flex: none; margin: -8px -8px 0 0;" aria-expanded="false" aria-controls="aluguel-guardado" aria-label="Abrir o aluguel"><svg class="wl-i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button></div>
+</section>
+<span class="lbl">Ao desativar, os planos ficam recolhidos. Abra a seta para ver ou editar: eles seguem editáveis.</span></div>
+
+<div class="est"><h3>Aluguel desativado: planos abertos e editáveis</h3>
+<section class="card">
+<div style="display: flex; align-items: flex-start; gap: 12px;"><button type="button" class="wl-toggle" role="switch" aria-checked="false" aria-label="Oferecer aluguel"></button><div style="flex: 1; min-width: 0;"><h2 class="h2">Aluguel</h2><p class="sub" style="margin-top: 2px;">Aluguel desativado. Os planos abaixo ficam guardados e não aparecem na Nova locação.</p></div><button type="button" class="wl-icon-btn" style="width: 44px; height: 44px; flex: none; margin: -8px -8px 0 0;" aria-expanded="true" aria-controls="aluguel-guardado" aria-label="Recolher o aluguel"><svg class="wl-i" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"></path></svg></button></div>
+<div id="aluguel-guardado" style="display: flex; flex-direction: column; gap: 14px;">
+<div class="pl"><div class="ph"><b>Diária</b><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer diária"></button></div><div class="lbl" style="margin-top: -8px;">150 km por dia</div><label class="wl-field"><span class="wl-field__label">Valor</span><input class="wl-input" value="R$ 44,90" aria-label="Valor da diária"></label></div>
+<div class="pl"><div class="ph"><b>Semanal</b><button type="button" class="wl-toggle" role="switch" aria-checked="true" aria-label="Oferecer semanal"></button></div><div class="lbl" style="margin-top: -8px;">1.000 km por semana</div><label class="wl-field"><span class="wl-field__label">Valor</span><input class="wl-input" value="R$ 269,00" aria-label="Valor semanal"></label></div>
 </div>
-</section></div>
+</section>
+<span class="lbl">Só o administrador altera; os outros perfis veem o bloco travado.</span></div>
 
 <div class="est"><h3>Aluguel recolhido</h3>
 <section class="card">
