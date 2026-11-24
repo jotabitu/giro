@@ -7421,6 +7421,114 @@ paths:
               schema:
                 $ref: '#/components/schemas/VendaDetalhe'
           description: ''
+  /api/vendas/{id}/assinatura/:
+    post:
+      operationId: vendas_assinatura_create
+      description: A etapa "Assinatura" (VEN-15, VEN-19; ADR 0042, item 6).
+      summary: 'Preparar a assinatura: contrato e conta da entrada (VEN-15, VEN-14,
+        CLI-03, CLI-05, IMP-04)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
+    delete:
+      operationId: vendas_assinatura_destroy
+      description: A etapa "Assinatura" (VEN-15, VEN-19; ADR 0042, item 6).
+      summary: Cancelar a assinatura para mudar a proposta (VEN-19, VEN-06)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/vendas/{id}/contrato/link/:
+    post:
+      operationId: vendas_contrato_link_create
+      description: |-
+        Copiar link para assinar (VEN-15), como na retirada (T-411): o link sai só nesta resposta,
+        sem cache, e não vai para log.
+      summary: Copiar link para assinar o contrato da venda (S-15, VEN-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkDoContrato'
+          description: ''
+  /api/vendas/{id}/contrato/pdf/:
+    get:
+      operationId: vendas_contrato_pdf_retrieve
+      summary: PDF do contrato da venda, o assinado se houver (URL de 15 min, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlDoPdf'
+          description: ''
+  /api/vendas/{id}/contrato/reenviar/:
+    post:
+      operationId: vendas_contrato_reenviar_create
+      description: 'As ações do fluxo: só quem vende (administrador, gerente, vendedor).'
+      summary: Reenviar o contrato da venda (novo link; o anterior deixa de valer,
+        S-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContratoGerado'
+          description: ''
   /api/vendas/{id}/enviar/:
     post:
       operationId: vendas_enviar_create
@@ -7536,6 +7644,42 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/Resposta'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
+  /api/vendas/{id}/transferencia/:
+    post:
+      operationId: vendas_transferencia_create
+      description: '`VEN-17`: "Transferência feita" na venda de balcão (e na da quitação,
+        pela venda).'
+      summary: 'Transferência feita no Detran (VEN-17, VEN-11): fecha a tarefa da
+        venda'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+        required: true
       security:
       - jwtAuth: []
       responses:
@@ -8340,12 +8484,24 @@ components:
           type: boolean
         registrar_transferencia:
           type: boolean
+        preparar_assinatura:
+          type: boolean
+        cancelar_assinatura:
+          type: boolean
+        copiar_link_contrato:
+          type: boolean
+        reenviar_contrato:
+          type: boolean
       required:
       - cancelar
+      - cancelar_assinatura
+      - copiar_link_contrato
       - editar
       - enviar
       - pedir_aprovacao
       - perder
+      - preparar_assinatura
+      - reenviar_contrato
       - registrar_resposta
       - registrar_transferencia
     AcoesDaVendaDaCompra:
@@ -10998,6 +11154,44 @@ components:
       - valor_hoje
       - veiculo_placa
       - vencimento
+    ContaEntradaDaVenda:
+      type: object
+      description: |-
+        A entrada (ou o total à vista) em Contas a receber (VEN-15): "Entrada de R$ 5.000,00",
+        "Aguardando pagamento · vence hoje".
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ContaEntradaDaVendaStatusEnum'
+        valor_centavos:
+          type: integer
+        vencimento:
+          type: string
+          format: date
+        rotulo:
+          type: string
+        texto:
+          type: string
+      required:
+      - id
+      - rotulo
+      - status
+      - texto
+      - valor_centavos
+      - vencimento
+    ContaEntradaDaVendaStatusEnum:
+      enum:
+      - aberta
+      - paga
+      - cancelada
+      - renegociada
+      type: string
+      description: |-
+        * `aberta` - Aberta
+        * `paga` - Paga
+        * `cancelada` - Cancelada
+        * `renegociada` - Renegociada
     ContaNova:
       type: object
       properties:
@@ -11339,6 +11533,39 @@ components:
       - pdf_url_expira_em
       - status
       - titulo
+    ContratoDaVenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusContratoEnum'
+        modelo:
+          type: string
+        versao:
+          type: integer
+          nullable: true
+        enviado_em:
+          type: string
+          format: date-time
+          nullable: true
+        assinado_em:
+          type: string
+          format: date-time
+          nullable: true
+        pdf_disponivel:
+          type: boolean
+        situacao_texto:
+          type: string
+      required:
+      - assinado_em
+      - enviado_em
+      - id
+      - modelo
+      - pdf_disponivel
+      - situacao_texto
+      - status
+      - versao
     ContratoGerado:
       type: object
       properties:
@@ -12205,6 +12432,30 @@ components:
       - crlv
       type: string
       description: '* `crlv` - crlv'
+    DocumentosDaVenda:
+      type: object
+      description: |-
+        A etapa "Documentos" (VEN-14, VEN-19): as pendências do cadastro (`CLI-03`, os códigos
+        de `clientes`) e o texto pronto do cliente bloqueado ou inativo (`CLI-05`).
+      properties:
+        pendencias:
+          type: array
+          items:
+            type: string
+        gravidade:
+          type: string
+          nullable: true
+          description: '`critica` (CLI-05) ou `alerta` (CLI-03)'
+        texto:
+          type: string
+          nullable: true
+        pode_preparar:
+          type: boolean
+      required:
+      - gravidade
+      - pendencias
+      - pode_preparar
+      - texto
     DoisFatores:
       type: object
       properties:
@@ -13718,7 +13969,7 @@ components:
       description: |-
         * `locacao` - Locação
         * `locacao_compra` - Locação com intenção de compra
-        * `venda` - Venda
+        * `venda` - Compra e venda
     FormaAceitaEnum:
       enum:
       - pix
@@ -16625,8 +16876,8 @@ components:
         finalidade:
           type: string
           nullable: true
-          description: 'null: vale em todo modelo; `locacao_compra`: só nessa finalidade
-            (LOC-16)'
+          description: 'null: vale em todo modelo; `locacao_compra` (LOC-16) ou `venda`
+            (VEN-15): só nessa finalidade'
       required:
       - chave
       - exemplo
@@ -20115,8 +20366,14 @@ components:
       - html
     PreviaEntrada:
       type: object
+      description: |-
+        Uma locação ou, no modelo de compra e venda, uma venda (VEN-15); sem os dois, os
+        exemplos.
       properties:
         locacao_id:
+          type: integer
+          nullable: true
+        venda_id:
           type: integer
           nullable: true
     PrimeirosPassos:
@@ -23402,8 +23659,22 @@ components:
           - $ref: '#/components/schemas/AprovacaoDaVenda'
           nullable: true
         contrato:
+          allOf:
+          - $ref: '#/components/schemas/ContratoDaVenda'
           nullable: true
         conta_entrada:
+          allOf:
+          - $ref: '#/components/schemas/ContaEntradaDaVenda'
+          nullable: true
+        documentos:
+          allOf:
+          - $ref: '#/components/schemas/DocumentosDaVenda'
+          nullable: true
+        perder_texto:
+          type: string
+          nullable: true
+        conclusao_texto:
+          type: string
           nullable: true
       required:
       - acoes
@@ -23413,9 +23684,11 @@ components:
       - codigo
       - comissao_centavos
       - comprador_nome
+      - conclusao_texto
       - conta_entrada
       - contrato
       - descricao
+      - documentos
       - filial
       - forma
       - forma_texto
@@ -23425,6 +23698,7 @@ components:
       - motivo_perda
       - origem
       - origem_rotulo
+      - perder_texto
       - perdida_em
       - preco_final_centavos
       - proposta_enviada_em

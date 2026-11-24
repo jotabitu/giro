@@ -9,9 +9,11 @@ class VendasConfig(AppConfig):
         from apps.veiculos import services as veiculos_services
         from comum.auditoria import registrar_formatador
 
-        from . import eventos, leituras, services, textos  # noqa: F401 (eventos assina no import)
+        from . import contrato, eventos, leituras, services, textos  # noqa: F401 (eventos assina)
 
         leituras.registrar()
+        # VEN-15 (ADR 0042, item 6): a prévia do modelo de compra e venda com dados reais.
+        contrato.registrar()
         # ADR 0042, item 1: o veículo com venda aberta não volta para a frota (VEN-10).
         veiculos_services.registrar_trava_do_estoque(services.trava_do_estoque)
         # Textos da auditoria (VEN-11, T-420; VEN-13, T-502)

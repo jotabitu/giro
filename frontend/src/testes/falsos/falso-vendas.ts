@@ -38,6 +38,10 @@ export const VENDA_DA_QUITACAO: Venda = {
     perder: false,
     cancelar: false,
     registrar_transferencia: true,
+    preparar_assinatura: false,
+    cancelar_assinatura: false,
+    copiar_link_contrato: false,
+    reenviar_contrato: false,
   },
 };
 
