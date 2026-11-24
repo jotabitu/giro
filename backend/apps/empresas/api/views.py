@@ -30,8 +30,10 @@ from comum.permissoes import EmpresaOperando, EscopoDeFilial, com_padrao, exige_
 from .. import selectors, services
 from ..logo import MENSAGEM_FORMATO, TAMANHO_MAXIMO
 from .serializers import (
+    EstoqueDaEmpresaSerializer,
     MarcaSerializer,
     MarcaSimuladaSerializer,
+    MudarEstoqueDaEmpresaSerializer,
     MudarRamoSerializer,
     RamoSerializer,
     SalvarMarcaSerializer,
@@ -217,3 +219,45 @@ class RamoView(APIView):
             dados.validated_data["atividade"], dados.validated_data["trabalha_com"], request.user
         )
         return Response(RamoSerializer(selectors.ramo()).data)
+
+
+# --- Estoque à venda (VEI-19, T-486) ---
+
+
+def _estoque_da_empresa(usuario: Any) -> dict[str, Any]:
+    pode = getattr(usuario, "perfil", None) == "administrador" and not getattr(
+        usuario, "e_suporte", False
+    )
+    return {"limite_dias_parado": selectors.limite_dias_parado(), "pode_editar": pode}
+
+
+class EstoqueDaEmpresaView(APIView):
+    """O limite de dias em estoque da tela Empresa e marca (VEI-19). Todos os perfis leem, para
+    o campo vir travado; só o administrador muda (403 aos outros). O suporte lê e nunca muda."""
+
+    suporte_somente_leitura = True  # o suporte lê o GET (PLT-07)
+    suporte_proibido = frozenset({"PATCH"})
+
+    def get_permissions(self) -> Any:
+        if self.request.method == "PATCH":
+            return [permissao() for permissao in SO_ADMINISTRADOR]
+        return super().get_permissions()
+
+    @extend_schema(
+        responses=EstoqueDaEmpresaSerializer,
+        summary="Limite de dias em estoque da empresa (VEI-19)",
+    )
+    def get(self, request: Request) -> Response:
+        return Response(EstoqueDaEmpresaSerializer(_estoque_da_empresa(request.user)).data)
+
+    @extend_schema(
+        request=MudarEstoqueDaEmpresaSerializer,
+        responses={
+            200: EstoqueDaEmpresaSerializer,
+            422: OpenApiResponse(description="`VEI-19`: fora de 1 a 365, vazio ou não inteiro"),
+        },
+        summary="Mudar o limite de dias em estoque (VEI-19, só o administrador)",
+    )
+    def patch(self, request: Request) -> Response:
+        services.definir_limite_dias_parado(request.data.get("limite_dias_parado"))
+        return Response(EstoqueDaEmpresaSerializer(_estoque_da_empresa(request.user)).data)

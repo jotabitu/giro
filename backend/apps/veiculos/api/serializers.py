@@ -425,6 +425,15 @@ class VeiculoSerializer(serializers.Serializer[Any]):
     acoes = AcoesDoVeiculoSerializer()
     # VEI-15 (ADR 0041): a tabela de preços não preenchida, em qualquer status; `null` sem aviso.
     aviso_preco = serializers.CharField(allow_null=True)
+    # VEI-18, VEI-19 (T-486): só no veículo `a_venda`; nulos fora do estoque ou sem entrada no
+    # histórico. Ausentes para o vistoriador.
+    a_venda_desde = serializers.DateField(
+        allow_null=True, required=False, help_text="Dia da entrada no estoque (São Paulo)."
+    )
+    dias_em_estoque = serializers.IntegerField(allow_null=True, required=False)
+    parado = serializers.BooleanField(
+        required=False, help_text="Dias em estoque acima do limite da empresa (VEI-19)."
+    )
 
 
 class OcupacaoSerializer(serializers.Serializer[Any]):
@@ -580,6 +589,8 @@ class VeiculoDetalheSerializer(VeiculoComDadosDoDocumentoSerializer):
     historico_status = HistoricoStatusSerializer(many=True)
     # `{ "itens": [...] }`, de `vendas` (VEN-11, T-420); `null` sem venda.
     vendas = serializers.JSONField(allow_null=True, required=False)
+    # VEI-19: o "Limite da empresa" ao lado dos dias em estoque; ausente para o vistoriador.
+    limite_dias_parado = serializers.IntegerField(required=False)
 
     def to_representation(self, instance: Any) -> Any:
         dados = super().to_representation(instance)

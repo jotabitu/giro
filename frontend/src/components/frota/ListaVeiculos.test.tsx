@@ -50,3 +50,48 @@ describe("lista da frota por perfil", () => {
     expect(t).not.toContain("Cadastrar veículo");
   });
 });
+
+// T-486 · VEI-18, VEI-19: a coluna "Em estoque" com os dias da API, o parado em alerta e a ordem pela API.
+describe("Em estoque na Frota", () => {
+  async function comEstoque(email: string, comCampos: boolean): Promise<string> {
+    const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
+    if (r.etapa !== "pronto") {
+      const v = await contas.verificar2fa(r.token_pre_2fa, { codigo: "123456" });
+      if (v.etapa !== "pronto") throw new Error("esperava pronto");
+    }
+    sessao.eu = await contas.eu();
+    const lista = await veiculos.listar({ status: "todos" });
+    const [primeiro, segundo, ...resto] = lista.resultados;
+    const resultados = comCampos
+      ? [
+          { ...primeiro!, status: "a_venda" as const, a_venda_desde: "2026-08-15", dias_em_estoque: 53, parado: true },
+          { ...segundo!, status: "a_venda" as const, a_venda_desde: "2026-10-07", dias_em_estoque: 0, parado: false },
+          ...resto.map((v) => ({ ...v, a_venda_desde: null, dias_em_estoque: null, parado: false })),
+        ]
+      : lista.resultados;
+    const cache = new QueryClient();
+    cache.setQueryData(["veiculos", { status: "todos", tipo: "todos", busca: "", cursor: undefined }], { ...lista, resultados });
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={cache}>
+        <ListaVeiculos />
+      </QueryClientProvider>,
+    );
+    return html;
+  }
+
+  it("test_vei_18_coluna_em_estoque_com_os_dias_e_o_parado", async () => {
+    const h = await comEstoque("rodrigo@motorapida.com.br", true);
+    const t = h.replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
+    expect(t).toContain("Em estoque");
+    expect(t).toContain("53 dias");
+    expect(t).toContain("Hoje");
+    expect(h).toMatch(/wl-badge--warning[^>]*>53 dias</);
+    expect(h).toContain('aria-sort="none"');
+    expect(h).toContain('aria-label="Ordenar por tempo em estoque"');
+  });
+
+  it("test_vei_18_vistoriador_sem_os_campos_nao_ve_a_coluna", async () => {
+    const t = (await comEstoque("joao@motorapida.com.br", false)).replace(/<[^>]+>/g, "|");
+    expect(t).not.toContain("Em estoque");
+  });
+});

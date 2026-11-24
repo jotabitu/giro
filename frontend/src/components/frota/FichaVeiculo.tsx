@@ -20,7 +20,17 @@ import { situacaoDoDocumento } from "@/lib/frota";
 import { temNoMenu } from "@/lib/menu";
 import { DespesasDoVeiculo } from "./DespesasDoVeiculo";
 import { PrecosNaFicha } from "@/components/precos-veiculo/PrecosNaFicha";
-import { AgoraDesktop, FotosEAvarias, FotosEAvariasCelular, MovimentacoesCelular, MovimentacoesDoVeiculo, VendasDoVeiculo } from "./FichaBlocos";
+import {
+  AgoraDesktop,
+  FotosEAvarias,
+  FotosEAvariasCelular,
+  LimiteDaEmpresa,
+  MovimentacoesCelular,
+  MovimentacoesDoVeiculo,
+  mostraEstoque,
+  SeloDoEstoque,
+  VendasDoVeiculo,
+} from "./FichaBlocos";
 import { GaleriaNaFicha, GaleriaNaFichaCelular } from "./GaleriaNaFicha";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
@@ -380,6 +390,16 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
         {fin && <KpiTile rotulo="Rendeu no ano" valor={dinheiroSemZeros(fin.rendeu_no_ano_centavos)} contexto="locações − custos" />}
         <KpiTile rotulo="Ocupação" valor={percentual(v.ocupacao.pct)} contexto={`${v.ocupacao.periodo_dias} dias`} />
       </div>
+
+      {!atual && mostraEstoque(v) && (
+        <CartaoDoCelular titulo="Agora" acao={<SeloDoEstoque v={v} />}>
+          {v.dias_em_estoque != null && (
+            <dl>
+              <LimiteDaEmpresa v={v} Linha={Linha} />
+            </dl>
+          )}
+        </CartaoDoCelular>
+      )}
 
       {atual && (
         <CartaoDoCelular

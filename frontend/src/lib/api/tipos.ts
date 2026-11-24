@@ -88,6 +88,9 @@ export type MinhaFilial = components["schemas"]["MinhaFilial"];
 export type MinhasFiliais = components["schemas"]["MinhasFiliais"];
 
 export type MarcaEmpresa = components["schemas"]["Marca"];
+
+/** VEI-19 (T-486): o limite de dias em estoque de Empresa e marca; `pode_editar` só para o administrador. */
+export type EstoqueDaEmpresa = components["schemas"]["EstoqueDaEmpresa"];
 /** Prévia da marca (POST /api/marca/simular/): as mesmas contas da leitura, sem gravar. */
 export type MarcaSimulada = components["schemas"]["MarcaSimulada"];
 /** O que a simulação aceita: o que não vem usa o valor salvo. `cor: ""` simula a cor padrão. */

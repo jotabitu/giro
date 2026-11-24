@@ -96,7 +96,7 @@ export const veiculosApi = {
   },
 
   listar(f: FiltroVeiculos = {}): Promise<ListaVeiculos> {
-    return http.get<ListaVeiculos>("/api/veiculos/", { status: f.status && f.status !== "todos" ? f.status : undefined, tipo_veiculo: f.tipo_veiculo, busca: f.busca, cursor: f.cursor });
+    return http.get<ListaVeiculos>("/api/veiculos/", { status: f.status && f.status !== "todos" ? f.status : undefined, tipo_veiculo: f.tipo_veiculo, busca: f.busca, cursor: f.cursor, ordem: f.ordem });
   },
 
   /** VEI-12 a VEI-17: planos, regras, custos e compra do veículo, com tudo que a API calcula (margem, parcela, juros, alertas). */

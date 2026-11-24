@@ -24,3 +24,10 @@ export function situacaoDoDocumento(
   if (situacao === "vence_em_breve") return { rotulo: dias === null ? "Vence em breve" : `Vence em ${dias} ${dias === 1 ? "dia" : "dias"}`, tom: "alerta" };
   return { rotulo: "Em dia", tom: "sucesso" };
 }
+
+/** VEI-18: "53 dias", "1 dia", "Hoje" com 0, e "—" sem o número (fora do estoque ou sem entrada). A API já contou os dias. */
+export function diasEmEstoque(dias: number | null | undefined): string {
+  if (dias == null) return "—";
+  if (dias === 0) return "Hoje";
+  return `${dias} ${dias === 1 ? "dia" : "dias"}`;
+}

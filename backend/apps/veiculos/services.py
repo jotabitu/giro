@@ -1204,6 +1204,39 @@ def _gerentes(veiculo: Veiculo) -> list[int]:
     return [g["id"] for g in filiais_selectors.gerentes(veiculo.filial)]
 
 
+def avisar_veiculos_parados(hoje: date) -> dict[str, int]:
+    """AUT-18 (VEI-19), às 07:00: avisa os gerentes ativos da filial de cada veículo `a_venda`
+    parado (dias em estoque acima do limite da empresa) uma vez por entrada no estoque (VEI-18).
+
+    Rodar de novo não repete: a entrada avisada fica no veículo. A filial sem gerente ativo fica
+    sem o aviso, e a entrada conta como tratada (decisão do dono de 18 nov 2026). O aviso que
+    não saiu no dia (execução perdida, limite que baixou) sai na próxima execução, uma vez.
+    """
+    from . import selectors  # selectors importa services
+
+    limite = empresas_selectors.limite_dias_parado()
+    contagem = {"veiculos": 0, "avisos": 0}
+    for veiculo, entrada in selectors.a_avisar_de_parado(limite, hoje):
+        dias = selectors.dias_em_estoque(entrada, hoje)
+        with transaction.atomic():
+            contagem["avisos"] += avisar(
+                _gerentes(veiculo),
+                tipo="veiculo_parado",
+                titulo=(
+                    f"O veículo {placa_com_hifen(veiculo.placa)} ({veiculo.marca} "
+                    f"{veiculo.modelo}) está à venda há {dias} dias. "
+                    f"O limite da empresa é {limite} dias."
+                ),
+                link=_link_do_veiculo(veiculo),
+                chave=f"aut18-{veiculo.pk}-{entrada.isoformat()}",
+                por_email=True,
+            )
+            veiculo.estoque_aviso_entrada_em = entrada
+            veiculo.save(update_fields=["estoque_aviso_entrada_em", "atualizado_em"])
+            contagem["veiculos"] += 1
+    return contagem
+
+
 def aplicar_vencimento_de_documentos(hoje: date) -> dict[str, int]:
     """AUT-06 (VEI-03), uma vez por dia. Rodar de novo no mesmo dia não repete nada.
 

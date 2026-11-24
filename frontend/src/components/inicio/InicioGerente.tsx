@@ -8,6 +8,7 @@ import { hrefDoDestino } from "@/lib/menu";
 import { atualizadoHa, rotuloDoPerfil } from "@/lib/painel";
 import { useSessao } from "@/lib/sessao";
 import { CabecalhoInicio, KpisDoPainel, LinhaDoPainel, ListaDoPainel, Vazio } from "./comuns";
+import { BlocoEstoqueAVenda, BlocoParadosAVenda, BlocoTicketMedio } from "./EstoqueAVenda";
 
 /** Gravidade da API (`critica`, `alerta`, `info`) no vocabulário do AlertCard; `info` não leva marcação. */
 const GRAVIDADE_DO_ALERTA: Record<PendenciaInicio["gravidade"], "critica" | "atencao" | undefined> = { critica: "critica", alerta: "atencao", info: undefined };
@@ -82,6 +83,23 @@ export function InicioGerente({ d }: { d: InicioDe<"gerente"> }) {
       )}
 
       <KpisDoPainel kpis={d.kpis} />
+
+      {/* T-486, T-487: estoque à venda, os parados e o ticket médio da filial (VEI-18, VEI-20, VEN-12). */}
+      {d.estoque_a_venda && <BlocoEstoqueAVenda e={d.estoque_a_venda} />}
+      {(d.parados_a_venda || d.ticket_medio) && (
+        <div className="flex flex-wrap items-start gap-6">
+          {d.parados_a_venda && (
+            <div className="min-w-0 flex-[1_1_380px]">
+              <BlocoParadosAVenda p={d.parados_a_venda} />
+            </div>
+          )}
+          {d.ticket_medio && (
+            <div className="min-w-0 flex-[1_1_380px]">
+              <BlocoTicketMedio t={d.ticket_medio} />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel titulo="Equipe hoje">

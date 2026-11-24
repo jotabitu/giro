@@ -27,9 +27,10 @@ async function entrar(email: string) {
   sessao.eu = await contas.eu();
 }
 
-function comCache(tela: React.ReactNode): string {
+function comCache(tela: React.ReactNode, estoque: { limite_dias_parado: number; pode_editar: boolean } = { limite_dias_parado: 30, pode_editar: true }): string {
   const cache = new QueryClient();
   cache.setQueryData(["marca"], MARCA_FALSA);
+  cache.setQueryData(["estoque-da-empresa"], estoque);
   return renderToStaticMarkup(<QueryClientProvider client={cache}>{tela}</QueryClientProvider>);
 }
 
@@ -166,6 +167,25 @@ describe("Empresa e marca", () => {
     await entrar("rodrigo@motorapida.com.br");
     expect(rotaPermitida(sessao.eu as Eu, "/admin/marca")).toBe(false);
     expect(comCache(<AdminMarca />)).toContain("Só o administrador muda a marca.");
+  });
+});
+
+describe("Estoque à venda em Empresa e marca (VEI-19, T-486)", () => {
+  it("test_vei_19_campo_do_limite_com_a_dica_e_o_mesmo_salvar", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const h = comCache(<AdminMarca />);
+    expect(h).toContain("Estoque à venda");
+    expect(h).toContain("Limite de dias em estoque");
+    expect(h).toContain('value="30"');
+    expect(h).toContain("Acima disso, o veículo à venda aparece como parado e o gerente da filial é avisado. De 1 a 365 dias, igual para todas as filiais.");
+    expect(h.match(/>Salvar<\/button>/g)).toHaveLength(1);
+  });
+
+  it("test_vei_19_campo_travado_para_quem_nao_edita", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const h = comCache(<AdminMarca />, { limite_dias_parado: 45, pode_editar: false });
+    expect(h).toMatch(/<input[^>]*disabled=""[^>]*value="45"|<input[^>]*value="45"[^>]*disabled=""/);
+    expect(h).toContain("Só o administrador altera.");
   });
 });
 

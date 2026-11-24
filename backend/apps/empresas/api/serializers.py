@@ -76,3 +76,18 @@ class RamoSerializer(serializers.Serializer[Any]):
 class MudarRamoSerializer(serializers.Serializer[Any]):
     atividade = serializers.ChoiceField(choices=Atividade.choices)
     trabalha_com = serializers.ChoiceField(choices=TrabalhaCom.choices)
+
+
+class EstoqueDaEmpresaSerializer(serializers.Serializer[Any]):
+    """VEI-19 (T-486): o painel "Estoque à venda" de Empresa e marca."""
+
+    limite_dias_parado = serializers.IntegerField(
+        help_text="Acima destes dias à venda, o veículo está parado. De 1 a 365."
+    )
+    pode_editar = serializers.BooleanField(
+        help_text="Só o administrador altera; para os outros, o campo vem travado."
+    )
+
+
+class MudarEstoqueDaEmpresaSerializer(serializers.Serializer[Any]):
+    limite_dias_parado = serializers.IntegerField(min_value=1, max_value=365)

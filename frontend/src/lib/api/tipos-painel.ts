@@ -49,6 +49,15 @@ export type Agenda = AgendaDoDia;
 
 export type InicioVistoriador = Omit<S["InicioVistoriador"], "agenda"> & { agenda: Agenda };
 
+/** VEI-20 (T-487): só administrador e gerente; ausente para os outros perfis. Tudo vem calculado e com os textos. */
+export type EstoqueAVenda = S["EstoqueAVenda"];
+
+/** VEI-18, VEI-19 (T-486): só no início do gerente. */
+export type ParadosAVenda = S["ParadosAVenda"];
+
+/** VEN-12 (T-487): vazio ("Sem vendas em novembro.") até o fluxo de venda concluir vendas. */
+export type TicketMedio = S["TicketMedio"];
+
 export type InicioFinanceiro = Omit<S["InicioFinanceiro"], "kpis"> & { kpis: Kpi[] };
 
 

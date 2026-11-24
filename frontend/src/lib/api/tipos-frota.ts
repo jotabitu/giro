@@ -107,6 +107,13 @@ export type Veiculo = {
   valor_compra_centavos?: number | null;
   data_compra?: string | null;
   entrou_na_frota_em: string;
+  /**
+   * VEI-18, VEI-19 (T-486): dias em estoque do veículo `a_venda`, calculados pela API. Fora do estoque ou sem entrada no
+   * histórico, `null` e `parado: false`. Ausentes para o vistoriador.
+   */
+  a_venda_desde?: string | null;
+  dias_em_estoque?: number | null;
+  parado?: boolean;
   /** `desde` (LOC-10, T-449): data pronta do "desde" do card "Agora"; `null` sem locação aberta. A tela não usa `inicio` nem `fim_previsto` para isso. */
   situacao: { codigo: string; rotulo: string; tom: TomApi; desde: string | null };
   /** T-410: só no veículo `reservado`. O texto "Reservado na LOC-x" já vem em `situacao.rotulo`; aqui só o que serve de link. */
@@ -163,6 +170,8 @@ export type VeiculoDetalhe = Veiculo & {
   /** VEI-05, FIN-17: o rendeu já vem com as despesas descontadas; o custo é só manutenção e peças. */
   indicadores_financeiros?: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number; despesas_ano_centavos?: number } | null;
   ocupacao: { pct: string; periodo_dias: number };
+  /** VEI-19 (T-486): o "Limite da empresa" ao lado dos dias em estoque; ausente para o vistoriador. */
+  limite_dias_parado?: number;
   /** Ausente para o financeiro e quando o veículo nunca teve vistoria. */
   vistoria_recente?: VistoriaRecente | null;
   movimentacoes?: MovimentacoesDoVeiculo | null;
@@ -178,7 +187,9 @@ export type ListaVeiculos = {
   anterior: string | null;
 };
 
-export type FiltroVeiculos = { status?: string; tipo_veiculo?: TipoVeiculo; busca?: string; cursor?: string };
+/** `ordem`: `em_estoque` (VEI-18) ou `placa`; sem ela, a API usa `em_estoque` com o filtro "À venda" e `placa` nos outros. */
+export type OrdemDaFrota = "placa" | "em_estoque";
+export type FiltroVeiculos = { status?: string; tipo_veiculo?: TipoVeiculo; busca?: string; cursor?: string; ordem?: OrdemDaFrota };
 
 /** `url` é assinada e vale 15 minutos (AUD-05): cada leitura da API traz outra. */
 export type ArquivoDoDocumento = { nome: string; url: string; url_expira_em?: string };
