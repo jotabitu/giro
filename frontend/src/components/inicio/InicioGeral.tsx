@@ -111,12 +111,17 @@ export function InicioGeral({ d, periodo, aoMudarPeriodo }: { d: InicioDe<"geral
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
-        <Panel titulo="Devoluções da semana" subtitulo={d.devolucoes_semana?.subtitulo}>
-          <ListaComRolagem rotulo="Devoluções da semana">
-            <DataTable colunas={COLUNAS} linhas={devolucoes} chaveDaLinha={(l) => l.codigo} legenda="Devoluções da semana" />
-          </ListaComRolagem>
-        </Panel>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        {/* No desktop, Devoluções da semana vai até o fim do Caixa de hoje: a coluna da direita dá a altura e a lista
+            rola no espaço que sobra (no mínimo 360 px, para o perfil sem caixa). Empilhado (abaixo de xl), segue a
+            altura máxima da ListaComRolagem. */}
+        <div className="min-w-0 xl:relative xl:min-h-[360px]">
+          <Panel titulo="Devoluções da semana" subtitulo={d.devolucoes_semana?.subtitulo} className="xl:absolute xl:inset-0 xl:flex xl:flex-col">
+            <ListaComRolagem rotulo="Devoluções da semana" className="xl:max-h-none xl:min-h-0 xl:flex-1">
+              <DataTable colunas={COLUNAS} linhas={devolucoes} chaveDaLinha={(l) => l.codigo} legenda="Devoluções da semana" />
+            </ListaComRolagem>
+          </Panel>
+        </div>
         <div className="flex flex-col gap-6">
           <AlertCard
             atualizadoHa={ha}

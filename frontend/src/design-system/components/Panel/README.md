@@ -9,3 +9,5 @@ Painel `surface` com `radius-xl` e padding `space-6`: todo conteúdo da tela fic
 ```
 
 Sem sombra e sem borda: a escada `canvas`, `surface`, `surface-sunken` marca a hierarquia.
+
+`className` (opcional) é só para o layout da página: altura e alinhamento no grid. Um exemplo é o "Devoluções da semana" do Início, que vai até o fim do "Caixa de hoje" (`xl:absolute xl:inset-0 xl:flex xl:flex-col`). Não use para mudar o visual do painel (cor, borda, sombra, raio, padding), que fica no `wl-panel`.
