@@ -5,7 +5,7 @@ import { ArrowLeft, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ReactNode } from "react";
-import { CampoDeDinheiro, Button, Icone, ProgressBar, SegmentedControl, StatusBadge, TextField } from "@/design-system";
+import { BarraDeAcoes, CampoDeDinheiro, Button, Icone, ProgressBar, SegmentedControl, StatusBadge, TextField } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { filiais, type FilialDetalhada } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
@@ -187,14 +187,6 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
           </div>
           <h1 className="text-title md:mt-1.5 md:text-display">{titulo}</h1>
         </div>
-        <div className="hidden items-center gap-2 md:flex">
-          <Link href="/admin/filiais" className="wl-btn">
-            Cancelar
-          </Link>
-          <Button type="submit" variante="solido" disabled={!pode}>
-            {salvar.isPending ? "Salvando…" : "Salvar filial"}
-          </Button>
-        </div>
       </header>
 
       {plano && !filial && (
@@ -328,15 +320,6 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
               )}
             </div>
           </Secao>
-
-          <div className="grid grid-cols-2 gap-2 md:hidden">
-            <Link href="/admin/filiais" className="wl-btn justify-center">
-              Cancelar
-            </Link>
-            <Button type="submit" variante="solido" disabled={!pode}>
-              <span className="mx-auto">{salvar.isPending ? "Salvando…" : "Salvar filial"}</span>
-            </Button>
-          </div>
         </div>
 
         <aside className="hidden min-w-0 flex-col gap-6 md:flex md:flex-[1_1_320px]">
@@ -403,6 +386,8 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
           </Secao>
         </aside>
       </div>
+
+      <BarraDeAcoes cancelar={{ href: "/admin/filiais" }} principal={{ rotulo: "Salvar filial", disabled: !pode, ocupado: salvar.isPending }} />
     </form>
   );
 }

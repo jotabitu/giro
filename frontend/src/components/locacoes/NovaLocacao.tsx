@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
-import { Button, Icone, Panel, TextField } from "@/design-system";
+import { BarraDeAcoes, Button, Icone, Panel, TextField } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { clientes, ErroApi, locacoes, veiculos, type EntradaDaLocacao, type Periodicidade } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
@@ -471,8 +471,8 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
             )}
           </Panel>
 
-          <section className="wl-panel flex flex-col gap-3">
-            {salvar.isError && (
+          {salvar.isError && (
+            <section className="wl-panel">
               <p role="alert" className="text-body text-critical">
                 {mensagemDoErro(salvar.error)}{" "}
                 {linkDoErro && (
@@ -481,16 +481,20 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
                   </Link>
                 )}
               </p>
-            )}
-            <Button variante="solido" disabled={!pronto} onClick={() => enviar("vistoria")}>
-              {salvar.isPending ? "Salvando…" : "Continuar para vistoria"}
-            </Button>
-            <Button variante="quieto" disabled={!pronto} onClick={() => enviar("reserva")}>
-              Salvar como reserva
-            </Button>
-          </section>
+            </section>
+          )}
         </aside>
       </div>
+
+      <BarraDeAcoes
+        aEsquerda={
+          <Button variante="quieto" disabled={!pronto} onClick={() => enviar("reserva")}>
+            Salvar como reserva
+          </Button>
+        }
+        cancelar={{ href: "/locacoes" }}
+        principal={{ rotulo: "Continuar para vistoria", disabled: !pronto, ocupado: salvar.isPending, aoClicar: () => enviar("vistoria") }}
+      />
 
       {escolhendo === "cliente" && <EscolherCliente aoFechar={() => setEscolhendo(null)} aoEscolher={(c) => escolherCliente(c.id)} />}
       {escolhendo === "veiculo" && <EscolherVeiculo aoFechar={() => setEscolhendo(null)} aoEscolher={(x) => escolherVeiculo(x.id)} />}

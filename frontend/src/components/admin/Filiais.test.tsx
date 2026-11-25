@@ -72,6 +72,14 @@ describe("lista de filiais (Filiais)", () => {
     expect(t).toContain("Filiais do plano|1 de 3");
   });
 
+  it("T-514: Cancelar e Salvar filial ficam só na barra flutuante do pé", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const h = await formulario();
+    expect(h).toContain("sticky bottom-[88px]");
+    expect(h.match(/>Salvar filial</g)).toHaveLength(1);
+    expect(h.match(/>Cancelar</g)).toHaveLength(1);
+  });
+
   it("só o administrador acessa (USR-05)", async () => {
     await entrar("rodrigo@motorapida.com.br");
     expect(texto(await lista())).toContain("Só o administrador acessa Filiais.");

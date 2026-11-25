@@ -5,6 +5,7 @@ import { ArrowUpRight, Menu as IconeMenu, BarChart3, Bell, CarFront, FileText, L
 import { useState, type ReactNode } from "react";
 import {
   AlertCard,
+  BarraDeAcoes,
   Button,
   CodigoVerificacao,
   CelulaDupla,
@@ -312,6 +313,25 @@ function ExemploLinhaDeLista() {
         <LinhaDeLista titulo="Sem ação" apoio="Linha só informativa" />
       </ListaDeLinhas>
     </Panel>
+  );
+}
+
+function ExemploBarraDeAcoes() {
+  const [ocupado, setOcupado] = useState(false);
+  return (
+    <div className="flex flex-col gap-4">
+      <Panel titulo="Novo item">
+        <form id="exemplo-barra" onSubmit={(e) => e.preventDefault()}>
+          <TextField cheio rotulo="Nome" placeholder="Digite e aperte Enter" />
+        </form>
+      </Panel>
+      <BarraDeAcoes
+        className="!static"
+        aEsquerda="Alterações não salvas"
+        cancelar={{ aoClicar: () => setOcupado(false) }}
+        principal={{ rotulo: "Salvar alterações", form: "exemplo-barra", ocupado, aoClicar: () => setOcupado((o) => !o) }}
+      />
+    </div>
   );
 }
 
@@ -672,6 +692,7 @@ const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "kpi-tile": ExemploKpiTile,
   "liga-desliga": ExemploLigaDesliga,
   "linha-de-lista": ExemploLinhaDeLista,
+  "barra-de-acoes": ExemploBarraDeAcoes,
   "lista-com-rolagem": ExemploListaComRolagem,
   "progress-bar": ExemploProgressBar,
   "search-field": ExemploSearchField,
