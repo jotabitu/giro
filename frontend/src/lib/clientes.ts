@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { AcaoPrincipal, EnderecoCliente, NovoCliente } from "@/lib/api";
-import { soDigitos } from "@/lib/formatos";
+import type { AcaoPrincipal, ClienteCompleto, EnderecoCliente, NovoCliente } from "@/lib/api";
+import { mascaraCelular, mascaraCep, mascaraCnpj, mascaraCpf, soDigitos } from "@/lib/formatos";
 
 /** Para onde cada ação principal da lista leva. Rotas de módulos ainda não feitos já apontam para o destino final. */
 export function rotaDaAcao(a: AcaoPrincipal): string {
@@ -73,6 +73,44 @@ export function paraCorpo(v: ValoresCliente): NovoCliente {
   if (preenchido(v.referencia)) corpo.referencia = semVazios({ ...v.referencia, telefone: soDigitos(v.referencia.telefone) });
   if (v.consentimento) corpo.consentimento = true;
   return corpo;
+}
+
+/** Edição (T-516): os valores do formulário a partir da ficha completa, com as máscaras de digitação. */
+export function valoresDoCliente(c: ClienteCompleto): ValoresCliente {
+  const pj = c.tipo === "pj";
+  return {
+    tipo: c.tipo,
+    nome: c.nome,
+    documento: pj ? mascaraCnpj(c.documento) : mascaraCpf(c.documento),
+    celular: mascaraCelular(c.celular),
+    nascimento: c.nascimento ?? "",
+    email: c.email ?? "",
+    profissao: c.profissao ?? "",
+    cnh: { numero: c.cnh?.numero ?? "", categoria: c.cnh?.categoria ?? "", validade: c.cnh?.validade ?? "", primeira_habilitacao: c.cnh?.primeira_habilitacao ?? "" },
+    responsavel: { nome: c.responsavel?.nome ?? "", cpf: mascaraCpf(c.responsavel?.cpf ?? ""), celular: mascaraCelular(c.responsavel?.celular ?? "") },
+    endereco: {
+      cep: mascaraCep(c.endereco?.cep ?? ""),
+      logradouro: c.endereco?.logradouro ?? "",
+      numero: c.endereco?.numero ?? "",
+      bairro: c.endereco?.bairro ?? "",
+      cidade: c.endereco?.cidade ?? "",
+      uf: c.endereco?.uf ?? "",
+    },
+    referencia: { nome: c.referencia?.nome ?? "", parentesco: c.referencia?.parentesco ?? "", telefone: mascaraCelular(c.referencia?.telefone ?? "") },
+    consentimento: c.consentimento_em !== null,
+  };
+}
+
+/** Corpo do PATCH /api/clientes/{id}/: só o que mudou em relação ao que a ficha trouxe, sem `tipo` (não muda). Bloco que mudou vai inteiro. */
+export function paraCorpoDeEdicao(novos: ValoresCliente, antes: ValoresCliente): Partial<Omit<NovoCliente, "tipo">> {
+  const depois = paraCorpo(novos);
+  const base = paraCorpo(antes) as Record<string, unknown>;
+  const corpo: Record<string, unknown> = {};
+  for (const [chave, valor] of Object.entries(depois)) {
+    if (chave === "tipo") continue;
+    if (JSON.stringify(valor) !== JSON.stringify(base[chave])) corpo[chave] = valor;
+  }
+  return corpo as Partial<Omit<NovoCliente, "tipo">>;
 }
 
 export const ROTULO_PENDENCIA: Record<string, string> = {
