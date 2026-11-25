@@ -1,6 +1,7 @@
 """Máquina de estados: a única forma de mudar `status` (ADR 0009)."""
 
-from typing import Any, ClassVar
+from functools import cache
+from typing import Any, ClassVar, TypeVar
 
 from django.db import models, transaction
 
@@ -19,6 +20,31 @@ class EstadosQuerySet(models.QuerySet[Any]):
         return super().update(**kwargs)
 
 
+_M = TypeVar("_M", bound=models.Model)
+
+
+class _ManagerDeEstados(models.Manager[_M]):
+    """VEI-22, CLI-13 (T-515): no model com `excluido_em`, o registro excluído fica guardado no
+    banco e some de tudo para a empresa (listas, buscas, contagens, seletores, ficha 404). Esse
+    model declara `todos` (`EstadosQuerySet.as_manager()`) para ver também os excluídos. O
+    `_base_manager` continua sem filtro: a chave estrangeira de outro registro ainda abre o
+    excluído (auditoria, conferência da equipe Giro)."""
+
+    def get_queryset(self) -> models.QuerySet[_M]:
+        queryset = super().get_queryset()
+        if _tem_exclusao(self.model):
+            queryset = queryset.filter(excluido_em__isnull=True)
+        return queryset
+
+
+@cache
+def _tem_exclusao(modelo: type[models.Model]) -> bool:
+    return any(campo.name == "excluido_em" for campo in modelo._meta.concrete_fields)
+
+
+ManagerDeEstados = _ManagerDeEstados.from_queryset(EstadosQuerySet)
+
+
 class MaquinaDeEstados(models.Model):
     """O model declara `status` (com choices), `TRANSICOES` e `REGRA_TRANSICAO`.
 
@@ -29,7 +55,7 @@ class MaquinaDeEstados(models.Model):
     REGRA_TRANSICAO: ClassVar[str]
     CATEGORIA_AUDITORIA: ClassVar[str] = Categoria.OPERACAO
 
-    objects = EstadosQuerySet.as_manager()
+    objects = ManagerDeEstados()
 
     class Meta:
         abstract = True

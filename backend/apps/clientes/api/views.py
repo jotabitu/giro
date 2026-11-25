@@ -38,6 +38,7 @@ from .serializers import (
     ClienteDoFinanceiroSerializer,
     ClienteEdicaoSerializer,
     ClienteEntradaSerializer,
+    ClienteExcluidoSerializer,
     ClienteSerializer,
     DocumentoEntradaClienteSerializer,
     ListaDeClientesSerializer,
@@ -263,6 +264,25 @@ class InativarView(APIView):
     def post(self, request: Request, pk: int) -> Response:
         dados = _entrada(MotivoClienteSerializer, request)
         return _representacao(services.inativar(_cliente(pk), dados["motivo"]), request)
+
+
+class ExcluirView(APIView):
+    """CLI-13 (T-515): administrador e gerente (o cliente é da empresa, sem filial). O suporte
+    Giro não exclui, nem em "ver e editar" (403 `PLT-07`)."""
+
+    permission_classes = GESTAO
+    suporte_proibido = True
+
+    @extend_schema(
+        request=None,
+        responses=ClienteExcluidoSerializer,
+        summary="Excluir o cliente sem histórico (CLI-13)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        cliente = services.excluir(_cliente(pk))
+        # O aviso da lista depois de excluir, sem o nome, que já foi apagado.
+        dados = {"id": cliente.pk, "mensagem": "Cliente excluído."}
+        return Response(ClienteExcluidoSerializer(dados).data)
 
 
 class ReativarView(APIView):

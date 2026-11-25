@@ -476,6 +476,7 @@ O conjunto da empresa é `recursos_da_empresa()`: os `recursos` do plano atual, 
 | `relatorios` | `/api/relatorios/...` (fase 2). **Não** fecham: `/api/painel/...` e `/api/configuracoes/` |
 | `recebimento_parceiro` | `POST /api/financeiro/contas-receber/{id}/cobranca/` (Pix e boleto pela subconta), cobrança recorrente (`AUT-04`), passo `recebimentos` e as rotas da subconta da empresa (`ContaPagamento`). O webhook do parceiro não fecha: pagamento de cobrança gerada antes do downgrade ainda baixa a conta |
 | `cobranca_whatsapp` | nenhuma rota fecha: `cobrar/` e `cobrar-em-lote/` continuam, só sem o canal WhatsApp (`financeiro.md`) |
+| núcleo (nenhum recurso) | `POST /api/veiculos/{id}/excluir/` (`VEI-22`) e `POST /api/clientes/{id}/excluir/` (`CLI-13`), T-515: abertas em todos os planos. O histórico que impede excluir conta mesmo com o módulo desligado (os contadores `historico_*` não levam `recurso=`) |
 
 Rotas que ainda não existem entram na tabela com o contrato do módulo delas; quem escreve o contrato diz o recurso.
 

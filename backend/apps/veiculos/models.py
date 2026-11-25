@@ -16,7 +16,7 @@ from django.db.models.functions import Lower
 
 from comum import arquivos
 from comum.campos import CentavosField, PercentualField
-from comum.estados import MaquinaDeEstados
+from comum.estados import EstadosQuerySet, MaquinaDeEstados
 from comum.models import ModeloAtivavel, ModeloBase
 
 
@@ -188,8 +188,9 @@ CAMPOS_DA_VEI_09 = {
 
 
 class Veiculo(MaquinaDeEstados, ModeloBase):
-    placa = models.CharField(max_length=7, unique=True)
-    chassi = models.CharField(max_length=17, unique=True)
+    # Únicos fora do veículo excluído (VEI-01, VEI-22): as constraints parciais do Meta.
+    placa = models.CharField(max_length=7)
+    chassi = models.CharField(max_length=17)
     renavam = models.CharField(max_length=11, blank=True, default="")
     marca = models.CharField(max_length=40)
     modelo = models.CharField(max_length=60)
@@ -237,20 +238,40 @@ class Veiculo(MaquinaDeEstados, ModeloBase):
     # VEI-21 (T-507): "Oferecer aluguel". Desligado, os planos de aluguel ficam guardados e a
     # Nova locação e a troca não oferecem o veículo para aluguel; o status não muda (padrão A).
     aluguel_ligado = models.BooleanField(default=True)
+    # VEI-22 (T-515): o cadastro feito por engano, sem histórico. Fica guardado e some de tudo.
+    excluido_em = models.DateTimeField(null=True, blank=True)
+    excluido_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+
+    # `objects` (da MaquinaDeEstados) tira o excluído de tudo; `todos` vê também os excluídos.
+    todos = EstadosQuerySet.as_manager()
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = TRANSICOES_VEICULO
     REGRA_TRANSICAO: ClassVar[str] = "transicao_veiculo"
     # VEI-09: dados do veículo, não de pessoa; a auditoria da empresa é lida só pelo
     # administrador (modelo de dados, item 9).
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
-        "inteiro": [*CAMPOS_DA_VEI_09.values(), "aluguel_ligado"]
+        "inteiro": [*CAMPOS_DA_VEI_09.values(), "aluguel_ligado", "excluido_em", "excluido_por"]
     }
 
     class Meta:
         verbose_name = "veículo"
         ordering = ["placa"]
+        default_manager_name = "objects"
         indexes = [models.Index(fields=["filial", "status"], name="veiculo_filial_status")]
         constraints = [
+            # VEI-01: placa e chassi únicos em qualquer estado, menos no excluído (VEI-22).
+            models.UniqueConstraint(
+                fields=["placa"],
+                condition=models.Q(excluido_em__isnull=True),
+                name="veiculo_placa_unica",
+            ),
+            models.UniqueConstraint(
+                fields=["chassi"],
+                condition=models.Q(excluido_em__isnull=True),
+                name="veiculo_chassi_unico",
+            ),
             models.CheckConstraint(
                 condition=models.Q(chassi__regex=r"^[A-Z0-9]{17}$"),
                 name="veiculo_chassi_17_caracteres",

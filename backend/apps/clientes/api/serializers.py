@@ -7,6 +7,7 @@ from typing import Any
 
 from rest_framework import serializers
 
+from .. import exclusao
 from ..models import CategoriaCnh, StatusCliente, TipoCliente, TipoDocumentoCliente
 
 # --- Entrada ---
@@ -188,6 +189,32 @@ class ClienteDoFinanceiroSerializer(ClienteSerializer):
     bloqueio = BloqueioClienteSerializer(allow_null=True)
 
 
+class ExcluirClienteSerializer(serializers.Serializer[Any]):
+    """CLI-13 (T-515): a confirmação (`permitido`) ou o aviso, prontos para a tela."""
+
+    permitido = serializers.BooleanField()
+    titulo = serializers.CharField()
+    texto = serializers.CharField(allow_null=True)  # a confirmação; `null` no aviso
+    motivo = serializers.CharField(allow_null=True)  # o histórico ou o bloqueio
+    caminho = serializers.CharField(allow_null=True)  # inativar (e, ao administrador, anonimizar)
+    inativar = serializers.BooleanField()  # o botão "Inativar cliente" no aviso (CLI-09)
+    historico = serializers.ListField(
+        child=serializers.ChoiceField(choices=[tipo for tipo, _ in exclusao.HISTORICO])
+    )
+
+
+class AcoesDoClienteSerializer(serializers.Serializer[Any]):
+    # Administrador e gerente; `null` para o vendedor e o suporte (CLI-13).
+    excluir = ExcluirClienteSerializer(allow_null=True)
+
+
+class ClienteExcluidoSerializer(serializers.Serializer[Any]):
+    """Resposta do `POST .../excluir/` (CLI-13): o aviso da lista, sem o nome."""
+
+    id = serializers.IntegerField()
+    mensagem = serializers.CharField()
+
+
 class ClienteDetalheSerializer(ClienteSerializer):
     """Representação completa: só quem cadastra, nunca o suporte."""
 
@@ -205,6 +232,7 @@ class ClienteDetalheSerializer(ClienteSerializer):
     documentos = DocumentoClienteSerializer(many=True)
     pendencias = serializers.ListField(child=serializers.CharField())
     analise = AnaliseClienteSerializer()
+    acoes = AcoesDoClienteSerializer()
 
 
 class ContagensClienteSerializer(serializers.Serializer[Any]):

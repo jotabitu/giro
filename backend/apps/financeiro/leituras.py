@@ -222,7 +222,23 @@ def despesas_do_veiculo(veiculo_id: int) -> int:
     return int(total or 0)
 
 
+# --- Histórico para excluir (VEI-22, CLI-13, T-515): qualquer situação ---
+
+
+def historico_despesa_do_veiculo(veiculo_id: int) -> int:
+    """VEI-22: despesa ligada ao veículo, inclusive `recusada` (FIN-17)."""
+    return int(Despesa.objects.filter(veiculo_id=veiculo_id).exists())
+
+
+def historico_conta_do_cliente(cliente_id: int) -> int:
+    """CLI-13: conta a receber (a caução também é conta) ou reembolso (DEV-02)."""
+    contas = ContaReceber.objects.filter(cliente_id=cliente_id)
+    return int(contas.exists() or Reembolso.objects.filter(cliente_id=cliente_id).exists())
+
+
 def registrar() -> None:
+    leituras.registrar_contador(VEICULO, "historico_despesa", historico_despesa_do_veiculo)
+    leituras.registrar_contador(CLIENTE, "historico_conta", historico_conta_do_cliente)
     leituras.registrar_anotacao(CLIENTE, "financeiro", anotar_cliente, montar_cliente)
     leituras.registrar_anotacao(CLIENTE, "historico", _sem_anotacao, montar_historico)
     leituras.registrar_filtro(CLIENTE, "em_aberto", em_aberto)

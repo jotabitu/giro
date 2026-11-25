@@ -35,7 +35,7 @@ from comum.empresa import tem_recurso
 from comum.erros import ErroDeValidacao
 from comum.permissoes import filiais_permitidas
 
-from . import precos
+from . import exclusao, precos
 from .models import (
     FORA_DA_FROTA,
     LIMITE_DA_GALERIA,
@@ -574,6 +574,8 @@ def representacao(
         # O suporte em "só ver" recebe a galeria sem os links (ADR 0013, item 2).
         dados["galeria"] = bloco_galeria(veiculo, com_links=not suporte_so_ver(usuario))
         dados["acoes"]["editar_fotos"] = pode_editar_fotos(veiculo, usuario)
+        # VEI-22 (T-515): `null` para quem não exclui; com histórico, o aviso pronto.
+        dados["acoes"]["excluir"] = exclusao.acao(veiculo, usuario)
     return dados
 
 

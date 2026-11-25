@@ -19,6 +19,7 @@ from comum.campos import buscar_por_hash
 from comum.classificacao import mascarar_documento
 from comum.documentos import cnpj_valido, cpf_valido, so_digitos
 
+from . import exclusao
 from .models import (
     Cliente,
     DocumentoCliente,
@@ -492,7 +493,10 @@ def do_financeiro(cliente: Cliente) -> dict[str, Any]:
 def representacao(cliente: Cliente, usuario: Any) -> tuple[dict[str, Any], str]:
     """`(dados, variante)` conforme quem pede: `completa`, `financeiro` ou `resumida`."""
     if pode_ver_completo(usuario):
-        return completa(cliente), "completa"
+        dados = completa(cliente)
+        # CLI-13 (T-515): `null` para quem não exclui; com histórico, o aviso pronto.
+        dados["acoes"] = {"excluir": exclusao.acao(cliente, usuario)}
+        return dados, "completa"
     if getattr(usuario, "perfil", None) == "financeiro":
         return do_financeiro(cliente), "financeiro"
     return resumida(cliente), "resumida"

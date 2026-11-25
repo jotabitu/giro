@@ -21,7 +21,7 @@ from django_tenants.utils import get_public_schema_name, schema_context, tenant_
 
 from comum import arquivos, relogio
 from comum.auditoria import Ator, Categoria, TipoAtor, auditar, registrar_evento, usar_ator
-from comum.campos import CampoCifrado, CampoHashBusca, anonimizar_cifrado
+from comum.campos import CampoCifrado, CampoHashBusca
 from comum.conexao import schema_atual
 from comum.erros import Conflito, ErroDeNegocio, ErroDeRegra, ErroDeValidacao, SemPermissao
 
@@ -30,26 +30,10 @@ from .models import Cliente, DocumentoCliente
 
 logger = logging.getLogger(__name__)
 
-CIFRADOS = ("documento", "cnh_numero", "responsavel_cpf")
-NOME_ANONIMO = "Cliente anonimizado"
-# Nome, contato, endereço e referência (clientes.md). Categoria e datas da CNH não identificam
-# a pessoa (ADR 0014, item 3) e ficam.
-CAMPOS_APAGADOS = (
-    "email",
-    "profissao",
-    "responsavel_nome",
-    "responsavel_celular",
-    "cep",
-    "logradouro",
-    "numero",
-    "complemento",
-    "bairro",
-    "cidade",
-    "uf",
-    "referencia_nome",
-    "referencia_parentesco",
-    "referencia_telefone",
-)
+# Os campos apagados são os de `services` (a mesma lista do excluir, CLI-13).
+CIFRADOS = services.CIFRADOS
+NOME_ANONIMO = services.NOME_ANONIMO
+CAMPOS_APAGADOS = services.CAMPOS_APAGADOS
 # O que o titular recebe além do cadastro: os registros ligados a ele, como estão.
 LIGADOS = (
     ("locacoes", "locacoes.Locacao"),
@@ -231,52 +215,35 @@ def anonimizar(empresa: Any, cliente_id: int, pedido: Pedido, confirmacao: str) 
     """Apaga os cifrados (hash aleatório), troca nome, contato, endereço e referência e grava
     `anonimizado_em`; os documentos ficam inativos e sem arquivo. Recusa com pendência (422
     `cliente_com_pendencia`) ou já anonimizado. Devolve quantos arquivos saíram."""
-    with tenant_context(empresa):
-        caminhos: list[str] = []
-        with transaction.atomic(), usar_ator(_ator(pedido)):
-            cliente = Cliente.objects.select_for_update().get(pk=cliente_id)
-            if cliente.anonimizado_em is not None:
-                raise Conflito("cliente_anonimizado", "Este cliente já foi anonimizado.")
-            if confirmacao.strip() != cliente.nome:
-                raise ErroDeValidacao({"confirmacao": ["Digite o nome do cliente como está."]})
-            pendencia = selectors.pendencias_para_inativar(cliente)
-            if any(pendencia.values()):
-                raise ErroDeRegra(
-                    "cliente_com_pendencia",
-                    "O cliente tem locação, venda ou valor em aberto.",
-                    pendencia,
-                )
-            with auditar(
-                cliente,
-                "cliente.anonimizar_titular",
-                Categoria.SUPORTE,
-                motivo=pedido.motivo,
-                regra="AUD-06",
-            ):
-                for nome in CIFRADOS:
-                    anonimizar_cifrado(cliente, nome)
-                cliente.nome = NOME_ANONIMO
-                cliente.celular = ""
-                cliente.nascimento = None
-                for nome in CAMPOS_APAGADOS:
-                    setattr(cliente, nome, "")
-                cliente.anonimizado_em = relogio.agora()
-                cliente.save()
-            for documento in DocumentoCliente.objects.select_for_update().filter(cliente=cliente):
-                with auditar(
-                    documento,
-                    "documento_cliente.anonimizar_titular",
-                    Categoria.SUPORTE,
-                    regra="AUD-06",
-                ):
-                    if documento.arquivo:
-                        caminhos.append(documento.arquivo.name)
-                    documento.arquivo = None
-                    documento.ativo = False
-                    documento.save(update_fields=["arquivo", "ativo", "atualizado_em"])
-            # Sem documento e sem CPF, o cadastro volta a `incompleto` (CLI-03).
-            services.acertar_cadastro(cliente)
-            pastas = _anular_links(cliente)
+    with tenant_context(empresa), transaction.atomic(), usar_ator(_ator(pedido)):
+        cliente = Cliente.objects.select_for_update().get(pk=cliente_id)
+        if cliente.anonimizado_em is not None:
+            raise Conflito("cliente_anonimizado", "Este cliente já foi anonimizado.")
+        if confirmacao.strip() != cliente.nome:
+            raise ErroDeValidacao({"confirmacao": ["Digite o nome do cliente como está."]})
+        pendencia = selectors.pendencias_para_inativar(cliente)
+        if any(pendencia.values()):
+            raise ErroDeRegra(
+                "cliente_com_pendencia",
+                "O cliente tem locação, venda ou valor em aberto.",
+                pendencia,
+            )
+        with auditar(
+            cliente,
+            "cliente.anonimizar_titular",
+            Categoria.SUPORTE,
+            motivo=pedido.motivo,
+            regra="AUD-06",
+        ):
+            services.apagar_dados_pessoais(cliente, NOME_ANONIMO)
+            cliente.anonimizado_em = relogio.agora()
+            cliente.save()
+        caminhos = services.soltar_documentos(
+            cliente, "documento_cliente.anonimizar_titular", Categoria.SUPORTE, "AUD-06"
+        )
+        # Sem documento e sem CPF, o cadastro volta a `incompleto` (CLI-03).
+        services.acertar_cadastro(cliente)
+        pastas = _anular_links(cliente)
     _registrar_na_plataforma(empresa, "empresa.anonimizar_titular", pedido, cliente_id)
     # Depois do commit: se algo antes falhar, nenhum arquivo some sem o registro mudar.
     for caminho in caminhos:

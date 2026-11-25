@@ -4,18 +4,23 @@
   as `acoes`, que `locacoes` monta).
 - `veiculos.Veiculo:ficha`: bloco `vendas` (`{ "itens": [...] }`), as vendas do veículo com a
   transferência no Detran (CA-420-16).
+- `veiculos.Veiculo` e `clientes.Cliente`: o contador de histórico `historico_venda` (VEI-22,
+  CLI-13): venda ou proposta em qualquer estado, inclusive a recompra numa troca e o interessado.
 """
 
 from typing import Any
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
 from comum import leituras
 
 from . import selectors
+from .models import Venda
 
 LOCACAO = "locacoes.Locacao"
 FICHA = "veiculos.Veiculo:ficha"
+VEICULO = "veiculos.Veiculo"
+CLIENTE = "clientes.Cliente"
 
 
 def _sem_anotar(queryset: QuerySet[Any]) -> QuerySet[Any]:
@@ -31,6 +36,18 @@ def montar_vendas(veiculo: Any) -> dict[str, Any] | None:
     return {"itens": itens} if itens else None
 
 
+def historico_do_veiculo(veiculo_id: int) -> int:
+    return int(
+        Venda.objects.filter(Q(veiculo_id=veiculo_id) | Q(troca_veiculo_id=veiculo_id)).exists()
+    )
+
+
+def historico_do_cliente(cliente_id: int) -> int:
+    return int(Venda.objects.filter(cliente_id=cliente_id).exists())
+
+
 def registrar() -> None:
+    leituras.registrar_contador(VEICULO, "historico_venda", historico_do_veiculo)
+    leituras.registrar_contador(CLIENTE, "historico_venda", historico_do_cliente)
     leituras.registrar_anotacao(LOCACAO, "compra_venda", _sem_anotar, montar_compra_venda)
     leituras.registrar_anotacao(FICHA, "vendas", _sem_anotar, montar_vendas)

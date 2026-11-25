@@ -13,6 +13,7 @@ ACOES = {
     "km": views.KmView,
     "corrigir-km": views.CorrigirKmView,
     "corrigir-identificacao": views.CorrigirIdentificacaoView,
+    "excluir": views.ExcluirView,  # VEI-22
 }
 
 urlpatterns: list[URLPattern] = [

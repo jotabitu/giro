@@ -14,6 +14,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`Prec
 | Corrigir km para baixo | sim | sim (direto, com motivo) | — | pede (`APR-06`) | — |
 | Bloquear, desbloquear, colocar à venda, voltar para a frota | sim | sim | — | — | — |
 | Baixar | sim | — | — | — | — |
+| Excluir o veículo sem histórico (`VEI-22`) | sim | sim (sua filial) | — | — | — |
 | Categorias, preços e extras | sim | — | — | — | — |
 | Ver os preços do veículo (`GET .../precos/`) | sim | sim | sim | — | sim |
 | Salvar e simular os preços do veículo, ligar e desligar plano | sim | — | — | — | — |
@@ -334,6 +335,39 @@ As transições de locação, vistoria, OS e venda não têm endpoint aqui: acon
 
 **Baixa com movimentação aberta** (`MOV-03`, decisão do dono em 16 out 2026, T-310; contrato na T-311): não há 409. A baixa leva o veículo a `baixado` e, na mesma transação, cancela a movimentação `agendada`, `em_transito` ou `no_local` dele com o motivo "Veículo baixado: {motivo}". As despesas das paradas ficam, a transferência não acontece e o veículo fica na filial em que está, que é a de saída. O detalhe está em `movimentacoes.md`, "Baixa do veículo com a movimentação aberta". 200: a representação, com `movimentacao_aberta: null`.
 - `acoes.aviso_baixar`: com `acoes.baixar` `true` e `movimentacao_aberta`, o texto para o diálogo da baixa, "A MOV-0001 será cancelada."; senão `null`. A tela mostra o texto como vem.
+
+## Excluir o veículo sem histórico (`VEI-22`, T-515)
+
+Para o cadastro feito por engano. Padrão A nos pontos em aberto da T-515: o veículo fica guardado no banco, marcado (`excluido_em`, `excluido_por`), e some de tudo para a locadora; o botão aparece com ou sem histórico, e com histórico a API diz por quê.
+
+### POST /api/veiculos/{id}/excluir/
+
+- **Perfis:** administrador e gerente; o gerente só nas filiais dele (fora delas, 404, como toda rota do veículo, `USR-07`). Vendedor, vistoriador e financeiro: 403 `permissao`. Suporte Giro, nos dois modos: 403 `PLT-07` (`suporte_proibido`).
+- **Corpo:** nenhum (`{}`). Sem motivo.
+- **200:** `{ "id": 41, "mensagem": "Veículo SAK-1D39 excluído." }`. A tela volta para a Frota e mostra a `mensagem` como vem.
+- **409 com histórico:** `{ "codigo": "VEI-22", "mensagem": "Este veículo já tem locação e vistoria. Ele fica guardado e não pode ser excluído.", "detalhes": { "historico": ["locacao", "vistoria"] } }`. `historico` traz os tipos achados, nesta ordem: `locacao`, `troca`, `venda`, `vistoria`, `ordem_servico`, `despesa`, `movimentacao`, `transferencia`; a frase usa os nomes da regra (locação, troca de veículo, venda, vistoria, ordem de serviço, despesa, movimentação, transferência).
+- **404:** veículo que não existe, fora do escopo de filiais ou já excluído.
+
+**O que conta como histórico** (qualquer estado, inclusive rascunho, cancelado e `recusada`): locação ou trecho de locação; troca de veículo, como antigo ou novo; venda, como veículo vendido ou recebido na troca; vistoria ou avaria; ordem de serviço (fase 2: sem fornecedor, vale 0); despesa ligada ao veículo; movimentação; transferência entre filiais. Cada app dono registra um contador `historico_<tipo>` no alvo `veiculos.Veiculo` (ADR 0015), sem `recurso=`: o histórico conta mesmo com o módulo desligado no plano.
+
+**O que acontece**, na mesma gravação e com o veículo travado: `excluido_em` e `excluido_por` gravados (o status não muda); os planos ficam `ativo=false`, desligados e sem agendamento; documentos e fotos ficam `ativo=false`, com o arquivo guardado, como a foto apagada (`VEI-10`); o uso do plano desce 1 quando o veículo estava na frota (`PLT-03`). Evento `veiculo.excluir` ("Excluiu o veículo SAK-1D39"), com o código da placa e, no `antes`, placa, chassi, marca, modelo, anos, filial e status.
+
+**Depois:** o manager padrão (`Veiculo.objects`) tira o excluído de todas as consultas: Frota, filtros, busca, contagens, Nova locação, troca, início, relatórios, importação; a ficha responde 404. A placa e o chassi ficam livres (`VEI-01`: as constraints `veiculo_placa_unica` e `veiculo_chassi_unico` valem só fora do excluído). `Veiculo.todos` vê também os excluídos (conferência da equipe Giro).
+
+### Na ficha: `acoes.excluir`
+
+Só no `GET /api/veiculos/{id}/` (não vem na Frota). `null` para quem não exclui (vendedor, vistoriador, financeiro e o suporte Giro): o botão não aparece. Para administrador e gerente, sempre um objeto:
+
+| Campo | Sem histórico | Com histórico |
+| --- | --- | --- |
+| `permitido` | `true` | `false` |
+| `titulo` | "Excluir a SAK-1D39?" | "Este veículo não pode ser excluído" |
+| `texto` | "Use só para um cadastro feito por engano. A moto sai da frota e de todas as listas, com as fotos, os documentos e os preços. A placa e o chassi ficam livres para um novo cadastro. Não dá para desfazer." (carro: "O carro") | `null` |
+| `motivo` | `null` | a frase do 409 |
+| `caminho` | `null` | administrador: "Para tirar a moto da frota, coloque à venda ou faça a baixa (perda total, roubo ou sucata)."; gerente: "... coloque à venda ou peça a baixa ao administrador (perda total, roubo ou sucata)." (carro: "o carro") |
+| `historico` | `[]` | os tipos achados |
+
+O aviso com histórico mostra `motivo` e, em seguida, `caminho`; o botão "Colocar à venda" do aviso segue `acoes.colocar_a_venda`. Os botões ("Excluir veículo", "Manter veículo", "Fechar") são da tela.
 
 ### POST /api/veiculos/{id}/transferir/ (saiu)
 **Saiu do contrato com as movimentações (T-286, ADR 0028, item 6; rota removida na T-288 parte 2).** "Transferir" na ficha abre a Nova movimentação (`MOV-06`), e a transferência acontece na chegada, por `veiculos.services.transferir` com a origem `movimentacao`. O `POST` responde 404. O serviço segue com as regras da `VEI-04` (categoria no destino, `TransferenciaVeiculo`, auditoria com a categoria de antes e a de depois) para a chegada, a importação e o seed.
