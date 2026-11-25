@@ -2,6 +2,7 @@
 <!-- ajustada no repositório: 03/11/2026, T-414 -->
 <!-- ajustada no repositório: 23/11/2026, T-486 -->
 <!-- ajustada no repositório: 24/11/2026, T-507 -->
+<!-- ajustada no repositório: 25/11/2026, T-515 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -79,7 +80,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <div style="font-size: 14px; color: var(--ink-muted); display: flex; gap: 6px;"><a href="Frota-Desktop.dc.html" style="color: var(--ink-muted); text-decoration: none;">Veículos</a> / <span>QXA-4B21</span></div>
 <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: -8px;">
 <div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Honda CG 160 Fan</h1><div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;"><span class="wl-badge wl-badge--sm wl-badge--solid">Alugado</span><span class="wl-badge wl-badge--sm">Aluguel desativado</span><span class="lbl wl-mono">QXA-4B21</span><span class="lbl">· 2023 · vermelha · Filial Centro</span></div></div>
-<div style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px;"><a href="Veiculo-Editar-Desktop.dc.html" class="wl-btn" style="text-decoration: none;">Editar</a><button class="wl-btn" disabled title="Veículo alugado não se movimenta."><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"></path><circle cx="7" cy="17.5" r="1.8"></circle><circle cx="17" cy="17.5" r="1.8"></circle></svg>Movimentar</button><a href="Manutencao-Desktop.dc.html" class="wl-btn" style="text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Mandar para oficina</a><button class="wl-btn wl-btn--solid"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Colocar à venda</button></div>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px;"><a href="Veiculo-Editar-Desktop.dc.html" class="wl-btn" style="text-decoration: none;">Editar</a><button class="wl-btn" disabled title="Veículo alugado não se movimenta."><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"></path><circle cx="7" cy="17.5" r="1.8"></circle><circle cx="17" cy="17.5" r="1.8"></circle></svg>Movimentar</button><a href="Manutencao-Desktop.dc.html" class="wl-btn" style="text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Mandar para oficina</a><button class="wl-btn wl-btn--solid"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Colocar à venda</button><button class="wl-btn" style="background: transparent; color: var(--critical-ink);">Excluir</button></div>
 </header>
 <section class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));"><div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Rendeu no ano</div><div class="wl-kpi__value">R$ 9.870</div><div class="wl-kpi__meta">locações − custos</div></div><div class="wl-kpi"><div class="wl-kpi__label">Ocupação</div><div class="wl-kpi__value">86%</div><div class="wl-kpi__meta">últimos 90 dias</div></div><div class="wl-kpi"><div class="wl-kpi__label">Custo de manutenção</div><div class="wl-kpi__value">R$ 353</div><div class="wl-kpi__meta">no ano</div></div><div class="wl-kpi"><div class="wl-kpi__label">Km atual</div><div class="wl-kpi__value">18.950</div><div class="wl-kpi__meta">atualizado 23 set</div></div></section>
 <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
@@ -200,7 +201,7 @@ Gerenciar fotos
 </div>
 
 <section class="wl-panel">
-<div class="wl-panel__head"><div><h2 class="wl-panel__title">Estados desta tela</h2><p class="wl-panel__sub">Casos da VEI-18 e da VEI-19. Na tela real, aparece um de cada vez. Tudo que é número vem da API; a tela só mostra.</p></div></div>
+<div class="wl-panel__head"><div><h2 class="wl-panel__title">Estados desta tela</h2><p class="wl-panel__sub">Casos da VEI-18, da VEI-19 e da VEI-22. Na tela real, aparece um de cada vez. Tudo que é número vem da API; a tela só mostra.</p></div></div>
 <div style="display: flex; flex-direction: column; gap: 32px;">
 
 <div style="display: flex; flex-direction: column; gap: 12px;"><h3 style="margin: 0; font-size: 15px; font-weight: 600;">Veículo à venda e parado: PVE-1A07, 53 dias com o limite de 30</h3>
@@ -226,13 +227,26 @@ Gerenciar fotos
 <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-weight: 600;">Agora</span><span class="wl-badge wl-badge--sm">À venda · —</span></div>
 </div></div>
 
+<div style="display: flex; flex-direction: column; gap: 12px;"><h3 style="margin: 0; font-size: 15px; font-weight: 600;">Excluir veículo sem histórico (VEI-22): confirmação</h3>
+<div style="padding: 32px 24px; border-radius: 22px; background: var(--surface-sunken); display: flex; justify-content: center;">
+<div role="alertdialog" aria-label="Excluir a QXA-4B21?" style="width: 100%; max-width: 480px; box-sizing: border-box; padding: 28px; border-radius: 32px; background: var(--surface); box-shadow: var(--shadow-pop); display: flex; flex-direction: column; gap: 14px;"><div style="font-size: 24px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em;">Excluir a QXA-4B21?</div><p style="margin: 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Use só para um cadastro feito por engano. A moto sai da frota e de todas as listas, com as fotos, os documentos e os preços. A placa e o chassi ficam livres para um novo cadastro. Não dá para desfazer.</p><div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 4px;"><button class="wl-btn">Manter veículo</button><button class="wl-btn" style="background: var(--critical); color: var(--on-critical);">Excluir veículo</button></div></div></div></div>
+
+<div style="display: flex; flex-direction: column; gap: 12px;"><h3 style="margin: 0; font-size: 15px; font-weight: 600;">Excluir veículo com histórico (VEI-22): aviso para o gerente, nada é excluído</h3>
+<div style="padding: 32px 24px; border-radius: 22px; background: var(--surface-sunken); display: flex; justify-content: center;">
+<div role="alertdialog" aria-label="Este veículo não pode ser excluído" style="width: 100%; max-width: 480px; box-sizing: border-box; padding: 28px; border-radius: 32px; background: var(--surface); box-shadow: var(--shadow-pop); display: flex; flex-direction: column; gap: 14px;"><div style="font-size: 24px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em;">Este veículo não pode ser excluído</div><p style="margin: 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Este veículo já tem locação e vistoria. Ele fica guardado e não pode ser excluído. Para tirar a moto da frota, coloque à venda ou peça a baixa ao administrador (perda total, roubo ou sucata).</p><div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 4px;"><button class="wl-btn">Fechar</button><button class="wl-btn wl-btn--solid">Colocar à venda</button></div></div></div></div>
+
+<div style="display: flex; flex-direction: column; gap: 12px;"><h3 style="margin: 0; font-size: 15px; font-weight: 600;">Excluir veículo com histórico (VEI-22): aviso para o administrador</h3>
+<div style="padding: 32px 24px; border-radius: 22px; background: var(--surface-sunken); display: flex; justify-content: center;">
+<div role="alertdialog" aria-label="Este veículo não pode ser excluído" style="width: 100%; max-width: 480px; box-sizing: border-box; padding: 28px; border-radius: 32px; background: var(--surface); box-shadow: var(--shadow-pop); display: flex; flex-direction: column; gap: 14px;"><div style="font-size: 24px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em;">Este veículo não pode ser excluído</div><p style="margin: 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Este veículo já tem locação e vistoria. Ele fica guardado e não pode ser excluído. Para tirar a moto da frota, coloque à venda ou faça a baixa (perda total, roubo ou sucata).</p><div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 4px;"><button class="wl-btn">Fechar</button><button class="wl-btn wl-btn--solid">Colocar à venda</button></div></div></div></div>
+
+<span class="lbl">Excluir aparece para o administrador e o gerente, com ou sem histórico. Depois de excluir, volta à Frota com o aviso "Veículo QXA-4B21 excluído.". A primeira frase do aviso vem da API e muda com o histórico ("já tem venda e despesa"). Carro: "O carro" no lugar de "A moto". "Colocar à venda" só aparece com o veículo disponível.</span>
 <span class="lbl">O vistoriador vê do veículo só km e avarias e não recebe estes campos. O veículo fora de "À venda" não mostra nada disso.</span>
 </div>
 </section>
 </main>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":2450}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":4500}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');

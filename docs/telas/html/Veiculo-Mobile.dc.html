@@ -2,6 +2,7 @@
 <!-- ajustada no repositório: 03/11/2026, T-414 -->
 <!-- ajustada no repositório: 23/11/2026, T-486 -->
 <!-- ajustada no repositório: 24/11/2026, T-507 -->
+<!-- ajustada no repositório: 25/11/2026, T-515 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -46,7 +47,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .h2{margin:0;font-size:20px;line-height:26px;font-weight:600}
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2900px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 4450px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 
 <header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
 <a href="Frota-Mobile.dc.html" class="wl-icon-btn wl-icon-btn--sm" aria-label="Voltar" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
@@ -124,9 +125,10 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <section class="card"><div style="font-weight: 600; font-size: 18px;">Manutenções</div><div class="kv"><span>Troca de óleo · 12 set · 18.900 km</span><span>R$ 48,00</span></div><div class="kv"><span>Pastilha de freio · 20 jul</span><span>R$ 95,00</span></div><div class="kv"><span>Revisão 15 mil · 02 jul</span><span>R$ 210,00</span></div></section>
 <section class="card"><div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-weight: 600; font-size: 18px;">Movimentações</span><a href="Movimentacoes-Mobile.dc.html" class="lbl">ver todas</a></div><div class="lbl" style="font-size: 14px; margin-top: 6px;">Nenhuma movimentação. Veículo alugado não se movimenta.</div></section>
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"><a href="Manutencao-Mobile.dc.html" class="wl-btn" style="justify-content: center; text-decoration: none;">Oficina</a><button class="wl-btn wl-btn--solid" style="justify-content: center;">Colocar à venda</button></div>
+<button class="wl-btn" style="width: 100%; box-sizing: border-box; height: 48px; justify-content: center; background: transparent; color: var(--critical-ink);">Excluir veículo</button>
 <section class="card">
 <div style="font-weight: 600; font-size: 18px;">Estados desta tela</div>
-<div class="lbl" style="font-size: 14px; margin-top: 4px;">Casos da VEI-18 e da VEI-19. Na tela real, aparece um de cada vez. Tudo que é número vem da API; a tela só mostra.</div>
+<div class="lbl" style="font-size: 14px; margin-top: 4px;">Casos da VEI-18, da VEI-19 e da VEI-22. Na tela real, aparece um de cada vez. Tudo que é número vem da API; a tela só mostra.</div>
 
 <div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Veículo à venda e parado: PVE-1A07, 53 dias com o limite de 30</div>
 <div style="margin-top: 8px; padding: 14px; border-radius: 18px; background: var(--surface-sunken);">
@@ -149,6 +151,16 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;"><span style="font-weight: 600;">Agora</span><span class="wl-badge wl-badge--sm">À venda</span></div>
 <div class="kv"><span>À venda desde</span><span>—</span></div></div>
 
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Excluir veículo sem histórico (VEI-22): confirmação</div>
+<div style="margin-top: 8px; padding: 18px 12px 12px; border-radius: 18px; background: var(--surface-sunken);">
+<div role="alertdialog" aria-label="Excluir a QXA-4B21?" style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 20px; border-radius: 32px 32px 0 0; background: var(--canvas); box-shadow: var(--shadow-pop);"><div style="width: 40px; height: 4px; border-radius: 2px; background: var(--line); align-self: center;"></div><div style="font-size: 20px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em;">Excluir a QXA-4B21?</div><p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Use só para um cadastro feito por engano. A moto sai da frota e de todas as listas, com as fotos, os documentos e os preços. A placa e o chassi ficam livres para um novo cadastro. Não dá para desfazer.</p><div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;"><button class="wl-btn" style="justify-content: center; height: 48px; background: var(--critical); color: var(--on-critical);">Excluir veículo</button><button class="wl-btn" style="justify-content: center; height: 48px;">Manter veículo</button></div></div></div>
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Excluir veículo com histórico (VEI-22): aviso para o gerente, nada é excluído</div>
+<div style="margin-top: 8px; padding: 18px 12px 12px; border-radius: 18px; background: var(--surface-sunken);">
+<div role="alertdialog" aria-label="Este veículo não pode ser excluído" style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 20px; border-radius: 32px 32px 0 0; background: var(--canvas); box-shadow: var(--shadow-pop);"><div style="width: 40px; height: 4px; border-radius: 2px; background: var(--line); align-self: center;"></div><div style="font-size: 20px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em;">Este veículo não pode ser excluído</div><p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Este veículo já tem locação e vistoria. Ele fica guardado e não pode ser excluído. Para tirar a moto da frota, coloque à venda ou peça a baixa ao administrador (perda total, roubo ou sucata).</p><div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;"><button class="wl-btn wl-btn--solid" style="justify-content: center; height: 48px;">Colocar à venda</button><button class="wl-btn" style="justify-content: center; height: 48px;">Fechar</button></div></div></div>
+<div style="margin-top: 20px; font-size: 15px; font-weight: 600;">Excluir veículo com histórico (VEI-22): aviso para o administrador</div>
+<div style="margin-top: 8px; padding: 18px 12px 12px; border-radius: 18px; background: var(--surface-sunken);">
+<div role="alertdialog" aria-label="Este veículo não pode ser excluído" style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 20px; border-radius: 32px 32px 0 0; background: var(--canvas); box-shadow: var(--shadow-pop);"><div style="width: 40px; height: 4px; border-radius: 2px; background: var(--line); align-self: center;"></div><div style="font-size: 20px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em;">Este veículo não pode ser excluído</div><p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Este veículo já tem locação e vistoria. Ele fica guardado e não pode ser excluído. Para tirar a moto da frota, coloque à venda ou faça a baixa (perda total, roubo ou sucata).</p><div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;"><button class="wl-btn wl-btn--solid" style="justify-content: center; height: 48px;">Colocar à venda</button><button class="wl-btn" style="justify-content: center; height: 48px;">Fechar</button></div></div></div>
+<div class="lbl" style="margin-top: 12px;">Excluir aparece para o administrador e o gerente, no fim da ficha, com ou sem histórico. Depois de excluir, volta à Frota com o aviso "Veículo QXA-4B21 excluído.". A primeira frase do aviso vem da API. Carro: "O carro" no lugar de "A moto". "Colocar à venda" só aparece com o veículo disponível.</div>
 <div class="lbl" style="margin-top: 12px;">O vistoriador vê do veículo só km e avarias e não recebe estes campos. O veículo fora de "À venda" não mostra nada disso.</div>
 </section>
 
@@ -161,7 +173,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </nav>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2900}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":4450}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');
