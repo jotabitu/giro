@@ -64,7 +64,7 @@ describe("nova locação: Lucas Ferreira, CG 160 Fan SAK-1D39, plano Semanal do 
     expect(html).toContain('value="R$ 300,00"');
     ordem(t, ["Adicionais", "Capacete extra", "R$ 3,00 / semana", "Baú traseiro", "Proteção contra roubo e furto", "Condutor adicional"]);
     ordem(t, ["Resumo", "1 semana × R$ 329,00", "R$ 329,00", "Adicionais", "R$ 0,00", "Desconto", "– R$ 0,00", "Caução (devolvida no fim)", "R$ 300,00", "Valor por semana", "R$ 329,00", "Próximas semanas", "R$ 329,00", "Hoje, na retirada", "R$ 629,00", "Hoje: primeira semana mais caução."]);
-    ordem(t, ["Continuar para vistoria", "Salvar como reserva"]);
+    ordem(t, ["Salvar como reserva", "Cancelar", "Continuar para vistoria"]);
     expect(html).toContain('aria-pressed="true"');
   });
 

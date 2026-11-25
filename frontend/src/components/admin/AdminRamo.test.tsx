@@ -56,6 +56,14 @@ describe("AdminRamo", () => {
     expect(h).toMatch(/aria-pressed="true"[^>]*aria-disabled="true"/);
   });
 
+  it("T-514: Cancelar e Salvar ficam na barra flutuante", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const h = tela(RAMO_PROFISSIONAL);
+    expect(h).toContain("sticky bottom-[88px]");
+    expect(h.match(/>Salvar</g)).toHaveLength(1);
+    expect(h.match(/>Cancelar</g)).toHaveLength(1);
+  });
+
   it("sem alteração o Salvar fica desligado", async () => {
     await entrar("mariana@motorapida.com.br");
     expect(tela(RAMO_PROFISSIONAL)).toMatch(/<button[^>]*disabled=""[^>]*>Salvar<\/button>/);

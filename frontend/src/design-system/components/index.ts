@@ -1,4 +1,5 @@
 export { AlertCard, type ItemAlerta } from "./AlertCard/AlertCard";
+export { BarraDeAcoes, type CancelarDaBarra, type PrincipalDaBarra } from "./BarraDeAcoes/BarraDeAcoes";
 export { Button, IconButton, type BotaoIconeProps, type BotaoProps, type VarianteBotao } from "./Button/Button";
 export { CodigoVerificacao, type CodigoVerificacaoProps } from "./CodigoVerificacao/CodigoVerificacao";
 export { Aviso, type TomAviso } from "./Aviso/Aviso";

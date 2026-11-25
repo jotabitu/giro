@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
 import Link from "next/link";
-import { Button, Icone, TextField } from "@/design-system";
+import { BarraDeAcoes, Icone, TextField } from "@/design-system";
 import { marca as marcaApi, type MarcaEmpresa } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { CORES_DE_ATALHO } from "@/lib/marca-edicao";
@@ -84,22 +84,6 @@ export function FormularioDaMarca({ guardada }: { guardada: MarcaEmpresa }) {
               />
             </section>
           )}
-
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              variante="quieto"
-              disabled={!mudou || salvando}
-              onClick={() => {
-                m.descartar();
-                limite.descartar();
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" variante="solido" disabled={!mudou || salvando}>
-              {salvando ? "Salvando…" : "Salvar"}
-            </Button>
-          </div>
         </div>
 
         <aside className="wl-panel flex min-w-0 flex-col gap-4 md:flex-[1_1_320px]" aria-labelledby="previa-titulo">
@@ -109,6 +93,17 @@ export function FormularioDaMarca({ guardada }: { guardada: MarcaEmpresa }) {
           <PreviaDaMarca marca={m.previa} logoUrl={m.logoUrl} />
         </aside>
       </div>
+
+      <BarraDeAcoes
+        cancelar={{
+          disabled: !mudou || salvando,
+          aoClicar: () => {
+            m.descartar();
+            limite.descartar();
+          },
+        }}
+        principal={{ rotulo: "Salvar", disabled: !mudou, ocupado: salvando }}
+      />
     </form>
   );
 }

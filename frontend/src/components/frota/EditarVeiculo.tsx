@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { CampoDeDinheiro, Icone, Panel, SelectField, StatusBadge, TextField } from "@/design-system";
+import { BarraDeAcoes, CampoDeDinheiro, Icone, Panel, SelectField, StatusBadge, TextField } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo, type VeiculoDetalhe } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa as placaComHifen } from "@/lib/formatos";
@@ -160,15 +160,6 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
             <span>· {[v.marca, v.modelo].filter(Boolean).join(" ")} · {v.ano_modelo} · {ficha.filial.nome}</span>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Link href={`/veiculos/${ficha.id}`} className="wl-btn wl-btn--quiet">
-            Cancelar
-          </Link>
-          {/* O botão fica no cabeçalho e o formulário mais abaixo: o atributo form liga os dois. */}
-          <button type="submit" form="editar-veiculo" disabled={ocupado} className="wl-btn wl-btn--solid">
-            {ocupado ? "Salvando…" : "Salvar alterações"}
-          </button>
-        </div>
       </header>
 
       {aviso && (
@@ -261,14 +252,7 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
       <DocumentosDoVeiculo id={ficha.id} />
 
       {/* A página é longa: Salvar também no pé, fixo ao rolar (no celular fica acima da barra de navegação). */}
-      <div className="sticky bottom-[88px] z-20 flex justify-end gap-2 rounded-lg bg-surface p-3 shadow-pop md:bottom-4">
-        <Link href={`/veiculos/${ficha.id}`} className="wl-btn wl-btn--quiet">
-          Cancelar
-        </Link>
-        <button type="submit" form="editar-veiculo" disabled={ocupado} className="wl-btn wl-btn--solid">
-          {ocupado ? "Salvando…" : "Salvar alterações"}
-        </button>
-      </div>
+      <BarraDeAcoes cancelar={{ href: `/veiculos/${ficha.id}` }} principal={{ rotulo: "Salvar alterações", form: "editar-veiculo", ocupado }} />
       {/* Fora do form: Enter nos campos do diálogo não pode salvar a edição. */}
       {corrigindo && <CorrigirIdentificacao ficha={ficha} aoFechar={() => setCorrigindo(false)} aoConcluir={setAviso} />}
     </div>

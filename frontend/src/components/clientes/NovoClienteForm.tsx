@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { Panel, SegmentedControl, TextField } from "@/design-system";
+import { BarraDeAcoes, Panel, SegmentedControl, TextField } from "@/design-system";
 import { clientes, filiais, ErroApi, type ClienteCompleto, type TipoDocumentoCliente } from "@/lib/api";
 import { esquemaCliente, paraCorpo, VALORES_INICIAIS, type ValoresCliente } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
@@ -267,18 +267,19 @@ export function NovoClienteForm() {
               <input type="checkbox" className="wl-marcar" {...register("consentimento")} />
               <span>O cliente autorizou o uso dos dados para locação e cobrança, conforme a política de privacidade da empresa.</span>
             </label>
-            <button type="button" disabled={ocupado} onClick={() => void salvarEAlugar()} className="wl-btn wl-btn--solid">
-              Salvar e iniciar locação
-            </button>
-            <button type="submit" disabled={ocupado} className="wl-btn wl-btn--quiet">
-              Salvar cliente
-            </button>
-            <Link href="/clientes" className="wl-btn wl-btn--quiet">
-              Cancelar
-            </Link>
           </section>
         </aside>
       </div>
+
+      <BarraDeAcoes
+        aEsquerda={
+          <button type="submit" disabled={ocupado} className="wl-btn wl-btn--quiet">
+            Salvar cliente
+          </button>
+        }
+        cancelar={{ href: "/clientes" }}
+        principal={{ rotulo: "Salvar e iniciar locação", ocupado: false, disabled: ocupado, aoClicar: () => void salvarEAlugar() }}
+      />
     </form>
   );
 }

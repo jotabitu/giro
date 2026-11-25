@@ -5,7 +5,7 @@ import { Bike, Car, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { CampoDeDinheiro, Aviso, Button, Escolha, Icone, StatusBadge, TextField, Valores } from "@/design-system";
+import { BarraDeAcoes, CampoDeDinheiro, Aviso, Button, Escolha, Icone, StatusBadge, TextField, Valores } from "@/design-system";
 import { EscolherCliente, EscolherVeiculo } from "@/components/locacoes/SeletoresDaLocacao";
 import { vendas, veiculos, type FormaDaVenda, type PropostaDaVenda, type Veiculo, type VendaDetalhe } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
@@ -348,21 +348,43 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
             {erroGeral && <Aviso tom="critico">{mensagemDoErro(erroGeral)}</Aviso>}
             {simulacao.isError && <Aviso tom="critico">{mensagemDoErro(simulacao.error)}</Aviso>}
 
-            <BotoesDaVenda
-              venda={venda}
-              semCadastro={semCadastro}
-              precisaGerente={precisaGerente}
-              ocupado={ocupado}
-              aoExecutar={(a) => executar.mutate(a)}
-              aoResponder={() => setDialogo("resposta")}
-              aoPerder={() => setDialogo("perder")}
-            />
+            {venda && (
+              <BotoesDaVenda
+                venda={venda}
+                precisaGerente={precisaGerente}
+                ocupado={ocupado}
+                aoExecutar={(a) => executar.mutate(a)}
+                aoResponder={() => setDialogo("resposta")}
+                aoPerder={() => setDialogo("perder")}
+              />
+            )}
             {/* VEN-19: o vendedor não marca como perdida a venda com a entrada paga; a API manda o porquê. */}
             {venda && !venda.acoes.perder && venda.perder_texto && <p className="m-0 text-caption text-ink-muted">{venda.perder_texto}</p>}
             {!quitacao && passoDaVenda(venda) < 2 && venda?.status !== "perdida" && <p className="m-0 text-caption text-ink-muted">{NOTA_DA_CONCLUSAO}</p>}
           </Painel>
         </aside>
       </div>
+
+      {/* Nova venda: as ações de salvar vão para a barra. Na venda que já existe, as ações dependem do estado e ficam no Resumo. */}
+      {!venda && (
+        <BarraDeAcoes
+          aEsquerda={
+            !semCadastro && (
+              <Button variante="quieto" disabled={ocupado} onClick={() => executar.mutate("interessado")}>
+                Salvar como interessado
+              </Button>
+            )
+          }
+          cancelar={{ href: "/vendas" }}
+          principal={
+            semCadastro
+              ? { rotulo: "Salvar interessado", disabled: ocupado, aoClicar: () => executar.mutate("interessado") }
+              : precisaGerente
+                ? { rotulo: "Pedir aprovação do gerente", disabled: ocupado, aoClicar: () => executar.mutate("pedir_aprovacao") }
+                : { rotulo: "Salvar proposta e enviar ao cliente", disabled: ocupado, aoClicar: () => executar.mutate("enviar") }
+          }
+        />
+      )}
 
       {escolhendo === "veiculo" && (
         <EscolherVeiculo
@@ -394,7 +416,7 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
 }
 
 /** Os botões vêm de `acoes` (a API diz o que a pessoa pode fazer agora) e do `precisa_aprovacao` do simular (VEN-02). */
-function BotoesDaVenda({ venda, semCadastro, precisaGerente, ocupado, aoExecutar, aoResponder, aoPerder }: { venda?: VendaDetalhe; semCadastro: boolean; precisaGerente: boolean; ocupado: boolean; aoExecutar: (a: Acao) => void; aoResponder: () => void; aoPerder: () => void }) {
+function BotoesDaVenda({ venda, precisaGerente, ocupado, aoExecutar, aoResponder, aoPerder }: { venda: VendaDetalhe; precisaGerente: boolean; ocupado: boolean; aoExecutar: (a: Acao) => void; aoResponder: () => void; aoPerder: () => void }) {
   const principal = (rotulo: string, a: Acao) => (
     <Button variante="solido" disabled={ocupado} onClick={() => aoExecutar(a)}>
       {rotulo}
@@ -406,16 +428,6 @@ function BotoesDaVenda({ venda, semCadastro, precisaGerente, ocupado, aoExecutar
       {rotulo}
     </Button>
   );
-
-  if (!venda) {
-    if (semCadastro) return <div className="flex flex-col gap-2">{principal("Salvar interessado", "interessado")}</div>;
-    return (
-      <div className="flex flex-col gap-2">
-        {precisaGerente ? principal("Pedir aprovação do gerente", "pedir_aprovacao") : principal("Salvar proposta e enviar ao cliente", "enviar")}
-        {secundario("Salvar como interessado", "interessado")}
-      </div>
-    );
-  }
 
   const a = venda.acoes;
   const botoes: ReactNode[] = [];

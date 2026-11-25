@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Aviso } from "@/components/acesso/Aviso";
-import { CampoDeDinheiro, Button, Icone } from "@/design-system";
+import { BarraDeAcoes, CampoDeDinheiro, Button, Icone } from "@/design-system";
 import { ErroApi, movimentacoes, type Movimentacao } from "@/lib/api";
 import { TAMANHO_MAXIMO_DA_NOTA } from "@/lib/despesas";
 import { mensagemDoErro } from "@/lib/erros";
@@ -159,14 +159,10 @@ export function ParadaDaMovimentacao({ id }: { id: number }) {
             Valor acima de zero lança uma despesa de {placa(m.veiculo.placa)}, com vencimento hoje. Acima do limite da empresa, ela espera aprovação. Valor zero não lança despesa.
           </p>
           {erroGeral && <Aviso tipo="erro">{erroGeral}</Aviso>}
-          <div className="flex gap-2">
-            <Link href={ROTA_DAS_MOVIMENTACOES} className="wl-btn">
-              Cancelar
-            </Link>
-            <Button type="submit" variante="solido" disabled={sair.isPending || valor === "" || centavosDoTexto(valor) === null}>
-              Confirmar saída
-            </Button>
-          </div>
+          <BarraDeAcoes
+            cancelar={{ href: ROTA_DAS_MOVIMENTACOES }}
+            principal={{ rotulo: "Confirmar saída", disabled: sair.isPending || valor === "" || centavosDoTexto(valor) === null }}
+          />
         </form>
       )}
     </div>

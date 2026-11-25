@@ -3,10 +3,10 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
-import { Aviso, InputDeDinheiro, Button, Dialogo, Panel } from "@/design-system";
+import { Aviso, BarraDeAcoes, InputDeDinheiro, Button, Dialogo, Panel } from "@/design-system";
 import { ErroApi, veiculos, type PrecosDoVeiculo as Precos, type PrecosEntrada } from "@/lib/api";
 import { useAmbiente } from "@/lib/ambiente";
-import { useAtrasado, useCelular } from "@/lib/atrasado";
+import { useAtrasado } from "@/lib/atrasado";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, placa as placaComHifen } from "@/lib/formatos";
 import {
@@ -76,7 +76,6 @@ export const TEXTOS_DO_ALUGUEL = {
 
 function Tela({ id, dados }: { id: number; dados: Precos }) {
   const cliente = useQueryClient();
-  const celular = useCelular();
   const hoje = useAmbiente()?.hoje ?? new Date().toISOString().slice(0, 10);
   const base = useMemo(() => rascunhoDoDocumento(dados), [dados]);
   const [rascunho, setRascunho] = useState<Rascunho>(base);
@@ -271,16 +270,6 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
 
   const v = exibido.veiculo;
   const nomeDoVeiculo = `${v.marca} ${v.modelo}`;
-  const botoes = (
-    <>
-      <Link href={`/veiculos/${v.id}`} className="wl-btn wl-btn--quiet">
-        Cancelar
-      </Link>
-      <Button variante="solido" disabled={!montado.mudou || ocupado === "tela"} onClick={() => void salvar()}>
-        {ocupado === "tela" ? "Salvando…" : "Salvar preços"}
-      </Button>
-    </>
-  );
   const campoDaRegra = (rotulo: string, campo: keyof RegrasRascunho, apoio?: string) => {
     const erro = erros[`regras.${campo === "kmExcedente" ? "km_excedente_centavos" : campo === "diaAtraso" ? "dia_atraso_centavos" : campo === "multaMinima" ? "multa_minima_centavos" : campo === "descontoPct" ? "desconto_sem_aprovacao_pct" : "prazo_devolucao_caucao_dias"}`];
     return (
@@ -325,7 +314,6 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
             {nomeDoVeiculo} · <span className="wl-mono">{placaComHifen(v.placa)}</span>
           </div>
         </div>
-        {!somenteLeitura && !celular && <div className="ml-auto flex gap-2">{botoes}</div>}
       </header>
 
       {exibido.aviso_preco && <Aviso>{exibido.aviso_preco}</Aviso>}
@@ -471,8 +459,11 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
         </div>
       </Panel>
 
-      {!somenteLeitura && celular && (
-        <div className="sticky bottom-[88px] z-20 flex flex-col-reverse gap-3 rounded-lg bg-surface p-3 shadow-pop [&_.wl-btn]:h-[52px] [&_.wl-btn]:w-full [&_.wl-btn]:justify-center">{botoes}</div>
+      {!somenteLeitura && (
+        <BarraDeAcoes
+          cancelar={{ href: `/veiculos/${v.id}` }}
+          principal={{ rotulo: "Salvar preços", disabled: !montado.mudou, ocupado: ocupado === "tela", aoClicar: () => void salvar() }}
+        />
       )}
 
       {exibido.custos && (

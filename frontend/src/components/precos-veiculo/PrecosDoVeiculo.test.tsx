@@ -48,6 +48,14 @@ describe("tela de preços do veículo", () => {
   const h = pagina(PRECOS_POP);
   const t = texto(h);
 
+  it("T-514: Cancelar e Salvar preços ficam na barra flutuante do pé, só para quem edita", () => {
+    const h = pagina(PRECOS_POP);
+    expect(h).toContain("sticky bottom-[88px]");
+    expect(h.match(/>Salvar preços</g)).toHaveLength(1);
+    expect(h.match(/>Cancelar</g)).toHaveLength(1);
+    expect(pagina(gerente)).not.toContain("Salvar preços");
+  });
+
   it("vei_13_custo_e_venda_vem_da_api", () => {
     expect(t).toContain("Planos e preços");
     expect(t).toContain("Honda Pop 110i");
