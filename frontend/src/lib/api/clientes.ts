@@ -9,6 +9,7 @@ import type {
   ListaClientes,
   LocacaoDoCliente,
   LocacoesDoCliente,
+  EdicaoCliente,
   NovoCliente,
   RespostaDoDesbloqueio,
   TipoDocumentoCliente,
@@ -60,6 +61,11 @@ export const clientesApi = {
 
   criar(c: NovoCliente): Promise<ClienteCompleto> {
     return http.post<ClienteCompleto>("/api/clientes/", c);
+  },
+
+  /** PATCH (CLI-01, CLI-03): qualquer campo do cadastro, menos `tipo`. Administrador, gerente e vendedor. 409 `CLI-01` se o novo documento já é de outro cliente. */
+  atualizar(id: number, corpo: EdicaoCliente): Promise<ClienteCompleto> {
+    return http.patch<ClienteCompleto>(`/api/clientes/${id}/`, corpo);
   },
 
   /** `GET /api/locacoes/?cliente=`: o pago e o tipo do veículo vêm na linha. Só a locação em andamento abre o detalhe, para o preço, as parcelas e a caução. */

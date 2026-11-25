@@ -1,14 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { BarraDeAcoes, Panel, SegmentedControl, TextField } from "@/design-system";
 import { clientes, filiais, ErroApi, type ClienteCompleto, type TipoDocumentoCliente } from "@/lib/api";
-import { esquemaCliente, paraCorpo, VALORES_INICIAIS, type ValoresCliente } from "@/lib/clientes";
+import { esquemaCliente, paraCorpo, paraCorpoDeEdicao, valoresDoCliente, VALORES_INICIAIS, type ValoresCliente } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
 import { mascaraCelular, mascaraCep, mascaraCnpj, mascaraCpf, soDigitos } from "@/lib/formatos";
 import { AnaliseDoCadastro } from "./AnaliseDoCadastro";
@@ -26,9 +26,15 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
   );
 }
 
-/** Novo cliente (Cliente-Desktop|Mobile): só nome, documento e celular são obrigatórios; o resto pode ficar para depois (CLI-03). */
-export function NovoClienteForm() {
+/**
+ * Novo cliente (Cliente-Desktop|Mobile): só nome, documento e celular são obrigatórios; o resto pode ficar para depois (CLI-03).
+ * Com `cliente`, é a edição (T-516, PATCH /api/clientes/{id}/): a mesma tela com os dados dele, o tipo fixo e só o que mudou no corpo.
+ */
+export function NovoClienteForm({ cliente }: { cliente?: ClienteCompleto }) {
   const router = useRouter();
+  const cache = useQueryClient();
+  const editando = cliente !== undefined;
+  const [iniciais] = useState<ValoresCliente>(() => (cliente ? valoresDoCliente(cliente) : VALORES_INICIAIS));
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [existente, setExistente] = useState<{ id: number; nome: string } | null>(null);
 
@@ -39,13 +45,13 @@ export function NovoClienteForm() {
     setValue,
     setError,
     formState: { errors },
-  } = useForm<ValoresCliente>({ resolver: zodResolver(esquemaCliente), defaultValues: VALORES_INICIAIS });
+  } = useForm<ValoresCliente>({ resolver: zodResolver(esquemaCliente), defaultValues: iniciais });
   const tipo = watch("tipo");
   const pj = tipo === "pj";
 
   // A análise roda sobre o que já foi digitado, sem gravar nada (POST /api/clientes/analisar/).
   const valores = watch();
-  const [para, setPara] = useState(() => paraCorpo(VALORES_INICIAIS));
+  const [para, setPara] = useState(() => paraCorpo(iniciais));
   const chaveAnalise = JSON.stringify(valores);
   useEffect(() => {
     const t = setTimeout(() => setPara(paraCorpo(valores)), 500);
@@ -80,7 +86,16 @@ export function NovoClienteForm() {
     }
   }
 
-  const salvar = useMutation({ mutationFn: (v: ValoresCliente) => clientes.criar(paraCorpo(v)) });
+  // Na edição só vai o que mudou (CLI-01 revalida o documento se ele mudou); sem mudança, não há PATCH.
+  const salvar = useMutation({
+    mutationFn: async (v: ValoresCliente) => {
+      if (!cliente) return clientes.criar(paraCorpo(v));
+      const corpo = paraCorpoDeEdicao(v, iniciais);
+      return Object.keys(corpo).length > 0 ? clientes.atualizar(cliente.id, corpo) : cliente;
+    },
+  });
+  const documentosEnviados = new Set((cliente?.documentos ?? []).filter((d) => d.enviado_em !== null).map((d) => d.tipo));
+  const enviado = (t: TipoDocumentoCliente) => Boolean(arquivos[t]) || documentosEnviados.has(t);
 
   /** Campos com a máscara de digitação; a API recebe só os dígitos. */
   function comMascara(nome: Nome, mascara: (t: string) => string) {
@@ -114,9 +129,13 @@ export function NovoClienteForm() {
         }
       }
       if (falhas.length > 0) {
-        setErroGeral(`Cliente salvo, mas não enviamos: ${falhas.join(", ")}. Abra a ficha do cliente para enviar de novo.`);
+        setErroGeral(`${editando ? "Alterações salvas" : "Cliente salvo"}, mas não enviamos: ${falhas.join(", ")}. Abra a ficha do cliente para enviar de novo.`);
         setExistente({ id: criado.id, nome: "" });
         return;
+      }
+      if (editando) {
+        void cache.invalidateQueries({ queryKey: ["cliente", criado.id] });
+        void cache.invalidateQueries({ queryKey: ["clientes"] });
       }
       depois(criado);
     } catch (e) {
@@ -139,27 +158,42 @@ export function NovoClienteForm() {
   const ocupado = salvar.isPending;
 
   return (
-    <form onSubmit={salvarEFicha} noValidate className="flex flex-col gap-6">
+    <form id="form-cliente" onSubmit={salvarEFicha} noValidate className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <div>
           <nav aria-label="Caminho" className="text-body text-ink-muted">
             <Link href="/clientes" className="text-ink">
               Clientes
             </Link>{" "}
-            / Novo
+            /{" "}
+            {cliente ? (
+              <>
+                <Link href={`/clientes/${cliente.id}`} className="text-ink">
+                  {cliente.nome}
+                </Link>{" "}
+                / Editar
+              </>
+            ) : (
+              "Novo"
+            )}
           </nav>
-          <h1 className="mt-1 text-title md:text-display">Novo cliente</h1>
+          <h1 className="mt-1 text-title md:text-display">{editando ? "Editar cliente" : "Novo cliente"}</h1>
         </div>
         <div className="md:ml-auto">
-          <SegmentedControl
-            rotulo="Tipo de cliente"
-            valor={tipo}
-            aoMudar={(v) => setValue("tipo", v, { shouldDirty: true })}
-            opcoes={[
-              { valor: "pf", rotulo: "Pessoa física" },
-              { valor: "pj", rotulo: "Pessoa jurídica" },
-            ]}
-          />
+          {editando ? (
+            // O tipo não muda depois do cadastro (o PATCH não aceita `tipo`).
+            <span className="wl-badge">{pj ? "Pessoa jurídica" : "Pessoa física"}</span>
+          ) : (
+            <SegmentedControl
+              rotulo="Tipo de cliente"
+              valor={tipo}
+              aoMudar={(v) => setValue("tipo", v, { shouldDirty: true })}
+              opcoes={[
+                { valor: "pf", rotulo: "Pessoa física" },
+                { valor: "pj", rotulo: "Pessoa jurídica" },
+              ]}
+            />
+          )}
         </div>
       </header>
 
@@ -217,9 +251,9 @@ export function NovoClienteForm() {
               <TextField cheio mono type="date" rotulo="Primeira habilitação" erro={erro("cnh.primeira_habilitacao")} {...register("cnh.primeira_habilitacao")} />
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <BotaoDocumento tipo="cnh_frente" enviado={Boolean(arquivos.cnh_frente)} aoEscolher={(f) => setArquivos((a) => ({ ...a, cnh_frente: f }))} />
-              <BotaoDocumento tipo="cnh_verso" enviado={Boolean(arquivos.cnh_verso)} aoEscolher={(f) => setArquivos((a) => ({ ...a, cnh_verso: f }))} />
-              <BotaoDocumento tipo="selfie_documento" enviado={Boolean(arquivos.selfie_documento)} aoEscolher={(f) => setArquivos((a) => ({ ...a, selfie_documento: f }))} />
+              <BotaoDocumento tipo="cnh_frente" enviado={enviado("cnh_frente")} aoEscolher={(f) => setArquivos((a) => ({ ...a, cnh_frente: f }))} />
+              <BotaoDocumento tipo="cnh_verso" enviado={enviado("cnh_verso")} aoEscolher={(f) => setArquivos((a) => ({ ...a, cnh_verso: f }))} />
+              <BotaoDocumento tipo="selfie_documento" enviado={enviado("selfie_documento")} aoEscolher={(f) => setArquivos((a) => ({ ...a, selfie_documento: f }))} />
             </div>
           </Panel>
 
@@ -249,7 +283,7 @@ export function NovoClienteForm() {
               <TextField cheio rotulo="UF" maxLength={2} erro={erro("endereco.uf")} {...register("endereco.uf")} />
             </div>
             <div className="mt-4 md:max-w-[50%]">
-              <BotaoDocumento tipo="comprovante_residencia" enviado={Boolean(arquivos.comprovante_residencia)} aoEscolher={(f) => setArquivos((a) => ({ ...a, comprovante_residencia: f }))} />
+              <BotaoDocumento tipo="comprovante_residencia" enviado={enviado("comprovante_residencia")} aoEscolher={(f) => setArquivos((a) => ({ ...a, comprovante_residencia: f }))} />
             </div>
           </Panel>
 
@@ -264,22 +298,27 @@ export function NovoClienteForm() {
           <AnaliseDoCadastro analise={analise.data} carregando={analise.isFetching} />
           <section className="wl-panel flex flex-col gap-4">
             <label className="flex items-start gap-3 text-body">
-              <input type="checkbox" className="wl-marcar" {...register("consentimento")} />
+              {/* Dado o consentimento, não se desmarca por aqui: revogar é pedido do titular (AUD-06). */}
+              <input type="checkbox" className="wl-marcar" onClick={(e) => cliente?.consentimento_em && e.preventDefault()} {...register("consentimento")} />
               <span>O cliente autorizou o uso dos dados para locação e cobrança, conforme a política de privacidade da empresa.</span>
             </label>
           </section>
         </aside>
       </div>
 
-      <BarraDeAcoes
-        aEsquerda={
-          <button type="submit" disabled={ocupado} className="wl-btn wl-btn--quiet">
-            Salvar cliente
-          </button>
-        }
-        cancelar={{ href: "/clientes" }}
-        principal={{ rotulo: "Salvar e iniciar locação", ocupado: false, disabled: ocupado, aoClicar: () => void salvarEAlugar() }}
-      />
+      {editando ? (
+        <BarraDeAcoes cancelar={{ href: `/clientes/${cliente.id}` }} principal={{ rotulo: "Salvar alterações", ocupado }} />
+      ) : (
+        <BarraDeAcoes
+          aEsquerda={
+            <button type="submit" disabled={ocupado} className="wl-btn wl-btn--quiet">
+              Salvar cliente
+            </button>
+          }
+          cancelar={{ href: "/clientes" }}
+          principal={{ rotulo: "Salvar e iniciar locação", ocupado: false, disabled: ocupado, aoClicar: () => void salvarEAlugar() }}
+        />
+      )}
     </form>
   );
 }
