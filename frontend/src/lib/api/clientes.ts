@@ -9,6 +9,7 @@ import type {
   ListaClientes,
   LocacaoDoCliente,
   LocacoesDoCliente,
+  EdicaoCliente,
   NovoCliente,
   RespostaDoDesbloqueio,
   TipoDocumentoCliente,
@@ -63,7 +64,7 @@ export const clientesApi = {
   },
 
   /** PATCH (CLI-01, CLI-03): qualquer campo do cadastro, menos `tipo`. Administrador, gerente e vendedor. 409 `CLI-01` se o novo documento já é de outro cliente. */
-  atualizar(id: number, corpo: Partial<Omit<NovoCliente, "tipo">>): Promise<ClienteCompleto> {
+  atualizar(id: number, corpo: EdicaoCliente): Promise<ClienteCompleto> {
     return http.patch<ClienteCompleto>(`/api/clientes/${id}/`, corpo);
   },
 

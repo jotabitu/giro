@@ -88,9 +88,28 @@ describe("editar cliente: Juliana Rocha", () => {
     // O documento com a máscara de antes não conta como mudança; trocar o dígito conta, sempre só com números.
     expect(paraCorpoDeEdicao({ ...antes, documento: "529.982.247-25" }, antes)).toEqual({ documento: "52998224725" });
     // Bloco que mudou vai inteiro; o tipo nunca vai.
-    const corpo = paraCorpoDeEdicao({ ...antes, tipo: "pj", endereco: { ...antes.endereco, numero: "1130" } }, antes);
+    const corpo = paraCorpoDeEdicao({ ...antes, endereco: { ...antes.endereco, numero: "1130" } }, antes);
     expect(corpo).toEqual({ endereco: { cep: "60115190", logradouro: "Rua Monsenhor Bruno", numero: "1130", bairro: "Aldeota", cidade: "Fortaleza", uf: "CE" } });
     expect(corpo).not.toHaveProperty("tipo");
+  });
+
+  it("test_cli_03_patch_manda_o_campo_apagado_vazio_ou_null", () => {
+    const antes = valoresDoCliente(juliana);
+    // Texto vai "", data vai null, bloco inteiro vai null (PatchedClienteEdicao; conferido na API real).
+    expect(paraCorpoDeEdicao({ ...antes, email: "", profissao: "", nascimento: "" }, antes)).toEqual({ email: "", profissao: "", nascimento: null });
+    expect(paraCorpoDeEdicao({ ...antes, cnh: { numero: "", categoria: "", validade: "", primeira_habilitacao: "" }, referencia: { nome: "", parentesco: "", telefone: "" } }, antes)).toEqual({ cnh: null, referencia: null });
+    // Um subcampo apagado com o resto do bloco: a API junta o bloco com o que já tem, então omitir não apagaria.
+    expect(paraCorpoDeEdicao({ ...antes, cnh: { ...antes.cnh, validade: "" }, referencia: { ...antes.referencia, parentesco: "" } }, antes)).toEqual({
+      cnh: { numero: "03811234562", categoria: "A", validade: null, primeira_habilitacao: "2016-08-10" },
+      referencia: { nome: "Sandra Rocha", parentesco: "", telefone: "85988224410" },
+    });
+  });
+
+  it("test_cli_03_patch_apagar_dado_obrigatorio_leva_a_incompleto", async () => {
+    const r = await clientes.atualizar(1201, { nascimento: null });
+    expect(r.nascimento).toBeNull();
+    expect(r.status).toBe("incompleto");
+    expect(r.pendencias).toContain("nascimento");
   });
 
   it("test_cli_01_patch_com_documento_de_outro_cliente_volta_409_com_o_cadastro_existente", async () => {

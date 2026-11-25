@@ -59,6 +59,19 @@ export type NovoCliente = {
   consentimento?: boolean;
 };
 
+/** Corpo de PATCH /api/clientes/{id}/: qualquer campo do POST menos `tipo`. Texto apagado vai `""`; data e blocos apagados vão `null`. */
+export type EdicaoCliente = Pick<NovoCliente, "nome" | "documento" | "celular" | "consentimento"> extends infer Base
+  ? Partial<Base> & {
+      email?: string | null;
+      profissao?: string | null;
+      nascimento?: string | null;
+      cnh?: NovoCliente["cnh"] | null;
+      responsavel?: NovoCliente["responsavel"] | null;
+      endereco?: NovoCliente["endereco"] | null;
+      referencia?: NovoCliente["referencia"] | null;
+    }
+  : never;
+
 export type ItemAnalise = { codigo: string; situacao: "ok" | "pendente" | "problema"; rotulo: string };
 export type AnaliseCadastro = { itens: ItemAnalise[] };
 

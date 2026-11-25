@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AcaoPrincipal, ClienteCompleto, EnderecoCliente, NovoCliente } from "@/lib/api";
+import type { AcaoPrincipal, ClienteCompleto, EdicaoCliente, EnderecoCliente, NovoCliente } from "@/lib/api";
 import { mascaraCelular, mascaraCep, mascaraCnpj, mascaraCpf, soDigitos } from "@/lib/formatos";
 
 /** Para onde cada ação principal da lista leva. Rotas de módulos ainda não feitos já apontam para o destino final. */
@@ -101,16 +101,31 @@ export function valoresDoCliente(c: ClienteCompleto): ValoresCliente {
   };
 }
 
-/** Corpo do PATCH /api/clientes/{id}/: só o que mudou em relação ao que a ficha trouxe, sem `tipo` (não muda). Bloco que mudou vai inteiro. */
-export function paraCorpoDeEdicao(novos: ValoresCliente, antes: ValoresCliente): Partial<Omit<NovoCliente, "tipo">> {
-  const depois = paraCorpo(novos);
+/** Campo apagado no PATCH (T-516): texto vai vazio; data e blocos vão `null` (PatchedClienteEdicao). */
+const AO_APAGAR: Record<string, "" | null> = { email: "", profissao: "", nascimento: null, cnh: null, responsavel: null, endereco: null, referencia: null };
+
+/** Subcampos de data apagados vão `null` (a API recusa `""`); os de texto vão `""`. */
+const SUBCAMPO_DATA = new Set(["validade", "primeira_habilitacao"]);
+
+/** Bloco que mudou e continua com algum dado: o que sobrou, mais o que foi apagado (a API junta o bloco com o que já tem; omitir não apaga). */
+function blocoComApagados(depois: unknown, antes: unknown): unknown {
+  if (typeof depois !== "object" || depois === null || typeof antes !== "object" || antes === null) return depois;
+  const novo: Record<string, unknown> = { ...depois };
+  for (const sub of Object.keys(antes)) if (!(sub in novo)) novo[sub] = SUBCAMPO_DATA.has(sub) ? null : "";
+  return novo;
+}
+
+/** Corpo do PATCH /api/clientes/{id}/: só o que mudou em relação ao que a ficha trouxe, sem `tipo` (não muda). Bloco que mudou vai inteiro; campo ou bloco apagado vai vazio ou `null`. */
+export function paraCorpoDeEdicao(novos: ValoresCliente, antes: ValoresCliente): EdicaoCliente {
+  const depois = paraCorpo(novos) as Record<string, unknown>;
   const base = paraCorpo(antes) as Record<string, unknown>;
   const corpo: Record<string, unknown> = {};
-  for (const [chave, valor] of Object.entries(depois)) {
-    if (chave === "tipo") continue;
-    if (JSON.stringify(valor) !== JSON.stringify(base[chave])) corpo[chave] = valor;
+  for (const chave of new Set([...Object.keys(depois), ...Object.keys(base)])) {
+    if (chave === "tipo" || JSON.stringify(depois[chave]) === JSON.stringify(base[chave])) continue;
+    if (chave in depois) corpo[chave] = chave in base ? blocoComApagados(depois[chave], base[chave]) : depois[chave];
+    else if (chave in AO_APAGAR) corpo[chave] = AO_APAGAR[chave];
   }
-  return corpo as Partial<Omit<NovoCliente, "tipo">>;
+  return corpo as EdicaoCliente;
 }
 
 export const ROTULO_PENDENCIA: Record<string, string> = {

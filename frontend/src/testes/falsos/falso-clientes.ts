@@ -9,6 +9,8 @@ import {
   type FiltroClientes,
   type ListaClientes,
   type LocacoesDoCliente,
+  type EdicaoCliente,
+
   type NovoCliente,
   type RespostaDoDesbloqueio,
   type StatusCliente,
@@ -333,17 +335,23 @@ export const clientesFalso = {
   },
 
   /** PATCH: as mesmas validações do POST só para o que veio no corpo (CLI-01); o próprio cliente não conta como documento repetido. */
-  async atualizar(id: number, corpo: Partial<Omit<NovoCliente, "tipo">>): Promise<ClienteCompleto> {
+  async atualizar(id: number, corpo: EdicaoCliente): Promise<ClienteCompleto> {
     await pausa(300);
     const perfil = perfilAtualFalso();
     if (perfil !== "administrador" && perfil !== "gerente" && perfil !== "vendedor") throw new ErroApi(403, "permissao", "Seu perfil não tem acesso a esta ação.");
     const reg = acharRegistro(id);
     const { documento, nome, celular, ...resto } = corpo;
-    validarCorpo(reg.tipo, { documento, endereco: resto.endereco, cnh: resto.cnh }, id);
+    validarCorpo(reg.tipo, { documento, endereco: resto.endereco ?? undefined, cnh: resto.cnh ?? undefined }, id);
     if (documento !== undefined) reg.documento = digitos(documento);
     if (nome !== undefined) reg.nome = nome;
     if (celular !== undefined) reg.celular = digitos(celular);
-    reg.extra = { ...(reg.extra ?? {}), ...resto };
+    // Apagar: texto vazio ou `null` tira o dado (como o PATCH da API).
+    const extra: Record<string, unknown> = { ...(reg.extra ?? {}) };
+    for (const [k, v] of Object.entries(resto)) {
+      if (v === null || v === "") delete extra[k];
+      else extra[k] = v;
+    }
+    reg.extra = extra as Registro["extra"];
     reg.pendencias = [...TIPOS_DOCUMENTO.filter((t) => !reg.anexos.includes(t)), ...pendenciasDe({ tipo: reg.tipo, nome: reg.nome, documento: reg.documento, celular: reg.celular, ...reg.extra })];
     // CLI-03: completar a última pendência leva a `ativo`; tirar um dado obrigatório leva a `incompleto`; bloqueado e inativo ficam como estão.
     if (reg.status === "ativo" || reg.status === "incompleto") reg.status = reg.pendencias.length === 0 ? "ativo" : "incompleto";
