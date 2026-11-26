@@ -98,13 +98,15 @@ def test_vei_08_ca_521_03_uma_versao_preenche_como_antes(moto) -> None:
     assert corpo["dicas"] == {"marca_modelo": None, "candidatos": [], "escolhido": None}
 
 
-def test_vei_08_ca_521_01_no_maximo_5_versoes(moto) -> None:
-    # "CHEVROLET/CRUZE" bate com as 17 versões do Cruze. T-521 (decisão do dono): vêm as 5 mais
-    # parecidas, a escolhida na frente; as outras, a pessoa busca na lista de modelos.
-    assert len(catalogo.candidatos("CHEVROLET/CRUZE")) == 17
+def test_vei_08_ca_521_06_no_maximo_5_para_trocar(moto) -> None:
+    # "CHEVROLET/CRUZE" bate com as 17 versões do Cruze. T-521 (decisão do dono): a preenchida na
+    # frente e as 5 seguintes mais parecidas; as outras 11, a pessoa busca na lista de modelos.
+    todas = catalogo.candidatos("CHEVROLET/CRUZE")
+    assert len(todas) == 17
     corpo = _ler(moto, "CHEVROLET/CRUZE")
     assert corpo["campos"]["marca"] == CHEVROLET
-    assert len(corpo["dicas"]["candidatos"]) == 5
+    ordem = [m.modelo for m in catalogo.por_semelhanca("CHEVROLET/CRUZE", todas)]
+    assert [c["modelo"] for c in corpo["dicas"]["candidatos"]] == ordem[:6]
     assert corpo["dicas"]["candidatos"][0] == corpo["dicas"]["escolhido"]
     assert corpo["campos"]["modelo"] == corpo["dicas"]["escolhido"]["modelo"]
 

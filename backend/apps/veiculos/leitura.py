@@ -47,7 +47,9 @@ CAMPOS = (
     "combustivel",
     *DO_DOCUMENTO.values(),
 )
-LIMITE_DE_CANDIDATOS = 5  # T-521 (decisão do dono): as 5 mais parecidas, e a pessoa busca as outras
+# T-521 (decisão do dono, CA-521-06): para trocar, as 5 mais parecidas depois da preenchida; as
+# outras, a pessoa busca na lista de modelos.
+LIMITE_PARA_TROCAR = 5
 MENSAGEM_FALHA = "Não conseguimos ler este documento. Preencha os campos à mão."
 MENSAGEM_NAO_PDF = "Envie o PDF do CRLV-e."
 MENSAGEM_OUTRO_VEICULO = "Este CRLV-e é de outro veículo."
@@ -103,9 +105,9 @@ def _resposta(lidos_do_filho: dict[str, Any]) -> tuple[dict[str, Any], dict[str,
     A leitura sempre preenche marca e modelo quando o documento traz o texto (T-521, pedido do
     dono em 26 nov 2026). Um candidato só: os dois do catálogo, sem dica. Mais de um (o Cruze da
     T-415): as versões vão em `dicas.candidatos` da mais parecida com o texto à menos parecida
-    (`catalogo.por_semelhanca`), até `LIMITE_DE_CANDIDATOS`, e a primeira, em `dicas.escolhido`,
-    preenche marca e modelo; a pessoa pode trocar. Nenhum: marca e modelo saem do próprio texto
-    (`catalogo.separar`)."""
+    (`catalogo.por_semelhanca`): a preenchida, que vem também em `dicas.escolhido`, e até
+    `LIMITE_PARA_TROCAR` depois dela; a pessoa pode trocar. Nenhum: marca e modelo saem do
+    próprio texto (`catalogo.separar`)."""
     campos: dict[str, Any] = dict.fromkeys(CAMPOS)
     for nome in ("placa", "chassi", "renavam", "ano_fabricacao", "ano_modelo", "cor"):
         campos[nome] = lidos_do_filho.get(nome)
@@ -128,7 +130,7 @@ def _resposta(lidos_do_filho: dict[str, Any]) -> tuple[dict[str, Any], dict[str,
     escolhido = ordenados[0]
     campos["marca"], campos["modelo"] = escolhido.marca, escolhido.modelo
     dicas["escolhido"] = _versao(escolhido)
-    dicas["candidatos"] = [_versao(m) for m in ordenados[:LIMITE_DE_CANDIDATOS]]
+    dicas["candidatos"] = [_versao(m) for m in ordenados[: 1 + LIMITE_PARA_TROCAR]]
     return campos, dicas
 
 
