@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import {
   AlertCard,
   BarraDeAcoes,
+  useBlocoVisivel,
   Button,
   CodigoVerificacao,
   CelulaDupla,
@@ -318,19 +319,27 @@ function ExemploLinhaDeLista() {
 
 function ExemploBarraDeAcoes() {
   const [ocupado, setOcupado] = useState(false);
+  const blocos = useBlocoVisivel();
   return (
     <div className="flex flex-col gap-4">
-      <Panel titulo="Novo item">
-        <form id="exemplo-barra" onSubmit={(e) => e.preventDefault()}>
+      <form id="exemplo-barra" className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()}>
+        <Panel titulo="Novo item">
           <TextField cheio rotulo="Nome" placeholder="Digite e aperte Enter" />
-        </form>
-      </Panel>
-      <BarraDeAcoes
-        className="!static"
-        aEsquerda="Alterações não salvas"
-        cancelar={{ aoClicar: () => setOcupado(false) }}
-        principal={{ rotulo: "Salvar alterações", form: "exemplo-barra", ocupado, aoClicar: () => setOcupado((o) => !o) }}
-      />
+        </Panel>
+        {/* O bloco fixo de botões da tela: enquanto aparece, a barra fica escondida. */}
+        <div ref={blocos.ref()} className="wl-panel flex flex-col gap-3">
+          <button type="submit" disabled={ocupado} className="wl-btn wl-btn--solid" onClick={() => setOcupado((o) => !o)}>
+            {ocupado ? "Salvando…" : "Salvar alterações"}
+          </button>
+          <button type="button" className="wl-btn wl-btn--quiet" onClick={() => setOcupado(false)}>
+            Cancelar
+          </button>
+        </div>
+        <Panel titulo="Mais campos">
+          <p className="h-[640px] text-body text-ink-muted">Role a página: quando o bloco de botões sai da tela, a barra surge no pé; quando ele volta, a barra some.</p>
+        </Panel>
+      </form>
+      <BarraDeAcoes blocos={blocos} cancelar={{ aoClicar: () => setOcupado(false) }} principal={{ rotulo: "Salvar alterações", form: "exemplo-barra", ocupado, aoClicar: () => setOcupado((o) => !o) }} />
     </div>
   );
 }

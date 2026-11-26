@@ -6,7 +6,7 @@ import { Bike, Car, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { BarraDeAcoes, CampoDeDinheiro, Icone, Panel, SelectField, TextField } from "@/design-system";
+import { BarraDeAcoes, CampoDeDinheiro, Icone, Panel, SelectField, TextField, useBlocoVisivel } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
@@ -56,6 +56,7 @@ export function Preco({ rotulo, centavos }: { rotulo: string; centavos: number }
 /** Cadastrar veículo (Veiculo-Novo-Desktop|Mobile): POST /api/veiculos/ (VEI-01, PLT-03). A API valida; o erro volta no campo. */
 export function NovoVeiculoForm() {
   const cliente = useQueryClient();
+  const blocos = useBlocoVisivel();
   const { eu } = useSessao();
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [existente, setExistente] = useState<{ id: number } | null>(null);
@@ -435,18 +436,21 @@ export function NovoVeiculoForm() {
             <p className="text-body text-ink-muted">O veículo entra na frota como Disponível. Placa e chassi não podem repetir, nem de veículo vendido ou baixado.</p>
           </section>
 
+          <section ref={blocos.ref()} className="wl-panel flex flex-col gap-3">
+            <button type="submit" disabled={ocupado} className="wl-btn wl-btn--solid">
+              Salvar veículo
+            </button>
+            <button type="button" disabled={ocupado} onClick={() => void salvarEOutro()} className="wl-btn wl-btn--quiet">
+              Salvar e cadastrar outro
+            </button>
+            <Link href="/veiculos" className="wl-btn wl-btn--quiet">
+              Cancelar
+            </Link>
+          </section>
         </aside>
       </div>
 
-      <BarraDeAcoes
-        aEsquerda={
-          <button type="button" disabled={ocupado} onClick={() => void salvarEOutro()} className="wl-btn wl-btn--quiet">
-            Salvar e cadastrar outro
-          </button>
-        }
-        cancelar={{ href: "/veiculos" }}
-        principal={{ rotulo: "Salvar veículo", ocupado: false, disabled: ocupado }}
-      />
+      <BarraDeAcoes blocos={blocos} cancelar={{ href: "/veiculos" }} principal={{ rotulo: "Salvar veículo", ocupado: false, disabled: ocupado }} />
     </form>
   );
 }

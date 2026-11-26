@@ -3,7 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
-import { Aviso, BarraDeAcoes, InputDeDinheiro, Button, Dialogo, Panel } from "@/design-system";
+import { Aviso, BarraDeAcoes, InputDeDinheiro, Button, Dialogo, Panel, useBlocoVisivel } from "@/design-system";
 import { ErroApi, veiculos, type PrecosDoVeiculo as Precos, type PrecosEntrada } from "@/lib/api";
 import { useAmbiente } from "@/lib/ambiente";
 import { useAtrasado } from "@/lib/atrasado";
@@ -76,6 +76,7 @@ export const TEXTOS_DO_ALUGUEL = {
 
 function Tela({ id, dados }: { id: number; dados: Precos }) {
   const cliente = useQueryClient();
+  const blocos = useBlocoVisivel();
   const hoje = useAmbiente()?.hoje ?? new Date().toISOString().slice(0, 10);
   const base = useMemo(() => rascunhoDoDocumento(dados), [dados]);
   const [rascunho, setRascunho] = useState<Rascunho>(base);
@@ -314,6 +315,16 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
             {nomeDoVeiculo} · <span className="wl-mono">{placaComHifen(v.placa)}</span>
           </div>
         </div>
+        {!somenteLeitura && (
+          <div ref={blocos.ref()} className="ml-auto hidden gap-2 md:flex">
+            <Link href={`/veiculos/${v.id}`} className="wl-btn wl-btn--quiet">
+              Cancelar
+            </Link>
+            <Button variante="solido" disabled={!montado.mudou || ocupado === "tela"} onClick={() => void salvar()}>
+              {ocupado === "tela" ? "Salvando…" : "Salvar preços"}
+            </Button>
+          </div>
+        )}
       </header>
 
       {exibido.aviso_preco && <Aviso>{exibido.aviso_preco}</Aviso>}
@@ -461,6 +472,7 @@ function Tela({ id, dados }: { id: number; dados: Precos }) {
 
       {!somenteLeitura && (
         <BarraDeAcoes
+          blocos={blocos}
           cancelar={{ href: `/veiculos/${v.id}` }}
           principal={{ rotulo: "Salvar preços", disabled: !montado.mudou, ocupado: ocupado === "tela", aoClicar: () => void salvar() }}
         />

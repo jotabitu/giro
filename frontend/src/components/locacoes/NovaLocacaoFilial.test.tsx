@@ -56,7 +56,7 @@ describe("nova locação e a filial escolhida (T-239)", () => {
     expect(texto(html)).toContain("Escolha uma filial no menu para criar a locação.");
     expect(texto(html)).not.toContain("Calculando…");
     const b = botoes(html);
-    expect(b).toHaveLength(2);
+    expect(b).toHaveLength(3); // bloco do painel (2) e principal da barra (1)
     expect(b.every((x) => x.includes("disabled"))).toBe(true);
   });
 });

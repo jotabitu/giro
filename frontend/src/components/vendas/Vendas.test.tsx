@@ -93,12 +93,14 @@ describe("Venda: aguardando o gerente (VEN-02, VEN-13, VEN-19)", () => {
     expect(h).toContain('href="/aprovacoes/41"');
   });
 
-  it("T-514: nova venda leva Cancelar e salvar proposta na barra flutuante; a venda que já existe não tem a barra", () => {
+  it("T-519: nova venda tem os botões no Resumo e a barra flutuante repete Cancelar e o principal; a venda que já existe não tem a barra", () => {
     const nova = html(<FormularioDaVenda />);
     expect(nova).toContain("sticky bottom-[88px]");
     const t = texto(nova);
     for (const e of ["Salvar como interessado", "Cancelar", "Salvar proposta e enviar ao cliente"]) expect(t).toContain(e);
-    expect(nova.indexOf("Salvar proposta e enviar ao cliente")).toBeGreaterThan(nova.indexOf("sticky bottom-[88px]"));
+    expect(nova.match(/>Salvar proposta e enviar ao cliente</g)).toHaveLength(2);
+    expect(nova.match(/>Salvar como interessado</g)).toHaveLength(1);
+    expect(nova.lastIndexOf("Salvar proposta e enviar ao cliente")).toBeGreaterThan(nova.indexOf("sticky bottom-[88px]"));
     expect(html(<FormularioDaVenda venda={VEN_0177} />)).not.toContain("sticky bottom-[88px]");
   });
 

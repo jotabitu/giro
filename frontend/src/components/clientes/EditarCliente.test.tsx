@@ -59,8 +59,9 @@ describe("editar cliente: Juliana Rocha", () => {
     expect(h).toContain("Pessoa física");
     expect(h).not.toContain("Pessoa jurídica");
     expect(h).toContain('href="/clientes/1201"');
-    expect(h.match(/>Cancelar</g)).toHaveLength(1);
-    expect(h.match(/>Salvar alterações</g)).toHaveLength(1);
+    // T-519: o bloco do painel lateral e a barra flutuante.
+    expect(h.match(/>Cancelar</g)).toHaveLength(2);
+    expect(h.match(/>Salvar alterações</g)).toHaveLength(2);
     expect(h).not.toContain("Salvar e iniciar locação");
     expect(h).toContain("sticky bottom-[88px]");
   });

@@ -75,6 +75,19 @@ describe("tela Cadastrar veículo", () => {
     expect(h).toContain("A consulta FIPE ainda não está disponível");
   });
 
+  it("T-519: o bloco do painel lateral e a barra flutuante submetem o mesmo form; a barra nasce escondida até o bloco sair da tela", () => {
+    sessao.veiculos = "editar";
+    const h = html(<NovoVeiculoForm />);
+    const formulario = h.slice(h.indexOf("<form"), h.indexOf("</form>"));
+    // Os dois botões principais estão dentro do mesmo <form>: Enter e clique salvam do mesmo jeito.
+    expect(formulario.match(/<button type="submit"[^>]*>Salvar veículo<\/button>/g)).toHaveLength(2);
+    expect(formulario.match(/>Salvar e cadastrar outro</g)).toHaveLength(1);
+    expect(formulario.match(/>Cancelar</g)).toHaveLength(2);
+    expect(formulario.indexOf("Salvar e cadastrar outro")).toBeLessThan(formulario.indexOf("sticky bottom-[88px]"));
+    // Antes da primeira medida o bloco conta como visível: a barra fica inerte e invisível.
+    expect(formulario).toMatch(/aria-hidden="true"[^>]*inert=""[^>]*class="sticky bottom-\[88px\][^"]*opacity-0/);
+  });
+
   it("perfil sem permissão não vê o formulário", () => {
     sessao.veiculos = "nao";
     const h = html(<NovoVeiculoForm />);

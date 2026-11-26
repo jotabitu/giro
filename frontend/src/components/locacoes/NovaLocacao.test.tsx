@@ -144,7 +144,7 @@ describe("nova locação: Lucas Ferreira, CG 160 Fan SAK-1D39, plano Semanal do 
     );
     expect(texto(html)).toContain("Escolha o cliente e o veículo para ver os valores.");
     expect(texto(html)).toContain("Escolha o veículo para ver os planos.");
-    expect(html.match(/<button[^>]*disabled[^>]*>(Continuar para vistoria|Salvar como reserva)/g)).toHaveLength(2);
+    expect(html.match(/<button[^>]*disabled[^>]*>(Continuar para vistoria|Salvar como reserva)/g)).toHaveLength(3);
   });
 });
 

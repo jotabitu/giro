@@ -5,7 +5,7 @@ import { Bike, Car, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { BarraDeAcoes, CampoDeDinheiro, Aviso, Button, Escolha, Icone, StatusBadge, TextField, Valores } from "@/design-system";
+import { BarraDeAcoes, CampoDeDinheiro, Aviso, Button, Escolha, Icone, StatusBadge, TextField, Valores, useBlocoVisivel } from "@/design-system";
 import { EscolherCliente, EscolherVeiculo } from "@/components/locacoes/SeletoresDaLocacao";
 import { vendas, veiculos, type FormaDaVenda, type PropostaDaVenda, type Veiculo, type VendaDetalhe } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
@@ -125,6 +125,7 @@ export function TelaDaVenda({ id, veiculoInicial }: { id?: number; veiculoInicia
 export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDetalhe; veiculoInicial?: number }) {
   const router = useRouter();
   const cliente = useQueryClient();
+  const blocos = useBlocoVisivel();
   const nova = !venda;
   const editavel = nova || venda.acoes.editar;
   const quitacao = venda?.origem === "quitacao_locacao";
@@ -348,16 +349,16 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
             {erroGeral && <Aviso tom="critico">{mensagemDoErro(erroGeral)}</Aviso>}
             {simulacao.isError && <Aviso tom="critico">{mensagemDoErro(simulacao.error)}</Aviso>}
 
-            {venda && (
-              <BotoesDaVenda
-                venda={venda}
-                precisaGerente={precisaGerente}
-                ocupado={ocupado}
-                aoExecutar={(a) => executar.mutate(a)}
-                aoResponder={() => setDialogo("resposta")}
-                aoPerder={() => setDialogo("perder")}
-              />
-            )}
+            <BotoesDaVenda
+              venda={venda}
+              semCadastro={semCadastro}
+              precisaGerente={precisaGerente}
+              ocupado={ocupado}
+              blocoRef={nova ? blocos.ref() : undefined}
+              aoExecutar={(a) => executar.mutate(a)}
+              aoResponder={() => setDialogo("resposta")}
+              aoPerder={() => setDialogo("perder")}
+            />
             {/* VEN-19: o vendedor não marca como perdida a venda com a entrada paga; a API manda o porquê. */}
             {venda && !venda.acoes.perder && venda.perder_texto && <p className="m-0 text-caption text-ink-muted">{venda.perder_texto}</p>}
             {!quitacao && passoDaVenda(venda) < 2 && venda?.status !== "perdida" && <p className="m-0 text-caption text-ink-muted">{NOTA_DA_CONCLUSAO}</p>}
@@ -365,16 +366,10 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
         </aside>
       </div>
 
-      {/* Nova venda: as ações de salvar vão para a barra. Na venda que já existe, as ações dependem do estado e ficam no Resumo. */}
+      {/* Nova venda: Cancelar e o botão principal também ficam na barra, que só aparece quando o bloco de botões do Resumo sai da tela. Na venda que já existe, as ações dependem do estado e ficam só no Resumo. */}
       {!venda && (
         <BarraDeAcoes
-          aEsquerda={
-            !semCadastro && (
-              <Button variante="quieto" disabled={ocupado} onClick={() => executar.mutate("interessado")}>
-                Salvar como interessado
-              </Button>
-            )
-          }
+          blocos={blocos}
           cancelar={{ href: "/vendas" }}
           principal={
             semCadastro
@@ -416,7 +411,7 @@ export function FormularioDaVenda({ venda, veiculoInicial }: { venda?: VendaDeta
 }
 
 /** Os botões vêm de `acoes` (a API diz o que a pessoa pode fazer agora) e do `precisa_aprovacao` do simular (VEN-02). */
-function BotoesDaVenda({ venda, precisaGerente, ocupado, aoExecutar, aoResponder, aoPerder }: { venda: VendaDetalhe; precisaGerente: boolean; ocupado: boolean; aoExecutar: (a: Acao) => void; aoResponder: () => void; aoPerder: () => void }) {
+function BotoesDaVenda({ venda, semCadastro, precisaGerente, ocupado, blocoRef, aoExecutar, aoResponder, aoPerder }: { venda?: VendaDetalhe; semCadastro: boolean; precisaGerente: boolean; ocupado: boolean; blocoRef?: (el: Element | null) => void; aoExecutar: (a: Acao) => void; aoResponder: () => void; aoPerder: () => void }) {
   const principal = (rotulo: string, a: Acao) => (
     <Button variante="solido" disabled={ocupado} onClick={() => aoExecutar(a)}>
       {rotulo}
@@ -428,6 +423,21 @@ function BotoesDaVenda({ venda, precisaGerente, ocupado, aoExecutar, aoResponder
       {rotulo}
     </Button>
   );
+
+  if (!venda) {
+    if (semCadastro)
+      return (
+        <div ref={blocoRef} className="flex flex-col gap-2">
+          {principal("Salvar interessado", "interessado")}
+        </div>
+      );
+    return (
+      <div ref={blocoRef} className="flex flex-col gap-2">
+        {precisaGerente ? principal("Pedir aprovação do gerente", "pedir_aprovacao") : principal("Salvar proposta e enviar ao cliente", "enviar")}
+        {secundario("Salvar como interessado", "interessado")}
+      </div>
+    );
+  }
 
   const a = venda.acoes;
   const botoes: ReactNode[] = [];

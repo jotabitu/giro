@@ -178,7 +178,8 @@ describe("Estoque à venda em Empresa e marca (VEI-19, T-486)", () => {
     expect(h).toContain("Limite de dias em estoque");
     expect(h).toContain('value="30"');
     expect(h).toContain("Acima disso, o veículo à venda aparece como parado e o gerente da filial é avisado. De 1 a 365 dias, igual para todas as filiais.");
-    expect(h.match(/>Salvar<\/button>/g)).toHaveLength(1);
+    // T-519: o bloco do fim da coluna e a barra flutuante enviam o mesmo form.
+    expect(h.match(/>Salvar<\/button>/g)).toHaveLength(2);
   });
 
   it("test_vei_19_campo_travado_para_quem_nao_edita", async () => {
