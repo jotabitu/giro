@@ -202,7 +202,8 @@ function HistoricoDeDocumentos({ id }: { id: number }) {
 
 /**
  * VEI-22: "Excluir" para quem `acoes.excluir` vem (administrador e gerente). Sem histórico, a confirmação; com histórico, o aviso com o
- * motivo e o caminho da API, e "Colocar à venda" quando `acoes.colocar_a_venda` deixa (o mesmo botão da ficha, ainda sem a tela de venda).
+ * motivo e o caminho da API. Sem o botão "Colocar à venda" no aviso até a tela de colocar à venda existir (decisão do orquestrador na T-515):
+ * o caminho fica só no texto.
  */
 export function ExcluirVeiculo({ v, celular, abertoDeInicio }: { v: VeiculoDetalhe; celular?: boolean; abertoDeInicio?: boolean }) {
   const acao = v.acoes.excluir;
@@ -217,15 +218,6 @@ export function ExcluirVeiculo({ v, celular, abertoDeInicio }: { v: VeiculoDetal
       chaveDaFicha={["veiculo", v.id]}
       chavesDasListas={[["veiculos"], ["contadores"]]}
       lista="/veiculos"
-      caminho={
-        v.acoes.colocar_a_venda
-          ? () => (
-              <Button variante="solido" disabled title={EM_BREVE} icone={celular ? undefined : <Icone de={Tag} />}>
-                Colocar à venda
-              </Button>
-            )
-          : undefined
-      }
       estiloDoBotao={celular ? { height: 48 } : undefined}
       abertoDeInicio={abertoDeInicio}
     />

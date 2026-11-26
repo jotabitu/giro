@@ -132,34 +132,29 @@ describe("VEI-22: veículo sem histórico", () => {
 });
 
 describe("VEI-22: veículo com histórico", () => {
-  it("test_vei_22_aviso_do_gerente_com_o_motivo_o_caminho_e_colocar_a_venda", async () => {
+  it("test_vei_22_aviso_do_gerente_com_o_motivo_e_o_caminho_so_no_texto", async () => {
     await entrar("rodrigo@motorapida.com.br");
     const v = await veiculos.obter(504);
     expect(v.acoes.excluir?.permitido).toBe(false);
+    expect(v.acoes.colocar_a_venda).toBe(true);
     const t = texto(html(<ExcluirVeiculo v={v} abertoDeInicio />));
     ordem(t, [
       "Este veículo não pode ser excluído",
       "Este veículo já tem locação e vistoria. Ele fica guardado e não pode ser excluído. Para tirar a moto da frota, coloque à venda ou peça a baixa ao administrador (perda total, roubo ou sucata).",
       "Fechar",
-      "Colocar à venda",
     ]);
+    // Até a tela de colocar à venda existir, o caminho fica só no texto: nenhum botão que não funciona dentro do aviso.
+    expect(t.slice(t.indexOf("sucata)."))).not.toContain("Colocar à venda");
     expect(t).not.toContain("Excluir veículo");
-    // Celular: "Colocar à venda" em cima, "Fechar" embaixo.
-    ordem(texto(html(<ExcluirVeiculo v={v} celular abertoDeInicio />)), ["Este veículo não pode ser excluído", "Colocar à venda", "Fechar"]);
+    const celular = texto(html(<ExcluirVeiculo v={v} celular abertoDeInicio />));
+    ordem(celular, ["Este veículo não pode ser excluído", "Fechar"]);
+    expect(celular.slice(celular.indexOf("sucata)."))).not.toContain("Colocar à venda");
   });
 
   it("test_vei_22_aviso_do_administrador_fala_em_fazer_a_baixa", async () => {
     await entrar("mariana@motorapida.com.br");
     const t = texto(html(<ExcluirVeiculo v={await veiculos.obter(504)} abertoDeInicio />));
     expect(t).toContain("Para tirar a moto da frota, coloque à venda ou faça a baixa (perda total, roubo ou sucata).");
-  });
-
-  it("test_vei_22_sem_poder_colocar_a_venda_o_aviso_so_tem_fechar", async () => {
-    await entrar("rodrigo@motorapida.com.br");
-    const v = await veiculos.obter(501); // alugado: `acoes.colocar_a_venda` é falso
-    const t = texto(html(<ExcluirVeiculo v={v} abertoDeInicio />));
-    expect(t).toContain("Fechar");
-    expect(t).not.toContain("Colocar à venda");
   });
 
   it("test_vei_22_409_com_historico_mostra_a_frase_da_api_e_manda_reler_a_ficha", async () => {
