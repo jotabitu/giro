@@ -175,8 +175,8 @@ def test_aud_06_anonimizar_agenda_a_remocao_depois_do_commit(
     with django_capture_on_commit_callbacks(execute=True):
         assert _anonimizar(paula) == 1
     assert len(agendadas) == 1
-    schema, caminhos, pastas = agendadas[0]
-    assert (schema, len(caminhos), pastas) == ("empresa_a", 1, [])
+    schema, caminhos, pastas, antes_de = agendadas[0]
+    assert (schema, len(caminhos), pastas, antes_de) == ("empresa_a", 1, [], None)
 
 
 # --- B4 ---

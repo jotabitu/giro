@@ -6,6 +6,7 @@ e tenta de novo quando o armazenamento falha: o arquivo não fica órfão.
 """
 
 import logging
+from datetime import datetime
 
 from celery import shared_task
 
@@ -37,29 +38,40 @@ def _conferir(schema_name: str, caminhos: list[str], pastas: list[str]) -> None:
     max_retries=TENTATIVAS,
 )
 def arquivos_apagar(
-    schema_name: str, caminhos: list[str] | None = None, pastas: list[str] | None = None
+    schema_name: str,
+    caminhos: list[str] | None = None,
+    pastas: list[str] | None = None,
+    antes_de: str | None = None,
 ) -> int:
-    """Idempotente: apagar o que já saiu não falha. Devolve quantos arquivos saíram."""
+    """Idempotente: apagar o que já saiu não falha. Devolve quantos arquivos saíram. Com
+    `antes_de` (ISO, hora real), as pastas perdem só o que foi gravado antes dele: o arquivo novo,
+    gravado enquanto a tarefa esperava a vez ou a nova tentativa, fica (T-517, S1)."""
     from comum import arquivos
 
     caminhos, pastas = list(caminhos or []), list(pastas or [])
     _conferir(schema_name, caminhos, pastas)
+    corte = datetime.fromisoformat(antes_de) if antes_de else None
     provedor = arquivos.provedor()
     for caminho in caminhos:
         provedor.apagar(caminho)
-    return len(caminhos) + sum(provedor.apagar_prefixo(pasta) for pasta in pastas)
+    return len(caminhos) + sum(provedor.apagar_prefixo(pasta, corte) for pasta in pastas)
 
 
-def _agendar(schema_name: str, caminhos: list[str], pastas: list[str]) -> None:
+def _agendar(
+    schema_name: str, caminhos: list[str], pastas: list[str], antes_de: str | None = None
+) -> None:
     try:
-        arquivos_apagar.delay(schema_name, caminhos, pastas)
+        arquivos_apagar.delay(schema_name, caminhos, pastas, antes_de)
     except Exception:  # a resposta não depende da remoção (B3); o erro vai ao log e ao Sentry
         logger.exception("Remoção de arquivos não agendada (%s).", schema_name)
 
 
-def apagar_depois_do_commit(caminhos: list[str], pastas: list[str] | None = None) -> None:
+def apagar_depois_do_commit(
+    caminhos: list[str], pastas: list[str] | None = None, antes_de: datetime | None = None
+) -> None:
     """Agenda a remoção para depois do commit da transação atual (se algo falhar antes, nenhum
-    arquivo some sem o registro mudar). Sem nada a apagar, não agenda."""
+    arquivo some sem o registro mudar). Sem nada a apagar, não agenda. Pasta que pode receber
+    arquivo novo depois do commit vai com `antes_de` (ou prefira os caminhos exatos)."""
     from django.db import transaction
 
     from comum.conexao import schema_atual
@@ -68,4 +80,5 @@ def apagar_depois_do_commit(caminhos: list[str], pastas: list[str] | None = None
     if not caminhos and not lista_de_pastas:
         return
     schema = schema_atual()
-    transaction.on_commit(lambda: _agendar(schema, caminhos, lista_de_pastas))
+    corte = antes_de.isoformat() if antes_de else None
+    transaction.on_commit(lambda: _agendar(schema, caminhos, lista_de_pastas, corte))

@@ -107,6 +107,47 @@ def test_ven_13_trocar_o_cliente_apaga_os_pdfs_do_cliente_anterior(
     assert not arquivos.provedor().existe(do_link)
 
 
+@pytest.mark.parametrize("listagem", ["funciona", "falha"])
+def test_ven_13_trocar_o_cliente_nao_apaga_o_pdf_gravado_depois(
+    cenario,  # noqa: F811
+    django_capture_on_commit_callbacks,
+    monkeypatch,
+    listagem,
+):
+    """S1 da Segurança no #683: o "Copiar link" grava o PDF do cliente novo antes de a remoção
+    rodar. Saem só os PDFs que existiam na troca (pelo caminho exato, ou, sem a listagem, pela
+    hora da gravação); o PDF novo fica e o link abre."""
+    paula = _paula()
+    venda = _enviada(cenario, django_capture_on_commit_callbacks, cliente_id=paula.pk)
+    antigo = Venda.objects.get(pk=venda["id"]).proposta_pdf.name
+    provedor_falso = type(arquivos.provedor())
+    listar = provedor_falso.listar
+    if listagem == "falha":
+
+        def fora_do_ar(self: Any, prefixo: str) -> list[str]:
+            raise OSError("armazenamento fora do ar")
+
+        monkeypatch.setattr(provedor_falso, "listar", fora_do_ar)
+
+    with django_capture_on_commit_callbacks() as depois_do_commit:
+        editada = cenario.moto.api("Bruna").patch(
+            f"{VENDAS}{venda['id']}/", {"cliente_id": cenario.cliente("Carlos").pk}, format="json"
+        )
+    assert editada.status_code == 200, editada.json()
+    monkeypatch.setattr(provedor_falso, "listar", listar)
+
+    # O vendedor copia o link antes de a tarefa rodar: o PDF de Carlos vai para a mesma pasta.
+    token = _token(_copiar(cenario, venda["id"]).json()["link"])
+    novo = Venda.objects.get(pk=venda["id"]).proposta_pdf.name
+    assert novo != antigo and novo.startswith(pasta_da_venda(venda["id"]))
+    for funcao in depois_do_commit:
+        funcao()
+
+    assert not arquivos.provedor().existe(antigo)
+    assert arquivos.provedor().existe(novo)
+    assert _abrir(token).status_code == 200
+
+
 def test_ven_13_editar_com_o_mesmo_cliente_guarda_o_pdf(
     cenario,  # noqa: F811
     django_capture_on_commit_callbacks,
@@ -175,3 +216,39 @@ def test_aud_06_remocao_nao_derruba_a_resposta(monkeypatch, caplog):
     monkeypatch.setattr(tarefas_comuns.arquivos_apagar, "delay", falha)
     tarefas_comuns._agendar("empresa_a", ["empresa_a/clientes/documento/1/cnh.pdf"], [])
     assert "Remoção de arquivos não agendada" in caplog.text
+
+
+def test_ven_13_s3_apaga_da_pasta_so_o_gravado_antes():
+    """S1, no S3: com `antes_de`, só sai a chave cuja versão atual é de antes do corte; o
+    `LastModified` vem em segundos, e o gravado no mesmo segundo do corte fica."""
+    from datetime import UTC, datetime
+
+    apagadas: list[str] = []
+    gravadas = {
+        "empresa_a/vendas/venda/7/antigo.pdf": datetime(2026, 10, 7, 10, 0, 0, tzinfo=UTC),
+        "empresa_a/vendas/venda/7/mesmo-segundo.pdf": datetime(2026, 10, 7, 10, 5, 0, tzinfo=UTC),
+        "empresa_a/vendas/venda/7/novo.pdf": datetime(2026, 10, 7, 10, 6, 0, tzinfo=UTC),
+    }
+
+    class Paginador:
+        def paginate(self, Bucket: str, Prefix: str) -> list[dict[str, Any]]:
+            conteudo = [
+                {"Key": chave, "LastModified": quando}
+                for chave, quando in gravadas.items()
+                if chave.startswith(Prefix)
+            ]
+            return [{"Contents": conteudo}]
+
+    class Cliente:
+        def get_paginator(self, operacao: str) -> Paginador:
+            assert operacao == "list_objects_v2"
+            return Paginador()
+
+    provedor = arquivos.ProvedorS3.__new__(arquivos.ProvedorS3)
+    provedor.bucket = "giro"
+    provedor.cliente = Cliente()
+    provedor.apagar = apagadas.append  # type: ignore[method-assign,assignment]
+    corte = datetime(2026, 10, 7, 10, 5, 0, 400000, tzinfo=UTC)
+    assert provedor.apagar_prefixo("empresa_a/vendas/venda/7/", antes_de=corte) == 1
+    assert apagadas == ["empresa_a/vendas/venda/7/antigo.pdf"]
+    assert provedor.listar("empresa_a/vendas/venda/7/") == sorted(gravadas)
