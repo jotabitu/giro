@@ -16,6 +16,7 @@ import re
 import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 from functools import cache
 from pathlib import Path
 
@@ -197,9 +198,64 @@ def candidatos(texto: str) -> list[Modelo]:
     return sorted(achados, key=lambda m: (*_ordem(m), m.tipo))
 
 
+def _partes(texto: str) -> list[str]:
+    """O texto lido separado na "/", sem o "I/" do importado."""
+    partes = [" ".join(parte.split()) for parte in texto.split("/") if parte.strip()]
+    if len(partes) > 1 and normalizar(partes[0]) == IMPORTADO:
+        partes = partes[1:]
+    return partes
+
+
+def por_semelhanca(texto: str, achados: Iterable[Modelo]) -> list[Modelo]:
+    """Os candidatos do mais parecido com o modelo lido ao menos parecido (T-521): a semelhança
+    do `difflib` entre o modelo do texto ("CRUZE LT NB") e o do catálogo, normalizados. No
+    empate, fica a ordem de marca e modelo. O primeiro é o que a leitura preenche."""
+    partes = _partes(texto)
+    lido = normalizar(" ".join(partes[1:] if len(partes) > 1 else partes))
+    return sorted(
+        achados,
+        key=lambda m: -SequenceMatcher(None, lido, normalizar(m.modelo), autojunk=False).ratio(),
+    )
+
+
+def separar(texto: str) -> tuple[str | None, str | None]:
+    """A marca e o modelo como estão no texto lido, sem o catálogo (T-521): "SUZUKI/YES 125" →
+    ("Suzuki", "YES 125"). O que vem antes da "/" é a marca, com o nome do catálogo quando ela
+    está nele (`marca_do_catalogo`); o resto, o modelo. Sem outra "/"
+    depois do "I/" do importado ("I/TOYOTA COROLLA"), a marca é a primeira palavra. Cortados no
+    tamanho dos campos do veículo (40 e 60)."""
+    partes = _partes(texto)
+    if len(partes) == 1:
+        partes = partes[0].split(" ", 1)
+    if not partes:
+        return None, None
+    modelo = " ".join(partes[1:])
+    return (marca_do_catalogo(partes[0]) or partes[0])[:40], (modelo[:60] or None)
+
+
+@cache
+def _marcas() -> dict[str, str]:
+    """A marca normalizada → o nome como o catálogo escreve (a primeira grafia que aparece)."""
+    marcas: dict[str, str] = {}
+    for modelo in modelos():
+        marcas.setdefault(modelo.marca_normalizada, modelo.marca)
+    return marcas
+
+
+def marca_do_catalogo(marca: str) -> str | None:
+    """O nome da marca no catálogo, pelo nome ("SUZUKI" → "Suzuki") ou, sem ele, pelo apelido do
+    Detran ("GM" → "GM - Chevrolet"), na ordem de `APELIDOS_DO_DETRAN`. Fora do catálogo: `None`."""
+    normalizada = normalizar(marca)
+    marcas = _marcas()
+    for opcao in (normalizada, *APELIDOS_DO_DETRAN.get(normalizada, ())):
+        if opcao in marcas:
+            return marcas[opcao]
+    return None
+
+
 def achar_modelo(texto: str) -> Modelo | None:
     """O modelo do catálogo para o texto lido do CRLV-e ("HONDA/POP 110I ES"), só se for o único
-    candidato. Mais de um, ou nenhum: `None`, e a leitura manda a dica e os candidatos em vez de
-    preencher (ADR 0026, item 7; T-415)."""
+    candidato. Mais de um, ou nenhum: `None` (ADR 0026, item 7; T-415). A leitura do CRLV-e
+    preenche assim mesmo, com `por_semelhanca` ou `separar` (T-521)."""
     achados = candidatos(texto)
     return achados[0] if len(achados) == 1 else None

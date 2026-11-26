@@ -62,13 +62,16 @@ def test_vei_08_crlv_detran_moto_re_classic_350(moto) -> None:
         "Royal Enfield",
         "Classic 350",
     )
-    assert corpo["dicas"] == {"marca_modelo": None, "candidatos": []}
+    assert corpo["dicas"] == {"marca_modelo": None, "candidatos": [], "escolhido": None}
 
 
 def test_vei_08_crlv_detran_carro_chevrolet_cruze_lt_nb(moto) -> None:
-    # Desde a T-415, a marca é preenchida e as versões vão para a escolha
+    # Desde a T-521, a versão mais parecida preenche e as outras ficam para a troca
     # (test_t415_versoes_crlv.py).
     corpo = _ler(moto, "CHEVROLET/CRUZE LT NB", pdfs.CRLV_DETRAN_CARRO)
-    assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == ("GM - Chevrolet", None)
+    assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == (
+        "GM - Chevrolet",
+        "CRUZE LT 1.4 16V Turbo Flex 4p Aut.",
+    )
     assert corpo["dicas"]["marca_modelo"] == "CHEVROLET/CRUZE LT NB"
     assert len(corpo["dicas"]["candidatos"]) == 3

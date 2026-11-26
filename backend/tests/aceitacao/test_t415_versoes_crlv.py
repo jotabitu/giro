@@ -60,27 +60,56 @@ def test_vei_08_candidatos_so_a_marca_nao_basta() -> None:
     assert catalogo.candidatos("SUZUKI/YES 125") == []
 
 
-def test_vei_08_crlv_do_cruze_preenche_a_marca_e_traz_as_versoes(moto) -> None:
+def test_vei_08_ca_521_01_varias_versoes_preenche_a_escolhida_pela_api(moto) -> None:
+    """T-521: com várias versões, a mais parecida com o texto preenche marca e modelo, conta nos
+    preenchidos e vem em `dicas.escolhido`; as versões vêm da mais parecida à menos parecida."""
     corpo = _ler(moto, "CHEVROLET/CRUZE LT NB")
-    assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == (CHEVROLET, None)
-    assert "marca" in corpo["lidos"] and "modelo" not in corpo["lidos"]
-    assert corpo["quantidade"] == 15  # mais os 7 do documento (VEI-09, T-421)
-    assert corpo["rotulo"] == "CRLV-e lido · 15 campos preenchidos"
+    escolhido = CRUZE_LT[0]
+    assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == (CHEVROLET, escolhido.modelo)
+    assert "marca" in corpo["lidos"] and "modelo" in corpo["lidos"]
+    assert corpo["quantidade"] == 16  # mais os 7 do documento (VEI-09, T-421)
+    assert corpo["rotulo"] == "CRLV-e lido · 16 campos preenchidos"
     assert corpo["dicas"] == {
         "marca_modelo": "CHEVROLET/CRUZE LT NB",
         "candidatos": [{"marca": m.marca, "modelo": m.modelo, "tipo": m.tipo} for m in CRUZE_LT],
+        "escolhido": {"marca": CHEVROLET, "modelo": escolhido.modelo, "tipo": "carro"},
     }
+    # A ordem é pela semelhança: a palavra "AUT" põe a 1.8 Aut. na frente.
+    ordem = catalogo.por_semelhanca("CHEVROLET/CRUZE LT AUT NB", CRUZE_LT[:2])
+    assert ordem == [CRUZE_LT[1], CRUZE_LT[0]]
+
+
+def test_vei_08_ca_521_02_sem_candidato_preenche_o_texto_lido(moto) -> None:
+    """T-521: sem versão no catálogo, marca e modelo saem do texto lido, separados na "/", com o
+    nome da marca do catálogo quando ela está nele (pelo nome ou pelo apelido do Detran)."""
+    corpo = _ler(moto, "SUZUKI/YES 125")
+    assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == ("Suzuki", "YES 125")
+    assert "marca" in corpo["lidos"] and "modelo" in corpo["lidos"]
+    assert corpo["dicas"] == {"marca_modelo": "SUZUKI/YES 125", "candidatos": [], "escolhido": None}
+    assert catalogo.separar("GM/XYZ ABC") == ("GM - Chevrolet", "XYZ ABC")
+    assert catalogo.separar("ACME/ABC 1") == ("ACME", "ABC 1")
+    assert catalogo.separar("I/ACME ABC") == ("ACME", "ABC")
+    assert catalogo.separar("HONDA/") == ("Honda", None)
+
+
+def test_vei_08_ca_521_03_uma_versao_preenche_como_antes(moto) -> None:
+    corpo = _ler(moto, "CHEVROLET/CRUZE LT 1.4 NB")
+    assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == (CHEVROLET, CRUZE_LT[0].modelo)
+    assert corpo["dicas"] == {"marca_modelo": None, "candidatos": [], "escolhido": None}
 
 
 def test_vei_08_versoes_demais_ficam_para_a_busca(moto, monkeypatch) -> None:
     # "CHEVROLET/CRUZE" bate com as 17 versões do Cruze: cabem no limite de 20.
     assert len(catalogo.candidatos("CHEVROLET/CRUZE")) == 17
     assert len(_ler(moto, "CHEVROLET/CRUZE")["dicas"]["candidatos"]) == 17
-    # Acima do limite, a marca vem e a lista não: a pessoa busca na lista de modelos.
+    # T-521: acima do limite, vêm as mais parecidas, a escolhida na frente; as outras, a pessoa
+    # busca na lista de modelos.
     monkeypatch.setattr("apps.veiculos.leitura.LIMITE_DE_CANDIDATOS", 10)
     corpo = _ler(moto, "CHEVROLET/CRUZE")
     assert corpo["campos"]["marca"] == CHEVROLET
-    assert corpo["dicas"] == {"marca_modelo": "CHEVROLET/CRUZE", "candidatos": []}
+    assert len(corpo["dicas"]["candidatos"]) == 10
+    assert corpo["dicas"]["candidatos"][0] == corpo["dicas"]["escolhido"]
+    assert corpo["campos"]["modelo"] == corpo["dicas"]["escolhido"]["modelo"]
 
 
 def test_vei_08_lista_de_modelos_aceita_o_apelido_da_marca(moto) -> None:

@@ -47,7 +47,7 @@ CAMPOS = (
     "combustivel",
     *DO_DOCUMENTO.values(),
 )
-LIMITE_DE_CANDIDATOS = 20  # T-415: acima disso, a pessoa busca na lista
+LIMITE_DE_CANDIDATOS = 20  # T-415; T-521: as 20 mais parecidas, e a pessoa busca as outras
 MENSAGEM_FALHA = "Não conseguimos ler este documento. Preencha os campos à mão."
 MENSAGEM_NAO_PDF = "Envie o PDF do CRLV-e."
 MENSAGEM_OUTRO_VEICULO = "Este CRLV-e é de outro veículo."
@@ -93,12 +93,19 @@ def rotulo(quantidade: int) -> str:
     return f"CRLV-e lido · {quantidade} {plural}"
 
 
+def _versao(modelo: catalogo.Modelo) -> dict[str, str]:
+    return {"marca": modelo.marca, "modelo": modelo.modelo, "tipo": modelo.tipo}
+
+
 def _resposta(lidos_do_filho: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """Os campos da VEI-08 (com os da VEI-09) e as dicas de marca e modelo.
 
-    Um candidato só: marca e modelo preenchidos, sem dica. Mais de um (o Cruze da T-415): a marca
-    é preenchida quando todos são da mesma, e as versões vão em `dicas.candidatos` para a pessoa
-    escolher, até `LIMITE_DE_CANDIDATOS`; acima disso, a lista vem vazia e a pessoa busca."""
+    A leitura sempre preenche marca e modelo quando o documento traz o texto (T-521, pedido do
+    dono em 26 nov 2026). Um candidato só: os dois do catálogo, sem dica. Mais de um (o Cruze da
+    T-415): as versões vão em `dicas.candidatos` da mais parecida com o texto à menos parecida
+    (`catalogo.por_semelhanca`), até `LIMITE_DE_CANDIDATOS`, e a primeira, em `dicas.escolhido`,
+    preenche marca e modelo; a pessoa pode trocar. Nenhum: marca e modelo saem do próprio texto
+    (`catalogo.separar`)."""
     campos: dict[str, Any] = dict.fromkeys(CAMPOS)
     for nome in ("placa", "chassi", "renavam", "ano_fabricacao", "ano_modelo", "cor"):
         campos[nome] = lidos_do_filho.get(nome)
@@ -107,18 +114,21 @@ def _resposta(lidos_do_filho: dict[str, Any]) -> tuple[dict[str, Any], dict[str,
         campos[chave] = lidos_do_filho.get(nome)
     texto = lidos_do_filho.get("marca_modelo")
     achados = catalogo.candidatos(texto) if texto else []
-    dicas: dict[str, Any] = {"marca_modelo": None, "candidatos": []}
+    dicas: dict[str, Any] = {"marca_modelo": None, "candidatos": [], "escolhido": None}
     if len(achados) == 1:
         campos["marca"], campos["modelo"] = achados[0].marca, achados[0].modelo
         return campos, dicas
-    dicas["marca_modelo"] = texto or None
-    marcas = {m.marca for m in achados}
-    if len(marcas) == 1:
-        campos["marca"] = marcas.pop()
-    if len(achados) <= LIMITE_DE_CANDIDATOS:
-        dicas["candidatos"] = [
-            {"marca": m.marca, "modelo": m.modelo, "tipo": m.tipo} for m in achados
-        ]
+    if not texto:
+        return campos, dicas
+    dicas["marca_modelo"] = texto
+    if not achados:
+        campos["marca"], campos["modelo"] = catalogo.separar(texto)
+        return campos, dicas
+    ordenados = catalogo.por_semelhanca(texto, achados)
+    escolhido = ordenados[0]
+    campos["marca"], campos["modelo"] = escolhido.marca, escolhido.modelo
+    dicas["escolhido"] = _versao(escolhido)
+    dicas["candidatos"] = [_versao(m) for m in ordenados[:LIMITE_DE_CANDIDATOS]]
     return campos, dicas
 
 
