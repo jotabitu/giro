@@ -46,7 +46,7 @@ from comum.erros import (
 )
 from comum.eventos import publicar
 
-from . import precos
+from . import exclusao, precos
 from .models import (
     CAMPOS_DA_VEI_09,
     COMO_PAGA_DO_PERIODO,
@@ -336,6 +336,73 @@ def baixar(veiculo: Veiculo, motivo: str, descricao: str) -> Veiculo:
         transicionar(veiculo, S.BAIXADO, origem=MANUAL, motivo=texto, acao="baixar")
         publicar("veiculos.veiculo_baixado", veiculo_id=veiculo.pk, motivo_texto=motivo_texto)
     return veiculo
+
+
+# --- Excluir (VEI-22, T-515) ---
+
+# O que o evento guarda do veículo no momento: a auditoria acha o excluído pela placa.
+CAMPOS_DO_EXCLUIDO = (
+    "placa",
+    "chassi",
+    "marca",
+    "modelo",
+    "ano_fabricacao",
+    "ano_modelo",
+    "filial_id",
+    "status",
+)
+
+
+def excluir(veiculo: Veiculo) -> Veiculo:
+    """O cadastro feito por engano, sem histórico (VEI-22). Fica guardado e marcado; some de tudo
+    para a empresa (o manager padrão tira o excluído). Planos e preços desligam, documentos e fotos
+    ficam guardados inativos, como a foto apagada (VEI-10), e o veículo deixa de contar no plano
+    (PLT-03). O histórico é conferido com o veículo travado: o que entra ao mesmo tempo, ou entra
+    antes e a exclusão é recusada, ou encontra o veículo já excluído (404).
+
+    409 `VEI-22` com `historico`; 404 no já excluído. Perfil e filial, na view."""
+    with transaction.atomic():
+        try:
+            travado = travar(veiculo)
+        except Veiculo.DoesNotExist as erro:
+            raise NaoEncontrado("nao_encontrado", "Veículo não encontrado.") from erro
+        achados = exclusao.historico(travado)
+        if achados:
+            raise Conflito("VEI-22", exclusao.motivo(achados), {"historico": achados})
+        agora = relogio.agora()
+        quem = _quem()
+        antes = {campo: getattr(travado, campo) for campo in CAMPOS_DO_EXCLUIDO}
+        travado.excluido_em = agora
+        travado.excluido_por_id = quem
+        travado.save(update_fields=["excluido_em", "excluido_por", "atualizado_em"])
+        PlanoVeiculo.objects.filter(veiculo=travado).update(
+            ativo=False,
+            ligado=False,
+            valor_agendado_centavos=None,
+            caucao_agendada_centavos=None,
+            agendado_para=None,
+        )
+        DocumentoVeiculo.objects.filter(veiculo=travado, ativo=True).update(ativo=False)
+        FotoVeiculo.objects.filter(veiculo=travado, ativo=True).update(
+            ativo=False, capa=False, apagada_por_id=quem
+        )
+        registrar_evento(
+            "veiculo.excluir",
+            CategoriaAuditoria.OPERACAO,
+            objeto=travado,
+            antes=antes,
+            depois={"excluido_em": agora.isoformat(), "excluido_por": quem},
+            regra="VEI-22",
+            codigo=placa_com_hifen(travado.placa),
+        )
+        if travado.status not in FORA_DA_FROTA:
+            atualizar_uso("veiculos", -1)
+        # O pedido pendente do veículo (a correção de km, APR-06) sai da caixa do gerente: o
+        # veículo não existe mais para aprovar (M1 da segurança no #679).
+        aprovacoes.cancelar_pendentes(
+            origem_tipo="veiculo", origem_id=travado.pk, motivo="Veículo excluído"
+        )
+    return travado
 
 
 # --- Cadastro (VEI-01, PLT-03) ---
@@ -1089,7 +1156,10 @@ def aplicar_correcao_aprovada(
     Se o km mudou depois do pedido (outra leitura entrou), a correção pedida não vale mais:
     409 `km_mudou`, e a aprovação volta inteira."""
     with transaction.atomic():
-        travado = _travar(Veiculo.objects.get(pk=veiculo_id))
+        try:
+            travado = _travar(Veiculo(pk=veiculo_id))
+        except Veiculo.DoesNotExist as erro:  # excluído (VEI-22): o pedido já foi cancelado
+            raise NaoEncontrado("nao_encontrado", "Veículo não encontrado.") from erro
         if travado.km_atual != km_anterior:
             raise Conflito(
                 "km_mudou",
@@ -2498,9 +2568,10 @@ def consolidar_precos_agendados(hoje: date) -> dict[str, int]:
     contagem = {"planos": 0, "veiculos": 0}
     veiculo_ids = sorted(
         set(
-            PlanoVeiculo.objects.filter(agendado_para__lte=hoje).values_list(
-                "veiculo_id", flat=True
-            )
+            # O excluído (VEI-22) tem os agendamentos limpos; o filtro só garante.
+            PlanoVeiculo.objects.filter(
+                agendado_para__lte=hoje, veiculo__excluido_em__isnull=True
+            ).values_list("veiculo_id", flat=True)
         )
     )
     for veiculo_id in veiculo_ids:

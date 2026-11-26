@@ -32,6 +32,7 @@ from .models import (
 TROCA = "locacoes.TrocaVeiculo"
 LOCACAO = "locacoes.Locacao"
 FICHA = "veiculos.Veiculo:ficha"
+VEICULO = "veiculos.Veiculo"
 
 
 def _sem_anotacao(queryset: QuerySet[Any]) -> QuerySet[Any]:
@@ -165,7 +166,15 @@ def montar_ficha(veiculo: Any) -> dict[str, Any] | None:
 MODULO = "locacoes_vistoria"
 
 
+def historico_do_veiculo(veiculo_id: int) -> int:
+    """VEI-22: vistoria em qualquer estado, ou avaria registrada no veículo."""
+    vistorias = Vistoria.objects.filter(veiculo_id=veiculo_id)
+    return int(vistorias.exists() or Avaria.objects.filter(veiculo_id=veiculo_id).exists())
+
+
 def registrar() -> None:
+    # VEI-22, sem o recurso do plano: o histórico conta mesmo com o módulo desligado.
+    leituras.registrar_contador(VEICULO, "historico_vistoria", historico_do_veiculo)
     leituras.registrar_anotacao(TROCA, "vistorias", _sem_anotacao, montar_troca, recurso=MODULO)
     leituras.registrar_anotacao(LOCACAO, "devolucao", _sem_anotacao, montar_locacao, recurso=MODULO)
     leituras.registrar_anotacao(

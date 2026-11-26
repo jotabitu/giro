@@ -1487,6 +1487,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClienteDetalhe'
           description: ''
+  /api/clientes/{id}/excluir/:
+    post:
+      operationId: clientes_excluir_create
+      description: |-
+        CLI-13 (T-515): administrador e gerente (o cliente é da empresa, sem filial). O suporte
+        Giro não exclui, nem em "ver e editar" (403 `PLT-07`).
+      summary: Excluir o cliente sem histórico (CLI-13)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - clientes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClienteExcluido'
+          description: ''
   /api/clientes/{id}/inativar/:
     post:
       operationId: clientes_inativar_create
@@ -6930,6 +6954,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaDeDocumentos'
           description: ''
+  /api/veiculos/{id}/excluir/:
+    post:
+      operationId: veiculos_excluir_create
+      description: |-
+        VEI-22 (T-515): administrador e gerente, no escopo de filiais (fora dele, 404, USR-07). O
+        suporte Giro não exclui, nem em "ver e editar" (403 `PLT-07`).
+      summary: Excluir o veículo sem histórico (VEI-22)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VeiculoExcluido'
+          description: ''
   /api/veiculos/{id}/fotos/:
     get:
       operationId: veiculos_fotos_list
@@ -8598,6 +8646,10 @@ components:
           nullable: true
         editar_fotos:
           type: boolean
+        excluir:
+          allOf:
+          - $ref: '#/components/schemas/ExcluirVeiculo'
+          nullable: true
       required:
       - aviso_baixar
       - baixar
@@ -8607,6 +8659,7 @@ components:
       - desbloquear
       - editar
       - editar_fotos
+      - excluir
       - lancar_despesa
       - motivo_movimentar
       - motivo_trocar_tipo
@@ -8720,6 +8773,15 @@ components:
       - fechar
       - receber
       - sangria
+    AcoesDoCliente:
+      type: object
+      properties:
+        excluir:
+          allOf:
+          - $ref: '#/components/schemas/ExcluirCliente'
+          nullable: true
+      required:
+      - excluir
     AcoesDoReembolso:
       type: object
       properties:
@@ -10440,8 +10502,11 @@ components:
             type: string
         analise:
           $ref: '#/components/schemas/AnaliseCliente'
+        acoes:
+          $ref: '#/components/schemas/AcoesDoCliente'
       required:
       - acao_principal
+      - acoes
       - analise
       - bloqueio
       - celular
@@ -10520,6 +10585,18 @@ components:
       - documento
       - nome
       - tipo
+    ClienteExcluido:
+      type: object
+      description: 'Resposta do `POST .../excluir/` (CLI-13): o aviso da lista, sem
+        o nome.'
+      properties:
+        id:
+          type: integer
+        mensagem:
+          type: string
+      required:
+      - id
+      - mensagem
     CnhCliente:
       type: object
       properties:
@@ -13684,6 +13761,101 @@ components:
             $ref: '#/components/schemas/Aberto'
         abertos_texto:
           type: string
+    ExcluirCliente:
+      type: object
+      description: 'CLI-13 (T-515): a confirmação (`permitido`) ou o aviso, prontos
+        para a tela.'
+      properties:
+        permitido:
+          type: boolean
+        titulo:
+          type: string
+        texto:
+          type: string
+          nullable: true
+        motivo:
+          type: string
+          nullable: true
+        caminho:
+          type: string
+          nullable: true
+        inativar:
+          type: boolean
+        historico:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcluirClienteHistoricoEnum'
+      required:
+      - caminho
+      - historico
+      - inativar
+      - motivo
+      - permitido
+      - texto
+      - titulo
+    ExcluirClienteHistoricoEnum:
+      enum:
+      - locacao
+      - venda
+      - conta
+      - contrato
+      - aprovacao
+      type: string
+      description: |-
+        * `locacao` - locacao
+        * `venda` - venda
+        * `conta` - conta
+        * `contrato` - contrato
+        * `aprovacao` - aprovacao
+    ExcluirVeiculo:
+      type: object
+      description: 'VEI-22 (T-515): a confirmação (`permitido`) ou o aviso com o histórico,
+        prontos.'
+      properties:
+        permitido:
+          type: boolean
+        titulo:
+          type: string
+        texto:
+          type: string
+          nullable: true
+        motivo:
+          type: string
+          nullable: true
+        caminho:
+          type: string
+          nullable: true
+        historico:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcluirVeiculoHistoricoEnum'
+      required:
+      - caminho
+      - historico
+      - motivo
+      - permitido
+      - texto
+      - titulo
+    ExcluirVeiculoHistoricoEnum:
+      enum:
+      - locacao
+      - troca
+      - venda
+      - vistoria
+      - ordem_servico
+      - despesa
+      - movimentacao
+      - transferencia
+      type: string
+      description: |-
+        * `locacao` - locacao
+        * `troca` - troca
+        * `venda` - venda
+        * `vistoria` - vistoria
+        * `ordem_servico` - ordem_servico
+        * `despesa` - despesa
+        * `movimentacao` - movimentacao
+        * `transferencia` - transferencia
     Exportacao:
       type: object
       properties:
@@ -24176,6 +24348,18 @@ components:
       - marca
       - modelo
       - placa
+    VeiculoExcluido:
+      type: object
+      description: 'Resposta do `POST .../excluir/` (VEI-22): o aviso da Frota, "Veículo
+        QXA-4B21 excluído.".'
+      properties:
+        id:
+          type: integer
+        mensagem:
+          type: string
+      required:
+      - id
+      - mensagem
     VeiculoRef:
       type: object
       properties:

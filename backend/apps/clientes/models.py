@@ -13,7 +13,7 @@ from django.db.models.functions import Lower
 from comum import arquivos
 from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.campos import CampoCifrado, CampoHashBusca
-from comum.estados import MaquinaDeEstados
+from comum.estados import EstadosQuerySet, MaquinaDeEstados
 from comum.models import ModeloAtivavel, ModeloBase, ModeloComCifra
 
 
@@ -97,6 +97,16 @@ class Cliente(ModeloComCifra, MaquinaDeEstados, ModeloBase):
     consentimento_em = models.DateTimeField(null=True, blank=True)  # LGPD
     anonimizado_em = models.DateTimeField(null=True, blank=True)  # AUD-06
     cliente_desde = models.DateField()  # CLI-06
+    # CLI-13 (T-515): o cadastro feito por engano, sem histórico. Fica guardado, sem os dados
+    # pessoais (apagados como na AUD-06), e some de tudo. O CPF fica livre: o hash do documento
+    # vira aleatório (`anonimizar_cifrado`), e a unicidade da CLI-01 continua no banco.
+    excluido_em = models.DateTimeField(null=True, blank=True)
+    excluido_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+
+    # `objects` (da MaquinaDeEstados) tira o excluído de tudo; `todos` vê também os excluídos.
+    todos = EstadosQuerySet.as_manager()
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = TRANSICOES_CLIENTE
     REGRA_TRANSICAO: ClassVar[str] = "transicao_cliente"
@@ -121,12 +131,19 @@ class Cliente(ModeloComCifra, MaquinaDeEstados, ModeloBase):
             "referencia_telefone": "telefone",
         },
         # Categoria e datas da CNH não identificam a pessoa; o número fica cifrado e omitido.
-        "inteiro": ["cnh_categoria", "cnh_validade", "cnh_primeira_habilitacao"],
+        "inteiro": [
+            "cnh_categoria",
+            "cnh_validade",
+            "cnh_primeira_habilitacao",
+            "excluido_em",
+            "excluido_por",
+        ],
     }
 
     class Meta:
         verbose_name = "cliente"
         ordering = ["-criado_em", "-id"]
+        default_manager_name = "objects"
         indexes = [
             models.Index(fields=["status"], name="cliente_status"),
             models.Index(Lower("nome"), name="cliente_nome_lower"),

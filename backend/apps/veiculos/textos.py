@@ -118,6 +118,7 @@ def foto_da_galeria(evento: Any, apoio: dict[str, Any]) -> Texto:
 RESUMOS_DO_CADASTRO = {
     "veiculo.cadastrar": "Cadastrou o veículo",
     "veiculo.editar": "Editou o veículo",
+    "veiculo.excluir": "Excluiu o veículo",  # VEI-22 (T-515)
 }
 
 

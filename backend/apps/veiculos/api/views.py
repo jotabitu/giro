@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 
 from apps.filiais.selectors import filtrar_por_filial
 from comum import relogio
+from comum.documentos import placa_com_hifen
 from comum.limites import LIMITES_DA_LEITURA_DE_DOCUMENTO
 from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao, exige_perfil
@@ -70,6 +71,7 @@ from .serializers import (
     VeiculoDetalheSerializer,
     VeiculoEdicaoSerializer,
     VeiculoEntradaSerializer,
+    VeiculoExcluidoSerializer,
     VeiculoSerializer,
 )
 
@@ -483,6 +485,25 @@ class BaixarView(APIView):
         dados = _entrada(BaixarSerializer, request)
         veiculo = services.baixar(_veiculo(request, pk), dados["motivo"], dados["descricao"])
         return _representacao(veiculo, request)
+
+
+class ExcluirView(APIView):
+    """VEI-22 (T-515): administrador e gerente, no escopo de filiais (fora dele, 404, USR-07). O
+    suporte Giro não exclui, nem em "ver e editar" (403 `PLT-07`)."""
+
+    permission_classes = GESTAO
+    suporte_proibido = True
+
+    @extend_schema(
+        request=None,
+        responses=VeiculoExcluidoSerializer,
+        summary="Excluir o veículo sem histórico (VEI-22)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        veiculo = services.excluir(_veiculo(request, pk))
+        # O aviso da Frota depois de excluir, pronto para a tela.
+        mensagem = f"Veículo {placa_com_hifen(veiculo.placa)} excluído."
+        return Response(VeiculoExcluidoSerializer({"id": veiculo.pk, "mensagem": mensagem}).data)
 
 
 # --- Km ---

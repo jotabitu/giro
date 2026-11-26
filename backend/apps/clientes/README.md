@@ -53,5 +53,12 @@ Contrato da API: `docs/api/clientes.md` (escrito pelo arquiteto antes da impleme
 | contadores `locacao_aberta`, `em_aberto_centavos`, `venda_aberta` | `locacoes`, `financeiro`, `vendas` | recusa de inativar (`cliente_com_pendencia`) |
 | evento `financeiro.parcela_atrasou(cliente_id, dias_atraso, vencimento?)` | `financeiro` | bloqueio com 15 dias |
 | evento `financeiro.parcela_paga(cliente_id, ...)` | `financeiro` | desbloqueio ao quitar |
+| contadores `historico_locacao`, `historico_venda`, `historico_conta`, `historico_contrato`, `historico_aprovacao` | `locacoes`, `vendas`, `financeiro`, `contratos`, `aprovacoes` | recusa de excluir (`CLI-13`), sem o recurso do plano |
 
-Testes: `tests/aceitacao/test_t014_clientes.py`.
+## Excluir sem histórico (T-515, CLI-13)
+
+- `Cliente.excluido_em` e `excluido_por`. `Cliente.objects` (manager da `MaquinaDeEstados`) tira o excluído de tudo; `Cliente.todos` vê também os excluídos.
+- `exclusao.py`: `historico(cliente)` lê os contadores acima, os textos e `acao()`, o `acoes.excluir` da ficha completa.
+- `services.excluir(cliente)`: com o cliente travado, 409 `CLI-13` com `historico` e 409 `transicao_cliente` no bloqueado; apaga os dados pessoais com `apagar_dados_pessoais` e os documentos com `soltar_documentos` (os mesmos do `titular.anonimizar`, `AUD-06`) e grava `cliente.excluir`.
+
+Testes: `tests/aceitacao/test_t014_clientes.py` e `tests/aceitacao/test_t515_excluir.py`.

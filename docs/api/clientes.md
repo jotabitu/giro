@@ -16,6 +16,7 @@ O cliente é da empresa, compartilhado entre filiais: a lista não é filtrada p
 | Bloquear manualmente | sim | sim | — | — | — |
 | Desbloquear manualmente | sim (direto) | sim (direto) | pede (`APR-05`) | — | — |
 | Inativar e reativar | sim | sim | — | — | — |
+| Excluir o cliente sem histórico (`CLI-13`) | sim | sim | — | — | — |
 | Exportar dados do titular e anonimizar (`AUD-06`, fase 2) | sim | — | — | — | — |
 
 Quem não pode ver os dados completos recebe só a representação resumida, com CPF mascarado, sem endereço, CNH e documentos; o financeiro recebe a ficha do financeiro (abaixo, `USR-09`). O vistoriador não abre a lista nem a ficha: 403 `{ "codigo": "permissao", "mensagem": "Seu perfil não tem acesso a esta ação." }`; ele vê do cliente só o que vem com a vistoria (`vistorias.md`, `USR-09`). O token de suporte (`PLT-07`) **sempre** recebe a resumida, mesmo com permissão `ver_editar` (`AUD-09`): ele pode editar campos do cadastro, mas a resposta não traz documento, CNH nem URLs de documento.
@@ -204,6 +205,39 @@ Bloqueio automático: o assinante de `financeiro.parcela_atrasou` bloqueia com `
 `POST /api/clientes/{id}/inativar/` · administrador, gerente · `{ motivo }` → 200. Inativo some da lista padrão, da escolha na Nova locação e da venda. 422 `{ "codigo": "cliente_com_pendencia", "detalhes": { "locacao_aberta": true, "em_aberto_centavos": 0, "venda_aberta": false } }` com locação aberta, valor em aberto ou venda aberta.
 `POST /api/clientes/{id}/reativar/` · administrador, gerente · `{ motivo }` → 200; volta a `ativo` ou `incompleto` conforme as pendências (`CLI-03`).
 Decidido pelo produto em 07 out 2026 (T-037).
+
+## Excluir o cliente sem histórico (`CLI-13`, T-515)
+
+Para o cadastro feito por engano. Padrão A nos pontos em aberto da T-515: o cadastro fica guardado no banco, marcado (`excluido_em`, `excluido_por`), sem os dados pessoais, e some de tudo para a locadora; o botão aparece com ou sem histórico, e com histórico a API diz por quê; só gerente e administrador excluem.
+
+### POST /api/clientes/{id}/excluir/
+
+- **Perfis:** administrador e gerente (o cliente é da empresa, sem filial). Vendedor, vistoriador e financeiro: 403 `permissao`. Suporte Giro, nos dois modos: 403 `PLT-07` (`suporte_proibido`).
+- **Corpo:** nenhum (`{}`). Sem motivo.
+- **200:** `{ "id": 812, "mensagem": "Cliente excluído." }` (sem o nome, que já foi apagado). A tela volta para a lista e mostra a `mensagem` como vem.
+- **409 com histórico:** `{ "codigo": "CLI-13", "mensagem": "Este cliente já tem locação e conta na empresa. O cadastro fica guardado e não pode ser excluído.", "detalhes": { "historico": ["locacao", "conta"] } }`. `historico` traz os tipos achados, nesta ordem: `locacao`, `venda`, `conta`, `contrato`, `aprovacao`; a frase usa os nomes da regra (locação, venda, conta, contrato, pedido de aprovação).
+- **409 bloqueado:** `{ "codigo": "transicao_cliente", "mensagem": "Desbloqueie o cliente antes de excluir.", "detalhes": { "de": "bloqueado", "para": "excluido" } }`. O histórico é conferido antes.
+- **404:** cliente que não existe ou já excluído.
+
+**O que conta como histórico** (qualquer estado, inclusive rascunho e cancelado): locação; venda ou proposta, inclusive como interessado; conta a receber (a caução também) ou reembolso; contrato; pedido de aprovação do cliente (o desbloqueio, `APR-05`). Cada app dono registra um contador `historico_<tipo>` no alvo `clientes.Cliente` (ADR 0015), sem `recurso=`. Documentos do cadastro, aceite do WhatsApp, análise e edições não contam.
+
+**O que acontece**, na mesma gravação e com o cliente travado: os dados pessoais saem como na anonimização (`AUD-06`, mesmo código em `services.apagar_dados_pessoais`): CPF ou CNPJ, CNH e CPF do responsável cifrados vazios com hash aleatório; nome "Cliente excluído"; nascimento, contato, endereço, profissão, responsável e referência vazios. Os documentos ficam `ativo=false` e sem arquivo (um evento `documento_cliente.excluir` cada), e os arquivos saem do armazenamento depois do commit. `excluido_em` e `excluido_por` gravados; o status não muda. Evento `cliente.excluir` com o nome (mascarado, como em todo evento do cliente, ADR 0014), o tipo e o status no `antes`; CPF, CNPJ e CNH omitidos.
+
+**Depois:** o manager padrão (`Cliente.objects`) tira o excluído de todas as consultas: lista, filtros (inclusive inativos), busca, contagens, Nova locação, venda; a ficha responde 404. O CPF ou o CNPJ fica livre para um cadastro novo (`CLI-01`: o hash aleatório não colide). `Cliente.todos` vê também os excluídos.
+
+### Na ficha: `acoes.excluir`
+
+A representação completa (administrador, gerente e vendedor) ganha `acoes: { "excluir": ... }`. `excluir` vem `null` para o vendedor (o botão não aparece). A resumida (suporte) e a ficha do financeiro não têm `acoes`. Para administrador e gerente:
+
+| Campo | Sem histórico | Com histórico | Bloqueado, sem histórico |
+| --- | --- | --- | --- |
+| `permitido` | `true` | `false` | `false` |
+| `titulo` | "Excluir o cadastro de Juliana Rocha?" (na PJ, a razão social) | "Este cliente não pode ser excluído" | "Este cliente não pode ser excluído" |
+| `texto` | "Use só para um cadastro feito por engano. O cliente sai da lista, os dados pessoais e os documentos enviados são apagados, e o CPF fica livre para um novo cadastro. Não dá para desfazer." (PJ: "o CNPJ") | `null` | `null` |
+| `motivo` | `null` | a frase do 409 `CLI-13` | "Desbloqueie o cliente antes de excluir." |
+| `caminho` | `null` | "Para ele não fazer novas locações nem compras, inative o cadastro." (já `inativo`: "O cadastro já está inativo."); para o administrador, mais " Se o cliente pediu para apagar os dados dele, peça à equipe Giro para anonimizar o cadastro." | `null` |
+| `inativar` | `false` | `true` fora de `inativo`: o aviso mostra "Inativar cliente", que abre a inativação da `CLI-09` | `false` |
+| `historico` | `[]` | os tipos achados | `[]` |
 
 ## LGPD do titular (AUD-06) · fase 2
 
