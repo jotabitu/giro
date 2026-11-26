@@ -2,6 +2,8 @@
 
 Barra flutuante de ações no pé de toda tela de página inteira que cria ou edita: cartão `surface` com `shadow-pop`, fixo ao rolar, "Cancelar" quieto e o botão principal sólido à direita. No celular fica acima da barra de navegação de baixo (`bottom-[88px]`); no desktop, a 16px da borda. Fica no fim do conteúdo, então o fim da página nunca some atrás dela.
 
+Na tela que tem o bloco fixo de botões, passe `blocos` (T-519): a barra só aparece quando o bloco sai da tela. Sem `blocos`, aparece sempre.
+
 ```tsx
 <form id="novo-veiculo" onSubmit={enviar}>...</form>
 <BarraDeAcoes cancelar={{ href: "/veiculos" }} principal={{ rotulo: "Cadastrar veículo", form: "novo-veiculo", ocupado: enviando }} />
@@ -28,7 +30,7 @@ const blocos = useBlocoVisivel();
 ```
 
 - `useBlocoVisivel()` devolve `{ ref, visivel }`. `ref()` marca o bloco; se o bloco existe em dois lugares (cabeçalho no desktop e pé no celular), use uma chave para cada: `ref("cabecalho")`, `ref("pe")`. Basta um aparecer para a barra ficar escondida.
-- `visivel` começa `true`: a barra nasce escondida e não pisca. Sem bloco registrado, ou sem `IntersectionObserver`, a barra aparece.
+- `visivel` começa `true`: a barra nasce escondida e não pisca. Sem bloco registrado, ou sem `IntersectionObserver`, a barra aparece. Bloco com `display: none` (como o do cabeçalho no celular) conta como fora da tela, e a barra fica à mostra.
 - No celular, com o aside embaixo do formulário, vale o mesmo: a barra aparece enquanto o bloco não está na tela.
 
-Não use em diálogos e painéis laterais (têm os botões no rodapé), no assistente de implantação (tem a navegação de passos) nem em tela só de leitura. Se a tela já tinha botões no fim do formulário, eles passam para a barra: não duplique.
+Não use em diálogos e painéis laterais (têm os botões no rodapé), no assistente de implantação (tem a navegação de passos) nem em tela só de leitura. Na tela com bloco fixo de botões, o bloco continua e a barra o repete só com Cancelar e o principal, sempre com `blocos`; sem `blocos`, a barra apareceria junto do bloco e duplicaria os botões.
