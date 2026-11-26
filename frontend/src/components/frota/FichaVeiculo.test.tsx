@@ -62,7 +62,7 @@ describe("ficha do veículo, gerente", () => {
 
   it("desktop: seções e rótulos na ordem da referência", () => {
     const t = texto(desktop);
-    ordem(t, ["Veículos", "QXA-4B21", "Honda CG 160 Fan", "Editar", "Movimentar", "Mandar para oficina", "Rendeu no ano", "Ocupação", "Custo de manutenção", "Km atual", "Agora", "Locações", "Manutenções", "Dados", "Documentos"]);
+    ordem(t, ["Veículos", "QXA-4B21", "Honda CG 160 Fan", "Editar", "Rendeu no ano", "Ocupação", "Custo de manutenção", "Km atual", "Agora", "Locações", "Manutenções", "Ações", "Movimentar", "Mandar para oficina", "Dados", "Documentos"]);
     ordem(t, ["· 2023 · vermelha · Filial Centro", "R$ 9.870", "locações − custos", "86%", "últimos 90 dias", "R$ 353", "no ano", "18.950", "atualizado 23 set"]);
     // "Agora": o que a API manda (T-242). Período, plano, pagamentos e "faltam X km" ficam como pedido ao arquiteto.
     ordem(t, ["Agora", "Alugado desde 23 set", "Carlos Menezes", "LOC-2841", "Período", "23 set → 28 out", "Ver locação", "Próxima manutenção", "Troca de óleo", "aos 19.900 km"]);
@@ -80,8 +80,8 @@ describe("ficha do veículo, gerente", () => {
   });
 
   it("desktop: Editar abre a edição, Movimentar e Mandar para oficina ficam desativados e o alugado não tem ação de status (VEI-23)", () => {
-    expect(desktop).toMatch(/<a class="wl-btn" href="\/veiculos\/501\/editar">Editar<\/a>/);
-    for (const nome of ["Movimentar", "Mandar para oficina"]) expect(desktop).toMatch(new RegExp(`<button[^>]*disabled[^>]*>(<svg.*?</svg>)?${nome}</button>`));
+    expect(desktop).toMatch(/<a class="wl-btn" href="\/veiculos\/501\/editar">(<svg.*?<\/svg>)?Editar<\/a>/);
+    for (const nome of ["Movimentar", "Mandar para oficina"]) expect(desktop).toMatch(new RegExp(`<button[^>]*aria-label="${nome}"[^>]*disabled`));
     // A API não libera colocar à venda, voltar para a frota nem baixa no alugado: a tela não mostra nada desativado no lugar.
     expect(texto(desktop)).not.toMatch(/Colocar à venda|Voltar para a frota|Dar baixa/);
   });

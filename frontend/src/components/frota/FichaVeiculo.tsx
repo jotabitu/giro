@@ -1,12 +1,13 @@
 "use client";
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { ArrowLeftRight, ChevronLeft, Tag, Truck, Wrench } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, ChevronLeft, Pencil, Tag, Trash2, Truck, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { type AcaoDeStatus, AvisoDaAcao, JanelaDeStatus, MaisAcoesDoCelular } from "./AcoesDeStatus";
 import { AluguelDesativado } from "./AluguelDesativado";
 import { ExcluirCadastro } from "@/components/comum/ExcluirCadastro";
+import { LinhaDeAcao, PainelDeAcoes, SeparadorDeAcoes } from "@/components/comum/PainelDeAcoes";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   veiculos,
@@ -205,7 +206,7 @@ function HistoricoDeDocumentos({ id }: { id: number }) {
  * VEI-22: "Excluir" para quem `acoes.excluir` vem (administrador e gerente). Sem histórico, a confirmação; com histórico, o aviso com o
  * motivo e o caminho da API, e "Colocar à venda" quando `acoes.colocar_a_venda` vem (T-518): fecha o aviso e abre o diálogo da VEN-01.
  */
-export function ExcluirVeiculo({ v, celular, abertoDeInicio, aoColocarAVenda }: { v: VeiculoDetalhe; celular?: boolean; abertoDeInicio?: boolean; aoColocarAVenda?: () => void }) {
+export function ExcluirVeiculo({ v, celular, abertoDeInicio, aoColocarAVenda, noPainel }: { v: VeiculoDetalhe; celular?: boolean; abertoDeInicio?: boolean; aoColocarAVenda?: () => void; noPainel?: boolean }) {
   const acao = v.acoes.excluir;
   if (!acao) return null;
   return (
@@ -213,6 +214,7 @@ export function ExcluirVeiculo({ v, celular, abertoDeInicio, aoColocarAVenda }: 
       acao={acao}
       celular={celular}
       rotulo={celular ? "Excluir veículo" : "Excluir"}
+      botao={noPainel ? (abrir) => <LinhaDeAcao perigo rotulo="Excluir" detalhe="Apagar o cadastro do veículo" icone={<Icone de={Trash2} />} onClick={abrir} /> : undefined}
       coisa="veículo"
       executar={() => veiculos.excluir(v.id)}
       chaveDaFicha={["veiculo", v.id]}
@@ -278,33 +280,12 @@ function FichaDesktop({ v, docs, locacoes, manutencoes, abrir }: { v: VeiculoDet
           </div>
         </div>
         {podeAgir && (
-          <div className="ml-auto flex flex-wrap gap-2">
+          <div className="wl-acoes-topo">
             <Link href={`/veiculos/${v.id}/editar`} className="wl-btn">
+              <Icone de={Pencil} />
               Editar
             </Link>
-            {v.acoes.movimentar ? (
-              <Link href={`/veiculos/movimentacoes/nova?veiculo=${v.id}`} className="wl-btn">
-                <Icone de={Truck} />
-                Movimentar
-              </Link>
-            ) : (
-              v.acoes.motivo_movimentar && (
-                <Button disabled title={v.acoes.motivo_movimentar} icone={<Icone de={Truck} />}>
-                  Movimentar
-                </Button>
-              )
-            )}
-            {/* `acoes.transferir` abre a Nova movimentação com o destino em outra filial e a vistoria rápida marcada (MOV-06, CA-246-16). */}
-            {v.acoes.transferir && (
-              <Link href={`/veiculos/movimentacoes/nova?veiculo=${v.id}&transferir=1`} className="wl-btn">
-                <Icone de={ArrowLeftRight} />
-                Transferir
-              </Link>
-            )}
-            <Button disabled title={EM_BREVE} icone={<Icone de={Wrench} />}>
-              Mandar para oficina
-            </Button>
-            {/* VEI-23: só o que `acoes` libera; "Colocar à venda" (disponível) ou "Voltar para a frota" (à venda), e "Dar baixa" só para o administrador. */}
+            {/* VEI-23: só o que `acoes` libera; "Colocar à venda" (disponível) ou "Voltar para a frota" (à venda). */}
             {v.acoes.colocar_a_venda && (
               <Button variante="solido" icone={<Icone de={Tag} />} onClick={() => abrir("colocar_a_venda")}>
                 Colocar à venda
@@ -315,12 +296,6 @@ function FichaDesktop({ v, docs, locacoes, manutencoes, abrir }: { v: VeiculoDet
                 Voltar para a frota
               </Button>
             )}
-            {v.acoes.baixar && (
-              <button type="button" className="wl-btn bg-transparent text-critical-ink" onClick={() => abrir("baixar")}>
-                Dar baixa
-              </button>
-            )}
-            <ExcluirVeiculo v={v} aoColocarAVenda={() => abrir("colocar_a_venda")} />
           </div>
         )}
       </header>
@@ -368,6 +343,24 @@ function FichaDesktop({ v, docs, locacoes, manutencoes, abrir }: { v: VeiculoDet
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
+          {podeAgir && (
+            <PainelDeAcoes>
+              {v.acoes.movimentar ? (
+                <LinhaDeAcao rotulo="Movimentar" detalhe="Levar para outro endereço ou cliente" icone={<Icone de={Truck} />} href={`/veiculos/movimentacoes/nova?veiculo=${v.id}`} />
+              ) : (
+                v.acoes.motivo_movimentar && <LinhaDeAcao rotulo="Movimentar" detalhe={v.acoes.motivo_movimentar} icone={<Icone de={Truck} />} disabled title={v.acoes.motivo_movimentar} />
+              )}
+              {/* `acoes.transferir` abre a Nova movimentação com o destino em outra filial e a vistoria rápida marcada (MOV-06, CA-246-16). */}
+              {v.acoes.transferir && (
+                <LinhaDeAcao rotulo="Transferir" detalhe="Mudar de filial, com vistoria rápida" icone={<Icone de={ArrowLeftRight} />} href={`/veiculos/movimentacoes/nova?veiculo=${v.id}&transferir=1`} />
+              )}
+              <LinhaDeAcao rotulo="Mandar para oficina" detalhe="Em breve" icone={<Icone de={Wrench} />} disabled title={EM_BREVE} />
+              {(v.acoes.baixar || v.acoes.excluir) && <SeparadorDeAcoes />}
+              {/* VEI-23: "Dar baixa" só para o administrador. */}
+              {v.acoes.baixar && <LinhaDeAcao perigo rotulo="Dar baixa" detalhe="Tirar da frota de vez" icone={<Icone de={ArrowDownToLine} />} onClick={() => abrir("baixar")} />}
+              <ExcluirVeiculo v={v} noPainel aoColocarAVenda={() => abrir("colocar_a_venda")} />
+            </PainelDeAcoes>
+          )}
           <section className="wl-panel">
             <h2 className="mb-1 text-[20px] font-semibold leading-[26px]">Dados</h2>
             <dl>

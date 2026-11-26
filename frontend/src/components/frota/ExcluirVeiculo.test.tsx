@@ -65,13 +65,13 @@ beforeEach(() => {
 });
 
 describe("VEI-22: o botão Excluir na ficha", () => {
-  it("test_vei_22_gerente_e_administrador_veem_excluir_no_cabecalho_e_no_fim_da_ficha", async () => {
+  it("test_vei_22_gerente_e_administrador_veem_excluir_no_painel_de_acoes_e_no_fim_da_ficha", async () => {
     for (const email of ["rodrigo@motorapida.com.br", "mariana@motorapida.com.br"]) {
       await entrar(email);
       const { desktop, celular } = await ficha(501);
-      // Desktop: no cabeçalho, depois das outras ações; tom de perigo, botão de texto.
-      ordem(texto(desktop), ["Editar", "Excluir", "Rendeu no ano"]);
-      expect(desktop).toMatch(/<button type="button" class="wl-btn bg-transparent text-critical-ink ">Excluir<\/button>/);
+      // Desktop: por último no painel "Ações" da coluna lateral, linha de perigo.
+      ordem(texto(desktop), ["Editar", "Rendeu no ano", "Ações", "Excluir", "Dados"]);
+      expect(desktop).toContain('<button type="button" class="wl-acao wl-acao--perigo" aria-label="Excluir">');
       // Celular: no fim da ficha, na largura toda, "Excluir veículo".
       const t = texto(celular);
       expect(t.trimEnd().endsWith("|Excluir veículo|")).toBe(true);
