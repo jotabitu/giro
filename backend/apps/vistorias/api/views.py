@@ -29,6 +29,7 @@ from comum.erros import ErroDeValidacao
 from comum.limites import LIMITES_DO_LINK_RECIBO, LIMITES_DO_RECIBO_PUBLICO
 from comum.permissoes import (
     TODAS_AS_FILIAIS,
+    ModuloDoPlanoOu404,
     com_padrao,
     exige_perfil,
     filiais_permitidas,
@@ -483,7 +484,7 @@ class ConsultarReciboView(APIView):
     IP e por token (B-03). Ler o recibo não é operação: vale também com a empresa suspensa."""
 
     authentication_classes: list[Any] = []
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny, ModuloDoPlanoOu404]  # PLT-12 de verdade, com 404 (T-517)
     throttle_classes = LIMITES_DO_RECIBO_PUBLICO
     recurso_do_plano = Recurso.LOCACOES_VISTORIA  # PLT-12: o recibo é do módulo de locação
 

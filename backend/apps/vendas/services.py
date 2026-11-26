@@ -665,6 +665,7 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
             raise Conflito("VEN-06", COM_ASSINATURA)
         cliente = venda.cliente
         nome, celular = venda.interessado_nome, venda.interessado_celular
+        quem_antes = (venda.cliente_id, nome, celular)
         if dados.get("cliente_id"):
             cliente = _cliente(dados["cliente_id"])
             nome = celular = ""
@@ -687,11 +688,9 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
             venda.motivo_recusa = ""  # o vendedor refez a proposta (VEN-13)
             venda.ultimo_contato_em = relogio.agora()
             # S-15 (revisão da Segurança no #650): a proposta mudou, e o link e o PDF de antes
-            # (com o cliente e os valores de antes) deixam de valer. O arquivo fica guardado
-            # (ADR 0009); só a venda deixa de apontar para ele.
-            venda.token_proposta_hash = None
-            venda.token_proposta_expira_em = None
-            venda.proposta_pdf = None
+            # (com o cliente e os valores de antes) deixam de valer. Com o mesmo cliente, o
+            # arquivo fica guardado (ADR 0009); só a venda deixa de apontar para ele.
+            _soltar_link_e_pdf(venda)
             venda.save(
                 update_fields=[
                     "cliente",
@@ -706,8 +705,31 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
                     "atualizado_em",
                 ]
             )
+        if (venda.cliente_id, nome, celular) != quem_antes:
+            # T-517 (Segurança no #650, b): os PDFs de antes têm o nome do cliente de antes, e a
+            # anonimização dele procura pelas vendas em que ele está. Saem do armazenamento
+            # depois do commit, com as versões antigas (a pasta da venda só guarda a proposta).
+            from comum.tasks import apagar_depois_do_commit
+
+            apagar_depois_do_commit([], [pasta_da_venda(venda.pk)])
         _recalcular_comissao(venda)
     return venda
+
+
+def pasta_da_venda(venda_id: int) -> str:
+    """`<schema>/vendas/venda/<id>/`: só os PDFs da proposta (`proposta_pdf`, todas as versões)."""
+    from comum.conexao import schema_atual
+
+    return f"{schema_atual()}/vendas/venda/{venda_id}/"
+
+
+def _soltar_link_e_pdf(venda: Venda) -> tuple[str, ...]:
+    """S-15: a proposta mudou; o link vivo e o PDF de antes deixam de valer (o próximo link grava
+    o PDF de agora). Devolve os campos para o `save`."""
+    venda.token_proposta_hash = None
+    venda.token_proposta_expira_em = None
+    venda.proposta_pdf = None
+    return ("token_proposta_hash", "token_proposta_expira_em", "proposta_pdf")
 
 
 def _marcar_envio(venda: Venda) -> tuple[str, ...]:
@@ -810,6 +832,8 @@ def pedir_desconto(venda: Venda, pct: Decimal, motivo: str, por: Any) -> Venda:
             _conferir_ven_10(venda.veiculo_id, venda.pk)
         antes = venda.status
         _aplicar(venda, conta)
+        # T-517 (Segurança no #650, a): os valores mudaram, como no `editar`.
+        soltos = _soltar_link_e_pdf(venda)
         agora = relogio.agora()
         venda.status_antes_aprovacao = antes
         venda.motivo_recusa = ""
@@ -830,6 +854,7 @@ def pedir_desconto(venda: Venda, pct: Decimal, motivo: str, por: Any) -> Venda:
                     "motivo_recusa",
                     "entrou_negociacao_em",
                     "ultimo_contato_em",
+                    *soltos,
                 ),
             )
 
