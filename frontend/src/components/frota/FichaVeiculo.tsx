@@ -7,8 +7,7 @@ import { useState, type ReactNode } from "react";
 import { type AcaoDeStatus, AvisoDaAcao, JanelaDeStatus, MaisAcoesDoCelular } from "./AcoesDeStatus";
 import { AluguelDesativado } from "./AluguelDesativado";
 import { ExcluirCadastro } from "@/components/comum/ExcluirCadastro";
-import { LinhaDeAcao, PainelDeAcoes, SeparadorDeAcoes } from "@/components/comum/PainelDeAcoes";
-import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
+import { Button, DataTable, Icone, KpiGrid, KpiTile, LinhaDeAcao, Panel, PainelDeAcoes, SeparadorDeAcoes, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   veiculos,
   type DocumentoVeiculo,
@@ -214,7 +213,7 @@ export function ExcluirVeiculo({ v, celular, abertoDeInicio, aoColocarAVenda, no
       acao={acao}
       celular={celular}
       rotulo={celular ? "Excluir veículo" : "Excluir"}
-      botao={noPainel ? (abrir) => <LinhaDeAcao perigo rotulo="Excluir" detalhe="Apagar o cadastro do veículo" icone={<Icone de={Trash2} />} onClick={abrir} /> : undefined}
+      botao={noPainel ? (abrir) => <LinhaDeAcao perigo rotulo="Excluir" detalhe="Só para cadastro feito por engano" icone={<Icone de={Trash2} />} onClick={abrir} /> : undefined}
       coisa="veículo"
       executar={() => veiculos.excluir(v.id)}
       chaveDaFicha={["veiculo", v.id]}
@@ -346,7 +345,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes, abrir }: { v: VeiculoDet
           {podeAgir && (
             <PainelDeAcoes>
               {v.acoes.movimentar ? (
-                <LinhaDeAcao rotulo="Movimentar" detalhe="Levar para outro endereço ou cliente" icone={<Icone de={Truck} />} href={`/veiculos/movimentacoes/nova?veiculo=${v.id}`} />
+                <LinhaDeAcao rotulo="Movimentar" detalhe="Levar ao lava-jato, à oficina ou ao despachante" icone={<Icone de={Truck} />} href={`/veiculos/movimentacoes/nova?veiculo=${v.id}`} />
               ) : (
                 v.acoes.motivo_movimentar && <LinhaDeAcao rotulo="Movimentar" detalhe={v.acoes.motivo_movimentar} icone={<Icone de={Truck} />} disabled title={v.acoes.motivo_movimentar} />
               )}

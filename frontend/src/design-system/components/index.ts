@@ -17,6 +17,7 @@ export { LinhaDeLista, ListaDeLinhas } from "./LinhaDeLista/LinhaDeLista";
 export { KpiGrid, KpiTile, KpiVariacao } from "./KpiTile/KpiTile";
 export { ListaComRolagem } from "./ListaComRolagem/ListaComRolagem";
 export { Panel } from "./Panel/Panel";
+export { LinhaDeAcao, PainelDeAcoes, SeparadorDeAcoes, type LinhaDeAcaoProps } from "./PainelDeAcoes/PainelDeAcoes";
 export { ProgressBar } from "./ProgressBar/ProgressBar";
 export { SeletorDeFilial, type SeletorDeFilialProps } from "./SeletorDeFilial/SeletorDeFilial";
 export { TODAS, type OpcaoFilial } from "./SeletorDeFilial/logica";

@@ -113,7 +113,7 @@ describe("VEI-23: as ações que a API libera, por perfil e estado", () => {
     const alugado = cabecalho(alugadoHtml) + painel(alugadoHtml);
     expect(alugado).not.toMatch(/Dar baixa|Colocar à venda|Voltar para a frota/);
     // Dar baixa é uma linha de perigo no painel "Ações", como o Excluir.
-    expect(disponivel).toContain('<button type="button" class="wl-acao wl-acao--perigo" aria-label="Dar baixa">');
+    expect(disponivel).toMatch(/<button type="button" class="wl-acao wl-acao--perigo"[^>]*>.*?class="wl-acao__nome">Dar baixa<\/span>/);
   });
 
   it("test_ven_01_vendedor_e_financeiro_nao_veem_nenhuma_acao_de_status", async () => {

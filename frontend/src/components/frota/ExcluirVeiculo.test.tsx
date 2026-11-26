@@ -71,7 +71,7 @@ describe("VEI-22: o botão Excluir na ficha", () => {
       const { desktop, celular } = await ficha(501);
       // Desktop: por último no painel "Ações" da coluna lateral, linha de perigo.
       ordem(texto(desktop), ["Editar", "Rendeu no ano", "Ações", "Excluir", "Dados"]);
-      expect(desktop).toContain('<button type="button" class="wl-acao wl-acao--perigo" aria-label="Excluir">');
+      expect(desktop).toMatch(/<button type="button" class="wl-acao wl-acao--perigo"[^>]*>.*?class="wl-acao__nome">Excluir<\/span><small[^>]*>Só para cadastro feito por engano<\/small>/);
       // Celular: no fim da ficha, na largura toda, "Excluir veículo".
       const t = texto(celular);
       expect(t.trimEnd().endsWith("|Excluir veículo|")).toBe(true);

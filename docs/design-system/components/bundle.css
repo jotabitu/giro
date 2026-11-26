@@ -184,3 +184,22 @@ body { margin: 0; font-family: var(--font-sans); font-size: 15px; line-height: 2
 .wl-rolagem { max-height: 320px; overflow: auto; overscroll-behavior: auto; }
 .wl-rolagem:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .wl-rolagem thead th { position: sticky; top: 0; z-index: 1; }
+/* PainelDeAcoes (T-520): no topo da ficha só Editar e a ação principal; o resto, num painel "Ações" no topo da coluna lateral. */
+.wl-acoes-topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-left: auto; }
+.wl-acoes-topo > .wl-btn { text-decoration: none; }
+.wl-acoes-topo > .wl-btn--solid { transition: opacity .15s ease; }
+.wl-acoes-topo > .wl-btn--solid:hover { opacity: .88; }
+.wl-acoes-lista { display: flex; flex-direction: column; gap: var(--space-0-5); margin: var(--space-2) calc(-1 * var(--space-2)) 0; }
+.wl-acao { display: flex; align-items: center; gap: var(--space-3); width: 100%; box-sizing: border-box; padding: var(--space-2); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--ink); font: inherit; font-size: 15px; font-weight: 500; text-align: left; cursor: pointer; text-decoration: none; transition: background-color .15s ease; }
+.wl-acao:hover { background: var(--surface-sunken); }
+.wl-acao:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.wl-acao__ic { display: grid; place-items: center; width: var(--space-10); height: var(--space-10); flex: none; border-radius: var(--radius-sm); background: var(--surface-sunken); }
+.wl-acao small { display: block; font-size: 14px; font-weight: 400; line-height: 20px; color: var(--ink-muted); }
+/* Desligada: só o ícone e o nome esmaecem; a explicação (o motivo) continua legível, em ink-muted cheio. */
+.wl-acao[disabled] { cursor: not-allowed; }
+.wl-acao[disabled] .wl-acao__ic, .wl-acao[disabled] .wl-acao__nome { opacity: .55; }
+.wl-acao[disabled]:hover { background: transparent; }
+.wl-acao--perigo { color: var(--critical-ink); }
+.wl-acao--perigo .wl-acao__ic { background: var(--critical-soft); }
+.wl-acao--perigo:hover { background: var(--critical-soft); }
+.wl-acoes-sep { height: 1px; margin: var(--space-1-5) var(--space-2); background: var(--line); }

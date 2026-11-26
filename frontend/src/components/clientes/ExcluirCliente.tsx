@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
-import { Button, Icone } from "@/design-system";
-import { LinhaDeAcao } from "@/components/comum/PainelDeAcoes";
+import { Button, Icone, LinhaDeAcao } from "@/design-system";
 import { ExcluirCadastro } from "@/components/comum/ExcluirCadastro";
 import { clientes, type ClienteCompleto } from "@/lib/api";
 import { DialogoDaAcao } from "./AcoesDoCliente";
@@ -22,7 +21,7 @@ export function ExcluirCliente({ c, celular, aoAvisar, abertoDeInicio, noPainel 
         acao={acao}
         celular={celular}
         rotulo={celular ? "Excluir cliente" : "Excluir"}
-        botao={noPainel ? (abrir) => <LinhaDeAcao perigo rotulo="Excluir" detalhe="Apagar o cadastro do cliente" icone={<Icone de={Trash2} />} onClick={abrir} /> : undefined}
+        botao={noPainel ? (abrir) => <LinhaDeAcao perigo rotulo="Excluir" detalhe="Só para cadastro feito por engano" icone={<Icone de={Trash2} />} onClick={abrir} /> : undefined}
         coisa="cliente"
         executar={() => clientes.excluir(c.id)}
         chaveDaFicha={["cliente", c.id]}

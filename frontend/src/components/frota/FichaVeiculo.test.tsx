@@ -81,7 +81,7 @@ describe("ficha do veículo, gerente", () => {
 
   it("desktop: Editar abre a edição, Movimentar e Mandar para oficina ficam desativados e o alugado não tem ação de status (VEI-23)", () => {
     expect(desktop).toMatch(/<a class="wl-btn" href="\/veiculos\/501\/editar">(<svg.*?<\/svg>)?Editar<\/a>/);
-    for (const nome of ["Movimentar", "Mandar para oficina"]) expect(desktop).toMatch(new RegExp(`<button[^>]*aria-label="${nome}"[^>]*disabled`));
+    for (const nome of ["Movimentar", "Mandar para oficina"]) expect(desktop).toMatch(new RegExp(`<button[^>]*class="wl-acao"[^>]*disabled=""[^>]*>(?:(?!</button>).)*?class="wl-acao__nome">${nome}</span>`));
     // A API não libera colocar à venda, voltar para a frota nem baixa no alugado: a tela não mostra nada desativado no lugar.
     expect(texto(desktop)).not.toMatch(/Colocar à venda|Voltar para a frota|Dar baixa/);
   });

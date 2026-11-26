@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tan
 import { Bike, Camera, Car, Check, ChevronLeft, Download, Eye, EyeOff, MessageCircle, Pencil, Info } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, type ReactNode } from "react";
-import { Button, DataTable, CelulaDupla, Icone, KpiGrid, KpiTile, ListaComRolagem, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
+import { Button, DataTable, CelulaDupla, Icone, KpiGrid, KpiTile, LinhaDeAcao, ListaComRolagem, Panel, PainelDeAcoes, SeparadorDeAcoes, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   clientes,
   type ClienteCompleto,
@@ -21,7 +21,6 @@ import { textoDoPagamento } from "@/lib/locacoes";
 import { useSessao } from "@/lib/sessao";
 import { AcoesDoCliente } from "./AcoesDoCliente";
 import { ExcluirCliente } from "./ExcluirCliente";
-import { LinhaDeAcao, PainelDeAcoes, SeparadorDeAcoes } from "@/components/comum/PainelDeAcoes";
 import { Confirmacao } from "@/components/financeiro/Comuns";
 import { AnaliseDoCadastro } from "./AnaliseDoCadastro";
 import { ROTULO_DOCUMENTO } from "./BotaoDocumento";
@@ -329,7 +328,7 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, podeEditar, administrad
 
         <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
           <PainelDeAcoes>
-            <LinhaDeAcao rotulo="WhatsApp" detalhe="Abre a conversa com o cliente" icone={<Icone de={MessageCircle} />} href={linkWhatsApp(c)} externo />
+            <LinhaDeAcao rotulo="WhatsApp" detalhe="Abrir a conversa com o cliente" icone={<Icone de={MessageCircle} />} href={linkWhatsApp(c)} externo />
             {c.acoes?.excluir && <SeparadorDeAcoes />}
             <ExcluirCliente c={c} noPainel aoAvisar={setAviso} />
           </PainelDeAcoes>

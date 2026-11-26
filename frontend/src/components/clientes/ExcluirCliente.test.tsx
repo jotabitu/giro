@@ -80,7 +80,7 @@ describe("CLI-13: o botão Excluir na ficha", () => {
       const { desktop, celular } = await ficha(1201);
       // Desktop: no cabeçalho, depois de Editar (e de Iniciar locação, como na referência); tom de perigo, botão de texto.
       ordem(texto(desktop), ["Juliana Rocha", "Editar", "Iniciar locação", "Total pago", "Ações", "WhatsApp", "Excluir", "Dados pessoais"]);
-      expect(desktop).toContain('<button type="button" class="wl-acao wl-acao--perigo" aria-label="Excluir">');
+      expect(desktop).toMatch(/<button type="button" class="wl-acao wl-acao--perigo"[^>]*>.*?class="wl-acao__nome">Excluir<\/span><small[^>]*>Só para cadastro feito por engano<\/small>/);
       // Celular: no fim da ficha, depois da última seção, "Excluir cliente".
       expect(texto(celular).trimEnd().endsWith("|Excluir cliente|")).toBe(true);
       expect(celular).toMatch(/class="wl-btn bg-transparent text-critical-ink w-full justify-center" style="height:48px">Excluir cliente<\/button>/);
