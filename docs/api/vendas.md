@@ -179,7 +179,7 @@ A Nova venda.
 - `enviar`: cliente com CPF (400 em `cliente_id`, "Cadastre o cliente com o CPF para enviar a proposta." ou "Complete o CPF do cliente para enviar a proposta."), forma completa, desconto até o limite (400 em `desconto_pct`, "Acima de 5% precisa do gerente. Use Pedir aprovação."). Nasce em `proposta`, e o PDF e o e-mail saem como no `POST /enviar/`.
 - `pedir_aprovacao`: como `enviar`, com o desconto acima do limite (400 se não passar: "Até 5% você dá sem o gerente. Use Salvar proposta."); nasce em `aguardando_aprovacao` com o estado de antes `interessado`, abre o pedido `APR-01` e lança a comissão `pendente` (`FIN-09`). `motivo` vai para o pedido.
 - O vendedor é quem cria (`FIN-09`); a filial é a do veículo.
-- 201: o detalhe. 409 `VEN-01` (veículo fora de `a_venda` ou sem valor de venda); 409 `VEN-10` "Este veículo tem uma venda em andamento (VEN-0177)." quando a ação abre a venda (`proposta` ou `aguardando_aprovacao`) e já há outra aberta; o `interessado` não conta.
+- 201: o detalhe. 409 `VEN-01` (veículo fora de `a_venda` ou sem valor de venda); 409 `VEN-10` "Este veículo tem uma venda em andamento (VEN-0177)." (com `detalhes.venda_id` da venda aberta) quando a ação abre a venda (`proposta` ou `aguardando_aprovacao`) e já há outra aberta; o `interessado` não conta.
 
 ### PATCH /api/vendas/{id}/
 
@@ -362,7 +362,7 @@ Tarefa `aut_19_vencer_propostas` (o Beat chama `aut_19_vencer_propostas_de_todas
 
 ### Trava do estoque (`VEN-10`)
 
-Com venda aberta (`proposta`, `negociacao`, `aguardando_aprovacao`), "Voltar para a frota" e "Baixar" o veículo respondem 409 `{ "codigo": "VEN-10", "mensagem": "Este veículo tem uma venda em andamento (VEN-0177)." }` (trava registrada por `vendas` em `veiculos.services.registrar_trava_do_estoque`).
+Com venda aberta (`proposta`, `negociacao`, `aguardando_aprovacao`), "Voltar para a frota" e "Baixar" o veículo respondem 409 `{ "codigo": "VEN-10", "mensagem": "Este veículo tem uma venda em andamento (VEN-0177).", "detalhes": { "venda_id": 177 } }` (trava registrada por `vendas` em `veiculos.services.registrar_trava_do_estoque`).
 
 ## A venda da quitação
 

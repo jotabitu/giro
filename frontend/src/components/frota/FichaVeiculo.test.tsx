@@ -62,7 +62,7 @@ describe("ficha do veículo, gerente", () => {
 
   it("desktop: seções e rótulos na ordem da referência", () => {
     const t = texto(desktop);
-    ordem(t, ["Veículos", "QXA-4B21", "Honda CG 160 Fan", "Editar", "Movimentar", "Mandar para oficina", "Colocar à venda", "Rendeu no ano", "Ocupação", "Custo de manutenção", "Km atual", "Agora", "Locações", "Manutenções", "Dados", "Documentos"]);
+    ordem(t, ["Veículos", "QXA-4B21", "Honda CG 160 Fan", "Editar", "Movimentar", "Mandar para oficina", "Rendeu no ano", "Ocupação", "Custo de manutenção", "Km atual", "Agora", "Locações", "Manutenções", "Dados", "Documentos"]);
     ordem(t, ["· 2023 · vermelha · Filial Centro", "R$ 9.870", "locações − custos", "86%", "últimos 90 dias", "R$ 353", "no ano", "18.950", "atualizado 23 set"]);
     // "Agora": o que a API manda (T-242). Período, plano, pagamentos e "faltam X km" ficam como pedido ao arquiteto.
     ordem(t, ["Agora", "Alugado desde 23 set", "Carlos Menezes", "LOC-2841", "Período", "23 set → 28 out", "Ver locação", "Próxima manutenção", "Troca de óleo", "aos 19.900 km"]);
@@ -79,14 +79,16 @@ describe("ficha do veículo, gerente", () => {
     ordem(t, ["CRLV 2026", "Em dia", "IPVA 2026", "Pago", "Seguro", "Vence em 18 dias", "Rastreador", "Online"]);
   });
 
-  it("desktop: o botão sólido é Colocar à venda e Editar abre a edição e as outras três ficam desativadas (sem tela ou endpoint)", () => {
+  it("desktop: Editar abre a edição, Movimentar e Mandar para oficina ficam desativados e o alugado não tem ação de status (VEI-23)", () => {
     expect(desktop).toMatch(/<a class="wl-btn" href="\/veiculos\/501\/editar">Editar<\/a>/);
-    for (const nome of ["Movimentar", "Mandar para oficina", "Colocar à venda"]) expect(desktop).toMatch(new RegExp(`<button[^>]*disabled[^>]*>(<svg.*?</svg>)?${nome}</button>`));
-    expect(desktop).toMatch(/wl-btn wl-btn--solid"[^>]*disabled/);
+    for (const nome of ["Movimentar", "Mandar para oficina"]) expect(desktop).toMatch(new RegExp(`<button[^>]*disabled[^>]*>(<svg.*?</svg>)?${nome}</button>`));
+    // A API não libera colocar à venda, voltar para a frota nem baixa no alugado: a tela não mostra nada desativado no lugar.
+    expect(texto(desktop)).not.toMatch(/Colocar à venda|Voltar para a frota|Dar baixa/);
   });
 
   it("celular: cabeçalho, KPIs, Agora, Documentos, Manutenções e botões, nessa ordem", () => {
-    ordem(celular, ['aria-label="Voltar"', "Honda CG 160 Fan", "QXA-4B21 · 2023 · alugado", 'aria-label="Mais ações"', "Rendeu no ano", "Ocupação", "90 dias", "Agora", "Próxima manutenção", "Documentos", "Manutenções", "Oficina", "Colocar à venda"]);
+    ordem(celular, ['aria-label="Voltar"', "Honda CG 160 Fan", "QXA-4B21 · 2023 · alugado", 'aria-label="Mais ações"', "Rendeu no ano", "Ocupação", "90 dias", "Agora", "Próxima manutenção", "Documentos", "Manutenções", "Oficina"]);
+    expect(texto(celular)).not.toContain("Colocar à venda");
     const t = texto(celular);
     ordem(t, ["Cliente", "Carlos Menezes", "Contrato", "LOC-2841", "Devolve", "28 out"]);
     ordem(t, ["Troca de óleo · 12 set", "R$ 48,00", "Pastilha de freio · 20 jul", "R$ 95,00", "Revisão 15 mil · 02 jul", "R$ 210,00"]);

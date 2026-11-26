@@ -70,7 +70,7 @@ describe("VEI-22: o botão Excluir na ficha", () => {
       await entrar(email);
       const { desktop, celular } = await ficha(501);
       // Desktop: no cabeçalho, depois das outras ações; tom de perigo, botão de texto.
-      ordem(texto(desktop), ["Editar", "Colocar à venda", "Excluir", "Rendeu no ano"]);
+      ordem(texto(desktop), ["Editar", "Excluir", "Rendeu no ano"]);
       expect(desktop).toMatch(/<button type="button" class="wl-btn bg-transparent text-critical-ink ">Excluir<\/button>/);
       // Celular: no fim da ficha, na largura toda, "Excluir veículo".
       const t = texto(celular);
@@ -132,23 +132,32 @@ describe("VEI-22: veículo sem histórico", () => {
 });
 
 describe("VEI-22: veículo com histórico", () => {
-  it("test_vei_22_aviso_do_gerente_com_o_motivo_e_o_caminho_so_no_texto", async () => {
+  it("test_vei_22_aviso_do_gerente_com_o_motivo_o_caminho_e_o_botao_colocar_a_venda", async () => {
     await entrar("rodrigo@motorapida.com.br");
     const v = await veiculos.obter(504);
     expect(v.acoes.excluir?.permitido).toBe(false);
     expect(v.acoes.colocar_a_venda).toBe(true);
-    const t = texto(html(<ExcluirVeiculo v={v} abertoDeInicio />));
+    const abrir = () => {};
+    const t = texto(html(<ExcluirVeiculo v={v} abertoDeInicio aoColocarAVenda={abrir} />));
+    // T-518: com `acoes.colocar_a_venda`, o aviso volta a ter o botão de verdade; desktop: a principal à direita.
     ordem(t, [
       "Este veículo não pode ser excluído",
       "Este veículo já tem locação e vistoria. Ele fica guardado e não pode ser excluído. Para tirar a moto da frota, coloque à venda ou peça a baixa ao administrador (perda total, roubo ou sucata).",
       "Fechar",
+      "Colocar à venda",
     ]);
-    // Até a tela de colocar à venda existir, o caminho fica só no texto: nenhum botão que não funciona dentro do aviso.
-    expect(t.slice(t.indexOf("sucata)."))).not.toContain("Colocar à venda");
     expect(t).not.toContain("Excluir veículo");
-    const celular = texto(html(<ExcluirVeiculo v={v} celular abertoDeInicio />));
-    ordem(celular, ["Este veículo não pode ser excluído", "Fechar"]);
-    expect(celular.slice(celular.indexOf("sucata)."))).not.toContain("Colocar à venda");
+    const celular = texto(html(<ExcluirVeiculo v={v} celular abertoDeInicio aoColocarAVenda={abrir} />));
+    ordem(celular, ["Este veículo não pode ser excluído", "sucata).", "Colocar à venda", "Fechar"]);
+  });
+
+  it("test_ven_01_aviso_do_excluir_sem_colocar_a_venda_quando_a_api_nao_libera", async () => {
+    await entrar("rodrigo@motorapida.com.br");
+    const alugado = await veiculos.obter(501);
+    expect(alugado.acoes.colocar_a_venda).toBe(false);
+    const t = texto(html(<ExcluirVeiculo v={alugado} abertoDeInicio aoColocarAVenda={() => {}} />));
+    expect(t).toContain("Fechar");
+    expect(t).not.toContain("Colocar à venda");
   });
 
   it("test_vei_22_aviso_do_administrador_fala_em_fazer_a_baixa", async () => {

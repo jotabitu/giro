@@ -15,6 +15,7 @@ import type {
   ListaVeiculos,
   LocacoesDoVeiculo,
   ManutencoesDoVeiculo,
+  MotivoDaBaixa,
   EdicaoVeiculo,
   GaleriaDoEditar,
   NovoVeiculo,
@@ -122,6 +123,21 @@ export const veiculosApi = {
 
   obter(id: number): Promise<VeiculoDetalhe> {
     return http.get<VeiculoDetalhe>(`/api/veiculos/${id}/`);
+  },
+
+  /** VEN-01: `disponivel` → `a_venda`. 409 `VEI-15` sem plano ligado; a resposta traz o valor que vale. */
+  colocarAVenda(id: number, corpo: { valor_venda_centavos: number; referencia_fipe_centavos?: number | null }): Promise<Veiculo> {
+    return http.post<Veiculo>(`/api/veiculos/${id}/colocar-a-venda/`, corpo);
+  },
+
+  /** `a_venda` → `disponivel` (ou `indisponivel` "sem preço", VEI-15). 409 `VEN-10` com `detalhes.venda_id` se há venda aberta. */
+  voltarParaFrota(id: number): Promise<Veiculo> {
+    return http.post<Veiculo>(`/api/veiculos/${id}/voltar-para-frota/`, {});
+  },
+
+  /** Só o administrador (VEI-23, MOV-03). 400 em `motivo` ou `descricao`; 409 `transicao_veiculo` (alugado) ou `VEN-10`. */
+  baixar(id: number, corpo: { motivo: MotivoDaBaixa; descricao: string }): Promise<Veiculo> {
+    return http.post<Veiculo>(`/api/veiculos/${id}/baixar/`, corpo);
   },
 
   /** VEI-22: 409 `VEI-22` com `detalhes.historico` quando o veículo tem histórico; 403 para quem não exclui. */

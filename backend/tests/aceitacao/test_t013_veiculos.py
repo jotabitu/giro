@@ -388,6 +388,36 @@ def _resultado(resposta) -> tuple[int, str]:
     return resposta.status_code, corpo.get("status") or corpo["codigo"]
 
 
+def test_vei_23_descricao_da_baixa(moto, frota):
+    """VEI-23: a descrição é obrigatória só no `outro` e tem até 200 caracteres em todo motivo."""
+    rht = frota.veiculos["RHT9F02"]
+    sem_motivo = _acao(moto, "Mariana", rht, "baixar", {"descricao": "x"})
+    assert sem_motivo.status_code == 400
+    assert sem_motivo.json()["campos"]["motivo"] == ["Escolha o motivo da baixa."]
+    for vazia in ("", "   "):
+        resposta = _acao(moto, "Mariana", rht, "baixar", {"motivo": "outro", "descricao": vazia})
+        assert resposta.status_code == 400
+        assert resposta.json()["campos"]["descricao"] == ["Descreva o motivo da baixa."]
+    sem_campo = _acao(moto, "Mariana", rht, "baixar", {"motivo": "outro"})
+    assert sem_campo.json()["campos"]["descricao"] == ["Descreva o motivo da baixa."]
+    for motivo in ("roubo", "outro"):
+        longa = _acao(moto, "Mariana", rht, "baixar", {"motivo": motivo, "descricao": "a" * 201})
+        assert longa.status_code == 400
+        assert longa.json()["campos"]["descricao"] == ["Use até 200 caracteres."]
+    assert Veiculo.objects.get(pk=rht.pk).status != "baixado"
+    # Nos outros motivos, a descrição é opcional; 200 caracteres cabem.
+    assert _resultado(_acao(moto, "Mariana", rht, "baixar", {"motivo": "sucata"})) == (
+        200,
+        "baixado",
+    )
+
+
+def test_vei_23_baixa_outro_com_descricao(moto, frota):
+    rht = frota.veiculos["RHT9F02"]
+    corpo = {"motivo": "outro", "descricao": "b" * 200}
+    assert _resultado(_acao(moto, "Mariana", rht, "baixar", corpo)) == (200, "baixado")
+
+
 def test_vei_02_ca_013_10_acoes_permitidas(moto, frota):
     sak, qxa = frota.veiculos["SAK1D39"], frota.veiculos["QXA4B21"]
     pmz, rht = frota.veiculos["PMZ3E17"], frota.veiculos["RHT9F02"]

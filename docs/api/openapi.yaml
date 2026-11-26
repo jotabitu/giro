@@ -9532,12 +9532,16 @@ components:
       - mensagem
     Baixar:
       type: object
+      description: |-
+        VEI-23: o motivo é obrigatório; a descrição, até 200 caracteres, só é obrigatória no
+        `outro` (vazia ou só espaços: "Descreva o motivo da baixa.").
       properties:
         motivo:
           $ref: '#/components/schemas/MotivoEnum'
         descricao:
           type: string
           default: ''
+          maxLength: 200
       required:
       - motivo
     BlankEnum:
