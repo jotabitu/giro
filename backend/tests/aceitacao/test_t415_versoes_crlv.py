@@ -98,16 +98,13 @@ def test_vei_08_ca_521_03_uma_versao_preenche_como_antes(moto) -> None:
     assert corpo["dicas"] == {"marca_modelo": None, "candidatos": [], "escolhido": None}
 
 
-def test_vei_08_versoes_demais_ficam_para_a_busca(moto, monkeypatch) -> None:
-    # "CHEVROLET/CRUZE" bate com as 17 versões do Cruze: cabem no limite de 20.
+def test_vei_08_ca_521_01_no_maximo_5_versoes(moto) -> None:
+    # "CHEVROLET/CRUZE" bate com as 17 versões do Cruze. T-521 (decisão do dono): vêm as 5 mais
+    # parecidas, a escolhida na frente; as outras, a pessoa busca na lista de modelos.
     assert len(catalogo.candidatos("CHEVROLET/CRUZE")) == 17
-    assert len(_ler(moto, "CHEVROLET/CRUZE")["dicas"]["candidatos"]) == 17
-    # T-521: acima do limite, vêm as mais parecidas, a escolhida na frente; as outras, a pessoa
-    # busca na lista de modelos.
-    monkeypatch.setattr("apps.veiculos.leitura.LIMITE_DE_CANDIDATOS", 10)
     corpo = _ler(moto, "CHEVROLET/CRUZE")
     assert corpo["campos"]["marca"] == CHEVROLET
-    assert len(corpo["dicas"]["candidatos"]) == 10
+    assert len(corpo["dicas"]["candidatos"]) == 5
     assert corpo["dicas"]["candidatos"][0] == corpo["dicas"]["escolhido"]
     assert corpo["campos"]["modelo"] == corpo["dicas"]["escolhido"]["modelo"]
 

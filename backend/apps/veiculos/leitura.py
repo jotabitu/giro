@@ -47,7 +47,7 @@ CAMPOS = (
     "combustivel",
     *DO_DOCUMENTO.values(),
 )
-LIMITE_DE_CANDIDATOS = 20  # T-415; T-521: as 20 mais parecidas, e a pessoa busca as outras
+LIMITE_DE_CANDIDATOS = 5  # T-521 (decisão do dono): as 5 mais parecidas, e a pessoa busca as outras
 MENSAGEM_FALHA = "Não conseguimos ler este documento. Preencha os campos à mão."
 MENSAGEM_NAO_PDF = "Envie o PDF do CRLV-e."
 MENSAGEM_OUTRO_VEICULO = "Este CRLV-e é de outro veículo."
