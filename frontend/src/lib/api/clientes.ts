@@ -13,6 +13,7 @@ import type {
   NovoCliente,
   RespostaDoDesbloqueio,
   TipoDocumentoCliente,
+  ClienteExcluido,
 } from "./tipos-clientes";
 import type { LocacaoCompleta, ListaLocacoes } from "./tipos-locacoes";
 
@@ -100,6 +101,11 @@ export const clientesApi = {
 
   reativar(id: number, motivo: string): Promise<ClienteCompleto> {
     return http.post(`/api/clientes/${id}/reativar/`, { motivo });
+  },
+
+  /** CLI-13: 409 `CLI-13` com `detalhes.historico`; 409 `transicao_cliente` com o cliente bloqueado; 403 para quem não exclui. */
+  excluir(id: number): Promise<ClienteExcluido> {
+    return http.post<ClienteExcluido>(`/api/clientes/${id}/excluir/`, {});
   },
 
   enviarDocumento(id: number, tipo: TipoDocumentoCliente, arquivo: File): Promise<ClienteCompleto> {

@@ -81,7 +81,57 @@ type Semente = {
   documento?: DocumentoDoVeiculo;
   rastreador?: RastreadorDoVeiculo;
   anotacoes?: string | null;
+  // VEI-22 (T-515): o que o veículo já teve. Sem a chave, locação e vistoria; `[]` é o cadastro feito por engano.
+  historico?: HistoricoDoVeiculo[];
+  excluido?: boolean;
 };
+
+type HistoricoDoVeiculo = NonNullable<VeiculoDetalhe["acoes"]["excluir"]>["historico"][number];
+const NOME_DO_HISTORICO: Record<HistoricoDoVeiculo, string> = {
+  locacao: "locação",
+  troca: "troca de veículo",
+  venda: "venda",
+  vistoria: "vistoria",
+  ordem_servico: "ordem de serviço",
+  despesa: "despesa",
+  movimentacao: "movimentação",
+  transferencia: "transferência",
+};
+const juntar = (l: string[]) => (l.length <= 1 ? (l[0] ?? "") : `${l.slice(0, -1).join(", ")} e ${l[l.length - 1]}`);
+const historicoDe = (s: Semente): HistoricoDoVeiculo[] => s.historico ?? ["locacao", "vistoria"];
+const motivoDoVei22 = (s: Semente) => `Este veículo já tem ${juntar(historicoDe(s).map((h) => NOME_DO_HISTORICO[h]))}. Ele fica guardado e não pode ser excluído.`;
+const placaComHifen = (p: string) => `${p.slice(0, 3)}-${p.slice(3)}`;
+
+/** VEI-22: `acoes.excluir` como a API manda (docs/api/veiculos.md); `null` para quem não exclui. */
+function excluirDoFalso(s: Semente): VeiculoDetalhe["acoes"]["excluir"] {
+  if (!podeEditar()) return null;
+  const artigo = s.tipo === "moto" ? "a moto" : "o carro";
+  if (historicoDe(s).length === 0) {
+    return {
+      permitido: true,
+      titulo: `Excluir a ${placaComHifen(s.placa)}?`,
+      texto: `Use só para um cadastro feito por engano. ${s.tipo === "moto" ? "A moto" : "O carro"} sai da frota e de todas as listas, com as fotos, os documentos e os preços. A placa e o chassi ficam livres para um novo cadastro. Não dá para desfazer.`,
+      motivo: null,
+      caminho: null,
+      historico: [],
+    };
+  }
+  const baixa = perfilAtualFalso() === "administrador" ? "faça a baixa" : "peça a baixa ao administrador";
+  return {
+    permitido: false,
+    titulo: "Este veículo não pode ser excluído",
+    texto: null,
+    motivo: motivoDoVei22(s),
+    caminho: `Para tirar ${artigo} da frota, coloque à venda ou ${baixa} (perda total, roubo ou sucata).`,
+    historico: historicoDe(s),
+  };
+}
+
+/** Só dos testes: o histórico chega depois de a ficha abrir (a corrida que a API resolve com o 409 VEI-22). */
+export function definirHistoricoDoVeiculoFalso(id: number, historico: HistoricoDoVeiculo[]) {
+  const s = SEMENTES.find((x) => x.id === id);
+  if (s) s.historico = historico;
+}
 
 const DOCUMENTO_VAZIO: DocumentoDoVeiculo = { potencia_cv: null, cilindrada_cc: null, especie: null, tipo: null, carroceria: null, lotacao: null, peso_bruto_kg: null, numero_motor: null, observacoes: null };
 
@@ -100,7 +150,7 @@ const SEMENTES: Semente[] = [
   { id: 507, placa: "QYB5H60", marca: "Honda", modelo: "CB 300F Twister", ano: 2024, cor: "azul", tipo: "moto", categoria: "Street 300", status: "a_venda", km: 11045, diaria: 8990, semanal: 52900, proximaKm: 15000, vendaCentavos: 2290000, chassi: "9C2NC5110RR300871" },
   { id: 508, placa: "SBC0J44", marca: "Yamaha", modelo: "NMax 160", ano: 2025, cor: "cinza", tipo: "moto", categoria: "Scooter", status: "alugado", km: 6730, diaria: 6990, semanal: 41900, proximaKm: 10000, locacao: { codigo: "LOC-2852", cliente: "Rafael Sousa", fim: "2026-10-10" }, chassi: "9C6SG5010RR003055" },
   { id: 509, placa: "TAD2K15", marca: "Honda", modelo: "Biz 125", ano: 2024, cor: "vermelha", tipo: "moto", categoria: "Urbana 110", status: "disponivel", km: 7420, diaria: 4490, semanal: 26900, proximaKm: 10000, chassi: "9C2JC4810RR125560" },
-  { id: 510, placa: "UEF8L63", marca: "Fiat", modelo: "Argo Drive", ano: 2023, cor: "prata", tipo: "carro", categoria: "Hatch médio", status: "disponivel", km: 29870, diaria: 12900, semanal: 77900, proximaKm: 30000, chassi: "9BD358A5NPY622140" },
+  { id: 510, placa: "UEF8L63", marca: "Fiat", modelo: "Argo Drive", ano: 2023, cor: "prata", tipo: "carro", categoria: "Hatch médio", status: "disponivel", km: 29870, diaria: 12900, semanal: 77900, proximaKm: 30000, chassi: "9BD358A5NPY622140", historico: [] },
 ];
 
 const ROTULO: Record<string, { rotulo: string; tom: TomApi }> = {
@@ -576,9 +626,10 @@ export const veiculosFalso = {
 
   async obter(id: number): Promise<VeiculoDetalhe> {
     await pausa(200);
-    const s = SEMENTES.find((x) => x.id === id);
+    const s = SEMENTES.find((x) => x.id === id && !x.excluido);
     if (!s) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
     const v = montar(s);
+    v.acoes = { ...v.acoes, excluir: excluirDoFalso(s) };
     const financeiro = perfilAtualFalso() !== "vendedor" && perfilAtualFalso() !== "vistoriador";
     const detalhe: VeiculoDetalhe = {
       ...v,
@@ -590,6 +641,17 @@ export const veiculosFalso = {
       historico_status: [{ de: "disponivel", para: "alugado", em: "2026-09-23T12:00:00Z", origem_codigo: "LOC-2841" }],
     };
     return semValores(detalhe);
+  },
+
+  /** VEI-22: administrador e gerente; com histórico, 409 com a lista; o excluído some (404). */
+  async excluir(id: number): Promise<{ id: number; mensagem: string }> {
+    await pausa(80);
+    if (!podeEditar()) throw new ErroApi(403, "permissao", "Seu perfil não tem acesso a esta ação.");
+    const s = SEMENTES.find((x) => x.id === id && !x.excluido);
+    if (!s) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+    if (historicoDe(s).length > 0) throw new ErroApi(409, "VEI-22", motivoDoVei22(s), { historico: historicoDe(s) });
+    s.excluido = true;
+    return { id, mensagem: `Veículo ${placaComHifen(s.placa)} excluído.` };
   },
 
   async documentos(id: number): Promise<DocumentoVeiculo[]> {

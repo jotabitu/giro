@@ -5,6 +5,7 @@ import { ArrowLeftRight, ChevronLeft, Ellipsis, Tag, Truck, Wrench } from "lucid
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { AluguelDesativado } from "./AluguelDesativado";
+import { ExcluirCadastro } from "@/components/comum/ExcluirCadastro";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   veiculos,
@@ -199,6 +200,30 @@ function HistoricoDeDocumentos({ id }: { id: number }) {
   );
 }
 
+/**
+ * VEI-22: "Excluir" para quem `acoes.excluir` vem (administrador e gerente). Sem histórico, a confirmação; com histórico, o aviso com o
+ * motivo e o caminho da API. Sem o botão "Colocar à venda" no aviso até a tela de colocar à venda existir (decisão do orquestrador na T-515):
+ * o caminho fica só no texto.
+ */
+export function ExcluirVeiculo({ v, celular, abertoDeInicio }: { v: VeiculoDetalhe; celular?: boolean; abertoDeInicio?: boolean }) {
+  const acao = v.acoes.excluir;
+  if (!acao) return null;
+  return (
+    <ExcluirCadastro
+      acao={acao}
+      celular={celular}
+      rotulo={celular ? "Excluir veículo" : "Excluir"}
+      coisa="veículo"
+      executar={() => veiculos.excluir(v.id)}
+      chaveDaFicha={["veiculo", v.id]}
+      chavesDasListas={[["veiculos"], ["contadores"]]}
+      lista="/veiculos"
+      estiloDoBotao={celular ? { height: 48 } : undefined}
+      abertoDeInicio={abertoDeInicio}
+    />
+  );
+}
+
 /** A API recusa (403) a lista de locações a quem não tem acesso; o painel some em vez de mostrar o aviso (T-278). */
 function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } & Consultas) {
   const fin = v.indicadores_financeiros;
@@ -263,6 +288,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             <Button variante="solido" disabled title={v.acoes.colocar_a_venda ? EM_BREVE : "Só um veículo disponível pode ir à venda"} icone={<Icone de={Tag} />}>
               Colocar à venda
             </Button>
+            <ExcluirVeiculo v={v} />
           </div>
         )}
       </header>
@@ -492,6 +518,9 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
           </Button>
         </div>
       )}
+
+      {/* VEI-22: no fim da ficha, depois da última seção, longe das ações do dia a dia. */}
+      <ExcluirVeiculo v={v} celular />
     </div>
   );
 }

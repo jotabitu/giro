@@ -64,7 +64,8 @@ export function linhasDaPendencia(d: Partial<PendenciaDoCliente>): string[] {
   return linhas;
 }
 
-function DialogoDaAcao({ acao, cliente, aoFechar, aoConcluir }: { acao: Acao; cliente: ClienteCompleto; aoFechar: () => void; aoConcluir: (aviso: string) => void }) {
+/** O diálogo de cada ação, com o motivo. O aviso do "Excluir" com histórico abre o de inativar daqui (CLI-13). */
+export function DialogoDaAcao({ acao, cliente, aoFechar, aoConcluir }: { acao: Acao; cliente: ClienteCompleto; aoFechar: () => void; aoConcluir: (aviso: string) => void }) {
   const cache = useQueryClient();
   const t = TEXTOS[acao];
   const [motivo, setMotivo] = useState("");
