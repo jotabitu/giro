@@ -70,7 +70,12 @@ describe("tela Cadastrar veículo", () => {
     expect(h).toMatch(/<button(?![^>]*disabled)[^>]*>Enviar CRLV-e/);
     expect(h).toContain('accept=".pdf,application/pdf"');
     expect(h).toContain("Envie o PDF do CRLV-e e preenchemos placa");
-    expect(h).toContain('list="modelos-do-catalogo"');
+    // T-521 (CA-521-04): o modelo usa a lista de sugestões do design system, não o datalist do navegador.
+    expect(h).not.toContain("<datalist");
+    expect(h).not.toContain('list="modelos-do-catalogo"');
+    expect(h).toMatch(/<input[^>]*role="combobox"[^>]*name="modelo"/);
+    expect(h).toContain('role="listbox" aria-label="Da lista FIPE"');
+    expect(h).toContain("Escolha da lista ou digite");
     expect(h).not.toContain("Validade do CRLV");
     expect(h).toContain("A consulta FIPE ainda não está disponível");
   });

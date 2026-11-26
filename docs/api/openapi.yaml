@@ -12592,8 +12592,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ModeloDoCatalogo'
+        escolhido:
+          allOf:
+          - $ref: '#/components/schemas/ModeloDoCatalogo'
+          nullable: true
       required:
       - candidatos
+      - escolhido
       - marca_modelo
     Documento:
       type: object

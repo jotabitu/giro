@@ -8,8 +8,8 @@ import { Aviso, Button, Dialogo, Escolha, Etapas, Gaveta, IconButton, KpiTile, L
 const dir = new URL("./", import.meta.url);
 
 describe("componentes", () => {
-  it("são os 12 do design system mais os componentes da T-042, T-046, T-054, T-440, T-496, T-503, T-509, T-510, T-514 e T-520, cada um com preview e README", () => {
-    expect(CATALOGO).toHaveLength(28);
+  it("são os 12 do design system mais os componentes da T-042, T-046, T-054, T-440, T-496, T-503, T-509, T-510, T-514, T-520 e T-521, cada um com preview e README", () => {
+    expect(CATALOGO).toHaveLength(29);
     for (const c of CATALOGO) {
       expect(existsSync(new URL(`components/${c.nome}/README.md`, dir)), `README de ${c.nome}`).toBe(true);
       expect(existsSync(new URL(`components/${c.nome}/${c.nome}.tsx`, dir)), `código de ${c.nome}`).toBe(true);

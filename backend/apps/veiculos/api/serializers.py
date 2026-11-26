@@ -219,6 +219,8 @@ class DicasDaLeituraSerializer(serializers.Serializer[Any]):
     marca_modelo = serializers.CharField(allow_null=True)
     # T-415: as versões do catálogo que batem com o texto, para a pessoa escolher uma.
     candidatos = ModeloSerializer(many=True)
+    # T-521: a versão que a leitura preencheu, a mais parecida com o texto; `null` sem versões.
+    escolhido = ModeloSerializer(allow_null=True)
 
 
 class LeituraCrlvSerializer(serializers.Serializer[Any]):

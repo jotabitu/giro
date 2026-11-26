@@ -506,29 +506,34 @@ export const veiculosFalso = {
     if (!podeEditar()) throw new ErroApi(403, "permissao", "Você não tem permissão para cadastrar veículos");
     if (!/.pdf$/i.test(arquivo.name)) throw new ErroApi(400, "validacao", "Confira o arquivo", undefined, { arquivo: "Envie o PDF do CRLV-e." });
     if (!/crlv/i.test(arquivo.name)) throw new ErroApi(422, "VEI-08", "Não conseguimos ler este documento. Preencha os campos à mão.");
-    // T-415 (VEI-08): "CHEVROLET/CRUZE LT NB" não traz o modelo, só a marca e as 3 versões que batem no catálogo.
-    if (/cruze/i.test(arquivo.name))
+    // T-415, T-521 (VEI-08): "CHEVROLET/CRUZE LT NB" bate com 3 versões; a API preenche a mais parecida e manda as outras para trocar.
+    if (/cruze/i.test(arquivo.name)) {
+      const cruze = [
+        { marca: "GM - Chevrolet", modelo: "CRUZE LT 1.4 16V Turbo Flex 4p Aut.", tipo: "carro" as const },
+        { marca: "GM - Chevrolet", modelo: "CRUZE LT 1.8 16V FlexPower 4p Aut.", tipo: "carro" as const },
+        { marca: "GM - Chevrolet", modelo: "CRUZE LT 1.8 16V FlexPower 4p Mec.", tipo: "carro" as const },
+      ];
       return {
         documento: "crlv",
-        campos: { placa: "RAB1C23", chassi: "9BGKS48B0PG123456", renavam: "01234567891", marca: "GM - Chevrolet", modelo: null, ano_fabricacao: 2023, ano_modelo: 2023, cor: "prata", combustivel: "flex", ...CAMPOS_DA_VEI_09_VAZIOS },
-        lidos: ["placa", "chassi", "renavam", "marca", "ano_fabricacao", "ano_modelo", "cor", "combustivel"],
-        quantidade: 8,
-        rotulo: "CRLV-e lido · 8 campos preenchidos",
+        campos: { placa: "RAB1C23", chassi: "9BGKS48B0PG123456", renavam: "01234567891", marca: "GM - Chevrolet", modelo: cruze[0]!.modelo, ano_fabricacao: 2023, ano_modelo: 2023, cor: "prata", combustivel: "flex", ...CAMPOS_DA_VEI_09_VAZIOS },
+        lidos: ["placa", "chassi", "renavam", "marca", "modelo", "ano_fabricacao", "ano_modelo", "cor", "combustivel"],
+        quantidade: 9,
+        rotulo: "CRLV-e lido · 9 campos preenchidos",
         exercicio: 2026,
-        dicas: {
-          marca_modelo: "CHEVROLET/CRUZE LT NB",
-          candidatos: [
-            { marca: "GM - Chevrolet", modelo: "CRUZE LT 1.4 16V Turbo Flex 4p Aut.", tipo: "carro" },
-            { marca: "GM - Chevrolet", modelo: "CRUZE LT 1.8 16V FlexPower 4p Aut.", tipo: "carro" },
-            { marca: "GM - Chevrolet", modelo: "CRUZE LT 1.8 16V FlexPower 4p Mec.", tipo: "carro" },
-          ],
-        },
+        dicas: { marca_modelo: "CHEVROLET/CRUZE LT NB", candidatos: cruze, escolhido: cruze[0]! },
         leitura: "comprovante-do-cruze",
       };
+    }
+    // T-521 (CA-521-02): "SUZUKI/YES 125" não está no catálogo; marca (com o nome do catálogo) e modelo saem do texto.
+    if (/yes125/i.test(arquivo.name)) {
+      const campos = { placa: "SUZ1A25", chassi: "9CDNF41LJKM123456", renavam: "01234567892", marca: "Suzuki", modelo: "YES 125", ano_fabricacao: 2019, ano_modelo: 2019, cor: "preta", combustivel: "gasolina", ...CAMPOS_DA_VEI_09_VAZIOS } as LeituraCrlv["campos"];
+      const lidos = lidosDe(campos);
+      return { documento: "crlv", campos, lidos, quantidade: lidos.length, rotulo: `CRLV-e lido · ${lidos.length} campos preenchidos`, exercicio: 2026, dicas: { marca_modelo: "SUZUKI/YES 125", candidatos: [], escolhido: null }, leitura: "comprovante-do-yes125" };
+    }
     // CA-421-01: os 9 de antes e os 7 da VEI-09 que o documento traz; carroceria e observações vazias ficam fora da conta.
     const campos = { placa: "TBC5H21", chassi: "9C2JC7500TR012345", renavam: "01234567890", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: 2026, ano_modelo: 2026, cor: "vermelha", combustivel: "gasolina", ...CAMPOS_DO_TBC5H21 } as LeituraCrlv["campos"];
     const lidos = lidosDe(campos);
-    return { documento: "crlv", campos, lidos, quantidade: lidos.length, rotulo: `CRLV-e lido · ${lidos.length} campos preenchidos`, exercicio: 2026, dicas: { marca_modelo: null, candidatos: [] }, leitura: "comprovante-de-exemplo" };
+    return { documento: "crlv", campos, lidos, quantidade: lidos.length, rotulo: `CRLV-e lido · ${lidos.length} campos preenchidos`, exercicio: 2026, dicas: { marca_modelo: null, candidatos: [], escolhido: null }, leitura: "comprovante-de-exemplo" };
   },
 
   /**
@@ -546,7 +551,7 @@ export const veiculosFalso = {
     if (dono !== s.placa) throw new ErroApi(422, "crlv_outro_veiculo", "Este CRLV-e é de outro veículo.");
     const campos = { renavam: "01289934410", marca: s.marca, modelo: s.modelo, ano_fabricacao: s.anoFabricacao ?? s.ano, ano_modelo: s.ano, cor: s.cor, combustivel: "flex", ...CAMPOS_DA_VEI_09_VAZIOS, "documento.potencia_cv": 12, "documento.cilindrada_cc": 149, "documento.especie": "passageiro", "documento.tipo": "Motocicleta", "documento.lotacao": 2, "documento.peso_bruto_kg": 270 } as LeituraCrlvNoEditar["campos"];
     const lidos = lidosDe(campos);
-    return { documento: "crlv", campos, lidos, quantidade: lidos.length, rotulo: `CRLV-e lido · ${lidos.length} campos preenchidos`, exercicio: 2026, dicas: { marca_modelo: null, candidatos: [] }, leitura: `comprovante-do-veiculo-${id}` };
+    return { documento: "crlv", campos, lidos, quantidade: lidos.length, rotulo: `CRLV-e lido · ${lidos.length} campos preenchidos`, exercicio: 2026, dicas: { marca_modelo: null, candidatos: [], escolhido: null }, leitura: `comprovante-do-veiculo-${id}` };
   },
 
   /** GET /api/veiculos/modelos/: o catálogo local. */

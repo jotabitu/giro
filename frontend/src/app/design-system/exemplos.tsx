@@ -40,6 +40,7 @@ import {
   SelectField,
   Sidebar,
   StatusBadge,
+  CampoComSugestoes,
   CampoDeDinheiro,
   TextField,
   VehicleCard,
@@ -410,6 +411,33 @@ function ExemploTextField() {
   );
 }
 
+const MODELOS_DO_EXEMPLO = [
+  { valor: "CG 160 Fan", apoio: "Honda" },
+  { valor: "CG 160 Start", apoio: "Honda" },
+  { valor: "CG 160 Titan", apoio: "Honda" },
+  { valor: "Factor 150", apoio: "Yamaha" },
+  { valor: "Pop 110i ES", apoio: "Honda" },
+];
+
+function ExemploCampoComSugestoes() {
+  const [modelo, setModelo] = useState("CG 160 Fan");
+  const [livre, setLivre] = useState("");
+  const daLista = (texto: string) => MODELOS_DO_EXEMPLO.some((m) => m.valor.toLowerCase() === texto.trim().toLowerCase());
+  const filtrar = (texto: string) => MODELOS_DO_EXEMPLO.filter((m) => m.valor.toLowerCase().includes(texto.trim().toLowerCase()));
+  return (
+    <div className="flex flex-col gap-6">
+      {/* A lista aberta fica por cima do que vem abaixo: o espaço dela é reservado aqui. */}
+      <div className="min-h-[280px]">
+        <CampoComSugestoes rotulo="Modelo" abertoNoInicio value={modelo} onChange={(e) => setModelo(e.target.value)} opcoes={filtrar("CG")} escolhida={modelo} aoEscolher={(o) => setModelo(o.valor)} dica={daLista(modelo) ? "Da lista FIPE" : "Escolha da lista ou digite"} />
+      </div>
+      <Linha>
+        <CampoComSugestoes rotulo="Modelo" value={livre} onChange={(e) => setLivre(e.target.value)} opcoes={filtrar(livre)} escolhida={livre} aoEscolher={(o) => setLivre(o.valor)} dica={daLista(livre) ? "Da lista FIPE" : "Escolha da lista ou digite"} />
+        <CampoComSugestoes rotulo="Modelo" defaultValue="" opcoes={[]} aoEscolher={() => {}} erro="Informe o modelo" />
+      </Linha>
+    </div>
+  );
+}
+
 function ExemploSelectField() {
   const categorias = [
     { valor: "urbana", rotulo: "Urbana 110–125" },
@@ -704,6 +732,7 @@ const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "alert-card": ExemploAlertCard,
   "aviso": ExemploAviso,
   "button": ExemploButton,
+  "campo-com-sugestoes": ExemploCampoComSugestoes,
   "codigo-verificacao": ExemploCodigoVerificacao,
   "dialogo": ExemploDialogo,
   "escolha": ExemploEscolha,

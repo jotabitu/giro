@@ -218,6 +218,12 @@ button.wl-pipe__col[aria-pressed="true"] .wl-pipe__bar { outline: 2px solid var(
 .wl-menu__item--foco { background: var(--surface-sunken); }
 .wl-menu__texto { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 
+/* CampoComSugestoes: a mesma lista do seletor, aberta abaixo do campo */
+.wl-sugestoes { position: relative; display: flex; flex-direction: column; }
+.wl-sugestoes .wl-menu[hidden] { display: none; }
+.wl-sugestoes__apoio { font-size: 14px; line-height: 20px; color: var(--ink-muted); }
+.wl-sugestoes .wl-menu__item[aria-selected="true"] { font-weight: 500; }
+
 /* Dialogo e Gaveta (elemento nativo dialog) */
 .wl-modal { box-sizing: border-box; max-width: none; max-height: none; margin: auto; padding: 0; border: 0; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-pop); overflow: hidden; }
 .wl-modal::backdrop { background: color-mix(in srgb, var(--solid) 45%, transparent); }

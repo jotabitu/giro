@@ -287,7 +287,7 @@ def test_vei_08_le_os_16_campos(moto, frota, caplog) -> None:
     assert corpo["lidos"] == DEZESSEIS and corpo["quantidade"] == 16
     assert corpo["rotulo"] == "CRLV-e lido · 16 campos preenchidos"
     assert corpo["exercicio"] == 2026
-    assert corpo["dicas"] == {"marca_modelo": None, "candidatos": []}
+    assert corpo["dicas"] == {"marca_modelo": None, "candidatos": [], "escolhido": None}
     assert corpo["documento"] == "crlv" and corpo["leitura"]
     assert Veiculo.objects.count() == antes  # nada gravado
     # CA-247-02: nem na resposta nem no log; nem placa, nem o nome do arquivo.
@@ -424,12 +424,16 @@ def test_vei_08_salvar_sem_validade_ou_com_arquivo_que_nao_e_pdf(moto, frota) ->
 
 
 def test_vei_08_modelo_fora_da_lista(moto) -> None:
-    """CA-247-05."""
+    """CA-247-05, com a mudança da T-521: sem versão no catálogo, marca e modelo saem do texto."""
     corpo = _ler(moto, pdfs.CRLV_FORA_DA_LISTA.pdf()).json()
-    assert corpo["campos"]["marca"] is None and corpo["campos"]["modelo"] is None
-    assert corpo["quantidade"] == 14  # 7 da VEI-08 e 7 do documento (VEI-09, T-421)
-    assert corpo["rotulo"] == "CRLV-e lido · 14 campos preenchidos"
-    assert corpo["dicas"] == {"marca_modelo": "SUZUKI/YES 125", "candidatos": []}
+    assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == ("Suzuki", "YES 125")
+    assert corpo["quantidade"] == 16  # os 9 da VEI-08 e 7 do documento (VEI-09, T-421)
+    assert corpo["rotulo"] == "CRLV-e lido · 16 campos preenchidos"
+    assert corpo["dicas"] == {
+        "marca_modelo": "SUZUKI/YES 125",
+        "candidatos": [],
+        "escolhido": None,
+    }
 
 
 def test_vei_08_um_campo_no_singular() -> None:

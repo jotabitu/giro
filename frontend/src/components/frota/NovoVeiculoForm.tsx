@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bike, Car, ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { useDeferredValue, useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
+import { useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { BarraDeAcoes, CampoDeDinheiro, Icone, Panel, SelectField, TextField, useBlocoVisivel } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo } from "@/lib/api";
@@ -13,6 +13,7 @@ import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
 import { categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoVeiculo, semCategoriaDoTipo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
 import { useAvisoDeSaida } from "./AvisoDeSaida";
+import { CampoDoModelo } from "./CampoDoModelo";
 import { CamposDoDocumento } from "./CamposDoDocumento";
 import { capaDaLista, EnvioDasFotos, cadastrarComFotos, envioTerminouBem, enviarEmSequencia, escolherFotos, fotosQueFaltam, FotosEscolhidas, itensDoEnvio, soltarMiniatura, type FotoEscolhida, type ItemDoEnvio } from "./FotosDoCadastro";
 import type { RecusaDeFoto } from "./PecasDaGaleria";
@@ -89,8 +90,6 @@ export function NovoVeiculoForm() {
     formState: { errors },
   } = useForm<ValoresVeiculo>({ resolver: zodResolver(esquemaVeiculo), defaultValues: valoresIniciais });
   const v = watch();
-  const marcaAdiada = useDeferredValue(v.marca);
-  const modeloAdiado = useDeferredValue(v.modelo);
 
   const categorias = useQuery({
     queryKey: ["categorias", { filial: v.filial_id, tipo: v.tipo }],
@@ -115,12 +114,6 @@ export function NovoVeiculoForm() {
     clearErrors("categoria_id");
   }
 
-  const modelos = useQuery({
-    queryKey: ["modelos", { tipo: v.tipo, marca: marcaAdiada.trim(), busca: modeloAdiado.trim() }],
-    queryFn: () => veiculos.modelos({ tipo: v.tipo, marca: marcaAdiada.trim(), busca: modeloAdiado.trim() }),
-    placeholderData: (anterior) => anterior,
-  });
-  const daLista = (modelos.data ?? []).some((m) => m.modelo.toLowerCase() === v.modelo.trim().toLowerCase());
 
   const salvar = useMutation({
     mutationFn: (valores: ValoresVeiculo) => {
@@ -136,11 +129,14 @@ export function NovoVeiculoForm() {
     setLidos(valores);
     setCrlv(lido);
   }
-  /** Versão escolhida entre as que a API achou: preenche marca e modelo como a escolha da lista (VEI-08). */
+  /** Versão escolhida entre as que a API achou, ou da lista FIPE: preenche marca e modelo (VEI-08). */
   function escolherVersao(m: ModeloDoCatalogo) {
     setValue("marca", m.marca, { shouldDirty: true });
     setValue("modelo", m.modelo, { shouldDirty: true, shouldValidate: true });
     clearErrors(["marca", "modelo"]);
+    // T-521: trocar por outra versão que bate com o documento continua "Lido do documento"; uma da lista FIPE, não.
+    const doDocumento = crlv?.leitura.dicas.candidatos.some((c) => c.marca === m.marca && c.modelo === m.modelo);
+    setLidos((l) => (doDocumento ? { ...l, marca: m.marca, modelo: m.modelo } : l));
   }
   function tirarCrlv() {
     setCrlv(null);
@@ -321,22 +317,13 @@ export function NovoVeiculoForm() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <PreencherPeloCrlv lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} aoEscolherVersao={escolherVersao} />
+          <PreencherPeloCrlv lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} />
 
           <Panel titulo="Identificação">
             <div className="grid gap-4 md:grid-cols-2">
               <TextField cheio mono rotulo="Placa" autoComplete="off" autoCapitalize="characters" maxLength={8} dica={dicaDe("placa", "Padrão antigo ou Mercosul")} erro={erro("placa")} {...register("placa")} />
               <TextField cheio rotulo="Marca" autoComplete="off" dica={dicaDe("marca")} erro={erro("marca")} {...register("marca")} />
-              <div>
-                <TextField cheio rotulo="Modelo" autoComplete="off" list="modelos-do-catalogo" dica={dicaDe("modelo", daLista ? "Da lista FIPE" : "Escolha da lista ou digite")} erro={erro("modelo")} {...register("modelo")} />
-                <datalist id="modelos-do-catalogo">
-                  {(modelos.data ?? []).map((m) => (
-                    <option key={`${m.marca}|${m.modelo}`} value={m.modelo}>
-                      {m.marca}
-                    </option>
-                  ))}
-                </datalist>
-              </div>
+              <CampoDoModelo tipo={v.tipo} marca={v.marca} modelo={v.modelo} registro={register("modelo")} dica={(padrao) => dicaDe("modelo", padrao)} erro={erro("modelo")} versoes={crlv?.leitura.dicas.candidatos ?? []} aoEscolher={escolherVersao} />
               <div className="grid grid-cols-2 gap-3">
                 <TextField cheio mono rotulo="Ano de fabricação" inputMode="numeric" maxLength={4} dica={dicaDe("ano_fabricacao")} erro={erro("ano_fabricacao")} {...register("ano_fabricacao")} />
                 <TextField cheio mono rotulo="Ano do modelo" inputMode="numeric" maxLength={4} dica={dicaDe("ano_modelo")} erro={erro("ano_modelo")} {...register("ano_modelo")} />
