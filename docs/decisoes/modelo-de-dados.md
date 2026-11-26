@@ -233,6 +233,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 ### 8. Categoria de veículo · `veiculos.Categoria` · ativável
 
+> **Desde a ADR 0043 (26 nov 2026):** o moto ou carro é do veículo (`Veiculo.tipo_veiculo`); a categoria é o "Tipo de plano", opcional no veículo, e guarda o `tipo_veiculo` só para filtrar a escolha.
+>
 > **Desde a ADR 0041 (18 nov 2026):** a categoria é o "Tipo de veículo" (nome e moto ou carro). Nenhuma locação, ficha ou Frota lê preço dela. `PrecoCategoria` fica, sem ser apagado, só como modelo de preço do cadastro, da importação e do assistente; a `filial` deixa de ter efeito no preço. O preço é do veículo (9b).
 
 | Campo | Tipo | Observação |
@@ -258,7 +260,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `combustivel` | enum `gasolina`, `etanol`, `flex`, `diesel`, `eletrico`, `hibrido`, nulo | `VEI-08` (T-247); nulo nos veículos de antes |
 | `km_atual` | int ≥ 0 | só sobe (`VEI-01`); muda por serviço |
 | `capacidade_tanque_litros` | `Decimal(5,1)`, nulo | base do combustível no acerto (`DEV-01`); seed PNB7C04 = 16.0 |
-| `categoria` | FK → `Categoria` | |
+| `tipo_veiculo` | enum `moto`, `carro`, sem default | rótulo "Veículo"; decide a CNH (`CLI-02`), a vistoria (`VIS-01`) e os filtros (ADR 0043) |
+| `categoria` | FK → `Categoria`, nulo, `PROTECT` | o "Tipo de plano", opcional; preenchida, do mesmo `tipo_veiculo` (conferido no serviço, ADR 0043) |
 | `filial` | FK → `Filial` | |
 | `status` | enum `disponivel`, `reservado`, `alugado`, `em_manutencao`, `indisponivel`, `a_venda`, `vendido`, `baixado`, `em_movimentacao` | transições da seção "Veículos" (`REGRA_TRANSICAO` = `VEI`); `em_movimentacao` pela T-286 (`MOV-03`) |
 | `motivo_status` | texto, nulo | bloqueio, baixa |
@@ -271,7 +274,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `potencia_cv` | smallint, nulo, `CHECK 1..999` | `VEI-09` (T-421); 0 do documento fica nulo |
 | `cilindrada_cc` | smallint, nulo, `CHECK 1..9999` | `VEI-09` |
 | `especie` | enum `passageiro`, `carga`, `misto`, `competicao`, `tracao`, `especial`, `colecao`, nulo | `VEI-09` (CTB, art. 96) |
-| `tipo_documento` | texto(30), vazio | `VEI-09`, o "tipo" do CRLV-e ("Motocicleta"); o nome evita colidir com `tipo_veiculo` (moto ou carro, da categoria) |
+| `tipo_documento` | texto(30), vazio | `VEI-09`, o "tipo" do CRLV-e ("Motocicleta"); o nome evita colidir com `tipo_veiculo` (moto ou carro) |
 | `carroceria` | texto(30), vazio | `VEI-09`; "NÃO APLICAVEL" fica vazio |
 | `lotacao` | smallint, nulo, `CHECK 1..99` | `VEI-09`, pessoas com o motorista |
 | `peso_bruto_kg` | int, nulo, `CHECK > 0` | `VEI-09`; o documento traz toneladas |
@@ -289,7 +292,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `referencia_fipe_mes` | data, nula | dia 1 do mês do preço |
 | `referencia_fipe_origem` | enum `fipe`, `manual`, nulo | dono do `referencia_fipe_centavos` |
 
-- Índices: `(filial, status)`, `categoria`.
+- Índices: `(filial, status)`, `(filial, tipo_veiculo)` (ADR 0043), `categoria`.
+- `CHECK veiculo_tipo_valido`: `tipo_veiculo IN ('moto', 'carro')`.
 - Campos FIPE (T-422, ADR 0038): uma migração, todos opcionais; os veículos antigos nascem `sem_versao`. Só `veiculos.services` escreve (cadastro, editar, `POST .../fipe/` e `aplicar_referencias_fipe`). Índice parcial `(fipe_situacao)` com `fipe_situacao <> 'ok'` (filtro da Frota e pendências da rotina). `CHECK (fipe_codigo = '' OR fipe_codigo ~ '^[0-9]{6}-[0-9]$')`. `CAMPOS_AUDITORIA`: os campos FIPE entram como `inteiro`, menos os que a rotina grava (valor, mês, origem e situação vindos dela não geram evento).
 - Campos da `VEI-09` (T-421): todos opcionais, uma migração só, sem dado novo nos veículos antigos (texto vazio ou nulo); só o QXA-4B21 do seed os preenche. Nenhum entra em índice nem muda status. `CAMPOS_AUDITORIA`: `inteiro` para todos, inclusive `numero_motor` e `observacoes_crlv` (a auditoria da empresa é lida só por administrador, `AUD-01`).
 - Transições extras de T-031: `vendido` → `a_venda` (venda cancelada, `VEN-07`) e `vendido` → `indisponivel` (recompra numa troca: o serviço acha o veículo pelo chassi e reaproveita o cadastro, `VEI-07`).
