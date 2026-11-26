@@ -397,6 +397,11 @@ def excluir(veiculo: Veiculo) -> Veiculo:
         )
         if travado.status not in FORA_DA_FROTA:
             atualizar_uso("veiculos", -1)
+        # O pedido pendente do veículo (a correção de km, APR-06) sai da caixa do gerente: o
+        # veículo não existe mais para aprovar (M1 da segurança no #679).
+        aprovacoes.cancelar_pendentes(
+            origem_tipo="veiculo", origem_id=travado.pk, motivo="Veículo excluído"
+        )
     return travado
 
 
@@ -1151,7 +1156,10 @@ def aplicar_correcao_aprovada(
     Se o km mudou depois do pedido (outra leitura entrou), a correção pedida não vale mais:
     409 `km_mudou`, e a aprovação volta inteira."""
     with transaction.atomic():
-        travado = _travar(Veiculo.objects.get(pk=veiculo_id))
+        try:
+            travado = _travar(Veiculo(pk=veiculo_id))
+        except Veiculo.DoesNotExist as erro:  # excluído (VEI-22): o pedido já foi cancelado
+            raise NaoEncontrado("nao_encontrado", "Veículo não encontrado.") from erro
         if travado.km_atual != km_anterior:
             raise Conflito(
                 "km_mudou",

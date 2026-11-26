@@ -1156,7 +1156,12 @@ def frota_ativa_em(dia: date, filiais: Iterable[int]) -> int:
     fim = timezone.make_aware(datetime.combine(dia + timedelta(days=1), time.min))
     ultimo: dict[int, str] = {}
     for veiculo_id, para in (
-        HistoricoStatusVeiculo.objects.filter(veiculo__filial_id__in=list(filiais), em__lt=fim)
+        # O excluído (VEI-22) não conta em dia nenhum: para a locadora ele não existiu.
+        HistoricoStatusVeiculo.objects.filter(
+            veiculo__filial_id__in=list(filiais),
+            veiculo__excluido_em__isnull=True,
+            em__lt=fim,
+        )
         .order_by("veiculo_id", "em", "id")
         .values_list("veiculo_id", "para")
     ):

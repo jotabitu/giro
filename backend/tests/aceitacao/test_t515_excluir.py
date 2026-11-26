@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 
+from apps.aprovacoes.models import PedidoAprovacao
 from apps.auditoria.models import EventoAuditoria
 from apps.clientes import exclusao as exclusao_cliente
 from apps.clientes import services as clientes_services
@@ -22,14 +23,16 @@ from apps.plataforma.models import UsoEmpresa
 from apps.veiculos import exclusao as exclusao_veiculo
 from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import DocumentoVeiculo, FotoVeiculo, PlanoVeiculo, Veiculo
-from apps.veiculos.selectors import contar_veiculos_do_plano
+from apps.veiculos.selectors import contar_veiculos_do_plano, frota_ativa_em
 from comum import arquivos, leituras
 from comum.auditoria import Ator, TipoAtor, usar_ator
+from comum.erros import NaoEncontrado
 
 from .test_t013_veiculos import _caucaia
 from .test_t014_clientes import DOCUMENTOS, JULIANA, _enviar, _suporte
 from .test_t015_locacoes import Cenario
 from .test_t015_locacoes import cenario as cenario
+from .test_t178_despesas import frota_com_historico as frota_com_historico
 
 VEICULOS = "/api/veiculos/"
 CLIENTES = "/api/clientes/"
@@ -535,3 +538,40 @@ def test_cli_13_auditoria_com_o_nome_mascarado_e_sem_documento(cenario: Cenario)
     assert "Juliana" not in texto
     documentos = EventoAuditoria.objects.filter(acao="documento_cliente.excluir")
     assert documentos.count() == 4
+
+
+# --- Revisão da segurança no #679 (M1, M2) ---
+
+
+def test_vei_22_apr_06_excluir_cancela_o_pedido_de_correcao_de_km(cenario: Cenario) -> None:
+    """M1: o pedido APR-06 pendente sai da caixa do gerente; aprovar depois não dá 500."""
+    sak = cenario.sak
+    api = cenario.moto.api
+    assert (
+        api("João").post(f"{VEICULOS}{sak.pk}/km/", {"km": 3500}, format="json").status_code == 200
+    )
+    pedido = api("João").post(
+        f"{VEICULOS}{sak.pk}/corrigir-km/",
+        {"km": 3400, "motivo": "Erro de digitação"},
+        format="json",
+    )
+    assert pedido.status_code == 202, pedido.json()
+    pedido_id = pedido.json()["pedido_aprovacao"]["id"]
+
+    assert _excluir_veiculo(cenario, sak).status_code == 200
+    cancelado = PedidoAprovacao.objects.get(pk=pedido_id)
+    assert cancelado.status == "cancelado"
+    # Mesmo chamado direto, o assinante da aprovação responde 404, e não 500.
+    with pytest.raises(NaoEncontrado):
+        veiculos_services.aplicar_correcao_aprovada(sak.pk, 3400, 3500, "Erro", pedido_id)
+
+
+def test_vei_22_fin_16_o_excluido_nao_entra_no_rateio_da_frota(
+    cenario: Cenario, frota_com_historico: int
+) -> None:
+    """M2: a frota ativa do rateio (FIN-16) lê o histórico de status e não conta o excluído."""
+    dia, filiais = date(2026, 10, 7), [cenario.frota.centro.pk]
+    antes = frota_ativa_em(dia, filiais)
+    assert antes > 0
+    assert _excluir_veiculo(cenario, cenario.sak).status_code == 200
+    assert frota_ativa_em(dia, filiais) == antes - 1
