@@ -417,6 +417,7 @@ def test_ven_10_trava_do_estoque(cenario):  # noqa: F811
     with pytest.raises(Conflito) as erro:
         veiculos_services.voltar_para_frota(cb)
     assert erro.value.codigo == "VEN-10"
+    assert erro.value.detalhes == {"venda_id": criada["id"]}
     with pytest.raises(Conflito):
         veiculos_services.baixar(cb, "roubo", "")
     assert Veiculo.objects.get(pk=cb.pk).status == "a_venda"
@@ -477,3 +478,21 @@ def test_ven_venda_da_empresa_a_nao_aparece_na_b(cenario):  # noqa: F811
     finally:
         connection.set_tenant(cenario.moto.empresa)
     assert Venda.objects.filter(pk=criada["id"]).exists()
+
+
+def test_vei_23_venda_aberta_leva_a_venda(cenario):  # noqa: F811
+    """VEI-23: o 409 `VEN-10` do voltar para a frota e da baixa traz `detalhes.venda_id`, para o
+    "Ver a venda" do diálogo."""
+    cb = _cb(cenario)
+    criada = _criada(cenario, "enviar", veiculo=cb, forma="a_vista")
+    url = f"/api/veiculos/{cb.pk}/"
+    voltar = _api(cenario, "Mariana").post(f"{url}voltar-para-frota/", {}, format="json")
+    assert voltar.status_code == 409
+    assert voltar.json() == {
+        "codigo": "VEN-10",
+        "mensagem": f"Este veículo tem uma venda em andamento ({criada['codigo']}).",
+        "detalhes": {"venda_id": criada["id"]},
+    }
+    baixa = {"motivo": "roubo", "descricao": ""}
+    baixar = _api(cenario, "Mariana").post(f"{url}baixar/", baixa, format="json")
+    assert (baixar.status_code, baixar.json()["detalhes"]) == (409, {"venda_id": criada["id"]})

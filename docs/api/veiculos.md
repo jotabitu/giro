@@ -331,6 +331,10 @@ Todas `POST /api/veiculos/{id}/<acao>/`, respondem 200 com a representação. Tr
 | `voltar-para-frota` | `{}` | `a_venda` → `disponivel`. 409 `VEN-10` se houver venda aberta do veículo | administrador, gerente |
 | `baixar` | `{ motivo: "perda_total" \| "roubo" \| "sucata" \| "outro", descricao }` | qualquer, exceto `alugado` → `baixado`, inclusive `em_movimentacao` e com movimentação aberta (abaixo) | administrador |
 
+**Baixa: motivo e descrição** (`VEI-23`, T-518): 400 `validacao` sem `motivo` ou com motivo fora da lista, em `motivo`: "Escolha o motivo da baixa.". `descricao` tem até 200 caracteres em todos os motivos (acima, em `descricao`: "Use até 200 caracteres.") e é obrigatória só no `outro` (ausente, vazia ou só espaços, em `descricao`: "Descreva o motivo da baixa."). Nos outros motivos, é opcional.
+
+**Venda aberta** (`VEN-10`): `voltar-para-frota` e `baixar` com venda em `proposta`, `negociacao` ou `aguardando_aprovacao` respondem 409 `{ "codigo": "VEN-10", "mensagem": "Este veículo tem uma venda em andamento (VEN-0177).", "detalhes": { "venda_id": 177 } }`. O `venda_id` leva o "Ver a venda" do diálogo da ficha (`VEI-23`).
+
 As transições de locação, vistoria, OS e venda não têm endpoint aqui: acontecem pelos serviços desses módulos.
 
 **Baixa com movimentação aberta** (`MOV-03`, decisão do dono em 16 out 2026, T-310; contrato na T-311): não há 409. A baixa leva o veículo a `baixado` e, na mesma transação, cancela a movimentação `agendada`, `em_transito` ou `no_local` dele com o motivo "Veículo baixado: {motivo}". As despesas das paradas ficam, a transferência não acontece e o veículo fica na filial em que está, que é a de saída. O detalhe está em `movimentacoes.md`, "Baixa do veículo com a movimentação aberta". 200: a representação, com `movimentacao_aberta: null`.

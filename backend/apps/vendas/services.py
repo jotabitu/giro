@@ -445,7 +445,12 @@ def venda_em_andamento(veiculo_id: int, exceto: int | None = None) -> Venda | No
 
 
 def _em_andamento(venda: Venda) -> Conflito:
-    return Conflito("VEN-10", f"Este veículo tem uma venda em andamento ({venda.codigo}).")
+    # `venda_id` leva o "Ver a venda" do diálogo da ficha do veículo à venda certa (VEI-23).
+    return Conflito(
+        "VEN-10",
+        f"Este veículo tem uma venda em andamento ({venda.codigo}).",
+        {"venda_id": venda.pk},
+    )
 
 
 def _conferir_ven_10(veiculo_id: int, exceto: int | None = None) -> None:

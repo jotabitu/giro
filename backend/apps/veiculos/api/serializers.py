@@ -286,8 +286,29 @@ class ColocarAVendaSerializer(serializers.Serializer[Any]):
 
 
 class BaixarSerializer(serializers.Serializer[Any]):
-    motivo = serializers.ChoiceField(choices=list(MOTIVOS_DE_BAIXA))
-    descricao = serializers.CharField(required=False, allow_blank=True, default="")
+    """VEI-23: o motivo é obrigatório; a descrição, até 200 caracteres, só é obrigatória no
+    `outro` (vazia ou só espaços: "Descreva o motivo da baixa.")."""
+
+    motivo = serializers.ChoiceField(
+        choices=list(MOTIVOS_DE_BAIXA),
+        error_messages={
+            "required": "Escolha o motivo da baixa.",
+            "null": "Escolha o motivo da baixa.",
+            "invalid_choice": "Escolha o motivo da baixa.",
+        },
+    )
+    descricao = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=200,
+        error_messages={"max_length": "Use até 200 caracteres."},
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs["motivo"] == "outro" and not attrs.get("descricao", "").strip():
+            raise serializers.ValidationError({"descricao": ["Descreva o motivo da baixa."]})
+        return attrs
 
 
 class KmSerializer(serializers.Serializer[Any]):
