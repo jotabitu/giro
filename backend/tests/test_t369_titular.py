@@ -144,11 +144,15 @@ def test_aud_06_exportar_titular_entrega_os_dados_completos_e_audita(
         _exportar(empresa_a, lucas, saida)
 
 
-def test_aud_06_anonimizar_titular_apaga_dados_e_arquivos_e_audita(empresa_a, equipe, lucas):
+def test_aud_06_anonimizar_titular_apaga_dados_e_arquivos_e_audita(
+    empresa_a, equipe, lucas, django_capture_on_commit_callbacks
+):
     caminho = DocumentoCliente.objects.get(cliente=lucas).arquivo.name
     assert arquivos.provedor().existe(caminho)
 
-    _anonimizar(empresa_a, lucas)
+    # Os arquivos saem depois do commit, pela tarefa com nova tentativa (T-517).
+    with django_capture_on_commit_callbacks(execute=True):
+        _anonimizar(empresa_a, lucas)
 
     cliente = Cliente.objects.get(pk=lucas.pk)
     assert cliente.anonimizado_em is not None

@@ -35,5 +35,6 @@ class Command(BaseCommand):
         except Cliente.DoesNotExist as erro:
             raise CommandError("Cliente não encontrado nesta empresa.") from erro
         self.stdout.write(
-            f"Cliente {opcoes['cliente_id']} anonimizado; {apagados} arquivo(s) apagado(s)."
+            f"Cliente {opcoes['cliente_id']} anonimizado; {apagados} arquivo(s) e pasta(s) na fila"
+            " para apagar."
         )

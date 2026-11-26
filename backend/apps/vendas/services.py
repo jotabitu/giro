@@ -19,6 +19,7 @@ from django.db import IntegrityError, transaction
 from django_tenants.utils import tenant_context
 
 from apps.clientes import selectors as clientes_selectors
+from apps.clientes import services as clientes_services
 from apps.clientes.models import Cliente, StatusCliente
 from apps.contas import selectors as contas_selectors
 from apps.contratos import selectors as contratos_selectors
@@ -399,10 +400,9 @@ def _veiculo_para_venda(veiculo_id: Any, usuario: Any, *, travar: bool = False) 
 
 
 def _cliente(cliente_id: Any) -> Cliente:
-    cliente: Cliente | None = Cliente.objects.filter(pk=cliente_id).first()
-    if cliente is None:
-        raise ErroDeValidacao({"cliente_id": ["Cliente não encontrado."]})
-    return cliente
+    """Sempre dentro da transação do criar e do editar: trava o cliente contra o excluir
+    (CLI-13; T-517, Segurança no #679, B2)."""
+    return clientes_services.travar_para_vincular(cliente_id)
 
 
 def _interessado(dados: dict[str, Any]) -> tuple[str, str]:

@@ -19,6 +19,7 @@ from comum.campos import anonimizar_cifrado, buscar_por_hash
 from comum.dinheiro import formatar_reais
 from comum.documentos import cnpj_valido, cpf_valido, so_digitos
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, NaoEncontrado
+from comum.tasks import apagar_depois_do_commit
 
 from . import exclusao, selectors
 from .models import (
@@ -63,6 +64,20 @@ def _travar_id(cliente_id: int) -> Cliente:
 
 def _travar(cliente: Cliente) -> Cliente:
     return _travar_id(cliente.pk)
+
+
+def travar_para_vincular(cliente_id: Any) -> Cliente:
+    """Para quem cria registro ligado ao cliente (locação, venda, conta), dentro da transação de
+    quem chama: trava a linha (`FOR NO KEY UPDATE`, que espera o `FOR UPDATE` do excluir) e lê de
+    novo pelo manager, que tira o excluído. Sem isso, a locação criada no mesmo instante do
+    excluir entrava depois da conferência do histórico (CLI-13; T-517, Segurança no #679, B2).
+    400 no campo `cliente_id` quando o cliente não existe ou foi excluído."""
+    travado: Cliente | None = (
+        Cliente.objects.select_for_update(no_key=True).filter(pk=cliente_id).first()
+    )
+    if travado is None:
+        raise ErroDeValidacao({"cliente_id": ["Cliente não encontrado."]})
+    return travado
 
 
 def _recarregar(cliente: Cliente) -> None:
@@ -580,6 +595,19 @@ def apagar_dados_pessoais(cliente: Cliente, nome: str) -> None:
     cliente.nascimento = None
     for campo in CAMPOS_APAGADOS:
         setattr(cliente, campo, "")
+    _limpar_linhas_de_importacao(cliente)
+
+
+def _limpar_linhas_de_importacao(cliente: Cliente) -> None:
+    """T-517 (Segurança no #679, B4): a linha da planilha que criou o cliente guarda CPF e contato
+    (`dados_cifrados`) e o hash do documento até `apagar_em`; saem junto com o cadastro. Pelo
+    registro do app, sem importar `importacao` (ADR 0011, ADR 0017). Dado temporário, sem evento."""
+    from django.apps import apps
+
+    linha = apps.get_model("importacao", "LinhaImportacao")
+    linha.objects.filter(objeto_tipo="cliente", objeto_id=cliente.pk).update(
+        dados_cifrados="", dados={}, chave_documento=""
+    )
 
 
 def soltar_documentos(cliente: Cliente, acao: str, categoria: str, regra: str) -> list[str]:
@@ -640,7 +668,7 @@ def excluir(cliente: Cliente) -> Cliente:
             depois={"excluido_em": agora.isoformat(), "excluido_por": quem},
             regra="CLI-13",
         )
-    # Depois do commit: se algo antes falhar, nenhum arquivo some sem o registro mudar.
-    for caminho in caminhos:
-        arquivos.provedor().apagar(caminho)
+        # Depois do commit (se algo antes falhar, nenhum arquivo some sem o registro mudar), por
+        # uma tarefa com nova tentativa; a resposta não depende dela (T-517, Segurança no #679, B3).
+        apagar_depois_do_commit(caminhos)
     return travado

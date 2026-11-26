@@ -4,6 +4,10 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-11-26] Remover arquivo de dado pessoal depois do commit (T-517)
+O arquivo que o registro soltou (documento do cliente no excluir e na anonimização, PDF da proposta na troca de cliente) sai por `comum.tasks.apagar_depois_do_commit(caminhos, pastas)`. Ela agenda a tarefa `arquivos_apagar` no `on_commit`, com nova tentativa (12 vezes, de 60 s até 1 h), e a resposta não depende dela. Não chame `arquivos.provedor().apagar` direto depois do `atomic`: com o armazenamento fora do ar, isso dava 500 e deixava o arquivo órfão. Nos testes, envolva a chamada com `django_capture_on_commit_callbacks(execute=True)`.
+Quem cria registro ligado ao cliente (locação, venda, conta) chama `clientes.services.travar_para_vincular(cliente_id)` dentro da transação (CLI-13, corrida com o excluir).
+
 ### [2026-11-18] Fluxo de venda (ADR 0042, T-501)
 - A venda de balcão vira `vendida` sozinha, por evento, quando o contrato de compra e venda está assinado e a entrada paga (`VEN-15`), como a retirada da locação. A entrada nasce na etapa "Assinatura" como `TipoConta.ENTRADA` com `aguarda_retirada = True` (o campo quer dizer "a conta espera o fato que a libera": sem régua, sem multa).
 - O funil lê `entrou_proposta_em`, `entrou_negociacao_em` e `vendida_em` (gravados uma vez); a meta é `MetaVenda` por vendedor, filial e mês. Fase 1 em três PRs do backend (1a, 1b, 1c); troca e cancelamento na fase 2; financiamento na fase 3, com outra ADR. A venda da quitação (`VEN-11`) não muda.

@@ -341,7 +341,9 @@ def test_cli_13_ficha_manda_a_confirmacao_pronta(cenario: Cenario) -> None:
     }
 
 
-def test_cli_13_sem_historico_exclui_apaga_os_dados_e_some(cenario: Cenario) -> None:
+def test_cli_13_sem_historico_exclui_apaga_os_dados_e_some(
+    cenario: Cenario, django_capture_on_commit_callbacks
+) -> None:
     juliana = _juliana(cenario)
     caminhos: list[str] = [
         str(caminho)
@@ -353,7 +355,9 @@ def test_cli_13_sem_historico_exclui_apaga_os_dados_e_some(cenario: Cenario) -> 
     assert len(caminhos) == 4
     antes = cenario.moto.api().get(CLIENTES).json()["contagens"]
 
-    resposta = _excluir_cliente(cenario, juliana)
+    # Os arquivos saem depois do commit, pela tarefa com nova tentativa (T-517).
+    with django_capture_on_commit_callbacks(execute=True):
+        resposta = _excluir_cliente(cenario, juliana)
     assert resposta.status_code == 200, resposta.json()
     assert resposta.json() == {"id": juliana, "mensagem": "Cliente excluído."}
 

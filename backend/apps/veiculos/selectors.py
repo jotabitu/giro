@@ -212,8 +212,12 @@ def categorias(
     filial_id: int | None = None, tipo_veiculo: str | None = None, ativo: str | None = None
 ) -> QuerySet[Categoria]:
     """As da empresa e, com `filial_id`, as dessa filial."""
+    # O join não passa pelo manager: o excluído (VEI-22) sai à mão (T-517, Segurança no #679, B1).
     qs = Categoria.objects.annotate(
-        _veiculos=Count("veiculos", filter=~Q(veiculos__status__in=FORA_DA_FROTA))
+        _veiculos=Count(
+            "veiculos",
+            filter=~Q(veiculos__status__in=FORA_DA_FROTA) & Q(veiculos__excluido_em__isnull=True),
+        )
     )
     if filial_id is not None:
         qs = qs.filter(Q(filial__isnull=True) | Q(filial_id=filial_id))

@@ -24,6 +24,7 @@ from comum.auditoria import Ator, Categoria, TipoAtor, auditar, registrar_evento
 from comum.campos import CampoCifrado, CampoHashBusca
 from comum.conexao import schema_atual
 from comum.erros import Conflito, ErroDeNegocio, ErroDeRegra, ErroDeValidacao, SemPermissao
+from comum.tasks import apagar_depois_do_commit
 
 from . import selectors, services
 from .models import Cliente, DocumentoCliente
@@ -214,7 +215,8 @@ def _anular_links(cliente: Cliente) -> list[str]:
 def anonimizar(empresa: Any, cliente_id: int, pedido: Pedido, confirmacao: str) -> int:
     """Apaga os cifrados (hash aleatório), troca nome, contato, endereço e referência e grava
     `anonimizado_em`; os documentos ficam inativos e sem arquivo. Recusa com pendência (422
-    `cliente_com_pendencia`) ou já anonimizado. Devolve quantos arquivos saíram."""
+    `cliente_com_pendencia`) ou já anonimizado. Devolve quantos arquivos e pastas foram para a
+    fila de remoção (`comum.tasks.arquivos_apagar`)."""
     with tenant_context(empresa), transaction.atomic(), usar_ator(_ator(pedido)):
         cliente = Cliente.objects.select_for_update().get(pk=cliente_id)
         if cliente.anonimizado_em is not None:
@@ -244,9 +246,9 @@ def anonimizar(empresa: Any, cliente_id: int, pedido: Pedido, confirmacao: str) 
         # Sem documento e sem CPF, o cadastro volta a `incompleto` (CLI-03).
         services.acertar_cadastro(cliente)
         pastas = _anular_links(cliente)
+        # Depois do commit (se algo antes falhar, nenhum arquivo some sem o registro mudar), por
+        # uma tarefa com nova tentativa: o armazenamento fora do ar não deixa arquivo órfão nem
+        # derruba a anonimização (T-517, Segurança no #679, B3).
+        apagar_depois_do_commit(caminhos, pastas)
     _registrar_na_plataforma(empresa, "empresa.anonimizar_titular", pedido, cliente_id)
-    # Depois do commit: se algo antes falhar, nenhum arquivo some sem o registro mudar.
-    for caminho in caminhos:
-        arquivos.provedor().apagar(caminho)
-    apagados = sum(arquivos.provedor().apagar_prefixo(pasta) for pasta in pastas)
-    return len(caminhos) + apagados
+    return len(caminhos) + len(pastas)

@@ -21,6 +21,7 @@ from django.utils import timezone
 
 from apps.auditoria.models import EventoAuditoria
 from apps.clientes import selectors as clientes_selectors
+from apps.clientes import services as clientes_services
 from apps.clientes.models import Cliente
 from apps.contratos import selectors as contratos_selectors
 from apps.contratos.models import Finalidade
@@ -585,6 +586,7 @@ def criar_rascunho(dados: dict[str, Any], filial: Filial, vendedor: Any) -> Loca
     locacao = Locacao(filial=filial, vendedor=vendedor)
     _preencher(locacao, dados, montagem)
     with transaction.atomic(), auditar(locacao, "locacao.criar", Categoria.OPERACAO):
+        clientes_services.travar_para_vincular(locacao.cliente_id)  # CLI-13 (T-517, B2)
         locacao.save()
     return locacao
 
@@ -609,6 +611,7 @@ def editar_rascunho(locacao: Locacao, dados: dict[str, Any]) -> Locacao:
         if "plano_veiculo_id" in dados and "parcelamento_mensal" not in dados:
             completos["parcelamento_mensal"] = None  # VEI-12: o "como paga" do plano novo
         montagem = montar(completos, travada.filial, exceto=travada.pk)
+        clientes_services.travar_para_vincular(completos["cliente_id"])  # CLI-13 (T-517, B2)
         with auditar(travada, "locacao.editar", Categoria.OPERACAO):
             _preencher(travada, completos, montagem)
             travada.save(update_fields=[*_campos_salvos(), "atualizado_em"])
