@@ -13,8 +13,8 @@ São 25 entidades principais. As 5 primeiras ficam no schema público (plataform
 | Acesso de suporte | quem, empresa, motivo, chamado, permissão (ver/editar), início, fim | plataforma | sempre com prazo |
 | Filial | nome, CNPJ, endereço, horário, matriz sim/não | Empresa | ao menos 1 |
 | Usuário | nome, e-mail, celular, perfil, filiais, permissões extras, 2FA, status | Empresa | perfis na seção Usuários |
-| Tipo de plano (antiga categoria de veículo) | nome, moto ou carro (os preços passaram ao veículo, `VEI-12`) | Empresa (ou filial) | ex.: Urbana 110–125 |
-| Veículo | placa, chassi, renavam, modelo, ano, cor, km, veículo (moto ou carro, `VEI-11`), tipo de plano (opcional), filial, status, valor de compra, valor de venda | Filial | estados na seção Veículos |
+| Categoria de veículo (guardada, sem uso desde a T-522) | nome, moto ou carro; os preços passaram ao veículo (`VEI-12`) e a categoria saiu das telas (`VEI-11`) | Empresa (ou filial) | ex.: Urbana 110–125 |
+| Veículo | placa, chassi, renavam, modelo, ano, cor, km, veículo (moto ou carro, `VEI-11`), filial, status, planos e preços (`VEI-12`), valor de compra, valor de venda | Filial | estados na seção Veículos |
 | Documento do veículo | tipo (CRLV, IPVA, seguro, rastreador), validade, arquivo | Veículo | alerta 30 dias antes |
 | Cliente | tipo (PF/PJ), nome, CPF/CNPJ, CNH, contato, endereço, referência, status | Empresa | compartilhado entre filiais |
 | Plano de locação especial | nome, regra (preço fixo ou desconto), condições | Empresa | ex.: Entregador, Mensal fidelidade |

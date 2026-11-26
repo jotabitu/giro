@@ -119,7 +119,7 @@ São 63 telas desenhadas, em desktop e celular (123 arquivos), no [canvas de des
 
 | Área | Telas | Quem usa | Qtd. |
 | --- | --- | --- | --- |
-| Compra e implantação | Escolha do plano, pagamento, conta criada, criar senha, assistente de 8 passos (marca, filial, ramo e veículos, preços, contrato, recebimentos, importar dados, equipe) | Administrador (1ª vez) | 12 |
+| Compra e implantação | Escolha do plano, pagamento, conta criada, criar senha, assistente de 7 passos (marca, filial, ramo e veículos, contrato, recebimentos, importar dados, equipe; o passo de preços saiu na T-522) | Administrador (1ª vez) | 12 |
 | Acesso e início | Login, visão geral, visão geral pós-implantação, aceitar convite | Todos | 4 |
 | Inícios por perfil | Gerente, vendedor, vistoriador, financeiro | Cada perfil | 4 |
 | Operação | Frota, ficha do veículo, nova locação, locações, detalhe da locação, vistoria de saída, devolução, manutenções, nova venda, cliente | Gerente, vendedor, vistoriador | 10 |
