@@ -254,7 +254,7 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     # no passo 3, depois das concessões finais.
     schema_pronto_em = models.DateTimeField(null=True, blank=True, editable=False)
 
-    objects = EmpresaQuerySet.as_manager()  # type: ignore[misc]
+    objects = EmpresaQuerySet.as_manager()  # type: ignore[misc,assignment]
 
     auto_create_schema = True
     auto_drop_schema = False

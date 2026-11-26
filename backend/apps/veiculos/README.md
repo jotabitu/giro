@@ -102,6 +102,12 @@ Assina `aprovacoes.pedido_decidido` em `eventos.py` (T-081): `APR-06` aprovado c
 - O e-mail ao gerente da `AUT-06` entra com o contrato de notificações; hoje o aviso é só no sino.
 - A exportação (`AUD-07`) e a recusa `VEN-10` do `voltar-para-frota` entram com os apps delas.
 
+## Excluir sem histórico (T-515, VEI-22)
+
+- `Veiculo.excluido_em` e `excluido_por`. `Veiculo.objects` (manager da `MaquinaDeEstados`) tira o excluído de tudo; `Veiculo.todos` vê também os excluídos. Placa e chassi únicos só fora do excluído (`veiculo_placa_unica`, `veiculo_chassi_unico`).
+- `exclusao.py`: `historico(veiculo)` lê os contadores `historico_<tipo>` do alvo `veiculos.Veiculo` (ADR 0015; `locacoes`, `vendas`, `vistorias`, `financeiro`, `movimentacoes` e a transferência, daqui), os textos e `acao()`, o `acoes.excluir` da ficha.
+- `services.excluir(veiculo)`: com o veículo travado, 409 `VEI-22` com `historico`; desliga planos, documentos e fotos, desconta o uso do plano (`PLT-03`) e grava `veiculo.excluir`. Testes: `tests/aceitacao/test_t515_excluir.py`.
+
 ## Implementado (T-486, T-487)
 
 - `VEI-18`: `selectors.anotar_entrada_no_estoque` (a última passagem para `a_venda` que não veio de `vendido`), `dados_do_estoque` e os campos `a_venda_desde`, `dias_em_estoque` e `parado` na lista e na ficha (ausentes para o vistoriador). `?ordem=em_estoque`, padrão com `?status=a_venda`.

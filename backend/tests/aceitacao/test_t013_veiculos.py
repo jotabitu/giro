@@ -443,6 +443,8 @@ def test_vei_02_ca_013_10_acoes_permitidas(moto, frota):
 def test_vei_02_ca_013_11_acoes_combina_perfil_e_estado(moto, frota):
     sak = frota.veiculos["SAK1D39"]
     rodrigo = moto.api("Rodrigo").get(_url(sak)).json()["acoes"]
+    # VEI-22 (T-515): a confirmação ou o aviso, conferidos em `test_t515_excluir.py`.
+    assert rodrigo.pop("excluir")["permitido"] is True
     assert rodrigo == {
         "editar": True,
         "bloquear": True,

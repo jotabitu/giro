@@ -9,6 +9,7 @@ from typing import Any
 
 from rest_framework import serializers
 
+from .. import exclusao
 from ..models import (
     Combustivel,
     ComoPaga,
@@ -573,9 +574,31 @@ class VeiculoComDadosDoDocumentoSerializer(VeiculoSerializer):
     anotacoes = serializers.CharField(allow_null=True)
 
 
+class ExcluirVeiculoSerializer(serializers.Serializer[Any]):
+    """VEI-22 (T-515): a confirmação (`permitido`) ou o aviso com o histórico, prontos."""
+
+    permitido = serializers.BooleanField()
+    titulo = serializers.CharField()
+    texto = serializers.CharField(allow_null=True)  # a confirmação; `null` no aviso
+    motivo = serializers.CharField(allow_null=True)  # o histórico achado; `null` na confirmação
+    caminho = serializers.CharField(allow_null=True)  # colocar à venda ou a baixa
+    historico = serializers.ListField(
+        child=serializers.ChoiceField(choices=[tipo for tipo, _ in exclusao.HISTORICO])
+    )
+
+
+class VeiculoExcluidoSerializer(serializers.Serializer[Any]):
+    """Resposta do `POST .../excluir/` (VEI-22): o aviso da Frota, "Veículo QXA-4B21 excluído."."""
+
+    id = serializers.IntegerField()
+    mensagem = serializers.CharField()
+
+
 class AcoesDaFichaSerializer(AcoesDoVeiculoSerializer):
     # Administrador e gerente, fora de vendido e baixado; nunca o suporte (VEI-10, PLT-07).
     editar_fotos = serializers.BooleanField()
+    # Administrador e gerente; `null` para os outros perfis e o suporte (VEI-22).
+    excluir = ExcluirVeiculoSerializer(allow_null=True)
 
 
 class VeiculoDetalheSerializer(VeiculoComDadosDoDocumentoSerializer):

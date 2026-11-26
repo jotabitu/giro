@@ -69,7 +69,13 @@ def levando(usuario_id: int) -> int:
     return int(Movimentacao.objects.filter(levado_por_id=usuario_id, status__in=ABERTAS).count())
 
 
+def historico_do_veiculo(veiculo_id: int) -> int:
+    """VEI-22: movimentação em qualquer estado."""
+    return int(Movimentacao.objects.filter(veiculo_id=veiculo_id).exists())
+
+
 def registrar() -> None:
+    leituras.registrar_contador(VEICULO, "historico_movimentacao", historico_do_veiculo)
     leituras.registrar_anotacao(VEICULO, "movimentacao_aberta", anotar_veiculo, montar_aberta)
     # Só a ficha pede este bloco: fica num alvo próprio para a Frota não consultá-lo.
     leituras.registrar_anotacao(FICHA, "movimentacoes", _sem_anotar, selectors.bloco_da_ficha)

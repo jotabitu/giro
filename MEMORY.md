@@ -134,6 +134,12 @@ Favicon: o ícone do Giro aparece em todas as abas do navegador, inclusive no si
 - **Alternativas descartadas:** compactar sempre, que é mais caro; limpar é seguro porque tudo fica no repositório (handoff, quadro, regras).
 - **Consequências:** conferir a barra de contexto a cada entrega e antes de mandar tarefa nova.
 
+### [2026-11-25] Registro excluído some pelo manager padrão (T-515, VEI-22, CLI-13)
+- **Contexto:** o dono pediu "Excluir" no veículo e no cliente sem histórico, com o registro guardado (padrão A) e sumindo de tudo para a locadora.
+- **Decisão:** `excluido_em` no model e o manager da `MaquinaDeEstados` (`comum.estados.ManagerDeEstados`) filtra `excluido_em__isnull=True` em todo model que tem o campo. `Model.todos` vê os excluídos; o `_base_manager` continua sem filtro (FK de outro registro e `auditar` abrem o excluído). Unicidade de placa e chassi por `UniqueConstraint` parcial; no cliente, o hash do CPF vira aleatório ao apagar os dados. O histórico que impede excluir vem por contadores `historico_<tipo>` (ADR 0015), sem `recurso=`.
+- **Alternativas descartadas:** filtrar à mão em cada consulta (dezenas de lugares, fácil esquecer um seletor); um manager novo só nos dois models (o mypy perde o tipo de `objects` em todo o código).
+- **Consequências:** consulta que parte de outro model (`PlanoVeiculo.objects.filter(...)`, tarefas) não passa pelo filtro: o excluir desliga planos, documentos e fotos, e quem varre por esses models deve juntar `veiculo__excluido_em__isnull=True` se precisar.
+
 ## Log de Bugs Resolvidos
 
 ### [2026-11-18] Migration de dados quebrava a criação de empresa nova (T-494, ADR 0040)
