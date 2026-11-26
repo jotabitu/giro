@@ -9,6 +9,8 @@ import {
   type FiltroClientes,
   type ListaClientes,
   type LocacoesDoCliente,
+  type EdicaoCliente,
+
   type NovoCliente,
   type RespostaDoDesbloqueio,
   type StatusCliente,
@@ -73,12 +75,18 @@ const REGISTROS: Registro[] = [
 ];
 
 const SITUACAO_ORIGINAL = REGISTROS.map((x) => ({ id: x.id, status: x.status, motivoBloqueio: x.motivoBloqueio }));
+const CADASTRO_ORIGINAL = REGISTROS.map((x) => structuredClone({ id: x.id, nome: x.nome, documento: x.documento, celular: x.celular, pendencias: x.pendencias, extra: x.extra }));
 
 /** Volta a situação dos clientes ao seed (bloquear, desbloquear, inativar e reativar mudam o registro). */
 export function reiniciarClientesFalsos() {
   for (const o of SITUACAO_ORIGINAL) {
     const x = REGISTROS.find((y) => y.id === o.id);
     if (x) Object.assign(x, { status: o.status, motivoBloqueio: o.motivoBloqueio });
+  }
+  // O PATCH (T-516) muda o cadastro: volta o que ele toca.
+  for (const o of CADASTRO_ORIGINAL) {
+    const x = REGISTROS.find((y) => y.id === o.id);
+    if (x) Object.assign(x, { nome: o.nome, documento: o.documento, celular: o.celular, pendencias: o.pendencias, extra: o.extra });
   }
 }
 
@@ -249,6 +257,24 @@ function podeVerCompleto(): boolean {
   return p === "administrador" || p === "gerente" || p === "vendedor";
 }
 
+/** Validação do POST e do PATCH (CLI-01). `ignorar` é o cliente em edição. */
+function validarCorpo(tipo: "pf" | "pj", c: Partial<NovoCliente>, ignorar?: number) {
+  const campos: Record<string, string> = {};
+  if (c.documento !== undefined) {
+    const doc = digitos(c.documento);
+    if (tipo === "pf" ? !cpfValido(doc) : !cnpjValido(doc)) campos.documento = tipo === "pf" ? "CPF inválido. Confira os números." : "CNPJ inválido. Confira os números.";
+  }
+  if (c.endereco?.cep && digitos(c.endereco.cep).length !== 8) campos["endereco.cep"] = "CEP deve ter 8 números";
+  if (c.cnh?.categoria && !["A", "B", "AB", "C", "D", "E", "ACC"].includes(c.cnh.categoria)) campos["cnh.categoria"] = "Categoria de CNH inválida";
+  if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
+  if (c.documento === undefined) return;
+  const doc = digitos(c.documento);
+  const existente = REGISTROS.find((r) => r.documento === doc && r.id !== ignorar);
+  if (existente) {
+    throw new ErroApi(409, "CLI-01", tipo === "pf" ? "Já existe um cliente com este CPF" : "Já existe um cliente com este CNPJ", { cliente_id: existente.id, nome: existente.nome });
+  }
+}
+
 export const clientesFalso = {
   async listar(f: FiltroClientes = {}): Promise<ListaClientes> {
     semAcessoDoVistoriador();
@@ -308,18 +334,34 @@ export const clientesFalso = {
     return analisarCorpo(corpo);
   },
 
+  /** PATCH: as mesmas validações do POST só para o que veio no corpo (CLI-01); o próprio cliente não conta como documento repetido. */
+  async atualizar(id: number, corpo: EdicaoCliente): Promise<ClienteCompleto> {
+    await pausa(300);
+    const perfil = perfilAtualFalso();
+    if (perfil !== "administrador" && perfil !== "gerente" && perfil !== "vendedor") throw new ErroApi(403, "permissao", "Seu perfil não tem acesso a esta ação.");
+    const reg = acharRegistro(id);
+    const { documento, nome, celular, ...resto } = corpo;
+    validarCorpo(reg.tipo, { documento, endereco: resto.endereco ?? undefined, cnh: resto.cnh ?? undefined }, id);
+    if (documento !== undefined) reg.documento = digitos(documento);
+    if (nome !== undefined) reg.nome = nome;
+    if (celular !== undefined) reg.celular = digitos(celular);
+    // Apagar: texto vazio ou `null` tira o dado (como o PATCH da API).
+    const extra: Record<string, unknown> = { ...(reg.extra ?? {}) };
+    for (const [k, v] of Object.entries(resto)) {
+      if (v === null || v === "") delete extra[k];
+      else extra[k] = v;
+    }
+    reg.extra = extra as Registro["extra"];
+    reg.pendencias = [...TIPOS_DOCUMENTO.filter((t) => !reg.anexos.includes(t)), ...pendenciasDe({ tipo: reg.tipo, nome: reg.nome, documento: reg.documento, celular: reg.celular, ...reg.extra })];
+    // CLI-03: completar a última pendência leva a `ativo`; tirar um dado obrigatório leva a `incompleto`; bloqueado e inativo ficam como estão.
+    if (reg.status === "ativo" || reg.status === "incompleto") reg.status = reg.pendencias.length === 0 ? "ativo" : "incompleto";
+    return completo(reg);
+  },
+
   async criar(c: NovoCliente): Promise<ClienteCompleto> {
     await pausa(300);
     const doc = digitos(c.documento);
-    const campos: Record<string, string> = {};
-    if (c.tipo === "pf" ? !cpfValido(doc) : !cnpjValido(doc)) campos.documento = c.tipo === "pf" ? "CPF inválido. Confira os números." : "CNPJ inválido. Confira os números.";
-    if (c.endereco?.cep && digitos(c.endereco.cep).length !== 8) campos["endereco.cep"] = "CEP deve ter 8 números";
-    if (c.cnh?.categoria && !["A", "B", "AB", "C", "D", "E", "ACC"].includes(c.cnh.categoria)) campos["cnh.categoria"] = "Categoria de CNH inválida";
-    if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
-    const existente = REGISTROS.find((r) => r.documento === doc);
-    if (existente) {
-      throw new ErroApi(409, "CLI-01", c.tipo === "pf" ? "Já existe um cliente com este CPF" : "Já existe um cliente com este CNPJ", { cliente_id: existente.id, nome: existente.nome });
-    }
+    validarCorpo(c.tipo, c);
     const pendencias = [...TIPOS_DOCUMENTO, ...pendenciasDe(c)];
     const r: Registro = {
       id: 1211 + REGISTROS.length,

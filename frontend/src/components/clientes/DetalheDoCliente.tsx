@@ -43,6 +43,8 @@ type Dados = {
   locacoes: UseQueryResult<LocacoesDoCliente>;
   docs: Documentos;
   podeLocar: boolean;
+  /** `clientes_cadastrar`: administrador, gerente e vendedor (PATCH, T-516). */
+  podeEditar: boolean;
   administrador: boolean;
 };
 
@@ -198,7 +200,7 @@ const dataDoDocumento = (c: ClienteCompleto, tipo: TipoDocumentoCliente) => {
 
 // ---------------------------------------------------------------------------------------------- desktop
 
-function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados & { c: ClienteCompleto }) {
+function DesktopCompleto({ c, locacoes, docs, podeLocar, podeEditar, administrador }: Dados & { c: ClienteCompleto }) {
   const [mostrar, setMostrar] = useState(false);
   const fin = c.financeiro;
   const lista = locacoes.data;
@@ -230,10 +232,11 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados 
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           <BotaoWhatsApp c={c} altura />
-          {podeLocar && (
-            <Button disabled title={EM_BREVE} icone={<Icone de={Pencil} />} style={{ height: 56 }}>
+          {podeEditar && (
+            <Link href={`/clientes/${c.id}/editar`} className="wl-btn no-underline" style={{ height: 56 }}>
+              <Icone de={Pencil} />
               Editar
-            </Button>
+            </Link>
           )}
           {podeLocar && (
             <Link href={`/locacoes/nova?cliente=${c.id}`} className="wl-btn wl-btn--solid no-underline" style={{ height: 56, padding: "0 28px" }}>
@@ -425,7 +428,7 @@ function CartaoDoCelular({ titulo, children }: { titulo: string; children: React
 // O KpiTile não tem variante de celular: o cartão da referência (28px) entra por seletor de descendente.
 const KPI_DO_CELULAR = "[&_.wl-kpi]:px-4 [&_.wl-kpi]:py-[14px] [&_.wl-kpi__value]:text-[28px] [&_.wl-kpi__value]:leading-8 [&_.wl-kpi__meta]:text-[13px]";
 
-function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteCompleto }) {
+function CelularCompleto({ c, locacoes, docs, podeLocar, podeEditar }: Dados & { c: ClienteCompleto }) {
   const fin = c.financeiro;
   const lista = locacoes.data;
   const atual = lista?.resultados.find((l) => l.id === c.locacao_atual?.id);
@@ -441,10 +444,10 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
           <Icone de={ChevronLeft} />
         </Link>
         <div className="flex-1 text-[13px] text-ink-muted">Clientes</div>
-        {podeLocar && (
-          <button type="button" className="wl-icon-btn wl-icon-btn--sm" aria-label="Editar" disabled title={EM_BREVE} style={{ width: 44, height: 44 }}>
+        {podeEditar && (
+          <Link href={`/clientes/${c.id}/editar`} className="wl-icon-btn wl-icon-btn--sm" aria-label="Editar" style={{ width: 44, height: 44 }}>
             <Icone de={Pencil} />
-          </button>
+          </Link>
         )}
       </header>
 
@@ -457,12 +460,13 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
         <p className="text-[14px] text-ink-muted">
           {celular(c.celular)} · cliente desde {mesAno(c.cliente_desde)}
         </p>
-        <div className={`mt-[6px] grid w-full gap-2 ${podeLocar ? "grid-cols-2" : ""}`}>
+        <div className={`mt-[6px] grid w-full gap-2 ${podeEditar ? "grid-cols-2" : ""}`}>
           <BotaoWhatsApp c={c} />
-          {podeLocar && (
-            <Button disabled title={EM_BREVE} icone={<Icone de={Pencil} />} style={{ justifyContent: "center" }}>
+          {podeEditar && (
+            <Link href={`/clientes/${c.id}/editar`} className="wl-btn justify-center no-underline">
+              <Icone de={Pencil} />
               Editar
-            </Button>
+            </Link>
           )}
         </div>
       </section>
@@ -658,6 +662,7 @@ export function DetalheDoCliente({ id }: { id: number }) {
     locacoes,
     docs: { enviando, erros, enviar: podeCadastrar ? (tipo, arquivo) => enviar.mutate({ tipo, arquivo }) : null },
     podeLocar: eu.pode.locacoes_criar && (c.status === "ativo" || c.status === "incompleto"),
+    podeEditar: podeCadastrar,
     administrador: eu.perfil === "administrador",
   };
   return (
