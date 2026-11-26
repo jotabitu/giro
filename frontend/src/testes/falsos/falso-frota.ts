@@ -84,6 +84,11 @@ type Semente = {
   // VEI-22 (T-515): o que o veículo já teve. Sem a chave, locação e vistoria; `[]` é o cadastro feito por engano.
   historico?: HistoricoDoVeiculo[];
   excluido?: boolean;
+  // VEI-23 (T-518): sem plano ligado (VEI-15), a venda aberta (VEN-10) e a movimentação aberta (MOV-03).
+  semPlano?: boolean;
+  vendaAberta?: { id: number; codigo: string };
+  movimentacaoAberta?: string;
+  motivoStatus?: string | null;
 };
 
 type HistoricoDoVeiculo = NonNullable<VeiculoDetalhe["acoes"]["excluir"]>["historico"][number];
@@ -127,6 +132,36 @@ function excluirDoFalso(s: Semente): VeiculoDetalhe["acoes"]["excluir"] {
   };
 }
 
+/** Só dos testes (T-518): muda o veículo do falso (status, sem plano, venda ou movimentação aberta). Devolve o que desfaz. */
+export function ajustarVeiculoFalso(id: number, mudanca: Partial<Pick<Semente, "status" | "semPlano" | "vendaAberta" | "movimentacaoAberta" | "vendaCentavos" | "motivoStatus">>): () => void {
+  const s = SEMENTES.find((x) => x.id === id);
+  if (!s) throw new Error(`sem o veículo ${id}`);
+  const antes = { status: s.status, semPlano: s.semPlano, vendaAberta: s.vendaAberta, movimentacaoAberta: s.movimentacaoAberta, vendaCentavos: s.vendaCentavos, motivoStatus: s.motivoStatus };
+  Object.assign(s, mudanca);
+  return () => void Object.assign(s, antes);
+}
+
+const AVISO_SEM_PRECO = (s: Semente) => `A tabela de preços d${s.tipo === "moto" ? "esta moto" : "este carro"} não está preenchida. Preencha para alugar ou colocar à venda.`;
+const VERBO: Record<string, string> = { colocar_a_venda: "colocar à venda", voltar_para_frota: "voltar para a frota", baixar: "baixar" };
+
+function veiculoDaAcao(id: number, perfis: string[]): Semente {
+  if (!perfis.includes(perfilAtualFalso() ?? "")) throw new ErroApi(403, "permissao", "Seu perfil não tem acesso a esta ação.");
+  const s = SEMENTES.find((x) => x.id === id && !x.excluido);
+  if (!s) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+  return s;
+}
+
+function transicaoInvalida(s: Semente, acao: string, para: StatusVeiculo): ErroApi {
+  const rotulo = (ROTULO[s.status]?.rotulo ?? s.status).toLowerCase();
+  return new ErroApi(409, "transicao_veiculo", `Não é possível ${VERBO[acao]} um veículo ${rotulo}`, { de: s.status, para });
+}
+
+function travaDoEstoque(s: Semente) {
+  if (s.vendaAberta) throw new ErroApi(409, "VEN-10", `Este veículo tem uma venda em andamento (${s.vendaAberta.codigo}).`, { venda_id: s.vendaAberta.id });
+}
+
+const MOTIVOS_DA_BAIXA: Record<string, string> = { perda_total: "Perda total", roubo: "Roubo", sucata: "Sucata", outro: "Outro" };
+
 /** Só dos testes: o histórico chega depois de a ficha abrir (a corrida que a API resolve com o 409 VEI-22). */
 export function definirHistoricoDoVeiculoFalso(id: number, historico: HistoricoDoVeiculo[]) {
   const s = SEMENTES.find((x) => x.id === id);
@@ -160,6 +195,7 @@ const ROTULO: Record<string, { rotulo: string; tom: TomApi }> = {
   em_manutencao: { rotulo: "Em manutenção", tom: "alerta" },
   a_venda: { rotulo: "À venda", tom: "neutro" },
   indisponivel: { rotulo: "Indisponível", tom: "neutro" },
+  baixado: { rotulo: "Baixado", tom: "neutro" },
 };
 
 // VEI-10 (T-414): a galeria de cada veículo na memória. O QXA-4B21 tem 3 fotos; os outros nascem sem foto.
@@ -262,7 +298,8 @@ function montarCompleto(s: Semente): Veiculo {
     categoria: { id: s.categoriaId ?? CATEGORIAS.find((c) => c.nome === s.categoria)?.id ?? 2, nome: s.categoria },
     filial: FILIAIS.find((f) => f.id === s.filialId) ?? FILIAL,
     status: s.status,
-    motivo_status: null,
+    motivo_status: s.motivoStatus ?? null,
+    aviso_preco: s.semPlano ? AVISO_SEM_PRECO(s) : null,
     km_atual: s.km,
     km_atualizado_em: s.locacao ? "2026-09-23T12:00:00Z" : "2026-10-07T11:00:00Z",
     capacidade_tanque_litros: s.tanque !== undefined ? s.tanque : s.tipo === "moto" ? "16.0" : "47.0",
@@ -291,6 +328,7 @@ function montarCompleto(s: Semente): Veiculo {
       desbloquear: false,
       transferir: editar && s.status === "disponivel",
       baixar: perfilAtualFalso() === "administrador" && s.status !== "alugado",
+      aviso_baixar: perfilAtualFalso() === "administrador" && s.status !== "alugado" && s.movimentacaoAberta ? `A ${s.movimentacaoAberta} será cancelada.` : null,
       registrar_km: editar || perfilAtualFalso() === "vistoriador",
       corrigir_km: editar,
       // T-275 (MOV-03): só o veículo disponível se movimenta; o alugado diz por quê.
@@ -641,6 +679,43 @@ export const veiculosFalso = {
       historico_status: [{ de: "disponivel", para: "alugado", em: "2026-09-23T12:00:00Z", origem_codigo: "LOC-2841" }],
     };
     return semValores(detalhe);
+  },
+
+  /** VEN-01: `disponivel` → `a_venda`; sem plano ligado, 409 `VEI-15` (docs/api/veiculos.md, "Ações de status"). */
+  async colocarAVenda(id: number, corpo: { valor_venda_centavos: number; referencia_fipe_centavos?: number | null }): Promise<VeiculoDetalhe> {
+    await pausa(80);
+    const s = veiculoDaAcao(id, ["administrador", "gerente"]);
+    if (s.status !== "disponivel") throw transicaoInvalida(s, "colocar_a_venda", "a_venda");
+    if (!(corpo.valor_venda_centavos > 0)) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { valor_venda_centavos: "Informe o valor de venda." });
+    if (s.semPlano) throw new ErroApi(409, "VEI-15", AVISO_SEM_PRECO(s));
+    s.status = "a_venda";
+    s.vendaCentavos = corpo.valor_venda_centavos;
+    return this.obter(id);
+  },
+
+  /** `a_venda` → `disponivel`, ou `indisponivel` "sem preço" sem plano ligado (VEI-15); venda aberta, 409 `VEN-10`. */
+  async voltarParaFrota(id: number): Promise<VeiculoDetalhe> {
+    await pausa(80);
+    const s = veiculoDaAcao(id, ["administrador", "gerente"]);
+    if (s.status !== "a_venda") throw transicaoInvalida(s, "voltar_para_frota", "disponivel");
+    travaDoEstoque(s);
+    s.status = s.semPlano ? "indisponivel" : "disponivel";
+    s.motivoStatus = s.semPlano ? "Sem preço · ligue um plano" : null;
+    return this.obter(id);
+  },
+
+  /** Só o administrador; qualquer status menos `alugado` (409); descrição obrigatória no `outro`, até 200 (VEI-23); venda aberta, 409 `VEN-10`. */
+  async baixar(id: number, corpo: { motivo: string; descricao: string }): Promise<VeiculoDetalhe> {
+    await pausa(80);
+    const s = veiculoDaAcao(id, ["administrador"]);
+    if (!MOTIVOS_DA_BAIXA[corpo.motivo]) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { motivo: "Escolha o motivo da baixa." });
+    if (corpo.descricao.length > 200) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { descricao: "Use até 200 caracteres." });
+    if (corpo.motivo === "outro" && !corpo.descricao.trim()) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { descricao: "Descreva o motivo da baixa." });
+    if (s.status === "alugado") throw transicaoInvalida(s, "baixar", "baixado");
+    travaDoEstoque(s);
+    s.status = "baixado";
+    s.movimentacaoAberta = undefined;
+    return this.obter(id);
   },
 
   /** VEI-22: administrador e gerente; com histórico, 409 com a lista; o excluído some (404). */

@@ -136,6 +136,8 @@ export type Veiculo = {
     desbloquear: boolean;
     transferir: boolean;
     baixar: boolean;
+    /** MOV-03 (T-311): com `baixar` e a movimentação aberta, "A MOV-0002 será cancelada."; senão `null`. A tela mostra como vem. */
+    aviso_baixar?: string | null;
     registrar_km: boolean;
     corrigir_km: boolean;
     /** T-275: `movimentar` e o motivo quando for `false`; ausentes até a API mandar. */
@@ -151,6 +153,9 @@ export type Veiculo = {
     excluir?: ExcluirVeiculo | null;
   };
 };
+
+/** VEI-23 (T-518): o motivo da baixa, como o contrato (`POST .../baixar/`). */
+export type MotivoDaBaixa = "perda_total" | "roubo" | "sucata" | "outro";
 
 export type VendaDoVeiculo = {
   id: number;
