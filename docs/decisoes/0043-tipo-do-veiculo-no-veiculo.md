@@ -141,7 +141,7 @@ Ponto em aberto **T-522 · 1**, com este padrão. Se o dono decidir nascer `disp
 
 ### 6. Assistente de implantação
 
-- O passo `precos` sai de `PASSOS_IMPLANTACAO` (o assistente fica com um passo a menos) e o `Onboarding-Precos` sai do frontend (`PassoPrecos.tsx`).
+- O passo `precos` sai de `PASSOS_IMPLANTACAO`; nas regras, o assistente passa de 12 para 11 etapas (4 de compra e 7 passos), com Contrato 8, Recebimentos 9, Importar 10 e Equipe 11 (`IMP-04`, `PLT-12`, #692) e o `Onboarding-Precos` sai do frontend (`PassoPrecos.tsx`).
 - O funil da `IMP-05` fica Conta → Marca → Filial → Dados → 1ª locação (migração no item 2).
 - Sai a conferência do passo Preços da `IMP-07` (o preço agendado que chegava à data e marcava o passo).
 - Sai o atalho "Cadastre os preços antes de importar veículos." da importação.
@@ -172,7 +172,7 @@ Os textos finais são os das regras no PR #692; se divergirem daqui, valem os da
 
 ## Pontos em aberto (dependem do dono)
 
-Registrados pelo Produto em `docs/regras/pontos-em-aberto.md` (PR #692). Os pontos 2 a 7 da primeira versão saem: sem tipo de plano, não há categoria de outro tipo, transferência com tabela da filial, desativar com veículos, plano especial restrito nem passo Preços para decidir.
+Registrados pelo Produto em `docs/regras/pontos-em-aberto.md` (PR #692), com a mesma numeração e o padrão A já aplicado nas regras. Os pontos 2 a 7 da primeira versão saem: sem tipo de plano, não há categoria de outro tipo, transferência com tabela da filial, desativar com veículos, plano especial restrito nem passo Preços para decidir.
 
 | Ponto | Pergunta | Opções | Padrão desta ADR |
 | --- | --- | --- | --- |
@@ -190,8 +190,10 @@ Nenhum dos três muda o modelo desta ADR: o 1 é uma linha do `_criar`, o 2 é a
 | **B2** · importação e assistente | backend | B1 | importação com o Veículo por modelo (item 4), saída do passo Preços, do funil, da `IMP-07` e do resumo de Configurações, migração da etapa no `plataforma`, saída das rotas de categoria, planos especiais e de compra da tela; `docs/api/importacao.md`, `plataforma.md`, `configuracoes.md`, `locacoes.md`; OpenAPI | Moto Rápida importa 86 veículos escolhendo o Veículo por modelo; empresa parada em Preços sai da etapa; `test_imp_*` |
 | **F1** · cadastro, editar, ficha, movimentação | frontend | B1 | cadastro sem "Tipo de plano" e sem a prévia "Preços da categoria", com "Veículo"; editar com "Veículo", travado com locação aberta como hoje; ficha sem a linha "Tipo de plano"; Nova movimentação sem a categoria no destino; capturas claro e escuro, 1440 e 390 px | testes dos componentes e o E2E do cadastro passando |
 | **F2** · importação, assistente e Administração | frontend | B2 e o ponto T-522 · 2 | `CaixaDeImportacao` com "Veículo de cada modelo"; assistente sem `PassoPrecos`; `/admin/precos` conforme o ponto 2 (padrão: só "Extras"), sem categorias, histórico, planos especiais e planos de compra; cartão de Configurações; capturas | testes do assistente e da tela de extras |
+| **DS** · telas de referência | design-system | #692 e este PR | `Veiculo-Novo` e o editar com "Veículo" e sem tipo de plano; ficha sem a linha; `Onboarding-Importar` com "Veículo de cada modelo"; sai o `Onboarding-Precos` e o assistente fica com 7 passos (11 etapas); tela "Extras" (ponto T-522 · 2); Nova movimentação sem categoria; índice `docs/telas/README.md` | as telas citadas em F1 e F2 batem com as regras do #692 |
+| **QA** · conferência do lote | qa | B1, B2, F1, F2 | critérios e E2E com o seed novo: cadastro que nasce "sem preço", 86 veículos importados sem preço, transferência sem categoria, CNH e vistoria pelo Veículo, assistente com 7 passos | E2E verde na `develop` antes da promoção |
 
-B1 vem antes de tudo (o campo novo). B2 e F1 podem correr em paralelo depois de B1 mesclado. Cuidado com conflito: o PR #691 (T-521, aberto) mexe no `NovoVeiculoForm`; F1 começa depois dele mesclado ou faz `merge origin/develop` antes do push.
+B1 vem antes de tudo no código (o campo novo); DS pode correr junto com B1. B2 e F1 podem correr em paralelo depois de B1 mesclado; F1 e F2 seguem as telas de DS. O seed fica em B1, porque sem ele os testes da `dados-de-teste.md` quebram assim que o cadastro deixa de ler a categoria. Os extras não pedem backend novo (`/api/extras/` fica); só a rota da tela e o cartão de Configurações, em B2 e F2. Cuidado com conflito: o PR #691 (T-521, aberto) mexe no `NovoVeiculoForm`; F1 começa depois dele mesclado ou faz `merge origin/develop` antes do push.
 
 ## Alternativas consideradas
 
