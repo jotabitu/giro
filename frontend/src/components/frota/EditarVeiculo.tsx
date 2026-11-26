@@ -14,6 +14,7 @@ import { km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
 import { CAMPOS_VEI_09, categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoEdicao, semCategoriaDoTipo, temMotorEObservacoes, valoresDaLeitura, valoresDoVeiculo, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
+import { CampoDoModelo } from "./CampoDoModelo";
 import { CamposDoDocumento } from "./CamposDoDocumento";
 import { CorrigirIdentificacao } from "./CorrigirIdentificacao";
 import { DocumentosDoVeiculo } from "./DocumentosDoVeiculo";
@@ -90,11 +91,14 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
     setLidos(valores);
     setCrlv(lido);
   }
-  /** Versão escolhida entre as que a API achou no catálogo (T-415): preenche marca e modelo. */
+  /** Versão escolhida entre as que a API achou no catálogo (T-415), ou da lista FIPE (T-521): preenche marca e modelo. */
   function escolherVersao(m: ModeloDoCatalogo) {
     setValue("marca", m.marca, { shouldDirty: true });
     setValue("modelo", m.modelo, { shouldDirty: true, shouldValidate: true });
     clearErrors(["marca", "modelo"]);
+    // T-521: trocar por outra versão que bate com o documento continua "Lido do documento"; uma da lista FIPE, não.
+    const doDocumento = crlv?.leitura.dicas.candidatos.some((c) => c.marca === m.marca && c.modelo === m.modelo);
+    setLidos((l) => (doDocumento ? { ...l, marca: m.marca, modelo: m.modelo } : l));
   }
   function tirarCrlv() {
     setCrlv(null);
@@ -202,13 +206,13 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
 
       <form id="editar-veiculo" onSubmit={enviar} noValidate className="flex min-w-0 flex-col gap-6">
         <div className="contents">
-          <PreencherPeloCrlv veiculoId={ficha.id} lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} aoEscolherVersao={escolherVersao} />
+          <PreencherPeloCrlv veiculoId={ficha.id} lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} />
 
           <Panel titulo="Identificação">
             <div className="grid gap-4 md:grid-cols-2">
               <TextField cheio mono rotulo="Placa" value={placaComHifen(ficha.placa)} readOnly dica={podeCorrigir ? "Fixo no cadastro. Placa e chassi não mudam aqui. Para erro de digitação, use Corrigir placa ou chassi." : "Fixo no cadastro. Placa e chassi não mudam aqui. Para corrigir um erro de digitação, fale com o administrador."} />
               <TextField cheio rotulo="Marca" autoComplete="off" dica={dicaDe("marca")} erro={erro("marca")} {...register("marca")} />
-              <TextField cheio rotulo="Modelo" autoComplete="off" dica={dicaDe("modelo")} erro={erro("modelo")} {...register("modelo")} />
+              <CampoDoModelo tipo={v.tipo} marca={v.marca} modelo={v.modelo} registro={register("modelo")} dica={(padrao) => dicaDe("modelo", padrao)} erro={erro("modelo")} versoes={crlv?.leitura.dicas.candidatos ?? []} aoEscolher={escolherVersao} />
               <div className="grid grid-cols-2 gap-3">
                 <TextField cheio mono rotulo="Ano de fabricação" inputMode="numeric" maxLength={4} dica={dicaDe("ano_fabricacao")} erro={erro("ano_fabricacao")} {...register("ano_fabricacao")} />
                 <TextField cheio mono rotulo="Ano do modelo" inputMode="numeric" maxLength={4} dica={dicaDe("ano_modelo")} erro={erro("ano_modelo")} {...register("ano_modelo")} />

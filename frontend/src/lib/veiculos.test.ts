@@ -102,7 +102,7 @@ describe("valoresDaLeitura (VEI-08)", () => {
     quantidade: lidos.length,
     rotulo: "CRLV-e lido",
     exercicio: 2026,
-    dicas: { marca_modelo: null, candidatos: [] },
+    dicas: { marca_modelo: null, candidatos: [], escolhido: null },
     leitura: "c",
   });
 
