@@ -57,7 +57,8 @@ describe("Tabelas de preço (/admin/precos)", () => {
   it("loc_01_seed: o administrador vê as 4 categorias do seed com os preços vigentes, planos e extras", async () => {
     await entrar("mariana@motorapida.com.br");
     const t = texto(await pagina());
-    ordem(t, ["Administração", "Tabelas de preço", "Valores usados ao criar uma locação.", "Histórico de preços", "Nova categoria", "Por categoria"]);
+    ordem(t, ["Administração", "Tabelas de preço", "Modelos de preço dos tipos de veículo.", "Histórico de preços", "Nova categoria", "Por categoria"]);
+    ordem(t, ["Os preços agora ficam em cada veículo.", "Ir para Veículos"]);
     ordem(t, ["Urbana 110–125", "R$ 44,90", "R$ 299,40", "R$ 1.090", "R$ 300", "Editar"]);
     ordem(t, ["Street 150–160", "R$ 54,90", "R$ 329", "R$ 1.190", "R$ 300"]);
     ordem(t, ["Scooter premium", "R$ 79,90", "R$ 449", "R$ 1.590", "R$ 500"]);

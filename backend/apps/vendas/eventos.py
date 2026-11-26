@@ -31,3 +31,50 @@ def locacao_quitada(
         vendedor_id=vendedor_id,
         quitada_em=quitada_em,
     )
+
+
+@assinante("contratos.contrato_assinado")
+def contrato_assinado(
+    *,
+    origem_tipo: str,
+    origem_id: int,
+    tipo: str = "contrato",
+    contrato_id: int | None = None,
+    assinado_em: datetime | None = None,
+    **_: Any,
+) -> None:
+    """VEN-15 (ADR 0042, item 1): uma das duas condições da conclusão; o aditivo não conta."""
+    if origem_tipo == services.ORIGEM and tipo == "contrato":
+        services.registrar_contrato_assinado(origem_id, contrato_id, assinado_em)
+
+
+@assinante("financeiro.parcela_paga")
+def entrada_paga(
+    *,
+    origem_tipo: str = "",
+    origem_id: int | None = None,
+    tipo: str = "",
+    conta_id: int | None = None,
+    pago_em: datetime | None = None,
+    **_: Any,
+) -> None:
+    """VEN-15 (ADR 0042, item 1): a entrada (ou o total à vista) paga, a outra condição."""
+    if origem_tipo == services.ORIGEM and tipo == "entrada" and origem_id is not None:
+        services.registrar_entrada_paga(origem_id, conta_id, pago_em)
+
+
+@assinante("aprovacoes.pedido_decidido")
+def decisao_do_pedido(
+    *,
+    tipo: str,
+    status: str,
+    origem_tipo: str,
+    origem_id: int,
+    motivo: str = "",
+    decidido_por_id: int | None = None,
+    **_: Any,
+) -> None:
+    """APR-01 da venda (ADR 0042, item 5): aprovado, recusado ou cancelado volta a venda ao
+    estado de antes do pedido (`VEN-13`), na transação da decisão."""
+    if origem_tipo == services.ORIGEM and tipo == "APR-01":
+        services.aplicar_decisao_desconto(origem_id, status, motivo, decidido_por_id)

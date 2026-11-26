@@ -38,7 +38,7 @@ describe("tela Cadastrar veículo", () => {
   it("mostra os campos do contrato e as filiais da pessoa", () => {
     sessao.veiculos = "editar";
     const h = html(<NovoVeiculoForm />);
-    for (const t of ["Placa", "Marca", "Modelo", "Chassi", "Renavam", "Km atual", "Categoria de preço", "Salvar veículo", "Salvar e cadastrar outro"]) expect(h).toContain(t);
+    for (const t of ["Placa", "Marca", "Modelo", "Chassi", "Renavam", "Km atual", "Tipo de plano", "Salvar veículo", "Salvar e cadastrar outro"]) expect(h).toContain(t);
     expect(h).toContain("Nunca diminui depois de salvo");
     expect(h).toContain(">Filial Centro</option>");
   });
@@ -55,13 +55,13 @@ describe("tela Cadastrar veículo", () => {
   it("test_vei_11_tipo_antes_da_categoria_com_moto_marcado (CA-438-01)", () => {
     sessao.veiculos = "editar";
     const h = html(<NovoVeiculoForm />);
-    const tipo = h.indexOf(">Tipo de veículo</label>");
+    const tipo = h.indexOf(">Moto ou carro</label>");
     expect(tipo).toBeGreaterThan(h.indexOf(">Filial</label>"));
-    expect(tipo).toBeLessThan(h.indexOf(">Categoria de preço</label>"));
+    expect(tipo).toBeLessThan(h.indexOf(">Tipo de plano</label>"));
     expect(h).toMatch(/<option value="moto" selected="">Moto<\/option>/);
     expect(h).toContain('<option value="carro">Carro</option>');
     // O controle de tipo saiu do cabeçalho: um só campo de tipo na tela.
-    expect(h.match(/Tipo de veículo/g)).toHaveLength(1);
+    expect(h.match(/Tipo de plano/g)).toHaveLength(1);
   });
 
   it("a leitura do CRLV-e está ligada e a FIPE segue desativada (VEI-08)", () => {
@@ -73,6 +73,19 @@ describe("tela Cadastrar veículo", () => {
     expect(h).toContain('list="modelos-do-catalogo"');
     expect(h).not.toContain("Validade do CRLV");
     expect(h).toContain("A consulta FIPE ainda não está disponível");
+  });
+
+  it("T-519: o bloco do painel lateral e a barra flutuante submetem o mesmo form; a barra nasce escondida até o bloco sair da tela", () => {
+    sessao.veiculos = "editar";
+    const h = html(<NovoVeiculoForm />);
+    const formulario = h.slice(h.indexOf("<form"), h.indexOf("</form>"));
+    // Os dois botões principais estão dentro do mesmo <form>: Enter e clique salvam do mesmo jeito.
+    expect(formulario.match(/<button type="submit"[^>]*>Salvar veículo<\/button>/g)).toHaveLength(2);
+    expect(formulario.match(/>Salvar e cadastrar outro</g)).toHaveLength(1);
+    expect(formulario.match(/>Cancelar</g)).toHaveLength(2);
+    expect(formulario.indexOf("Salvar e cadastrar outro")).toBeLessThan(formulario.indexOf("sticky bottom-[88px]"));
+    // Antes da primeira medida o bloco conta como visível: a barra fica inerte e invisível.
+    expect(formulario).toMatch(/aria-hidden="true"[^>]*inert=""[^>]*class="sticky bottom-\[88px\][^"]*opacity-0/);
   });
 
   it("perfil sem permissão não vê o formulário", () => {

@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from apps.contas.api.acesso import VIEWS_DE_ACESSO
 from apps.contas.api.usuarios import VIEWS_DE_CONVITE
 from apps.contratos.api.views import VIEWS_DE_ASSINATURA
+from apps.vendas.api.fase_1c import VIEWS_DA_PROPOSTA_PUBLICA
 from apps.vistorias.api.views import VIEWS_DO_RECIBO_PUBLICO
 from comum.permissoes import EmpresaOperando, EscopoDeFilial
 from config import urls
@@ -25,7 +26,8 @@ from config import urls
 # convite (consultar e aceitar, T-069) também: é criar o próprio acesso. O link de assinatura
 # de contrato (S-15, T-090) é do cliente final, sem login nem filial; mantém `EmpresaOperando`.
 # A página pública do recibo (T-411) também é do cliente final e só lê: vale com a empresa
-# suspensa.
+# suspensa. A página pública da proposta (T-502, fase 1c, VEN-15) é igual: o cliente lê o PDF
+# pelo token, sem login nem filial.
 EXCECOES: set[type[APIView]] = {
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -33,6 +35,7 @@ EXCECOES: set[type[APIView]] = {
     *VIEWS_DE_CONVITE,
     *VIEWS_DE_ASSINATURA,
     *VIEWS_DO_RECIBO_PUBLICO,
+    *VIEWS_DA_PROPOSTA_PUBLICA,
 }
 METODOS = ("get", "post", "put", "patch", "delete")
 
@@ -90,6 +93,7 @@ RECURSO_DAS_ROTAS = {
     "api/vistorias/": "locacoes_vistoria",
     "api/devolucoes/": "locacoes_vistoria",
     "api/publico/recibos/": "locacoes_vistoria",  # T-411: a página pública do recibo
+    "api/publico/propostas/": "vendas_comissoes",  # T-502 1c: a página pública da proposta
     "api/financeiro/despesas/": "manutencao_despesas",
     "api/financeiro/conciliacao/": "conciliacao",
     "api/relatorios/": "relatorios",

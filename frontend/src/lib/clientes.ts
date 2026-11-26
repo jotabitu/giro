@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { AcaoPrincipal, EnderecoCliente, NovoCliente } from "@/lib/api";
-import { soDigitos } from "@/lib/formatos";
+import type { AcaoPrincipal, ClienteCompleto, EdicaoCliente, EnderecoCliente, NovoCliente } from "@/lib/api";
+import { mascaraCelular, mascaraCep, mascaraCnpj, mascaraCpf, soDigitos } from "@/lib/formatos";
 
 /** Para onde cada ação principal da lista leva. Rotas de módulos ainda não feitos já apontam para o destino final. */
 export function rotaDaAcao(a: AcaoPrincipal): string {
@@ -75,6 +75,59 @@ export function paraCorpo(v: ValoresCliente): NovoCliente {
   return corpo;
 }
 
+/** Edição (T-516): os valores do formulário a partir da ficha completa, com as máscaras de digitação. */
+export function valoresDoCliente(c: ClienteCompleto): ValoresCliente {
+  const pj = c.tipo === "pj";
+  return {
+    tipo: c.tipo,
+    nome: c.nome,
+    documento: pj ? mascaraCnpj(c.documento) : mascaraCpf(c.documento),
+    celular: mascaraCelular(c.celular),
+    nascimento: c.nascimento ?? "",
+    email: c.email ?? "",
+    profissao: c.profissao ?? "",
+    cnh: { numero: c.cnh?.numero ?? "", categoria: c.cnh?.categoria ?? "", validade: c.cnh?.validade ?? "", primeira_habilitacao: c.cnh?.primeira_habilitacao ?? "" },
+    responsavel: { nome: c.responsavel?.nome ?? "", cpf: mascaraCpf(c.responsavel?.cpf ?? ""), celular: mascaraCelular(c.responsavel?.celular ?? "") },
+    endereco: {
+      cep: mascaraCep(c.endereco?.cep ?? ""),
+      logradouro: c.endereco?.logradouro ?? "",
+      numero: c.endereco?.numero ?? "",
+      bairro: c.endereco?.bairro ?? "",
+      cidade: c.endereco?.cidade ?? "",
+      uf: c.endereco?.uf ?? "",
+    },
+    referencia: { nome: c.referencia?.nome ?? "", parentesco: c.referencia?.parentesco ?? "", telefone: mascaraCelular(c.referencia?.telefone ?? "") },
+    consentimento: c.consentimento_em !== null,
+  };
+}
+
+/** Campo apagado no PATCH (T-516): texto vai vazio; data e blocos vão `null` (PatchedClienteEdicao). */
+const AO_APAGAR: Record<string, "" | null> = { email: "", profissao: "", nascimento: null, cnh: null, responsavel: null, endereco: null, referencia: null };
+
+/** Subcampos de data apagados vão `null` (a API recusa `""`); os de texto vão `""`. */
+const SUBCAMPO_DATA = new Set(["validade", "primeira_habilitacao"]);
+
+/** Bloco que mudou e continua com algum dado: o que sobrou, mais o que foi apagado (a API junta o bloco com o que já tem; omitir não apaga). */
+function blocoComApagados(depois: unknown, antes: unknown): unknown {
+  if (typeof depois !== "object" || depois === null || typeof antes !== "object" || antes === null) return depois;
+  const novo: Record<string, unknown> = { ...depois };
+  for (const sub of Object.keys(antes)) if (!(sub in novo)) novo[sub] = SUBCAMPO_DATA.has(sub) ? null : "";
+  return novo;
+}
+
+/** Corpo do PATCH /api/clientes/{id}/: só o que mudou em relação ao que a ficha trouxe, sem `tipo` (não muda). Bloco que mudou vai inteiro; campo ou bloco apagado vai vazio ou `null`. */
+export function paraCorpoDeEdicao(novos: ValoresCliente, antes: ValoresCliente): EdicaoCliente {
+  const depois = paraCorpo(novos) as Record<string, unknown>;
+  const base = paraCorpo(antes) as Record<string, unknown>;
+  const corpo: Record<string, unknown> = {};
+  for (const chave of new Set([...Object.keys(depois), ...Object.keys(base)])) {
+    if (chave === "tipo" || JSON.stringify(depois[chave]) === JSON.stringify(base[chave])) continue;
+    if (chave in depois) corpo[chave] = chave in base ? blocoComApagados(depois[chave], base[chave]) : depois[chave];
+    else if (chave in AO_APAGAR) corpo[chave] = AO_APAGAR[chave];
+  }
+  return corpo as EdicaoCliente;
+}
+
 export const ROTULO_PENDENCIA: Record<string, string> = {
   cnh_frente: "CNH (frente)",
   cnh_verso: "CNH (verso)",
@@ -109,7 +162,7 @@ export function linhasDoEndereco(e: EnderecoCliente | null): [string, string] | 
   return [rua, [e.bairro, cidade].filter(Boolean).join(" · ")];
 }
 
-const UNIDADE = { diaria: ["diária", "diárias"], semanal: ["semana", "semanas"], mensal: ["mês", "meses"] } as const;
+const UNIDADE = { diaria: ["diária", "diárias"], semanal: ["semana", "semanas"], quinzenal: ["quinzena", "quinzenas"], mensal: ["mês", "meses"] } as const;
 
 /** "2 de 2 semanas pagas". */
 export function textoDeParcelas(pagas: number, total: number, periodicidade: keyof typeof UNIDADE): string {
@@ -117,4 +170,4 @@ export function textoDeParcelas(pagas: number, total: number, periodicidade: key
   return `${pagas} de ${total} ${total === 1 ? um : varios} ${total === 1 ? "paga" : "pagas"}`;
 }
 
-export const ROTULO_PERIODICIDADE = { diaria: "Diária", semanal: "Semanal", mensal: "Mensal" } as const;
+export const ROTULO_PERIODICIDADE = { diaria: "Diária", semanal: "Semanal", quinzenal: "Quinzenal", mensal: "Mensal" } as const;

@@ -1,7 +1,7 @@
 # Modelo de dados
 
 **Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), locação com intenção de compra e venda da quitação em 03 nov 2026 (T-420, ADR 0037), referência FIPE em 05 nov 2026 (T-422, ADR 0038) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
-**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), foto do veículo em 03 nov 2026 (T-414, ADR 0036) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), foto do veículo em 03 nov 2026 (T-414, ADR 0036), preços por veículo em 18 nov 2026 (T-492, ADR 0041) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
 
@@ -233,6 +233,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 ### 8. Categoria de veículo · `veiculos.Categoria` · ativável
 
+> **Desde a ADR 0041 (18 nov 2026):** a categoria é o "Tipo de veículo" (nome e moto ou carro). Nenhuma locação, ficha ou Frota lê preço dela. `PrecoCategoria` fica, sem ser apagado, só como modelo de preço do cadastro, da importação e do assistente; a `filial` deixa de ter efeito no preço. O preço é do veículo (9b).
+
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `nome` | texto(60) | Urbana 110–125 |
@@ -294,6 +296,17 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Apoio `HistoricoStatusVeiculo`: `veiculo` FK, `de`, `para`, `em` momento, `origem` genérica, `por` FK nulo. Base de `VEI-06` (ocupação). Índice `(veiculo, em)`.
 - Apoio `LeituraKm`: `veiculo`, `km`, `lido_em`, `origem` genérica (vistoria, OS, correção), `motivo` (correção para baixo, `APR-06`).
 - Apoio `TransferenciaVeiculo`: `veiculo`, `filial_origem`, `filial_destino`, `em`, `por` (`VEI-04`), origem genérica nula (`movimentacao` na transferência pela chegada, `MOV-06`, T-286).
+
+### 9b. Preços do veículo · `veiculos.PlanoVeiculo`, `RegrasVeiculo`, `CustosVeiculo`, `PlanoCompraVeiculo`, `HistoricoPrecoVeiculo`
+
+T-492, `VEI-12` a `VEI-17`, ADR 0041 (campos, `CHECK`, únicos e enums completos estão lá, item 1).
+
+- `PlanoVeiculo` (ativável): `veiculo` FK, `tipo` enum `diaria`, `semanal`, `mensal`, `entregador`, `outro`, `nome` texto(40), `periodo` enum `dia`, `semana`, `mes`, `ligado`, `valor_centavos`, `como_paga` enum, `formas_aceitas` array de `pix`, `boleto`, `cartao`, `dinheiro`, `caucao_centavos` nulo, `caucao_parcelas` 1..12, `franquia_km` nulo (livre), `prazo_minimo_periodos` nulo. Preço agendado: `valor_agendado_centavos`, `caucao_agendada_centavos`, `agendado_para` (lido por data; consolidado pelo Beat às 00:05). Únicos parciais `(veiculo, tipo)` fora do `outro` e `(veiculo, lower(nome))` no `outro`, com `ativo`.
+- `RegrasVeiculo` (1:1): `km_excedente_centavos`, `dia_atraso_centavos`, `multa_minima_centavos` (`LOC-12`), `desconto_sem_aprovacao_pct` (5.00), `prazo_devolucao_caucao_dias` nulo.
+- `CustosVeiculo` (1:1): manutenção, seguro e rastreador por mês, `ipva_ano_centavos`, `revenda_estimada_centavos` nulo, `ocupacao_esperada_pct` nulo. Valor de venda = `Veiculo.valor_venda_centavos`; pago na moto = compra + despesas (calculado).
+- `PlanoCompraVeiculo` (1:1): `ligado`, `periodicidade` enum `diaria`, `semanal`, `quinzenal`, `mensal`, `parcelas` 2..1000, `entrada_centavos`, `juros_mes_pct`, `modo` enum `calcular`, `digitar`, `parcela_moto_centavos`, `adicional_centavos`, `caucao_centavos`.
+- `HistoricoPrecoVeiculo` (imutável): `veiculo`, `em`, `por` nulo, `origem`, `alvo`, `alvo_id`, `alvo_nome`, `campo`, `de`, `para` json, `lote` UUID. Índice `(veiculo, em)`.
+- Sem plano ligado: aviso `aviso_preco` em qualquer status (recusa Nova locação, troca e colocar à venda, 409 `VEI-15`) e, se estava `disponivel`, com `motivo_status` "Sem preço · ligue um plano", pelo serviço (`VEI-15`).
 
 ### 9a. Foto do veículo · `veiculos.FotoVeiculo` · ativável
 
@@ -359,6 +372,8 @@ T-414, `VEI-10`, ADR 0036. A galeria do veículo (fotos de cadastro, para a fich
 
 ### 12. Plano de locação especial · `locacoes.PlanoEspecial` · ativável
 
+> **Desde a ADR 0041:** fora da Nova locação (o Entregador é tipo de plano do veículo); fica para as locações antigas, cadastro novo responde 410.
+
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `nome` | texto(60), único | Entregador, Mensal fidelidade |
@@ -373,6 +388,8 @@ T-414, `VEI-10`, ADR 0036. A galeria do veículo (fotos de cadastro, para a fich
 - `CHECK` de que só o campo da `regra` escolhida está preenchido.
 
 ### 12a. Plano de compra · `locacoes.PlanoCompra` · ativável
+
+> **Desde a ADR 0041:** substituído pelo `veiculos.PlanoCompraVeiculo` (9b); fica para as locações antigas, cadastro novo responde 410. `Locacao` ganha `plano_compra_veiculo`, `quinzenal` e os campos congelados do item 5 da ADR 0041.
 
 T-420, `LOC-16`, ADR 0037 (padrão A do ponto em aberto 1). Cadastro do administrador na tela `Precos`.
 
@@ -538,7 +555,8 @@ T-420, `LOC-16`, ADR 0037 (padrão A do ponto em aberto 1). Cadastro do administ
 - **T-420 (ADR 0037):** a tabela nasce inteira agora, com o `numero`/`codigo` `VEN` (`ModeloComCodigo`). Para caber a venda da quitação, `forma`, `preco_tabela_centavos`, `desconto_pct`, `entrada_centavos`, `num_parcelas` e `juros_pct` ficam nulos ou com padrão 0; `CHECK (origem <> 'quitacao_locacao' OR (locacao_id IS NOT NULL AND preco_final_centavos = 0 AND status = 'vendida'))` e `CHECK (origem <> 'balcao' OR locacao_id IS NULL)`. Índice parcial `(filial)` com `origem = 'quitacao_locacao' AND transferencia_feita_em IS NULL` (pendências do painel). Funil, meta e comissão filtram `origem = 'balcao'`.
 - **Uma venda aberta por veículo (`VEN-10`):** `UniqueConstraint(fields=["veiculo"], condition=Q(status__in=["proposta", "negociacao", "aguardando_aprovacao"]), name="uma_venda_aberta_por_veiculo")`. Vários `interessado` podem existir para o mesmo veículo; quando ele vira `vendido`, o serviço passa os outros `interessado` dele para `perdida` com `motivo_perda` "veículo vendido".
 - `VEN-07`: o cancelamento cancela as parcelas em aberto, estorna as pagas, estorna a comissão e devolve o veículo para `a_venda`, tudo na mesma transação.
-- Apoio `MetaVenda`: `vendedor`, `mes` (data dia 1), `valor_centavos`; único `(vendedor, mes)` (`VEN-09`). Fase 2.
+- **T-501 (ADR 0042):** o fluxo de balcão ganha `cliente` nulo com `interessado_nome` e `interessado_celular` (`VEN-14`), `desconto_centavos`, `parcela_centavos`, `status_antes_aprovacao`, `aprovacao`, `pedido_aprovacao_id`, `desconto_aprovado_pct`, `motivo_recusa`, `entrou_proposta_em`, `entrou_negociacao_em`, `perdida_em`, `ultimo_contato_em` (`VEN-16`), `contrato` (FK → `contratos.Contrato`), `contrato_assinado_em`, `conta_entrada` (FK → `financeiro.ContaReceber`), `entrada_paga_em` e, na fase 2, `troca_dados`. O índice da transferência passa a `status = 'vendida' AND transferencia_feita_em IS NULL` (as duas origens, `VEN-17`). Transições, restrições e serviços na ADR 0042; o cancelamento devolve por reembolso (`VEN-07`, fase 2).
+- Apoio `MetaVenda` (ADR 0042, item 3): `vendedor`, `filial`, `mes` (data dia 1), `valor_centavos`, `definida_por`; único `(vendedor, filial, mes)` (`VEN-09`). Meta da filial = soma.
 
 ### 18. Conta a receber · `financeiro.ContaReceber` · máquina
 

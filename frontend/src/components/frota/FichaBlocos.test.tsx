@@ -214,3 +214,43 @@ describe("card Agora: o desde vem da API (T-449, LOC-10)", () => {
     expect(t).not.toContain("desde");
   });
 });
+
+// T-486 · VEI-18, VEI-19: "À venda desde 15 ago · 53 dias" e o "Limite da empresa" no card Agora.
+describe("Agora do veículo à venda", () => {
+  const aVenda = (extra: Partial<VeiculoDetalhe>): VeiculoDetalhe => ({
+    ...base,
+    status: "a_venda",
+    situacao: { codigo: "a_venda", rotulo: "À venda", tom: "neutro", desde: null },
+    locacao_atual: null,
+    manutencao: null,
+    limite_dias_parado: 30,
+    ...extra,
+  });
+
+  it("test_vei_18_parado_com_o_limite_da_empresa", () => {
+    const h = html(<AgoraDesktop v={aVenda({ a_venda_desde: "2026-08-15", dias_em_estoque: 53, parado: true })} />);
+    expect(texto(h)).toContain("À venda desde 15 ago · 53 dias");
+    expect(texto(h)).toContain("Limite da empresa|30 dias");
+    expect(h).toContain("wl-badge--warning");
+  });
+
+  it("test_vei_18_dentro_do_limite_e_hoje", () => {
+    const dentro = html(<AgoraDesktop v={aVenda({ a_venda_desde: "2026-09-07", dias_em_estoque: 30, parado: false })} />);
+    expect(texto(dentro)).toContain("À venda desde 07 set · 30 dias");
+    expect(dentro).not.toContain("wl-badge--warning");
+    const hoje = html(<AgoraDesktop v={aVenda({ a_venda_desde: "2026-10-07", dias_em_estoque: 0, parado: false })} />);
+    expect(texto(hoje)).toContain("À venda desde 07 out · Hoje");
+  });
+
+  it("test_vei_18_sem_entrada_no_historico", () => {
+    const t = texto(html(<AgoraDesktop v={aVenda({ a_venda_desde: null, dias_em_estoque: null, parado: false })} />));
+    expect(t).toContain("À venda · —");
+    expect(t).not.toContain("Limite da empresa");
+  });
+
+  it("test_vei_18_vistoriador_sem_os_campos_nao_ve_nada", () => {
+    const semCampos = aVenda({});
+    delete semCampos.limite_dias_parado;
+    expect(html(<AgoraDesktop v={semCampos} />)).toBe("");
+  });
+});

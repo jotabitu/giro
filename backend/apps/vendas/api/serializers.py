@@ -1,10 +1,18 @@
-"""Entrada e saída das vendas (`docs/api/vendas.md`). Na T-420, só a venda da quitação."""
+"""Entrada e saída das vendas (`docs/api/vendas.md`): a venda da quitação (T-420) e o fluxo de
+balcão das fases 1a e 1b da T-502 (ADR 0042, item 14)."""
 
+from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
 
-from ..models import OrigemVenda, StatusVenda
+from apps.contratos.api.serializers import ContratoResumoSerializer
+from apps.financeiro.models import StatusConta
+
+from ..models import FormaVenda, OrigemVenda, SituacaoAprovacao, StatusVenda
+from ..services import Acao
+
+PCT = {"max_digits": 5, "decimal_places": 2, "min_value": Decimal("0")}
 
 
 class RefDaVendaSerializer(serializers.Serializer[Any]):
@@ -32,6 +40,14 @@ class LocacaoDaVendaSerializer(serializers.Serializer[Any]):
     codigo = serializers.CharField()
 
 
+class InteressadoSerializer(serializers.Serializer[Any]):
+    class Meta:
+        ref_name = "InteressadoDaVenda"
+
+    nome = serializers.CharField(max_length=150)
+    celular = serializers.CharField(max_length=20)
+
+
 class TransferenciaSerializer(serializers.Serializer[Any]):
     feita_em = serializers.DateField(allow_null=True)
     registrada_por = RefDaVendaSerializer(allow_null=True)
@@ -39,26 +55,154 @@ class TransferenciaSerializer(serializers.Serializer[Any]):
 
 
 class AcoesDaVendaSerializer(serializers.Serializer[Any]):
+    editar = serializers.BooleanField()
+    enviar = serializers.BooleanField()
+    registrar_resposta = serializers.BooleanField()
+    pedir_aprovacao = serializers.BooleanField()
+    perder = serializers.BooleanField()
     cancelar = serializers.BooleanField()
     registrar_transferencia = serializers.BooleanField()
+    # Fase 1b (VEN-15, VEN-19): a etapa "Assinatura".
+    preparar_assinatura = serializers.BooleanField()
+    cancelar_assinatura = serializers.BooleanField()
+    copiar_link_contrato = serializers.BooleanField()
+    reenviar_contrato = serializers.BooleanField()
 
 
 class VendaSerializer(serializers.Serializer[Any]):
+    """O item da lista."""
+
     id = serializers.IntegerField()
     codigo = serializers.CharField()
     status = serializers.ChoiceField(choices=StatusVenda.choices)
     origem = serializers.ChoiceField(choices=OrigemVenda.choices)
     origem_rotulo = serializers.CharField()
     descricao = serializers.CharField()
-    cliente = RefDaVendaSerializer()
+    cliente = RefDaVendaSerializer(allow_null=True)
+    interessado = InteressadoSerializer(allow_null=True)
+    comprador_nome = serializers.CharField()
+    comprador_celular = serializers.CharField(
+        help_text="VEN-16: só dígitos, do cliente ou do interessado; vazio sem celular"
+    )
     veiculo = VeiculoDaVendaSerializer()
     filial = RefDaVendaSerializer()
     vendedor = RefDaVendaSerializer(allow_null=True)
     locacao = LocacaoDaVendaSerializer(allow_null=True)
+    valor = serializers.IntegerField()
     preco_final_centavos = serializers.IntegerField()
+    forma = serializers.CharField()
+    forma_texto = serializers.CharField()
+    situacao_texto = serializers.CharField()
+    motivo_perda = serializers.CharField(allow_null=True)
+    proposta_enviada_em = serializers.DateTimeField(allow_null=True)
+    proposta_vence_em = serializers.DateField(allow_null=True)
+    ultimo_contato_em = serializers.DateTimeField(allow_null=True)
+    perdida_em = serializers.DateTimeField(allow_null=True)
     vendida_em = serializers.DateTimeField(allow_null=True)
+    comissao_centavos = serializers.IntegerField(allow_null=True)
     transferencia = TransferenciaSerializer()
+    contrato_pdf_disponivel = serializers.BooleanField(
+        help_text="O contrato da venda tem PDF (o mesmo `contrato.pdf_disponivel` do detalhe)."
+    )
     acoes = AcoesDaVendaSerializer()
+
+
+class CalculoDaVendaSerializer(serializers.Serializer[Any]):
+    """O que a API calcula (ADR 0042, item 4); a tela só mostra."""
+
+    class Meta:
+        ref_name = "CalculoDaVenda"
+
+    preco_tabela_centavos = serializers.IntegerField()
+    desconto_pct = serializers.DecimalField(max_digits=5, decimal_places=2)
+    desconto_centavos = serializers.IntegerField()
+    preco_final_centavos = serializers.IntegerField()
+    forma = serializers.CharField()
+    entrada_centavos = serializers.IntegerField(allow_null=True)
+    saldo_centavos = serializers.IntegerField()
+    num_parcelas = serializers.IntegerField(allow_null=True)
+    juros_pct = serializers.DecimalField(max_digits=5, decimal_places=2)
+    parcela_centavos = serializers.IntegerField(allow_null=True)
+    ultima_parcela_centavos = serializers.IntegerField(allow_null=True)
+    total_parcelas_centavos = serializers.IntegerField()
+    comissao_centavos = serializers.IntegerField()
+    comissao_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, help_text="FIN-09: o percentual da comissão (3,00)"
+    )
+    precisa_aprovacao = serializers.BooleanField()
+    limite_desconto_pct = serializers.DecimalField(max_digits=5, decimal_places=2)
+
+
+class AprovacaoDaVendaSerializer(serializers.Serializer[Any]):
+    situacao = serializers.ChoiceField(choices=SituacaoAprovacao.choices)
+    pedido_id = serializers.IntegerField(allow_null=True)
+    desconto_pedido_pct = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True)
+    desconto_aprovado_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, allow_null=True
+    )
+    motivo_recusa = serializers.CharField(allow_null=True)
+    texto = serializers.CharField(allow_null=True)
+
+
+class ContratoDaVendaSerializer(ContratoResumoSerializer):
+    class Meta:
+        ref_name = "ContratoDaVenda"
+
+    situacao_texto = serializers.CharField()
+    enviado_para = serializers.CharField(
+        allow_null=True,
+        help_text="O e-mail do cliente para onde o link foi. O suporte vê mascarado (AUD-09).",
+    )
+    enviado_texto = serializers.CharField(
+        allow_null=True,
+        help_text='"Contrato enviado · 07 out, 10:20 · diego@exemplo.com.br". Nulo antes do envio.',
+    )
+
+
+class ContaEntradaSerializer(serializers.Serializer[Any]):
+    """A entrada (ou o total à vista) em Contas a receber (VEN-15): "Entrada de R$ 5.000,00",
+    "Aguardando pagamento · vence hoje"."""
+
+    class Meta:
+        ref_name = "ContaEntradaDaVenda"
+
+    id = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=StatusConta.choices)
+    valor_centavos = serializers.IntegerField()
+    vencimento = serializers.DateField()
+    rotulo = serializers.CharField()
+    texto = serializers.CharField(help_text='"Paga em 07 out, 11:02 · Pix" quando paga.')
+    pago_em = serializers.DateTimeField(allow_null=True)
+    forma_texto = serializers.CharField(
+        allow_null=True, help_text='A forma do pagamento ("Pix"). Nula antes de pagar.'
+    )
+
+
+class DocumentosDaVendaSerializer(serializers.Serializer[Any]):
+    """A etapa "Documentos" (VEN-14, VEN-19): as pendências do cadastro (`CLI-03`, os códigos
+    de `clientes`) e o texto pronto do cliente bloqueado ou inativo (`CLI-05`)."""
+
+    class Meta:
+        ref_name = "DocumentosDaVenda"
+
+    pendencias = serializers.ListField(child=serializers.CharField())
+    # Texto, não enum: a lista `critica`/`alerta` colidiria com o `GravidadeEnum` do painel.
+    gravidade = serializers.CharField(
+        allow_null=True, help_text="`critica` (CLI-05) ou `alerta` (CLI-03)"
+    )
+    texto = serializers.CharField(allow_null=True)
+    pode_preparar = serializers.BooleanField()
+
+
+class VendaDetalheSerializer(VendaSerializer):
+    calculo = CalculoDaVendaSerializer(allow_null=True)
+    aprovacao = AprovacaoDaVendaSerializer(allow_null=True)
+    # Fase 1b (VEN-15, VEN-19): assinatura e entrada, com os textos prontos.
+    contrato = ContratoDaVendaSerializer(allow_null=True)
+    conta_entrada = ContaEntradaSerializer(allow_null=True)
+    documentos = DocumentosDaVendaSerializer(allow_null=True)
+    perder_texto = serializers.CharField(allow_null=True)
+    conclusao_texto = serializers.CharField(allow_null=True)
 
 
 class ListaDeVendasSerializer(serializers.Serializer[Any]):
@@ -69,3 +213,74 @@ class ListaDeVendasSerializer(serializers.Serializer[Any]):
 
 class TransferenciaEntradaSerializer(serializers.Serializer[Any]):
     feita_em = serializers.DateField()
+
+
+# --- Entrada do fluxo de balcão (T-502, fase 1a) ---
+
+
+class PropostaSerializer(serializers.Serializer[Any]):
+    """Os campos da proposta que a pessoa digita (VEN-02, VEN-03, VEN-04)."""
+
+    forma = serializers.ChoiceField(choices=FormaVenda.choices, required=False, allow_blank=True)
+    desconto_pct = serializers.DecimalField(required=False, **PCT)  # type: ignore[arg-type]
+    entrada_centavos = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+    num_parcelas = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+
+
+class SimularVendaSerializer(PropostaSerializer):
+    """`venda_id` (a venda que se edita) ou `veiculo_id` (a Nova venda)."""
+
+    venda_id = serializers.IntegerField(required=False)
+    veiculo_id = serializers.IntegerField(required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if not attrs.get("venda_id") and not attrs.get("veiculo_id"):
+            raise serializers.ValidationError({"veiculo_id": ["Escolha um veículo à venda."]})
+        return attrs
+
+
+class SimulacaoSerializer(CalculoDaVendaSerializer):
+    class Meta:
+        ref_name = "SimulacaoDaVenda"
+
+    erros = serializers.DictField(child=serializers.ListField(child=serializers.CharField()))
+
+
+class CriarVendaSerializer(PropostaSerializer):
+    veiculo_id = serializers.IntegerField()
+    cliente_id = serializers.IntegerField(required=False, allow_null=True)
+    interessado = InteressadoSerializer(required=False, allow_null=True)
+    acao = serializers.ChoiceField(choices=list(Acao.TODAS))
+    motivo = serializers.CharField(max_length=300, required=False, allow_blank=True)
+
+
+class EditarVendaSerializer(PropostaSerializer):
+    cliente_id = serializers.IntegerField(required=False, allow_null=True)
+    interessado = InteressadoSerializer(required=False, allow_null=True)
+
+
+class RespostaSerializer(serializers.Serializer[Any]):
+    nota = serializers.CharField(max_length=300, required=False, allow_blank=True)
+
+
+class PedirAprovacaoSerializer(serializers.Serializer[Any]):
+    desconto_pct = serializers.DecimalField(**PCT)  # type: ignore[arg-type]
+    motivo = serializers.CharField(max_length=300, required=False, allow_blank=True)
+
+
+class PerderSerializer(serializers.Serializer[Any]):
+    motivo = serializers.CharField(max_length=200, required=False, allow_blank=True)
+
+
+class VendaEnviadaSerializer(serializers.Serializer[Any]):
+    """VEN-15, VEN-19 (fase 1c): `email_enviado` falso sem e-mail no cadastro; `texto` pronto
+    para a tela."""
+
+    email_enviado = serializers.BooleanField()
+    texto = serializers.CharField(
+        help_text=(
+            '"Proposta enviada para diego@exemplo.com em 07 out. Sem resposta do cliente, ela '
+            'vence em 14 out." ou a variante sem e-mail'
+        )
+    )
+    venda = VendaDetalheSerializer()

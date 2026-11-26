@@ -244,6 +244,11 @@ REST_FRAMEWORK = {
         "link_recibo_usuario": "20/hour",
         "recibo_publico_ip": "10/min",
         "recibo_publico_token": "20/min",
+        # Copiar link da proposta e a consulta pública dela (VEN-15, T-502 fase 1c).
+        "link_proposta_venda": "5/hour",
+        "link_proposta_usuario": "20/hour",
+        "proposta_publica_ip": "10/min",
+        "proposta_publica_token": "20/min",
         # Leitura do CRLV-e e da CNH-e em PDF, somadas (ADR 0026, item 6).
         "leitura_documento_usuario": "30/hour",
         "leitura_documento_empresa": "200/hour",
@@ -295,6 +300,11 @@ SPECTACULAR_SETTINGS = {
         "OrigemEnum": "apps.filiais.models.FeriadoFilial.Origem",  # o nome que já saía (T-420)
         "OrigemVendaEnum": "apps.vendas.models.OrigemVenda",  # VEN-11 (T-420)
         "StatusVendaEnum": "apps.vendas.models.StatusVenda",  # T-420
+        # T-502: os nomes que já saíam, sem colidir com os campos novos da venda.
+        "AcaoEnum": [("baixar", "Baixar"), ("ignorar", "Ignorar")],
+        "PedidoStatusEnum": "apps.aprovacoes.models.PedidoAprovacao.Status",
+        "AcaoVendaEnum": ["interessado", "enviar", "pedir_aprovacao"],
+        "FormaVendaEnum": "apps.vendas.models.FormaVenda",
         "FotoPosicaoEnum": "apps.vistorias.models.PosicaoFoto",  # T-320: o nome que já saía
         "PosicaoDaChegadaEnum": "apps.movimentacoes.models.PosicaoFoto",  # T-320
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",
@@ -311,6 +321,13 @@ SPECTACULAR_SETTINGS = {
         "PeriodicidadeEnum": "apps.locacoes.models.Periodicidade",
         "PeriodicidadeCompraEnum": "apps.locacoes.models.PlanoCompra.PeriodicidadeCompra",
         "TipoLocacaoEnum": "apps.locacoes.models.TipoLocacao",
+        # Preços por veículo (T-494, ADR 0041): o tipo do plano. A periodicidade da compra do
+        # veículo tem os mesmos valores da locação desde a T-495 (`quinzenal`): `PeriodicidadeEnum`.
+        "TipoPlanoVeiculoEnum": "apps.veiculos.models.TipoPlano",
+        "PeriodoPlanoEnum": "apps.veiculos.models.PeriodoPlano",
+        "ComoPagaEnum": "apps.veiculos.models.ComoPaga",
+        "FormaAceitaEnum": "apps.veiculos.models.FormaAceita",
+        "ModoParcelaEnum": "apps.veiculos.models.ModoParcela",
         # Nomes que veículos já publicava, antes de clientes ter outro `motivo` e `situacao`.
         "MotivoEnum": ["perda_total", "roubo", "sucata", "outro"],
         "SituacaoEnum": ["em_dia", "vence_em_breve", "vencido"],
@@ -433,6 +450,16 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "aut_06_vencimento_de_documentos_de_todas",
         "schedule": crontab(hour=7, minute=0),
     },
+    # AUT-18: veículo parado à venda (VEI-19), aviso aos gerentes da filial, às 07:00.
+    "aut_18_veiculos_parados": {
+        "task": "aut_18_veiculos_parados_de_todas",
+        "schedule": crontab(hour=7, minute=0),
+    },
+    # VEI-12 (ADR 0041): o preço agendado do plano do veículo vira o vigente, às 00:05.
+    "consolidar_precos_agendados": {
+        "task": "consolidar_precos_agendados_de_todas",
+        "schedule": crontab(hour=0, minute=5),
+    },
     # AUT-01: lembrete de devolução ao cliente, às 08:00.
     "aut_01_lembrete_de_devolucao": {
         "task": "aut_01_lembrete_de_devolucao_de_todas",
@@ -466,6 +493,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     "contratos_avisar_aditivos_sem_assinatura": {
         "task": "contratos_avisar_aditivos_sem_assinatura_de_todas",
         "schedule": crontab(hour=8, minute=0),
+    },
+    # AUT-19: proposta de venda sem resposta há 7 dias vira `perdida` (VEN-13), de madrugada.
+    "aut_19_vencer_propostas": {
+        "task": "aut_19_vencer_propostas_de_todas",
+        "schedule": crontab(hour=2, minute=40),
     },
     # AUT-03: régua de cobrança (WhatsApp e atraso para o bloqueio, CLI-05), às 09:00.
     "aut_03_regua_de_cobranca": {
@@ -585,6 +617,10 @@ GIRO_NFSE_ASSINATURA_ATIVA = env.bool("GIRO_NFSE_ASSINATURA_ATIVA", default=Fals
 # Desligado, `acoes.copiar_link_recibo` vem false, copiar responde 409 `recibo_publico_desligado`
 # e a consulta pública responde 404.
 GIRO_RECIBO_PUBLICO = env.bool("GIRO_RECIBO_PUBLICO", default=False)
+# Link público da proposta de venda (VEN-15, T-502 fase 1c): desligado até a revisão da
+# Segurança e a página `/proposta` no frontend. Desligado, copiar responde 409
+# `proposta_publica_desligada` e a consulta pública responde 404.
+GIRO_PROPOSTA_PUBLICA = env.bool("GIRO_PROPOSTA_PUBLICA", default=False)
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

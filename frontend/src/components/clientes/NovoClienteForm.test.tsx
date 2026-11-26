@@ -20,6 +20,17 @@ describe("novo cliente", () => {
     for (const rotulo of ["CNH · frente", "CNH · verso", "Selfie com documento", "Comprovante de residência"]) expect(html).toContain(rotulo);
   });
 
+  it("T-519: o painel lateral tem os três botões; a barra flutuante repete só Cancelar e o principal", () => {
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={new QueryClient()}>
+        <NovoClienteForm />
+      </QueryClientProvider>,
+    );
+    expect(html).toContain("sticky bottom-[88px]");
+    for (const [t, n] of [["Cancelar", 2], ["Salvar cliente", 1], ["Salvar e iniciar locação", 2]] as const) expect(html.match(new RegExp(`>${t}<`, "g")), t).toHaveLength(n);
+    expect(html.indexOf("Salvar cliente")).toBeLessThan(html.indexOf("sticky bottom-[88px]"));
+  });
+
   it("CEP: a busca devolve rua, bairro, cidade e UF; desconhecido cai no preenchimento à mão", async () => {
     expect(await filiais.cep("60840280")).toMatchObject({ logradouro: "Av. Frei Cirilo", bairro: "Messejana", cidade: "Fortaleza", uf: "CE" });
     await expect(filiais.cep("11111111")).rejects.toMatchObject({ codigo: "cep_nao_encontrado" });

@@ -4,6 +4,14 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-11-26] Remover arquivo de dado pessoal depois do commit (T-517)
+O arquivo que o registro soltou (documento do cliente no excluir e na anonimização, PDF da proposta na troca de cliente) sai por `comum.tasks.apagar_depois_do_commit(caminhos, pastas)`. Ela agenda a tarefa `arquivos_apagar` no `on_commit`, com nova tentativa (12 vezes, de 60 s até 1 h), e a resposta não depende dela. Não chame `arquivos.provedor().apagar` direto depois do `atomic`: com o armazenamento fora do ar, isso dava 500 e deixava o arquivo órfão. Nos testes, envolva a chamada com `django_capture_on_commit_callbacks(execute=True)`.
+Quem cria registro ligado ao cliente (locação, venda, conta) chama `clientes.services.travar_para_vincular(cliente_id)` dentro da transação (CLI-13, corrida com o excluir).
+
+### [2026-11-18] Fluxo de venda (ADR 0042, T-501)
+- A venda de balcão vira `vendida` sozinha, por evento, quando o contrato de compra e venda está assinado e a entrada paga (`VEN-15`), como a retirada da locação. A entrada nasce na etapa "Assinatura" como `TipoConta.ENTRADA` com `aguarda_retirada = True` (o campo quer dizer "a conta espera o fato que a libera": sem régua, sem multa).
+- O funil lê `entrou_proposta_em`, `entrou_negociacao_em` e `vendida_em` (gravados uma vez); a meta é `MetaVenda` por vendedor, filial e mês. Fase 1 em três PRs do backend (1a, 1b, 1c); troca e cancelamento na fase 2; financiamento na fase 3, com outra ADR. A venda da quitação (`VEN-11`) não muda.
+
 ### [2026-11-12] Favicon do Giro em todas as abas (T-465)
 Favicon: o ícone do Giro aparece em todas as abas do navegador, inclusive no sistema da locadora; é a única exceção ao white label (decisão do dono, 12 nov 2026, T-465).
 
@@ -130,7 +138,18 @@ Favicon: o ícone do Giro aparece em todas as abas do navegador, inclusive no si
 - **Alternativas descartadas:** compactar sempre, que é mais caro; limpar é seguro porque tudo fica no repositório (handoff, quadro, regras).
 - **Consequências:** conferir a barra de contexto a cada entrega e antes de mandar tarefa nova.
 
+### [2026-11-25] Registro excluído some pelo manager padrão (T-515, VEI-22, CLI-13)
+- **Contexto:** o dono pediu "Excluir" no veículo e no cliente sem histórico, com o registro guardado (padrão A) e sumindo de tudo para a locadora.
+- **Decisão:** `excluido_em` no model e o manager da `MaquinaDeEstados` (`comum.estados.ManagerDeEstados`) filtra `excluido_em__isnull=True` em todo model que tem o campo. `Model.todos` vê os excluídos; o `_base_manager` continua sem filtro (FK de outro registro e `auditar` abrem o excluído). Unicidade de placa e chassi por `UniqueConstraint` parcial; no cliente, o hash do CPF vira aleatório ao apagar os dados. O histórico que impede excluir vem por contadores `historico_<tipo>` (ADR 0015), sem `recurso=`.
+- **Alternativas descartadas:** filtrar à mão em cada consulta (dezenas de lugares, fácil esquecer um seletor); um manager novo só nos dois models (o mypy perde o tipo de `objects` em todo o código).
+- **Consequências:** consulta que parte de outro model (`PlanoVeiculo.objects.filter(...)`, tarefas) não passa pelo filtro: o excluir desliga planos, documentos e fotos, e quem varre por esses models deve juntar `veiculo__excluido_em__isnull=True` se precisar.
+
 ## Log de Bugs Resolvidos
+
+### [2026-11-18] Migration de dados quebrava a criação de empresa nova (T-494, ADR 0040)
+- **Sintoma:** `UndefinedTable veiculos_veiculo` no `RunPython` da `veiculos 0010`, só na criação de empresa pelos papéis separados (os 7 testes da T-477); local e o seed passavam.
+- **Causa raiz:** o `criar_schema` migra a empresa nova pela conexão do papel de migração (`database=alias`). O `Modelo.objects` da migration usa a conexão `default`, que fica fora do schema novo.
+- **Correção:** em todo `RunPython` que toca dado do schema da empresa, use `.using(schema_editor.connection.alias)` em consulta, `create`, `get_or_create` e `bulk_create`. Para conferir, rode `tests/aceitacao/test_t477_criar_empresa_papeis.py`.
 
 ### [2026-11-13] "Rendeu no ano" errado em qualquer veículo (VEI-05, achado A8 da T-420)
 - **Sintoma:** o veículo vendido pela quitação mostrava "Rendeu no ano R$ 0"; na verdade o número saía errado para toda a frota.
@@ -207,3 +226,6 @@ Favicon: o ícone do Giro aparece em todas as abas do navegador, inclusive no si
 - Decisão do dono: nada vai ao cliente final pelo WhatsApp na fase 1; os pontos 1 a 7 da ADR 0034 saem por e-mail, com ou sem o aceite (`CLI-12`), e o convite também (`USR-01`). Só a régua da assinatura (Giro) usa o WhatsApp, pelo número do Giro.
 - O "C" da decisão é o do ponto em aberto das regras (sem WhatsApp ao cliente), não a opção C (parceiro BSP) da ADR.
 - O código de WhatsApp ao cliente fica, desligado pela chave `GIRO_WHATSAPP_CLIENTE_FINAL` (falsa). Recibo do pagamento, recibo da devolução, reenvio do contrato assinado e lembrete da devolução hoje só mandam WhatsApp e precisam ganhar o e-mail (tarefa de backend).
+
+### [2026-11-24] Dinheiro ao digitar: um campo só (T-509)
+- Todo campo de reais usa `CampoDeDinheiro` (ou `InputDeDinheiro` em input solto) de `design-system`: os dígitos entram pela direita como centavos e a pontuação aparece a cada tecla. A máscara roda no próprio evento, então serve a `register` e a campo controlado, e o texto continua sendo lido por `centavosDoTexto`/`centavosDoCampo` (a API segue recebendo centavos). `prefixo` põe "R$ " só onde a tela já mostrava. Não crie campo de dinheiro com `TextField` e `inputMode` à mão.

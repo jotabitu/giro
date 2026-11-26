@@ -284,3 +284,33 @@ class ReciboPublicoPorToken(_PorToken):
 
 
 LIMITES_DO_RECIBO_PUBLICO = [ReciboPublicoPorIP, ReciboPublicoPorToken]
+
+
+class LinkPropostaPorVenda(_PorObjetoDaURL):
+    """Copiar link da proposta: 5 por hora por venda (VEN-15, T-502 fase 1c)."""
+
+    scope = "link_proposta_venda"
+
+
+class LinkPropostaPorUsuario(_PorUsuario):
+    """Copiar link da proposta: 20 por hora por pessoa."""
+
+    scope = "link_proposta_usuario"
+
+
+LIMITES_DO_LINK_PROPOSTA = [LinkPropostaPorVenda, LinkPropostaPorUsuario]
+
+
+class PropostaPublicaPorIP(_PorIP):
+    """Página pública da proposta: 10 por minuto por IP, com escopo próprio (como o recibo)."""
+
+    scope = "proposta_publica_ip"
+
+
+class PropostaPublicaPorToken(_PorToken):
+    """Página pública da proposta: 20 por minuto por token."""
+
+    scope = "proposta_publica_token"
+
+
+LIMITES_DA_PROPOSTA_PUBLICA = [PropostaPublicaPorIP, PropostaPublicaPorToken]

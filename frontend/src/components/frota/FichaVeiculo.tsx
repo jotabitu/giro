@@ -1,9 +1,12 @@
 "use client";
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { ArrowLeftRight, ChevronLeft, Ellipsis, Tag, Truck, Wrench } from "lucide-react";
+import { ArrowLeftRight, ChevronLeft, Tag, Truck, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { type AcaoDeStatus, AvisoDaAcao, JanelaDeStatus, MaisAcoesDoCelular } from "./AcoesDeStatus";
+import { AluguelDesativado } from "./AluguelDesativado";
+import { ExcluirCadastro } from "@/components/comum/ExcluirCadastro";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   veiculos,
@@ -19,7 +22,18 @@ import { dataCurta, dinheiro, dinheiroSemZeros, km, mesAno, percentual, placa } 
 import { situacaoDoDocumento } from "@/lib/frota";
 import { temNoMenu } from "@/lib/menu";
 import { DespesasDoVeiculo } from "./DespesasDoVeiculo";
-import { AgoraDesktop, FotosEAvarias, FotosEAvariasCelular, MovimentacoesCelular, MovimentacoesDoVeiculo, VendasDoVeiculo } from "./FichaBlocos";
+import { PrecosNaFicha } from "@/components/precos-veiculo/PrecosNaFicha";
+import {
+  AgoraDesktop,
+  FotosEAvarias,
+  FotosEAvariasCelular,
+  LimiteDaEmpresa,
+  MovimentacoesCelular,
+  MovimentacoesDoVeiculo,
+  mostraEstoque,
+  SeloDoEstoque,
+  VendasDoVeiculo,
+} from "./FichaBlocos";
 import { GaleriaNaFicha, GaleriaNaFichaCelular } from "./GaleriaNaFicha";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
@@ -187,8 +201,50 @@ function HistoricoDeDocumentos({ id }: { id: number }) {
   );
 }
 
+/**
+ * VEI-22: "Excluir" para quem `acoes.excluir` vem (administrador e gerente). Sem histórico, a confirmação; com histórico, o aviso com o
+ * motivo e o caminho da API, e "Colocar à venda" quando `acoes.colocar_a_venda` vem (T-518): fecha o aviso e abre o diálogo da VEN-01.
+ */
+export function ExcluirVeiculo({ v, celular, abertoDeInicio, aoColocarAVenda }: { v: VeiculoDetalhe; celular?: boolean; abertoDeInicio?: boolean; aoColocarAVenda?: () => void }) {
+  const acao = v.acoes.excluir;
+  if (!acao) return null;
+  return (
+    <ExcluirCadastro
+      acao={acao}
+      celular={celular}
+      rotulo={celular ? "Excluir veículo" : "Excluir"}
+      coisa="veículo"
+      executar={() => veiculos.excluir(v.id)}
+      chaveDaFicha={["veiculo", v.id]}
+      chavesDasListas={[["veiculos"], ["contadores"]]}
+      lista="/veiculos"
+      caminho={
+        v.acoes.colocar_a_venda && aoColocarAVenda
+          ? (fechar) => (
+              <Button
+                variante="solido"
+                icone={celular ? undefined : <Icone de={Tag} />}
+                onClick={() => {
+                  fechar();
+                  aoColocarAVenda();
+                }}
+              >
+                Colocar à venda
+              </Button>
+            )
+          : undefined
+      }
+      estiloDoBotao={celular ? { height: 48 } : undefined}
+      abertoDeInicio={abertoDeInicio}
+    />
+  );
+}
+
 /** A API recusa (403) a lista de locações a quem não tem acesso; o painel some em vez de mostrar o aviso (T-278). */
-function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } & Consultas) {
+/** Abre o diálogo de uma ação de status (VEI-23) na árvore que pediu. */
+type Abrir = (acao: AcaoDeStatus) => void;
+
+function FichaDesktop({ v, docs, locacoes, manutencoes, abrir }: { v: VeiculoDetalhe; abrir: Abrir } & Consultas) {
   const fin = v.indicadores_financeiros;
   const podeAgir = v.acoes.editar;
   return (
@@ -205,10 +261,11 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
           <h1 className="text-display">
             {v.marca} {v.modelo}
           </h1>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
               {v.situacao.rotulo}
             </StatusBadge>
+            <AluguelDesativado v={v} />
             {v.reserva && (
               <Link href={`/locacoes/${v.reserva.locacao_id}`} className="text-body text-ink underline">
                 Ver {v.reserva.codigo}
@@ -247,9 +304,23 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             <Button disabled title={EM_BREVE} icone={<Icone de={Wrench} />}>
               Mandar para oficina
             </Button>
-            <Button variante="solido" disabled title={v.acoes.colocar_a_venda ? EM_BREVE : "Só um veículo disponível pode ir à venda"} icone={<Icone de={Tag} />}>
-              Colocar à venda
-            </Button>
+            {/* VEI-23: só o que `acoes` libera; "Colocar à venda" (disponível) ou "Voltar para a frota" (à venda), e "Dar baixa" só para o administrador. */}
+            {v.acoes.colocar_a_venda && (
+              <Button variante="solido" icone={<Icone de={Tag} />} onClick={() => abrir("colocar_a_venda")}>
+                Colocar à venda
+              </Button>
+            )}
+            {v.acoes.voltar_para_frota && (
+              <Button variante="solido" onClick={() => abrir("voltar_para_frota")}>
+                Voltar para a frota
+              </Button>
+            )}
+            {v.acoes.baixar && (
+              <button type="button" className="wl-btn bg-transparent text-critical-ink" onClick={() => abrir("baixar")}>
+                Dar baixa
+              </button>
+            )}
+            <ExcluirVeiculo v={v} aoColocarAVenda={() => abrir("colocar_a_venda")} />
           </div>
         )}
       </header>
@@ -289,6 +360,8 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
           </Panel>
           )}
 
+          <PrecosNaFicha id={v.id} />
+
           <MovimentacoesDoVeiculo v={v} />
 
           <DespesasDoVeiculo v={v} />
@@ -308,8 +381,9 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
               )}
               {v.referencia_fipe_centavos != null && <Linha rotulo="Valor de venda (FIPE)">{dinheiroSemZeros(v.referencia_fipe_centavos)}</Linha>}
               {v.valor_venda_centavos != null && <Linha rotulo="À venda por">{dinheiroSemZeros(v.valor_venda_centavos)}</Linha>}
-              <Linha rotulo="Categoria">{v.categoria.nome}</Linha>
-              {v.preco_vigente && <Linha rotulo="Preço de hoje">Semanal {dinheiro(v.preco_vigente.semanal_centavos)}</Linha>}
+              <Linha rotulo="Tipo de plano">{v.categoria.nome}</Linha>
+              {/* VEI-21: com o aluguel desligado, a ficha não mostra preço de aluguel. */}
+              {v.preco_vigente && v.aluguel_ligado !== false && <Linha rotulo="Preço de hoje">Semanal {dinheiro(v.preco_vigente.semanal_centavos)}</Linha>}
             </dl>
           </section>
           <section className="wl-panel">
@@ -342,7 +416,7 @@ function CartaoDoCelular({ titulo, acao, children }: { titulo: string; acao?: Re
 // O KpiTile não tem variante de celular: o cartão da referência (fundo surface, 28px) entra por seletor de descendente.
 const KPI_DO_CELULAR = "[&_.wl-kpi]:bg-surface [&_.wl-kpi]:px-4 [&_.wl-kpi]:py-[14px] [&_.wl-kpi__value]:text-[28px] [&_.wl-kpi__value]:leading-8 [&_.wl-kpi__meta]:text-[13px]";
 
-function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Consultas, "locacoes">) {
+function FichaCelular({ v, docs, manutencoes, abrir }: { v: VeiculoDetalhe; abrir: Abrir } & Omit<Consultas, "locacoes">) {
   const fin = v.indicadores_financeiros;
   const atual = v.locacao_atual;
   return (
@@ -364,9 +438,7 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
             </Link>
           )}
         </div>
-        <button type="button" className="wl-icon-btn wl-icon-btn--sm" aria-label="Mais ações" disabled title={EM_BREVE} style={{ width: 44, height: 44 }}>
-          <Icone de={Ellipsis} />
-        </button>
+        <MaisAcoesDoCelular v={v} aoEscolher={abrir} />
       </header>
 
       <GaleriaNaFichaCelular v={v} />
@@ -378,13 +450,26 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
         <KpiTile rotulo="Ocupação" valor={percentual(v.ocupacao.pct)} contexto={`${v.ocupacao.periodo_dias} dias`} />
       </div>
 
+      {!atual && mostraEstoque(v) && (
+        <CartaoDoCelular titulo="Agora" acao={<SeloDoEstoque v={v} />}>
+          {v.dias_em_estoque != null && (
+            <dl>
+              <LimiteDaEmpresa v={v} Linha={Linha} />
+            </dl>
+          )}
+        </CartaoDoCelular>
+      )}
+
       {atual && (
         <CartaoDoCelular
           titulo="Agora"
           acao={
-            <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
-              {v.situacao.rotulo}
-            </StatusBadge>
+            <span className="flex flex-wrap justify-end gap-1">
+              <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
+                {v.situacao.rotulo}
+              </StatusBadge>
+              <AluguelDesativado v={v} />
+            </span>
           }
         >
           <dl>
@@ -445,6 +530,8 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
       </CartaoDoCelular>
       )}
 
+      <PrecosNaFicha id={v.id} />
+
       <VendasDoVeiculo v={v} celular />
 
       <MovimentacoesCelular v={v} />
@@ -452,15 +539,21 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
       <DespesasDoVeiculo v={v} celular />
 
       {v.acoes.editar && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className={`grid ${v.acoes.colocar_a_venda ? "grid-cols-2" : "grid-cols-1"} gap-2`}>
           <Button disabled title={EM_BREVE}>
             Oficina
           </Button>
-          <Button variante="solido" disabled title={v.acoes.colocar_a_venda ? EM_BREVE : "Só um veículo disponível pode ir à venda"}>
-            Colocar à venda
-          </Button>
+          {/* VEI-23: o "Colocar à venda" do celular fica aqui e não se repete no menu Mais ações. */}
+          {v.acoes.colocar_a_venda && (
+            <Button variante="solido" onClick={() => abrir("colocar_a_venda")}>
+              Colocar à venda
+            </Button>
+          )}
         </div>
       )}
+
+      {/* VEI-22: no fim da ficha, depois da última seção, longe das ações do dia a dia. */}
+      <ExcluirVeiculo v={v} celular aoColocarAVenda={() => abrir("colocar_a_venda")} />
     </div>
   );
 }
@@ -477,6 +570,13 @@ export function FichaVeiculo({ id }: { id: number }) {
   const comManutencoes = temNoMenu(eu.navegacao, "manutencoes");
   const consultaManutencoes = useQuery({ queryKey: ["veiculo", id, "manutencoes"], queryFn: () => veiculos.manutencoes(id), enabled: comManutencoes });
   const manutencoes = comManutencoes ? consultaManutencoes : null;
+  // VEI-23: um diálogo por vez, aberto pela árvore do desktop ou do celular; o aviso verde fica no alto da ficha até a próxima ação.
+  const [janela, setJanela] = useState<{ acao: AcaoDeStatus; celular: boolean } | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const abrir = (celular: boolean) => (acao: AcaoDeStatus) => {
+    setAviso(null);
+    setJanela({ acao, celular });
+  };
 
   if (ficha.isError) {
     return (
@@ -501,12 +601,30 @@ export function FichaVeiculo({ id }: { id: number }) {
 
   return (
     <>
+      {aviso && (
+        <div className="mb-4">
+          <AvisoDaAcao mensagem={aviso} />
+        </div>
+      )}
       <div className="hidden md:block">
-        <FichaDesktop v={v} docs={docs} locacoes={locacoes} manutencoes={manutencoes} />
+        <FichaDesktop v={v} docs={docs} locacoes={locacoes} manutencoes={manutencoes} abrir={abrir(false)} />
       </div>
       <div className="md:hidden">
-        <FichaCelular v={v} docs={docs} manutencoes={manutencoes} />
+        <FichaCelular v={v} docs={docs} manutencoes={manutencoes} abrir={abrir(true)} />
       </div>
+      {janela && (
+        <JanelaDeStatus
+          key={janela.acao}
+          acao={janela.acao}
+          celular={janela.celular}
+          v={v}
+          aoFechar={() => setJanela(null)}
+          aoConcluir={(mensagem) => {
+            setJanela(null);
+            setAviso(mensagem);
+          }}
+        />
+      )}
     </>
   );
 }

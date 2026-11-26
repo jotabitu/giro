@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Icone } from "@/design-system";
+import { BarraDeAcoes, Button, Icone, useBlocoVisivel } from "@/design-system";
 import { OpcaoDoRamo as Opcao } from "../ramo/OpcaoDoRamo";
 import { ramo as ramoApi, type Ramo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
@@ -15,6 +15,7 @@ import { useSessao } from "@/lib/sessao";
 
 function Formulario({ guardado }: { guardado: Ramo }) {
   const cliente = useQueryClient();
+  const blocos = useBlocoVisivel();
   const [marcas, setMarcas] = useState<MarcasDoRamo>(marcasDoRamo(guardado));
   const [salvo, setSalvo] = useState(false);
   const mudou = ramoMudou(guardado, marcas);
@@ -110,7 +111,7 @@ function Formulario({ guardado }: { guardado: Ramo }) {
             })}
           </section>
 
-          <div className="flex items-center justify-end gap-2">
+          <div ref={blocos.ref()} className="flex items-center justify-end gap-2">
             <Button type="button" variante="quieto" onClick={desfazer} disabled={!mudou || salvar.isPending}>
               Cancelar
             </Button>
@@ -143,6 +144,12 @@ function Formulario({ guardado }: { guardado: Ramo }) {
           </section>
         </aside>
       </div>
+
+      <BarraDeAcoes
+        blocos={blocos}
+        cancelar={{ aoClicar: desfazer, disabled: !mudou || salvar.isPending }}
+        principal={{ rotulo: "Salvar", disabled: !mudou || !corpo, ocupado: salvar.isPending }}
+      />
     </form>
   );
 }

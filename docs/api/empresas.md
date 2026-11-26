@@ -234,6 +234,31 @@ Testes com o código: `test_plt_12_troca_de_ramo_com_algo_aberto` (CA-ASS-50) e 
 **Pendência.** A troca do ramo em Configurações não tem tela de referência nem cartão em `GET /api/configuracoes/`. Fica no backlog para o design-system: a tela pode reaproveitar o `Onboarding-Ramo` e mostrar a recusa com o `abertos_texto`. Até lá, só o passo 7 usa estas rotas.
 
 
+## Estoque à venda (T-486, `VEI-19`)
+
+O limite de dias em estoque da empresa, o mesmo para todas as filiais: o painel "Estoque à venda" da tela `Admin-Marca`, gravado pelo Salvar da própria tela. Campo `ConfiguracaoEmpresa.limite_dias_parado` (inteiro, padrão 30, de 1 a 365, com `CHECK` no banco).
+
+### GET /api/configuracoes/estoque/
+
+Todos os perfis da empresa (o campo vem travado para quem não edita); o suporte lê.
+
+```json
+{ "limite_dias_parado": 30, "pode_editar": true }
+```
+
+`pode_editar` é `true` só para o administrador (o suporte, mesmo com "ver e editar", recebe `false`). Para os outros, a tela mostra o campo travado com "Só o administrador altera.".
+
+### PATCH /api/configuracoes/estoque/
+
+Só o administrador. Corpo: `{ "limite_dias_parado": 45 }`. 200: o corpo do `GET`. Grava o evento `empresa.alterar_limite_estoque` (categoria configurações, `regra: "VEI-19"`) com o antes e o depois; o mesmo valor de antes responde 200 sem evento. A mudança vale na hora: a lista e a ficha recalculam `parado`, e o cache do painel da empresa é renovado.
+
+Erros:
+
+- 422 `{ "codigo": "VEI-19", "mensagem": "Informe um número inteiro de 1 a 365.", "detalhes": { "campo": "limite_dias_parado" } }`: fora da faixa, vazio, nulo, fracionário, booleano ou texto que não é número. Nada é gravado.
+- 403 `permissao` para os outros perfis; 403 `PLT-07` para o suporte.
+
+Testes com o código: `test_vei_19_*` em `tests/aceitacao/test_t486_487_estoque_parado.py`.
+
 ## Dados (`ConfiguracaoEmpresa`, `modelo-de-dados.md`)
 
 A tarefa que implementa esta leitura acrescenta à linha única de `ConfiguracaoEmpresa`:

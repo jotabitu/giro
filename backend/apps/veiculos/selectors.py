@@ -6,41 +6,76 @@ Interface para os outros apps (contrato de veículos): `preco_vigente(categoria,
 """
 
 from collections.abc import Iterable
-from datetime import date, datetime, time, timedelta
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
-from django.db.models import Count, Q, QuerySet
+from django.db.models import (
+    Case,
+    Count,
+    DateTimeField,
+    Exists,
+    OuterRef,
+    Q,
+    QuerySet,
+    Subquery,
+    Value,
+    When,
+)
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from apps.empresas import selectors as empresas_selectors
 from comum import arquivos, leituras, relogio
 from comum.autenticacao import suporte_so_ver
 from comum.documentos import placa_com_hifen
 from comum.empresa import tem_recurso
+from comum.erros import ErroDeValidacao
 from comum.permissoes import filiais_permitidas
 
+from . import exclusao, precos
 from .models import (
     FORA_DA_FROTA,
     LIMITE_DA_GALERIA,
     MOVIMENTAVEIS,
+    TIPOS_FIXOS,
     TRANSICOES_VEICULO,
     Categoria,
+    ComoPaga,
     DocumentoVeiculo,
     Extra,
     FotoVeiculo,
     HistoricoStatusVeiculo,
+    PlanoCompraVeiculo,
+    PlanoVeiculo,
     PrecoCategoria,
+    RegrasVeiculo,
     StatusVeiculo,
+    TipoPlano,
     TipoVeiculo,
     Veiculo,
 )
 from .services import (
+    AVISO_PRECO,
+    CAMPOS_DAS_REGRAS,
+    CAMPOS_DOS_CUSTOS,
+    DocumentoDePrecos,
     SituacaoDocumento,
+    aviso_aluguel_desativado,
+    chave_do_plano,
+    despesas_do_veiculo,
+    montar_documento,
     motivo_da_galeria_so_para_ver,
     motivo_de_nao_trocar_tipo,
     normalizar_chassi,
     normalizar_placa,
+    pago_na_moto,
+    plano_novo,
+    sem_preco,
     situacao_do_documento,
+    tem_plano_ligado,
     valores_pontuados,
 )
 
@@ -71,7 +106,13 @@ TOM = {
     S.EM_MOVIMENTACAO: "info",
 }
 GRAVIDADE = {"perigo": 3, "alerta": 2, "info": 1}
-ORDENS = {"placa": "placa", "-km_atual": "-km_atual", "modelo": "modelo"}
+ORDENS = {
+    "placa": "placa",
+    "-km_atual": "-km_atual",
+    "modelo": "modelo",
+    # VEI-18: do mais parado para o menos; padrão com o filtro "À venda".
+    "em_estoque": "ordem_em_estoque",
+}
 
 
 # --- Preço (LOC-01, LOC-15) ---
@@ -171,8 +212,12 @@ def categorias(
     filial_id: int | None = None, tipo_veiculo: str | None = None, ativo: str | None = None
 ) -> QuerySet[Categoria]:
     """As da empresa e, com `filial_id`, as dessa filial."""
+    # O join não passa pelo manager: o excluído (VEI-22) sai à mão (T-517, Segurança no #679, B1).
     qs = Categoria.objects.annotate(
-        _veiculos=Count("veiculos", filter=~Q(veiculos__status__in=FORA_DA_FROTA))
+        _veiculos=Count(
+            "veiculos",
+            filter=~Q(veiculos__status__in=FORA_DA_FROTA) & Q(veiculos__excluido_em__isnull=True),
+        )
     )
     if filial_id is not None:
         qs = qs.filter(Q(filial__isnull=True) | Q(filial_id=filial_id))
@@ -448,9 +493,11 @@ def representacao(
     documentos: dict[int, dict[str, Any] | None] | None = None,
     detalhe: bool = False,
     com_dados_do_documento: bool = False,
+    limite_parado: int | None = None,
 ) -> dict[str, Any]:
     """`com_dados_do_documento`: os blocos da VEI-09 nas respostas do `POST` e do `PATCH`; a
-    ficha (`detalhe`) sempre os traz, e a Frota nunca."""
+    ficha (`detalhe`) sempre os traz, e a Frota nunca. `limite_parado`: o da VEI-19, lido uma
+    vez para a página da Frota."""
     if precos is None:
         precos = precos_vigentes({veiculo.categoria_id}, relogio.hoje())
     if documentos is None:
@@ -490,7 +537,16 @@ def representacao(
         "documentos_resumo": documentos.get(veiculo.pk),
         "movimentacao_aberta": blocos.get("movimentacao_aberta"),
         "acoes": acoes(veiculo, usuario, blocos),
+        # VEI-15: em qualquer status; não é status (decisão do dono de 18 nov 2026).
+        "aviso_preco": aviso_preco(veiculo),
+        "aluguel_ligado": veiculo.aluguel_ligado,  # VEI-21: "Aluguel desativado" na Frota e ficha
     }
+    # VEI-18, VEI-19 (T-486): dias em estoque do veículo `a_venda`; o vistoriador não recebe.
+    if limite_parado is None:
+        limite_parado = limite_dias_parado()
+    dados.update(
+        dados_do_estoque(veiculo, entrada_no_estoque(veiculo), limite_parado, relogio.hoje())
+    )
     if detalhe or com_dados_do_documento:
         dados.update(dados_do_documento(veiculo, gestao))
     if detalhe:
@@ -514,6 +570,7 @@ def representacao(
         if perfil not in ("vistoriador", "financeiro"):
             dados["movimentacoes"] = leituras.bloco(ALVO_FICHA, "movimentacoes", veiculo)
         dados["ocupacao"] = ocupacao(veiculo)
+        dados["limite_dias_parado"] = limite_parado  # "Limite da empresa" da ficha (VEI-19)
         dados["historico_status"] = historico_status(veiculo)
         # As vendas do veículo, com a transferência no Detran (VEN-11, CA-420-16), de `vendas`.
         dados["vendas"] = leituras.bloco(ALVO_FICHA, "vendas", veiculo) or None
@@ -521,6 +578,350 @@ def representacao(
         # O suporte em "só ver" recebe a galeria sem os links (ADR 0013, item 2).
         dados["galeria"] = bloco_galeria(veiculo, com_links=not suporte_so_ver(usuario))
         dados["acoes"]["editar_fotos"] = pode_editar_fotos(veiculo, usuario)
+        # VEI-22 (T-515): `null` para quem não exclui; com histórico, o aviso pronto.
+        dados["acoes"]["excluir"] = exclusao.acao(veiculo, usuario)
+    return dados
+
+
+# --- Preços por veículo (VEI-12 a VEI-17, ADR 0041) ---
+
+
+def anotar_tem_plano_ligado(queryset: QuerySet[Veiculo]) -> QuerySet[Veiculo]:
+    """`tem_plano_ligado` numa query para a lista (o índice parcial `plano_veiculo_ligado`)."""
+    return queryset.annotate(
+        tem_plano_ligado=Exists(
+            PlanoVeiculo.objects.filter(veiculo_id=OuterRef("pk"), ativo=True, ligado=True)
+        )
+        | Exists(PlanoCompraVeiculo.objects.filter(veiculo_id=OuterRef("pk"), ligado=True))
+    )
+
+
+@dataclass(frozen=True)
+class PrecoDoPlano:
+    """O plano ligado do veículo com o valor e a caução do dia (`valor_em`), mais as regras do
+    veículo (VEI-14): o que a locação congela na confirmação (LOC-15, ADR 0041, item 4)."""
+
+    plano_id: int
+    tipo: str
+    nome: str
+    rotulo: str
+    periodo: str
+    valor_centavos: int
+    como_paga: str
+    formas_aceitas: tuple[str, ...]
+    caucao_centavos: int
+    caucao_parcelas: int
+    franquia_km: int | None
+    prazo_minimo_periodos: int | None
+    dia_atraso_centavos: int
+    multa_minima_centavos: int
+    desconto_sem_aprovacao_pct: Decimal
+    km_excedente_centavos: int
+    prazo_devolucao_caucao_dias: int | None
+
+
+@dataclass(frozen=True)
+class PrecoDaCompra:
+    """O plano de compra ligado do veículo (VEI-16, LOC-16), com as regras do veículo."""
+
+    plano_id: int
+    periodicidade: str
+    parcelas: int
+    entrada_centavos: int
+    parcela_moto_centavos: int
+    adicional_centavos: int
+    parcela_cliente_centavos: int
+    caucao_centavos: int
+    valor_venda_centavos: int | None
+    juros_mes_pct: Decimal
+    dia_atraso_centavos: int
+    multa_minima_centavos: int
+    km_excedente_centavos: int
+    prazo_devolucao_caucao_dias: int | None
+
+
+def regras_para_locacao(veiculo: Veiculo) -> dict[str, Any]:
+    regras = RegrasVeiculo.objects.filter(veiculo_id=veiculo.pk).first() or RegrasVeiculo()
+    return {
+        "dia_atraso_centavos": int(regras.dia_atraso_centavos),
+        "multa_minima_centavos": int(regras.multa_minima_centavos),
+        "desconto_sem_aprovacao_pct": Decimal(regras.desconto_sem_aprovacao_pct),
+        "km_excedente_centavos": int(regras.km_excedente_centavos),
+        "prazo_devolucao_caucao_dias": regras.prazo_devolucao_caucao_dias,
+    }
+
+
+def _preco_do_plano(plano: PlanoVeiculo, dia: date, regras: dict[str, Any]) -> PrecoDoPlano:
+    return PrecoDoPlano(
+        plano_id=plano.pk,
+        tipo=plano.tipo,
+        nome=plano.nome,
+        rotulo=plano.rotulo,
+        periodo=plano.periodo,
+        valor_centavos=plano.valor_em(dia),
+        como_paga=plano.como_paga,
+        formas_aceitas=tuple(plano.formas_aceitas),
+        caucao_centavos=plano.caucao_em(dia) or 0,
+        caucao_parcelas=int(plano.caucao_parcelas),
+        franquia_km=plano.franquia_km,
+        prazo_minimo_periodos=plano.prazo_minimo_periodos,
+        **regras,
+    )
+
+
+def planos_para_locacao(veiculo: Veiculo, dia: date) -> list[PrecoDoPlano]:
+    """Os planos ativos e ligados do veículo, pelo preço do `dia` (LOC-01, LOC-15)."""
+    planos = PlanoVeiculo.ativos.filter(veiculo_id=veiculo.pk, ligado=True).order_by("id")
+    if not planos:
+        return []
+    regras = regras_para_locacao(veiculo)
+    return [_preco_do_plano(p, dia, regras) for p in planos]
+
+
+def plano_para_locacao(veiculo: Veiculo, plano_id: Any, dia: date) -> PrecoDoPlano:
+    """O plano escolhido, se for deste veículo, ativo e ligado; senão 409 `VEI-15` (o veículo
+    sem esse plano ligado não entra na locação, ADR 0041, item 4)."""
+    plano = PlanoVeiculo.objects.filter(pk=plano_id).first() if str(plano_id).isdigit() else None
+    if plano is None or plano.veiculo_id != veiculo.pk:
+        raise ErroDeValidacao({"plano_veiculo_id": ["Escolha um plano deste veículo."]})
+    if not (plano.ativo and plano.ligado):
+        raise sem_preco()
+    return _preco_do_plano(plano, dia, regras_para_locacao(veiculo))
+
+
+def plano_do_mesmo_tipo(veiculo: Veiculo, tipo: str, nome: str, dia: date) -> PrecoDoPlano:
+    """LOC-09: o plano ligado do veículo novo do mesmo tipo do contratado (no `outro`, o de mesmo
+    nome); sem ele, 409 `VEI-15`. Também a renovação das locações confirmadas antes dos planos
+    por veículo, pelo tipo da periodicidade."""
+    planos = PlanoVeiculo.ativos.filter(veiculo_id=veiculo.pk, tipo=tipo, ligado=True)
+    if tipo == TipoPlano.OUTRO:
+        planos = planos.filter(nome__iexact=nome)
+    plano = planos.order_by("id").first()
+    if plano is None:
+        raise sem_preco()
+    return _preco_do_plano(plano, dia, regras_para_locacao(veiculo))
+
+
+def plano_compra_para_locacao(veiculo: Veiculo) -> PrecoDaCompra:
+    """VEI-16, LOC-16: o plano de compra ligado do veículo; desligado ou ausente, 409 `VEI-15`."""
+    compra = PlanoCompraVeiculo.objects.filter(veiculo_id=veiculo.pk, ligado=True).first()
+    if compra is None:
+        raise sem_preco()
+    regras = regras_para_locacao(veiculo)
+    regras.pop("desconto_sem_aprovacao_pct")  # a compra não tem desconto (LOC-16)
+    return PrecoDaCompra(
+        plano_id=compra.pk,
+        periodicidade=compra.periodicidade,
+        parcelas=int(compra.parcelas),
+        entrada_centavos=int(compra.entrada_centavos),
+        parcela_moto_centavos=int(compra.parcela_moto_centavos),
+        adicional_centavos=int(compra.adicional_centavos),
+        parcela_cliente_centavos=int(compra.parcela_moto_centavos + compra.adicional_centavos),
+        caucao_centavos=int(compra.caucao_centavos),
+        valor_venda_centavos=veiculo.valor_venda_centavos,
+        juros_mes_pct=Decimal(compra.juros_mes_pct),
+        **regras,
+    )
+
+
+def aviso_preco(veiculo: Veiculo) -> str | None:
+    """O aviso da tabela não preenchida (VEI-15), ou `None`."""
+    tem = getattr(veiculo, "tem_plano_ligado", None)
+    if tem is None:
+        tem = tem_plano_ligado(veiculo)
+    return None if tem else AVISO_PRECO
+
+
+def _dividir(valor: int, partes: int) -> dict[str, int]:
+    """Convenção de arredondamento: a diferença de centavos vai para a última parcela."""
+    parcela = valor // partes
+    return {
+        "parcelas": partes,
+        "parcela_centavos": parcela,
+        "ultima_parcela_centavos": valor - parcela * (partes - 1),
+    }
+
+
+def _parcela_do_mes(valor: int, como_paga: str) -> dict[str, int] | None:
+    """VEI-12: o mensal dividido, "4 semanais de R$ 247,50"."""
+    partes = {ComoPaga.MES_DUAS_QUINZENAIS.value: 2, ComoPaga.MES_QUATRO_SEMANAIS.value: 4}.get(
+        como_paga
+    )
+    return _dividir(valor, partes) if partes else None
+
+
+def _caucao_parcelada(caucao: int | None, parcelas: int) -> dict[str, int] | None:
+    """VEI-12, LOC-04: a caução em mais de uma parcela, "2 × R$ 250,00"; à vista ou sem caução
+    preenchida, `None`."""
+    if caucao is None or parcelas <= 1:
+        return None
+    return _dividir(caucao, parcelas)
+
+
+def _plano(plano: PlanoVeiculo, hoje: date) -> dict[str, Any]:
+    """O valor e a caução efetivos do dia; o agendado só enquanto é futuro (ADR 0041, risco 3)."""
+    futuro = plano.agendado_para is not None and plano.agendado_para > hoje
+    valor = plano.valor_em(hoje)
+    caucao = plano.caucao_em(hoje)
+    return {
+        "id": plano.pk,
+        "tipo": plano.tipo,
+        "nome": plano.nome or None,
+        "rotulo": plano.rotulo,
+        "periodo": plano.periodo or None,
+        "ligado": plano.ligado,
+        "valor_centavos": valor,
+        "como_paga": plano.como_paga or None,
+        "formas_aceitas": list(plano.formas_aceitas),
+        "caucao_centavos": caucao,
+        "caucao_parcelas": plano.caucao_parcelas,
+        "caucao_parcelada": _caucao_parcelada(caucao, plano.caucao_parcelas),
+        "franquia_km": plano.franquia_km,
+        "prazo_minimo_periodos": plano.prazo_minimo_periodos,
+        "agendado": (
+            {
+                "valor_centavos": plano.valor_agendado_centavos,
+                "caucao_centavos": plano.caucao_agendada_centavos,
+                "a_partir_de": plano.agendado_para,
+            }
+            if futuro
+            else None
+        ),
+        "parcela_do_mes": _parcela_do_mes(valor, plano.como_paga),
+    }
+
+
+def _planos_da_tela(veiculo: Veiculo, planos: list[PlanoVeiculo]) -> list[PlanoVeiculo]:
+    """Os ativos, com os tipos fixos que ainda não existem (desligados, sem id), na ordem da
+    tela: diária, semanal, mensal, entregador e os `outro`."""
+    por_tipo = {p.tipo: p for p in planos if p.tipo != TipoPlano.OUTRO}
+    fixos = [por_tipo.get(tipo) or plano_novo(veiculo, tipo) for tipo in TIPOS_FIXOS]
+    return fixos + [p for p in planos if p.tipo == TipoPlano.OUTRO]
+
+
+def _margem(valor: precos.Margem | None) -> dict[str, Any] | None:
+    if valor is None:
+        return None
+    return {
+        "receita_mes_centavos": valor.receita_mes_centavos,
+        "lucro_mes_centavos": valor.lucro_mes_centavos,
+        "margem_pct": valor.margem_pct,
+        "abaixo_da_minima": valor.abaixo_da_minima,
+        "sem_custo_compra": valor.sem_custo_compra,
+    }
+
+
+def _compra(
+    compra: PlanoCompraVeiculo | None, resultado: precos.ResultadoCompra | None, custo: bool
+) -> dict[str, Any] | None:
+    if compra is None:
+        return None
+    dados: dict[str, Any] = {
+        "ligado": compra.ligado,
+        "periodicidade": compra.periodicidade,
+        "parcelas": compra.parcelas,
+        "entrada_centavos": compra.entrada_centavos,
+        "juros_mes_pct": compra.juros_mes_pct,
+        "modo": compra.modo,
+        "parcela_moto_centavos": compra.parcela_moto_centavos,
+        "adicional_centavos": compra.adicional_centavos,
+        "caucao_centavos": compra.caucao_centavos,
+        "resultado": None,
+    }
+    if resultado is not None:
+        calculo: dict[str, Any] = {
+            "financiado_centavos": resultado.financiado_centavos,
+            "meses_do_prazo": resultado.meses_do_prazo,
+            "taxa_periodo_pct": resultado.taxa_periodo_pct,
+            "juros_mes_pct": resultado.juros_mes_pct,
+            "parcela_moto_centavos": resultado.parcela_moto_centavos,
+            "adicional_centavos": resultado.adicional_centavos,
+            "parcela_cliente_centavos": resultado.parcela_cliente_centavos,
+            "recebe_pela_moto_centavos": resultado.recebe_pela_moto_centavos,
+            "juros_no_prazo_centavos": resultado.juros_no_prazo_centavos,
+            "venda_abaixo_do_pago": resultado.venda_abaixo_do_pago,
+            "nas_periodicidades": [
+                {
+                    "periodicidade": item.periodicidade,
+                    "parcelas": item.parcelas,
+                    "parcela_cliente_centavos": item.parcela_cliente_centavos,
+                }
+                for item in resultado.nas_periodicidades
+            ],
+        }
+        if custo:  # VEI-13: lucro e margem só para quem vê custo (USR-09)
+            calculo["lucro_centavos"] = resultado.lucro_centavos
+            calculo["margem_sobre_pago_pct"] = resultado.margem_sobre_pago_pct
+            calculo["pago_sobre_recebe_pct"] = resultado.pago_sobre_recebe_pct
+            calculo["lucro_sobre_recebe_pct"] = resultado.lucro_sobre_recebe_pct
+            calculo["sem_custo_compra"] = resultado.sem_custo_compra
+        dados["resultado"] = calculo
+    return dados
+
+
+def precos_do_veiculo(
+    veiculo: Veiculo,
+    usuario: Any,
+    documento: DocumentoDePrecos | None = None,
+    *,
+    pede_confirmacao: bool = False,
+) -> dict[str, Any]:
+    """O corpo do `GET`, do `PUT` e do `simular` de `/api/veiculos/{id}/precos/` (ADR 0041,
+    item 4). `custos`, `pago_na_moto`, lucro e margem só para `VEEM_CUSTO`: para os outros, as
+    chaves não vêm."""
+    hoje = relogio.hoje()
+    if documento is None:
+        documento = montar_documento(veiculo, {}, hoje)
+    perfil = getattr(usuario, "perfil", "")
+    custo = perfil in VEEM_CUSTO
+    resultado = documento.resultado
+    planos = _planos_da_tela(veiculo, [p for p in documento.planos if p.ativo])
+    lista = []
+    for plano in planos:
+        item = _plano(plano, hoje)
+        if custo:
+            item["margem"] = _margem(resultado.margens.get(chave_do_plano(plano)))
+        lista.append(item)
+    tem = any(p.ligado for p in planos) or bool(documento.compra and documento.compra.ligado)
+    regras = documento.regras
+    dados: dict[str, Any] = {
+        "veiculo": {
+            "id": veiculo.pk,
+            "placa": veiculo.placa,
+            "marca": veiculo.marca,
+            "modelo": veiculo.modelo,
+            "status": veiculo.status,
+        },
+        "valor_venda_centavos": documento.valor_venda_centavos,
+        "aluguel_ligado": documento.aluguel_ligado,  # VEI-21
+        "aviso_aluguel": None if documento.aluguel_ligado else aviso_aluguel_desativado(veiculo),
+        "fipe_centavos": veiculo.referencia_fipe_centavos,
+        "ocupacao_real_90d_pct": ocupacao(veiculo)["pct"],
+        "margem_minima_pct": empresas_selectors.margem_minima_pct(),
+        "planos": lista,
+        "regras": {campo: getattr(regras, campo) for campo in CAMPOS_DAS_REGRAS},
+        "plano_compra": _compra(documento.compra, resultado.compra, custo),
+        "alertas": resultado.alertas,
+        "aviso_preco": None if tem else AVISO_PRECO,
+        "pede_confirmacao_juros": pede_confirmacao,
+        # VEI-12: o suporte Giro só vê, nos dois modos (o `PUT` é `suporte_proibido`).
+        "pode_editar": perfil == "administrador" and not getattr(usuario, "e_suporte", False),
+    }
+    if custo:
+        dados["pago_na_moto"] = {
+            "total_centavos": pago_na_moto(veiculo),
+            "compra_centavos": veiculo.valor_compra_centavos,
+            "despesas_centavos": despesas_do_veiculo(veiculo),
+        }
+        custos = documento.custos
+        dados["custos"] = {
+            **{campo: getattr(custos, campo) for campo in CAMPOS_DOS_CUSTOS},
+            # VEI-13: o IPVA entra no custo ÷ 12; a tela mostra "R$ 39,00 por mês".
+            "ipva_mes_centavos": precos.centavos(Decimal(custos.ipva_ano_centavos) / 12),
+            "custo_mes_centavos": resultado.custo_mes_centavos,
+            "sem_custo_compra": resultado.sem_custo_compra,
+            "revenda_acima_do_pago": resultado.revenda_acima_do_pago,
+        }
     return dados
 
 
@@ -632,6 +1033,8 @@ def _da_locacao(veiculo: Veiculo, perfil: str) -> dict[str, Any]:
 
 # Blocos que só têm dinheiro: saem inteiros para quem não vê valores.
 BLOCOS_DE_VALOR = frozenset({"preco_vigente", "proximo_preco", "indicadores_financeiros"})
+# VEI-18: o vistoriador, que vê do veículo só km e avarias, não recebe os dias em estoque.
+CAMPOS_DO_ESTOQUE = frozenset({"a_venda_desde", "dias_em_estoque", "parado", "limite_dias_parado"})
 
 
 def ve_valores(usuario: Any) -> bool:
@@ -640,14 +1043,15 @@ def ve_valores(usuario: Any) -> bool:
 
 
 def sem_valores(dados: Any) -> Any:
-    """Sem nenhum campo `_centavos` e sem os blocos de preço. Aplicado depois do serializer, que
-    preencheria com `null` o campo que falta."""
+    """Sem nenhum campo `_centavos`, sem os blocos de preço e sem os dias em estoque (VEI-18).
+    Aplicado depois do serializer, que preencheria com `null` o campo que falta."""
     if isinstance(dados, dict):
         return {
             chave: sem_valores(valor)
             for chave, valor in dados.items()
             if not chave.endswith("_centavos")
             and chave not in BLOCOS_DE_VALOR
+            and chave not in CAMPOS_DO_ESTOQUE
             and chave != "data_compra"
         }
     if isinstance(dados, list):
@@ -756,7 +1160,12 @@ def frota_ativa_em(dia: date, filiais: Iterable[int]) -> int:
     fim = timezone.make_aware(datetime.combine(dia + timedelta(days=1), time.min))
     ultimo: dict[int, str] = {}
     for veiculo_id, para in (
-        HistoricoStatusVeiculo.objects.filter(veiculo__filial_id__in=list(filiais), em__lt=fim)
+        # O excluído (VEI-22) não conta em dia nenhum: para a locadora ele não existiu.
+        HistoricoStatusVeiculo.objects.filter(
+            veiculo__filial_id__in=list(filiais),
+            veiculo__excluido_em__isnull=True,
+            em__lt=fim,
+        )
         .order_by("veiculo_id", "em", "id")
         .values_list("veiculo_id", "para")
     ):
@@ -788,6 +1197,164 @@ def montar_indicadores(filial: Any) -> dict[str, Any]:
 def contar_veiculos_do_plano() -> int:
     """Uso do plano (PLT-03): os veículos fora de `vendido` e `baixado`."""
     return int(Veiculo.objects.exclude(status__in=FORA_DA_FROTA).count())
+
+
+# --- Estoque à venda (VEI-18, VEI-19, VEI-20; T-486, T-487) ---
+
+FUSO_DO_ESTOQUE = ZoneInfo("America/Sao_Paulo")
+# Sem entrada (fora do estoque ou sem histórico): o fim da ordem "Em estoque" (VEI-18).
+SEM_ENTRADA = datetime(9999, 12, 31, tzinfo=UTC)
+ORDEM_EM_ESTOQUE = ("ordem_em_estoque", "placa", "id")
+PARADOS_NO_INICIO = 5
+
+
+def limite_dias_parado() -> int:
+    """VEI-19: o limite da empresa (configuração em `empresas`)."""
+    return empresas_selectors.limite_dias_parado()
+
+
+def _passagens_que_abrem_entrada() -> QuerySet[HistoricoStatusVeiculo]:
+    """VEI-18: a passagem para `a_venda` vinda de qualquer estado menos `vendido`. A de
+    `vendido` (venda cancelada, VEN-07) não é entrada nova: a contagem continua a anterior."""
+    return HistoricoStatusVeiculo.objects.filter(para=S.A_VENDA).exclude(de=S.VENDIDO)
+
+
+def anotar_entrada_no_estoque(queryset: QuerySet[Veiculo]) -> QuerySet[Veiculo]:
+    """`estoque_entrada_em`: a última entrada no estoque do veículo `a_venda` (nula fora dele ou
+    sem histórico); `ordem_em_estoque`: a mesma, com os sem entrada no fim."""
+    ultima = (
+        _passagens_que_abrem_entrada()
+        .filter(veiculo_id=OuterRef("pk"))
+        .order_by("-em", "-id")
+        .values("em")[:1]
+    )
+    return queryset.annotate(
+        estoque_entrada_em=Case(
+            When(status=S.A_VENDA, then=Subquery(ultima)),
+            default=Value(None),
+            output_field=DateTimeField(),
+        )
+    ).annotate(
+        ordem_em_estoque=Coalesce(
+            "estoque_entrada_em", Value(SEM_ENTRADA), output_field=DateTimeField()
+        )
+    )
+
+
+def entrada_no_estoque(veiculo: Veiculo) -> datetime | None:
+    """VEI-18 de um veículo só (a ficha). Fora de `a_venda`, `None`."""
+    anotada = getattr(veiculo, "estoque_entrada_em", ...)
+    if anotada is not ...:
+        return anotada  # type: ignore[no-any-return]
+    if veiculo.status != S.A_VENDA:
+        return None
+    passagem = (
+        _passagens_que_abrem_entrada()
+        .filter(veiculo_id=veiculo.pk)
+        .order_by("-em", "-id")
+        .values_list("em", flat=True)
+        .first()
+    )
+    return passagem
+
+
+def _dia_da_entrada(entrada: datetime) -> date:
+    return entrada.astimezone(FUSO_DO_ESTOQUE).date()
+
+
+def dias_em_estoque(entrada: datetime, hoje: date) -> int:
+    """VEI-18: dias corridos de `America/Sao_Paulo` desde a entrada; colocado hoje, 0."""
+    return max((hoje - _dia_da_entrada(entrada)).days, 0)
+
+
+def dados_do_estoque(
+    veiculo: Veiculo, entrada: datetime | None, limite: int, hoje: date
+) -> dict[str, Any]:
+    """`a_venda_desde`, `dias_em_estoque` e `parado` (VEI-18, VEI-19). Fora do estoque ou sem
+    entrada no histórico, as datas vêm nulas e `parado` é falso (não gera alerta)."""
+    if veiculo.status != S.A_VENDA or entrada is None:
+        return {"a_venda_desde": None, "dias_em_estoque": None, "parado": False}
+    dias = dias_em_estoque(entrada, hoje)
+    return {
+        "a_venda_desde": _dia_da_entrada(entrada),
+        "dias_em_estoque": dias,
+        "parado": dias > limite,
+    }
+
+
+def inicio_do_parado(limite: int, hoje: date) -> datetime:
+    """VEI-19: parado = `dias > limite`, isto é, a entrada antes do começo do dia
+    `hoje − limite` em `America/Sao_Paulo`."""
+    return datetime.combine(hoje - timedelta(days=limite), time(), tzinfo=FUSO_DO_ESTOQUE)
+
+
+def a_venda_com_entrada(filiais: Iterable[int]) -> QuerySet[Veiculo]:
+    """Os veículos `a_venda` das filiais, anotados e na ordem da lista com o filtro "À venda"."""
+    return anotar_entrada_no_estoque(
+        Veiculo.objects.filter(filial_id__in=list(filiais), status=S.A_VENDA)
+    ).order_by(*ORDEM_EM_ESTOQUE)
+
+
+def parados_a_venda(filiais: Iterable[int], limite: int, hoje: date) -> dict[str, Any]:
+    """O bloco "Parados à venda" do início do gerente (VEI-18): os 5 com mais dias, na ordem da
+    lista, e quantos estão acima do limite da empresa."""
+    estoque = a_venda_com_entrada(filiais)
+    acima = estoque.filter(Q(estoque_entrada_em__lt=inicio_do_parado(limite, hoje))).count()
+    itens = []
+    for veiculo in estoque[:PARADOS_NO_INICIO]:
+        dados = dados_do_estoque(veiculo, veiculo.estoque_entrada_em, limite, hoje)  # type: ignore[attr-defined]
+        itens.append(
+            {
+                "id": veiculo.pk,
+                "placa": veiculo.placa,
+                "veiculo": f"{veiculo.marca} {veiculo.modelo}",
+                "dias_em_estoque": dados["dias_em_estoque"],
+                "parado": dados["parado"],
+            }
+        )
+    return {"limite_dias_parado": limite, "acima_do_limite": acima, "itens": itens}
+
+
+def estoque_a_venda(filiais: Iterable[int]) -> dict[str, Any]:
+    """VEI-20: capital imobilizado, custo médio e margem potencial dos veículos `a_venda`.
+
+    Custo = o "pago na moto" da VEI-13 (compra + despesas ligadas sem as recusadas). O veículo
+    sem valor de compra fica fora de tudo e é contado à parte; o com compra e sem valor de venda
+    entra no capital e no custo médio e fica fora da margem. Margem em % = soma das margens ÷
+    soma dos valores de venda (ponderada), arredondada uma vez, `ROUND_HALF_UP`.
+    """
+    veiculos = list(Veiculo.objects.filter(filial_id__in=list(filiais), status=S.A_VENDA))
+    com_compra = [v for v in veiculos if v.valor_compra_centavos is not None]
+    custos = {v.pk: pago_na_moto(v) or 0 for v in com_compra}
+    capital = sum(custos.values())
+    na_margem = [v for v in com_compra if v.valor_venda_centavos is not None]
+    margem = sum(int(v.valor_venda_centavos or 0) - custos[v.pk] for v in na_margem)
+    vendas = sum(int(v.valor_venda_centavos or 0) for v in na_margem)
+    return {
+        "quantidade": len(veiculos),
+        "capital_imobilizado_centavos": capital,
+        "veiculos_na_conta": len(com_compra),
+        "custo_medio_centavos": (
+            precos.centavos(Decimal(capital) / len(com_compra)) if com_compra else None
+        ),
+        "margem_centavos": margem if na_margem else None,
+        "margem_pct": precos.pct(Decimal(margem) * 100 / vendas) if na_margem and vendas else None,
+        "sem_valor_compra": len(veiculos) - len(com_compra),
+        "sem_valor_venda": len(com_compra) - len(na_margem),
+    }
+
+
+def a_avisar_de_parado(limite: int, hoje: date) -> list[tuple[Veiculo, datetime]]:
+    """AUT-18: os veículos `a_venda` parados (VEI-19) cuja entrada no estoque ainda não foi
+    avisada, com a entrada. Na ordem da lista."""
+    estoque = anotar_entrada_no_estoque(Veiculo.objects.filter(status=S.A_VENDA)).filter(
+        Q(estoque_entrada_em__lt=inicio_do_parado(limite, hoje))
+    )
+    return [
+        (veiculo, veiculo.estoque_entrada_em)  # type: ignore[attr-defined]
+        for veiculo in estoque.select_related("filial").order_by(*ORDEM_EM_ESTOQUE)
+        if veiculo.estoque_aviso_entrada_em != veiculo.estoque_entrada_em  # type: ignore[attr-defined]
+    ]
 
 
 # --- Documentos (VEI-03, AUD-05) ---

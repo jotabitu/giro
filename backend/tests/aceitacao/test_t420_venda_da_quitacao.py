@@ -80,7 +80,7 @@ def test_ven_11_quitacao_cria_a_venda_de_zero(cenario, quitada):  # noqa: F811
         0,
     )
     assert venda.descricao == "Quitação da LOC-2856"
-    assert venda.cliente.nome == "Lucas Ferreira"
+    assert venda.cliente is not None and venda.cliente.nome == "Lucas Ferreira"
     assert venda.veiculo.placa == "SAK1D39"
     assert venda.vendedor == cenario.pessoas["Bruna"]
     assert venda.locacao_id == quitada["id"]
@@ -203,11 +203,15 @@ def test_ven_11_bloco_vazio_sem_venda(cenario):  # noqa: F811
 
 
 def test_ven_11_transferencias_pendentes(quitada):
-    filial = _venda().filial_id
+    venda = _venda()
+    filial = venda.filial_id
     assert selectors.transferencias_pendentes([filial]) == [
         {
             "tipo": "transferencia_quitacao",
             "locacao_id": quitada["id"],
+            # T-502, fase 1b: o destino do painel vem da venda (a de balcão leva a /vendas).
+            "venda_id": venda.pk,
+            "destino": {"chave": "locacoes", "id": quitada["id"]},
             "rotulo": "Transferência no Detran · SAK-1D39",
             "detalhe": "Lucas Ferreira · LOC-2856 quitada em 07/10/2026",
             "link": f"/locacoes/{quitada['id']}",
@@ -295,7 +299,9 @@ def test_ven_11_lista_de_vendas(cenario, quitada):  # noqa: F811
     assert venda["locacao"] == {"id": quitada["id"], "codigo": "LOC-2856"}
     assert venda["vendedor"]["nome"] == "Bruna"
     assert venda["veiculo"]["placa"] == "SAK1D39"
-    assert venda["acoes"] == {"cancelar": False, "registrar_transferencia": True}
+    # T-502: as ações do fluxo de balcão ficam todas falsas na venda da quitação.
+    assert venda["acoes"]["registrar_transferencia"] is True
+    assert not any(v for k, v in venda["acoes"].items() if k != "registrar_transferencia")
     detalhe = cenario.moto.api("Bruna").get(f"{VENDAS}{venda['id']}/")
     assert detalhe.status_code == 200
     assert detalhe.json()["acoes"]["registrar_transferencia"] is False

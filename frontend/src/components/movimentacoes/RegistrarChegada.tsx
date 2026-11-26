@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, type ChangeEvent } from "react";
 import { Aviso } from "@/components/acesso/Aviso";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
-import { Button, Icone, TextField } from "@/design-system";
+import { BarraDeAcoes, Button, Icone, TextField, useBlocoVisivel } from "@/design-system";
 import { ErroApi, movimentacoes, type Combustivel, type Movimentacao, type PosicaoDaFotoDaChegada } from "@/lib/api";
 import { useAgora } from "@/lib/ambiente";
 import { mensagemDoErro } from "@/lib/erros";
@@ -74,6 +74,7 @@ function Foto({ posicao, rotulo, feita, enviando, aoEscolher }: { posicao: Posic
 export function RegistrarChegada({ id }: { id: number }) {
   const router = useRouter();
   const cliente = useQueryClient();
+  const blocos = useBlocoVisivel();
   const agora = useAgora();
   const [kmTexto, setKmTexto] = useState("");
   const [combustivel, setCombustivel] = useState<Combustivel | null>(null);
@@ -196,9 +197,16 @@ export function RegistrarChegada({ id }: { id: number }) {
               ? `Ao confirmar, o ${placa(m.veiculo.placa)} passa a ser da ${m.destino.nome} e o km é atualizado. Ele volta a ficar disponível se os documentos estiverem em dia.`
               : "Ao confirmar, o km é atualizado e o veículo volta a ficar disponível se os documentos estiverem em dia."}
           </p>
-          <Button type="submit" variante="solido" disabled={confirmar.isPending || kmTexto === ""}>
-            Confirmar chegada
-          </Button>
+          <div ref={blocos.ref()}>
+            <Button type="submit" variante="solido" disabled={confirmar.isPending || kmTexto === ""}>
+              Confirmar chegada
+            </Button>
+          </div>
+          <BarraDeAcoes
+            blocos={blocos}
+            cancelar={{ href: ROTA_DAS_MOVIMENTACOES }}
+            principal={{ rotulo: "Confirmar chegada", disabled: confirmar.isPending || kmTexto === "" }}
+          />
         </form>
       )}
     </div>

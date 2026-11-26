@@ -5,12 +5,18 @@ import { ArrowUpRight, Menu as IconeMenu, BarChart3, Bell, CarFront, FileText, L
 import { useState, type ReactNode } from "react";
 import {
   AlertCard,
+  BarraDeAcoes,
+  useBlocoVisivel,
   Button,
   CodigoVerificacao,
   CelulaDupla,
   Dialogo,
+  Escolha,
+  Etapas,
+  Valores,
   Gaveta,
   SeletorDeFilial,
+  Aviso,
   Contador,
   Cover,
   DataTable,
@@ -20,7 +26,9 @@ import {
   KpiGrid,
   KpiTile,
   KpiVariacao,
+  LigaDesliga,
   LinhaDeLista,
+  ListaComRolagem,
   ListaDeLinhas,
   Panel,
   ProgressBar,
@@ -29,6 +37,7 @@ import {
   SelectField,
   Sidebar,
   StatusBadge,
+  CampoDeDinheiro,
   TextField,
   VehicleCard,
 } from "@/design-system";
@@ -206,6 +215,87 @@ function ExemploFleetBar() {
   );
 }
 
+function ExemploLigaDesliga() {
+  const [semanal, setSemanal] = useState(true);
+  const [diaria, setDiaria] = useState(false);
+  return (
+    <div className="flex flex-col gap-3">
+      <Linha>
+        <LigaDesliga ligado={semanal} aoMudar={setSemanal} rotulo="Oferecer plano semanal" />
+        <span>Semanal</span>
+      </Linha>
+      <Linha>
+        <LigaDesliga ligado={diaria} aoMudar={setDiaria} rotulo="Oferecer plano diário" />
+        <span>Diária</span>
+      </Linha>
+      <Linha>
+        <LigaDesliga ligado rotulo="Oferecer plano mensal (só leitura)" aoMudar={() => {}} desabilitado />
+        <span>Mensal, só leitura</span>
+      </Linha>
+    </div>
+  );
+}
+
+function ExemploAviso() {
+  return (
+    <div className="flex max-w-xl flex-col gap-3">
+      <Aviso>A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda.</Aviso>
+      <Aviso tom="info">Mudar um preço vale para as próximas locações.</Aviso>
+      <Aviso tom="critico">A parcela não cobre o valor de venda.</Aviso>
+    </div>
+  );
+}
+
+function ExemploEscolha() {
+  const [forma, setForma] = useState("entrada_parcelas");
+  return (
+    <div className="max-w-md">
+      <Escolha
+        rotulo="Forma de pagamento"
+        valor={forma}
+        aoMudar={setForma}
+        opcoes={[
+          { valor: "a_vista", titulo: "À vista", apoio: "Pix ou TED" },
+          { valor: "entrada_parcelas", titulo: "Entrada + parcelas", apoio: "boleto ou Pix mensal" },
+        ]}
+      />
+    </div>
+  );
+}
+
+function ExemploEtapas() {
+  return (
+    <div className="max-w-md">
+      <Etapas
+        rotulo="Assinatura e entrada"
+        etapas={[
+          { titulo: "Contrato enviado", texto: "07 out, 10:20 · diego.martins@exemplo.com.br", estado: "feita" },
+          { titulo: "Assinatura do cliente", texto: "Aguardando assinatura. O cliente assina pelo celular.", estado: "atual" },
+          { titulo: "Entrada de R$ 5.000,00", texto: "Aguardando pagamento · vence hoje", estado: "atual" },
+          { titulo: "Venda concluída", texto: "Com o contrato assinado e a entrada paga, a venda é concluída sozinha.", estado: "pendente" },
+        ]}
+      />
+    </div>
+  );
+}
+
+function ExemploValores() {
+  return (
+    <div className="max-w-sm">
+      <Valores
+        linhas={[
+          { rotulo: "Preço de tabela", valor: "R$ 22.900,00" },
+          { rotulo: "Desconto 8%", valor: "− R$ 1.832,00" },
+          { rotulo: "Preço final", valor: "R$ 21.068,00" },
+          { rotulo: "Entrada", valor: "R$ 5.000,00" },
+          { rotulo: "Saldo", valor: "12 × R$ 1.339,00" },
+          { rotulo: "Comissão Bruna (3%)", valor: "R$ 632,04" },
+        ]}
+      />
+    </div>
+  );
+}
+
 function ExemploProgressBar() {
   return (
     <div className="flex max-w-md flex-col gap-4">
@@ -227,6 +317,50 @@ function ExemploLinhaDeLista() {
   );
 }
 
+function ExemploBarraDeAcoes() {
+  const [ocupado, setOcupado] = useState(false);
+  const blocos = useBlocoVisivel();
+  return (
+    <div className="flex flex-col gap-4">
+      <form id="exemplo-barra" className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()}>
+        <Panel titulo="Novo item">
+          <TextField cheio rotulo="Nome" placeholder="Digite e aperte Enter" />
+        </Panel>
+        {/* O bloco fixo de botões da tela: enquanto aparece, a barra fica escondida. */}
+        <div ref={blocos.ref()} className="wl-panel flex flex-col gap-3">
+          <button type="submit" disabled={ocupado} className="wl-btn wl-btn--solid" onClick={() => setOcupado((o) => !o)}>
+            {ocupado ? "Salvando…" : "Salvar alterações"}
+          </button>
+          <button type="button" className="wl-btn wl-btn--quiet" onClick={() => setOcupado(false)}>
+            Cancelar
+          </button>
+        </div>
+        <Panel titulo="Mais campos">
+          <p className="h-[640px] text-body text-ink-muted">Role a página: quando o bloco de botões sai da tela, a barra surge no pé; quando ele volta, a barra some.</p>
+        </Panel>
+      </form>
+      <BarraDeAcoes blocos={blocos} cancelar={{ aoClicar: () => setOcupado(false) }} principal={{ rotulo: "Salvar alterações", form: "exemplo-barra", ocupado, aoClicar: () => setOcupado((o) => !o) }} />
+    </div>
+  );
+}
+
+function ExemploListaComRolagem() {
+  return (
+    <Panel titulo="Histórico" acao={<span className="text-caption text-ink-muted">12 eventos</span>}>
+      <ListaComRolagem rotulo="Histórico de exemplo">
+        <ol className="flex flex-col">
+          {Array.from({ length: 12 }, (_, n) => (
+            <li key={n} className="border-b border-line py-2 last:border-b-0">
+              <div className="text-body">Evento {n + 1}</div>
+              <div className="text-caption text-ink-muted">0{(n % 9) + 1} out · 10:30</div>
+            </li>
+          ))}
+        </ol>
+      </ListaComRolagem>
+    </Panel>
+  );
+}
+
 function ExemploSearchField() {
   return (
     <Linha>
@@ -236,6 +370,17 @@ function ExemploSearchField() {
         Nova locação
       </Button>
     </Linha>
+  );
+}
+
+function ExemploCampoDeDinheiro() {
+  return (
+    <div style={{ display: "grid", gap: 16, maxWidth: 320 }}>
+      <CampoDeDinheiro cheio mono rotulo="Diária" defaultValue="54,90" dica="Digite só os números: 500000 vira 5.000,00" />
+      <CampoDeDinheiro cheio prefixo rotulo="Entrada" placeholder="R$ 0,00" />
+      <CampoDeDinheiro cheio prefixo rotulo="Caução" defaultValue="R$ 500,00" erro="Informe um valor de até R$ 10.000,00" />
+      <CampoDeDinheiro cheio prefixo rotulo="Preço de tabela" defaultValue="R$ 22.900,00" disabled dica="Vem da API" />
+    </div>
   );
 }
 
@@ -541,22 +686,30 @@ function ExemploSidebar() {
 
 const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "alert-card": ExemploAlertCard,
+  "aviso": ExemploAviso,
   "button": ExemploButton,
   "codigo-verificacao": ExemploCodigoVerificacao,
   "dialogo": ExemploDialogo,
+  "escolha": ExemploEscolha,
+  "etapas": ExemploEtapas,
+  "valores": ExemploValores,
   "gaveta": ExemploGaveta,
   "seletor-de-filial": ExemploSeletorDeFilial,
   "cover": () => <Cover />,
   "data-table": ExemploDataTable,
   "fleet-bar": ExemploFleetBar,
   "kpi-tile": ExemploKpiTile,
+  "liga-desliga": ExemploLigaDesliga,
   "linha-de-lista": ExemploLinhaDeLista,
+  "barra-de-acoes": ExemploBarraDeAcoes,
+  "lista-com-rolagem": ExemploListaComRolagem,
   "progress-bar": ExemploProgressBar,
   "search-field": ExemploSearchField,
   "segmented-control": ExemploSegmentedControl,
   "select-field": ExemploSelectField,
   "sidebar": ExemploSidebar,
   "status-badge": ExemploStatusBadge,
+  "campo-de-dinheiro": ExemploCampoDeDinheiro,
   "text-field": ExemploTextField,
   "vehicle-card": ExemploVehicleCard,
 };

@@ -3,13 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CATALOGO } from "@/app/design-system/catalogo";
 import { ExemploDe } from "@/app/design-system/exemplos";
-import { Button, Dialogo, Gaveta, IconButton, KpiTile, LinhaDeLista, ListaDeLinhas, ProgressBar, SelectField, StatusBadge, TextField, VehicleCard } from "./components";
+import { Aviso, Button, Dialogo, Escolha, Etapas, Gaveta, IconButton, KpiTile, LigaDesliga, LinhaDeLista, ListaDeLinhas, ProgressBar, SelectField, StatusBadge, TextField, Valores, VehicleCard } from "./components";
 
 const dir = new URL("./", import.meta.url);
 
 describe("componentes", () => {
-  it("são os 12 do design system mais os componentes da T-042, T-046, T-054 e T-440, cada um com preview e README", () => {
-    expect(CATALOGO).toHaveLength(19);
+  it("são os 12 do design system mais os componentes da T-042, T-046, T-054, T-440, T-496, T-503, T-509, T-510 e T-514, cada um com preview e README", () => {
+    expect(CATALOGO).toHaveLength(27);
     for (const c of CATALOGO) {
       expect(existsSync(new URL(`components/${c.nome}/README.md`, dir)), `README de ${c.nome}`).toBe(true);
       expect(existsSync(new URL(`components/${c.nome}/${c.nome}.tsx`, dir)), `código de ${c.nome}`).toBe(true);
@@ -173,5 +173,55 @@ describe("T-440: SelectField", () => {
     expect(html).not.toContain("Dica");
     expect(html).toContain("wl-sr-only");
     expect(html).toContain("Categoria de CG");
+  });
+});
+
+describe("LigaDesliga e Aviso (T-496)", () => {
+  it("LigaDesliga é um switch com nome acessível e estado", () => {
+    const ligado = renderToStaticMarkup(<LigaDesliga ligado rotulo="Oferecer plano semanal" aoMudar={() => {}} />);
+    expect(ligado).toContain('role="switch"');
+    expect(ligado).toContain('aria-checked="true"');
+    expect(ligado).toContain('aria-label="Oferecer plano semanal"');
+    expect(ligado).toContain('type="button"');
+    const desligado = renderToStaticMarkup(<LigaDesliga ligado={false} rotulo="Oferecer plano diário" aoMudar={() => {}} desabilitado />);
+    expect(desligado).toContain('aria-checked="false"');
+    expect(desligado).toContain("disabled");
+  });
+
+  it("Aviso usa a classe do tom e o papel certo", () => {
+    expect(renderToStaticMarkup(<Aviso>Texto</Aviso>)).toContain('class="wl-note"');
+    expect(renderToStaticMarkup(<Aviso tom="info">Texto</Aviso>)).toContain("wl-note--info");
+    const critico = renderToStaticMarkup(<Aviso tom="critico">Texto</Aviso>);
+    expect(critico).toContain("wl-note--critical");
+    expect(critico).toContain('role="alert"');
+  });
+});
+
+describe("Escolha, Etapas e Valores (T-503)", () => {
+  it("Escolha é um radiogroup com a opção marcada", () => {
+    const html = renderToStaticMarkup(
+      <Escolha rotulo="Forma de pagamento" valor="b" aoMudar={() => {}} opcoes={[{ valor: "a", titulo: "À vista", apoio: "Pix ou TED" }, { valor: "b", titulo: "Entrada + parcelas" }]} />,
+    );
+    expect(html).toContain('role="radiogroup"');
+    expect(html).toContain('aria-label="Forma de pagamento"');
+    expect(html).toContain('aria-checked="true"');
+    expect(html).toContain('aria-checked="false"');
+    expect(html).toContain("Pix ou TED");
+  });
+
+  it("Etapas marca feita e atual, e escreve o texto de cada passo", () => {
+    const html = renderToStaticMarkup(
+      <Etapas rotulo="Assinatura" etapas={[{ titulo: "Contrato enviado", texto: "07 out", estado: "feita" }, { titulo: "Assinatura do cliente", estado: "atual" }, { titulo: "Venda concluída", estado: "pendente" }]} />,
+    );
+    expect(html).toContain('data-state="done"');
+    expect(html).toContain('aria-current="step"');
+    expect(html).toContain("07 out");
+    expect(html.match(/aria-current/g)).toHaveLength(1);
+  });
+
+  it("Valores mostra rótulo e valor como vêm", () => {
+    const html = renderToStaticMarkup(<Valores linhas={[{ rotulo: "Saldo", valor: "12 × R$ 1.339,00" }]} />);
+    expect(html).toContain("wl-kv");
+    expect(html).toContain("12 × R$ 1.339,00");
   });
 });

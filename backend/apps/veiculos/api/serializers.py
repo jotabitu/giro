@@ -4,11 +4,26 @@ As regras (placa, chassi, categoria da filial, unicidade, transições) são con
 serviço; aqui só a forma.
 """
 
+from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
 
-from ..models import Combustivel, Especie, Extra, StatusVeiculo, TipoDocumento, TipoVeiculo
+from .. import exclusao
+from ..models import (
+    Combustivel,
+    ComoPaga,
+    Especie,
+    Extra,
+    FormaAceita,
+    ModoParcela,
+    Periodicidade,
+    PeriodoPlano,
+    StatusVeiculo,
+    TipoDocumento,
+    TipoPlano,
+    TipoVeiculo,
+)
 from ..services import MENSAGENS_DA_VEI_09, MOTIVOS_DE_BAIXA
 
 # --- Entrada ---
@@ -271,8 +286,29 @@ class ColocarAVendaSerializer(serializers.Serializer[Any]):
 
 
 class BaixarSerializer(serializers.Serializer[Any]):
-    motivo = serializers.ChoiceField(choices=list(MOTIVOS_DE_BAIXA))
-    descricao = serializers.CharField(required=False, allow_blank=True, default="")
+    """VEI-23: o motivo é obrigatório; a descrição, até 200 caracteres, só é obrigatória no
+    `outro` (vazia ou só espaços: "Descreva o motivo da baixa.")."""
+
+    motivo = serializers.ChoiceField(
+        choices=list(MOTIVOS_DE_BAIXA),
+        error_messages={
+            "required": "Escolha o motivo da baixa.",
+            "null": "Escolha o motivo da baixa.",
+            "invalid_choice": "Escolha o motivo da baixa.",
+        },
+    )
+    descricao = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=200,
+        error_messages={"max_length": "Use até 200 caracteres."},
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs["motivo"] == "outro" and not attrs.get("descricao", "").strip():
+            raise serializers.ValidationError({"descricao": ["Descreva o motivo da baixa."]})
+        return attrs
 
 
 class KmSerializer(serializers.Serializer[Any]):
@@ -409,6 +445,19 @@ class VeiculoSerializer(serializers.Serializer[Any]):
     documentos_resumo = serializers.JSONField(allow_null=True)
     movimentacao_aberta = MovimentacaoAbertaSerializer(allow_null=True)  # MOV-03
     acoes = AcoesDoVeiculoSerializer()
+    # VEI-15 (ADR 0041): a tabela de preços não preenchida, em qualquer status; `null` sem aviso.
+    aviso_preco = serializers.CharField(allow_null=True)
+    # VEI-21 (T-507): "Oferecer aluguel"; desligado, a Frota e a ficha mostram "Aluguel desativado".
+    aluguel_ligado = serializers.BooleanField()
+    # VEI-18, VEI-19 (T-486): só no veículo `a_venda`; nulos fora do estoque ou sem entrada no
+    # histórico. Ausentes para o vistoriador.
+    a_venda_desde = serializers.DateField(
+        allow_null=True, required=False, help_text="Dia da entrada no estoque (São Paulo)."
+    )
+    dias_em_estoque = serializers.IntegerField(allow_null=True, required=False)
+    parado = serializers.BooleanField(
+        required=False, help_text="Dias em estoque acima do limite da empresa (VEI-19)."
+    )
 
 
 class OcupacaoSerializer(serializers.Serializer[Any]):
@@ -546,9 +595,31 @@ class VeiculoComDadosDoDocumentoSerializer(VeiculoSerializer):
     anotacoes = serializers.CharField(allow_null=True)
 
 
+class ExcluirVeiculoSerializer(serializers.Serializer[Any]):
+    """VEI-22 (T-515): a confirmação (`permitido`) ou o aviso com o histórico, prontos."""
+
+    permitido = serializers.BooleanField()
+    titulo = serializers.CharField()
+    texto = serializers.CharField(allow_null=True)  # a confirmação; `null` no aviso
+    motivo = serializers.CharField(allow_null=True)  # o histórico achado; `null` na confirmação
+    caminho = serializers.CharField(allow_null=True)  # colocar à venda ou a baixa
+    historico = serializers.ListField(
+        child=serializers.ChoiceField(choices=[tipo for tipo, _ in exclusao.HISTORICO])
+    )
+
+
+class VeiculoExcluidoSerializer(serializers.Serializer[Any]):
+    """Resposta do `POST .../excluir/` (VEI-22): o aviso da Frota, "Veículo QXA-4B21 excluído."."""
+
+    id = serializers.IntegerField()
+    mensagem = serializers.CharField()
+
+
 class AcoesDaFichaSerializer(AcoesDoVeiculoSerializer):
     # Administrador e gerente, fora de vendido e baixado; nunca o suporte (VEI-10, PLT-07).
     editar_fotos = serializers.BooleanField()
+    # Administrador e gerente; `null` para os outros perfis e o suporte (VEI-22).
+    excluir = ExcluirVeiculoSerializer(allow_null=True)
 
 
 class VeiculoDetalheSerializer(VeiculoComDadosDoDocumentoSerializer):
@@ -564,6 +635,8 @@ class VeiculoDetalheSerializer(VeiculoComDadosDoDocumentoSerializer):
     historico_status = HistoricoStatusSerializer(many=True)
     # `{ "itens": [...] }`, de `vendas` (VEN-11, T-420); `null` sem venda.
     vendas = serializers.JSONField(allow_null=True, required=False)
+    # VEI-19: o "Limite da empresa" ao lado dos dias em estoque; ausente para o vistoriador.
+    limite_dias_parado = serializers.IntegerField(required=False)
 
     def to_representation(self, instance: Any) -> Any:
         dados = super().to_representation(instance)
@@ -707,3 +780,278 @@ class DocumentoSerializer(serializers.Serializer[Any]):
 
 class ListaDeDocumentosSerializer(serializers.Serializer[Any]):
     resultados = DocumentoSerializer(many=True)
+
+
+# --- Preços por veículo (VEI-12 a VEI-17, ADR 0041) ---
+
+
+def _centavos(**opcoes: Any) -> serializers.IntegerField:
+    return serializers.IntegerField(min_value=0, **opcoes)
+
+
+def _pct(**opcoes: Any) -> serializers.DecimalField:
+    return serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("0"), max_value=Decimal("100"), **opcoes
+    )
+
+
+class AgendadoEntradaSerializer(serializers.Serializer[Any]):
+    valor_centavos = _centavos()
+    caucao_centavos = _centavos(required=False, allow_null=True, default=None)
+    a_partir_de = serializers.DateField()
+
+
+class PlanoEntradaSerializer(serializers.Serializer[Any]):
+    """Um plano de `planos[]`: `id` nulo cria (`outro` novo, ou o tipo fixo que ainda não existe);
+    `ativo: false` retira o `outro`. Campo ausente fica como está."""
+
+    id = serializers.IntegerField(required=False, allow_null=True)
+    tipo = serializers.ChoiceField(choices=TipoPlano.choices, required=False)
+    nome = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    periodo = serializers.ChoiceField(choices=PeriodoPlano.choices, required=False)
+    ligado = serializers.BooleanField(required=False)
+    valor_centavos = _centavos(required=False)
+    como_paga = serializers.ChoiceField(choices=ComoPaga.choices, required=False)
+    formas_aceitas = serializers.ListField(
+        child=serializers.ChoiceField(choices=FormaAceita.choices), required=False
+    )
+    caucao_centavos = _centavos(required=False, allow_null=True)
+    caucao_parcelas = serializers.IntegerField(min_value=1, max_value=12, required=False)
+    franquia_km = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    prazo_minimo_periodos = serializers.IntegerField(
+        min_value=1, max_value=32767, required=False, allow_null=True
+    )
+    agendado = AgendadoEntradaSerializer(required=False, allow_null=True)
+    ativo = serializers.BooleanField(required=False)
+
+    def validate_formas_aceitas(self, valor: list[str]) -> list[str]:
+        return list(dict.fromkeys(valor))  # sem repetir, na ordem enviada
+
+
+class RegrasEntradaSerializer(serializers.Serializer[Any]):
+    km_excedente_centavos = _centavos(required=False)
+    dia_atraso_centavos = _centavos(required=False)
+    multa_minima_centavos = _centavos(required=False)
+    desconto_sem_aprovacao_pct = _pct(required=False)
+    prazo_devolucao_caucao_dias = serializers.IntegerField(
+        min_value=0, max_value=365, required=False, allow_null=True
+    )
+
+
+class CustosEntradaSerializer(serializers.Serializer[Any]):
+    manutencao_mes_centavos = _centavos(required=False)
+    seguro_mes_centavos = _centavos(required=False)
+    rastreador_mes_centavos = _centavos(required=False)
+    ipva_ano_centavos = _centavos(required=False)
+    revenda_estimada_centavos = _centavos(required=False, allow_null=True)
+    ocupacao_esperada_pct = _pct(required=False, allow_null=True)
+
+
+class PlanoCompraDoVeiculoEntradaSerializer(serializers.Serializer[Any]):
+    ligado = serializers.BooleanField(default=False)
+    periodicidade = serializers.ChoiceField(choices=Periodicidade.choices)
+    parcelas = serializers.IntegerField(min_value=2, max_value=1000)
+    entrada_centavos = _centavos(default=0)
+    juros_mes_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("0"), default=Decimal("0.00")
+    )
+    modo = serializers.ChoiceField(choices=ModoParcela.choices, default=ModoParcela.CALCULAR)
+    # No `digitar`, a parcela digitada; no `calcular`, a API calcula e ignora o valor enviado.
+    parcela_moto_centavos = _centavos(default=0)
+    adicional_centavos = _centavos(default=0)
+    caucao_centavos = _centavos(default=0)
+
+
+class PrecosEntradaSerializer(serializers.Serializer[Any]):
+    """O documento inteiro da tela de preços (`PUT` e `simular`). Bloco ausente fica como está."""
+
+    valor_venda_centavos = _centavos(required=False, allow_null=True)
+    aluguel_ligado = serializers.BooleanField(required=False)  # VEI-21
+    custos = CustosEntradaSerializer(required=False)
+    planos = PlanoEntradaSerializer(many=True, required=False)
+    regras = RegrasEntradaSerializer(required=False)
+    plano_compra = PlanoCompraDoVeiculoEntradaSerializer(required=False, allow_null=True)
+    confirmar_juros = serializers.BooleanField(default=False)
+
+
+class LigarPlanoSerializer(serializers.Serializer[Any]):
+    ligado = serializers.BooleanField()
+
+
+class AgendadoSerializer(serializers.Serializer[Any]):
+    valor_centavos = serializers.IntegerField()
+    caucao_centavos = serializers.IntegerField(allow_null=True)
+    a_partir_de = serializers.DateField()
+
+
+class ParcelaDoMesSerializer(serializers.Serializer[Any]):
+    parcelas = serializers.IntegerField()
+    parcela_centavos = serializers.IntegerField()
+    ultima_parcela_centavos = serializers.IntegerField()
+
+
+class MargemDoPlanoSerializer(serializers.Serializer[Any]):
+    receita_mes_centavos = serializers.IntegerField()
+    lucro_mes_centavos = serializers.IntegerField()
+    margem_pct = serializers.DecimalField(max_digits=9, decimal_places=2, allow_null=True)
+    abaixo_da_minima = serializers.BooleanField()
+    # VEI-13: sem valor de compra, a margem não conta a compra (marca "sem custo de compra").
+    sem_custo_compra = serializers.BooleanField()
+
+
+class SemAsChavesAusentes(serializers.Serializer[Any]):
+    """As chaves de custo (`AUSENTES_SEM_CUSTO`) que o selector não mandou ficam ausentes, não
+    nulas (VEI-13, USR-09): o DRF preencheria `null` num campo que aceita nulo."""
+
+    AUSENTES_SEM_CUSTO: tuple[str, ...] = ()
+
+    def to_representation(self, instance: Any) -> Any:
+        dados = super().to_representation(instance)
+        for chave in self.AUSENTES_SEM_CUSTO:
+            if chave not in instance:
+                dados.pop(chave, None)
+        return dados
+
+
+class PlanoDoVeiculoSerializer(SemAsChavesAusentes):
+    AUSENTES_SEM_CUSTO = ("margem",)
+
+    id = serializers.IntegerField(allow_null=True)
+    tipo = serializers.ChoiceField(choices=TipoPlano.choices)
+    nome = serializers.CharField(allow_null=True)
+    rotulo = serializers.CharField()
+    periodo = serializers.ChoiceField(choices=PeriodoPlano.choices, allow_null=True)
+    ligado = serializers.BooleanField()
+    valor_centavos = serializers.IntegerField()
+    como_paga = serializers.ChoiceField(choices=ComoPaga.choices, allow_null=True)
+    formas_aceitas = serializers.ListField(child=serializers.ChoiceField(FormaAceita.choices))
+    caucao_centavos = serializers.IntegerField(allow_null=True)
+    caucao_parcelas = serializers.IntegerField()
+    # "2 × R$ 250,00"; nula à vista ou sem caução preenchida.
+    caucao_parcelada = ParcelaDoMesSerializer(allow_null=True)
+    franquia_km = serializers.IntegerField(allow_null=True)
+    prazo_minimo_periodos = serializers.IntegerField(allow_null=True)
+    agendado = AgendadoSerializer(allow_null=True)
+    parcela_do_mes = ParcelaDoMesSerializer(allow_null=True)
+    # Só para administrador, gerente e financeiro (VEI-13); nula sem a ocupação esperada.
+    margem = MargemDoPlanoSerializer(allow_null=True, required=False)
+
+
+class ParcelaNaPeriodicidadeSerializer(serializers.Serializer[Any]):
+    periodicidade = serializers.ChoiceField(choices=Periodicidade.choices)
+    parcelas = serializers.IntegerField()
+    parcela_cliente_centavos = serializers.IntegerField()
+
+
+class ResultadoCompraSerializer(SemAsChavesAusentes):
+    AUSENTES_SEM_CUSTO = (
+        "lucro_centavos",
+        "margem_sobre_pago_pct",
+        "pago_sobre_recebe_pct",
+        "lucro_sobre_recebe_pct",
+        "sem_custo_compra",
+    )
+
+    financiado_centavos = serializers.IntegerField()
+    meses_do_prazo = serializers.DecimalField(max_digits=9, decimal_places=2)
+    taxa_periodo_pct = serializers.DecimalField(max_digits=9, decimal_places=2)
+    juros_mes_pct = serializers.DecimalField(max_digits=5, decimal_places=2)
+    parcela_moto_centavos = serializers.IntegerField()
+    adicional_centavos = serializers.IntegerField()
+    parcela_cliente_centavos = serializers.IntegerField()
+    recebe_pela_moto_centavos = serializers.IntegerField()
+    juros_no_prazo_centavos = serializers.IntegerField()
+    venda_abaixo_do_pago = serializers.BooleanField()
+    nas_periodicidades = ParcelaNaPeriodicidadeSerializer(many=True)
+    # Só para administrador, gerente e financeiro (VEI-13); nulos sem o valor de compra.
+    lucro_centavos = serializers.IntegerField(allow_null=True, required=False)
+    margem_sobre_pago_pct = serializers.DecimalField(
+        max_digits=9, decimal_places=2, allow_null=True, required=False
+    )
+    # A barra do "recebe pela moto": pago e lucro sobre o recebe, somando 100,00.
+    pago_sobre_recebe_pct = serializers.DecimalField(
+        max_digits=9, decimal_places=2, allow_null=True, required=False
+    )
+    lucro_sobre_recebe_pct = serializers.DecimalField(
+        max_digits=9, decimal_places=2, allow_null=True, required=False
+    )
+    # VEI-16: sem valor de compra, lucro e margem sobre o pago vêm nulos (T-505).
+    sem_custo_compra = serializers.BooleanField(required=False)
+
+
+class PlanoCompraDoVeiculoSerializer(serializers.Serializer[Any]):
+    ligado = serializers.BooleanField()
+    periodicidade = serializers.ChoiceField(choices=Periodicidade.choices)
+    parcelas = serializers.IntegerField()
+    entrada_centavos = serializers.IntegerField()
+    juros_mes_pct = serializers.DecimalField(max_digits=5, decimal_places=2)
+    modo = serializers.ChoiceField(choices=ModoParcela.choices)
+    parcela_moto_centavos = serializers.IntegerField()
+    adicional_centavos = serializers.IntegerField()
+    caucao_centavos = serializers.IntegerField()
+    resultado = ResultadoCompraSerializer(allow_null=True)
+
+
+class RegrasDoVeiculoSerializer(serializers.Serializer[Any]):
+    km_excedente_centavos = serializers.IntegerField()
+    dia_atraso_centavos = serializers.IntegerField()
+    multa_minima_centavos = serializers.IntegerField()
+    desconto_sem_aprovacao_pct = serializers.DecimalField(max_digits=5, decimal_places=2)
+    prazo_devolucao_caucao_dias = serializers.IntegerField(allow_null=True)
+
+
+class CustosDoVeiculoSerializer(serializers.Serializer[Any]):
+    manutencao_mes_centavos = serializers.IntegerField()
+    seguro_mes_centavos = serializers.IntegerField()
+    rastreador_mes_centavos = serializers.IntegerField()
+    ipva_ano_centavos = serializers.IntegerField()
+    ipva_mes_centavos = serializers.IntegerField()  # ÷ 12, como entra no custo
+    revenda_estimada_centavos = serializers.IntegerField(allow_null=True)
+    ocupacao_esperada_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, allow_null=True
+    )
+    custo_mes_centavos = serializers.IntegerField()
+    # VEI-13 (T-505): sem valor de compra, sem desvalorização; revenda acima do pago, R$ 0,00.
+    sem_custo_compra = serializers.BooleanField()
+    revenda_acima_do_pago = serializers.BooleanField()
+
+
+class PagoNaMotoSerializer(serializers.Serializer[Any]):
+    total_centavos = serializers.IntegerField(allow_null=True)
+    compra_centavos = serializers.IntegerField(allow_null=True)
+    despesas_centavos = serializers.IntegerField()
+
+
+class AlertaDePrecoSerializer(serializers.Serializer[Any]):
+    codigo = serializers.CharField()
+    mensagem = serializers.CharField()
+
+
+class VeiculoDosPrecosSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    placa = serializers.CharField()
+    marca = serializers.CharField()
+    modelo = serializers.CharField()
+    status = serializers.ChoiceField(choices=StatusVeiculo.choices)
+
+
+class PrecosDoVeiculoSerializer(serializers.Serializer[Any]):
+    veiculo = VeiculoDosPrecosSerializer()
+    valor_venda_centavos = serializers.IntegerField(allow_null=True)
+    aluguel_ligado = serializers.BooleanField()  # VEI-21
+    aviso_aluguel = serializers.CharField(
+        allow_null=True
+    )  # "O aluguel desta moto está desativado..."
+    fipe_centavos = serializers.IntegerField(allow_null=True)
+    ocupacao_real_90d_pct = serializers.DecimalField(max_digits=5, decimal_places=2)
+    margem_minima_pct = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True)
+    planos = PlanoDoVeiculoSerializer(many=True)
+    regras = RegrasDoVeiculoSerializer()
+    plano_compra = PlanoCompraDoVeiculoSerializer(allow_null=True)
+    alertas = AlertaDePrecoSerializer(many=True)
+    aviso_preco = serializers.CharField(allow_null=True)
+    pede_confirmacao_juros = serializers.BooleanField()
+    pode_editar = serializers.BooleanField()
+    # Só para administrador, gerente e financeiro (VEI-13, USR-09): para os outros, ausentes.
+    pago_na_moto = PagoNaMotoSerializer(required=False)
+    custos = CustosDoVeiculoSerializer(required=False)

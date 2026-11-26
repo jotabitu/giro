@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 
 from apps.filiais.selectors import filtrar_por_filial
 from comum import relogio
+from comum.documentos import placa_com_hifen
 from comum.limites import LIMITES_DA_LEITURA_DE_DOCUMENTO
 from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao, exige_perfil
@@ -49,6 +50,7 @@ from .serializers import (
     LeituraCrlvEntradaSerializer,
     LeituraCrlvNoEditarSerializer,
     LeituraCrlvSerializer,
+    LigarPlanoSerializer,
     ListaDeCategoriasSerializer,
     ListaDeDocumentosSerializer,
     ListaDeExtrasSerializer,
@@ -62,11 +64,14 @@ from .serializers import (
     PrecoCriadoSerializer,
     PrecoEntradaSerializer,
     PrecoHistoricoSerializer,
+    PrecosDoVeiculoSerializer,
+    PrecosEntradaSerializer,
     VeiculoComCrlvEntradaSerializer,
     VeiculoComDadosDoDocumentoSerializer,
     VeiculoDetalheSerializer,
     VeiculoEdicaoSerializer,
     VeiculoEntradaSerializer,
+    VeiculoExcluidoSerializer,
     VeiculoSerializer,
 )
 
@@ -143,7 +148,7 @@ class VeiculosView(APIView):
             OpenApiParameter("em_movimentacao", bool),
             OpenApiParameter("movimentavel", bool),
         ],
-        summary="Frota (VEI-06)",
+        summary="Frota (VEI-06, VEI-18)",
     )
     def get(self, request: Request) -> Response:
         parametros = request.query_params
@@ -151,7 +156,9 @@ class VeiculosView(APIView):
         da_filial = selectors.do_tipo(da_filial, parametros.get("tipo_veiculo"))
         contagens = selectors.contagens(da_filial)
         qs = selectors.filtrar(
-            da_filial.select_related("categoria", "filial"),
+            selectors.anotar_entrada_no_estoque(
+                selectors.anotar_tem_plano_ligado(da_filial.select_related("categoria", "filial"))
+            ),
             status=parametros.get("status"),
             categoria=parametros.get("categoria"),
             busca=parametros.get("busca"),
@@ -163,14 +170,20 @@ class VeiculosView(APIView):
             movimentavel=parametros.get("movimentavel") == "true",
         )
         paginacao = PaginacaoPorCursor()
-        ordem = selectors.ORDENS.get(parametros.get("ordem", ""), "placa")
-        paginacao.ordering = (ordem, "id")  # type: ignore[assignment]
+        # VEI-18: com o filtro "À venda", a ordem de saída é a do tempo em estoque.
+        padrao = "em_estoque" if parametros.get("status") == "a_venda" else "placa"
+        ordem = selectors.ORDENS.get(parametros.get("ordem", ""), selectors.ORDENS[padrao])
+        ordenacao = selectors.ORDEM_EM_ESTOQUE if ordem == "ordem_em_estoque" else (ordem, "id")
+        paginacao.ordering = ordenacao  # type: ignore[assignment]
         pagina = paginacao.paginate_queryset(qs, request, view=self) or []
         hoje = relogio.hoje()
         precos = selectors.precos_vigentes({v.categoria_id for v in pagina}, hoje)
         documentos = selectors.resumos_de_documentos({v.pk for v in pagina}, hoje)
+        limite = selectors.limite_dias_parado()
         dados = [
-            selectors.representacao(v, request.user, precos=precos, documentos=documentos)
+            selectors.representacao(
+                v, request.user, precos=precos, documentos=documentos, limite_parado=limite
+            )
             for v in pagina
         ]
         return paginacao.get_paginated_response(
@@ -369,6 +382,93 @@ class ColocarAVendaView(APIView):
         return _representacao(veiculo, request)
 
 
+class PrecosDoVeiculoView(APIView):
+    """Planos e preços do veículo (VEI-12 a VEI-17, ADR 0041). Ler: quem vê valores, nas suas
+    filiais (o vistoriador não vê dinheiro, USR-09); salvar: o administrador (o gerente recebe
+    403, padrão A de "quem edita"). O suporte Giro só vê (VEI-12): lê nos dois modos, e o `PUT`
+    responde 403 `PLT-07` mesmo com "ver e editar"."""
+
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+    suporte_proibido = frozenset({"PUT"})  # VEI-12: o suporte Giro só vê
+
+    def get_permissions(self) -> Any:
+        permissoes = SO_ADMINISTRADOR if self.request.method == "PUT" else VEEM_VALORES
+        return [permissao() for permissao in permissoes]
+
+    @extend_schema(
+        responses=PrecosDoVeiculoSerializer,
+        operation_id="veiculos_precos_retrieve",
+        summary="Planos e preços do veículo (VEI-12 a VEI-17)",
+    )
+    def get(self, request: Request, pk: int) -> Response:
+        veiculo = _veiculo(request, pk)
+        return Response(
+            PrecosDoVeiculoSerializer(selectors.precos_do_veiculo(veiculo, request.user)).data
+        )
+
+    @extend_schema(
+        request=PrecosEntradaSerializer,
+        responses=PrecosDoVeiculoSerializer,
+        operation_id="veiculos_precos_update",
+        summary="Salvar os preços do veículo (VEI-12 a VEI-17)",
+    )
+    def put(self, request: Request, pk: int) -> Response:
+        dados = _entrada(PrecosEntradaSerializer, request)
+        confirmar = dados.pop("confirmar_juros", False)
+        services.salvar_precos(
+            _veiculo(request, pk), dados, por=request.user, confirmar_juros=confirmar
+        )
+        veiculo = _veiculo(request, pk)
+        return Response(
+            PrecosDoVeiculoSerializer(selectors.precos_do_veiculo(veiculo, request.user)).data
+        )
+
+
+class SimularPrecosView(APIView):
+    """O mesmo corpo do `PUT`, sem gravar (ADR 0005); o frontend chama a cada mudança. É parte de
+    editar: o suporte Giro, que só vê (VEI-12), recebe 403 `PLT-07`."""
+
+    permission_classes = SO_ADMINISTRADOR
+    suporte_proibido = True
+
+    @extend_schema(
+        request=PrecosEntradaSerializer,
+        responses=PrecosDoVeiculoSerializer,
+        operation_id="veiculos_precos_simular_create",
+        summary="Simular os preços do veículo, sem gravar (VEI-13, VEI-16)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(PrecosEntradaSerializer, request)
+        dados.pop("confirmar_juros", None)
+        veiculo = _veiculo(request, pk)
+        documento = services.simular_precos(veiculo, dados)
+        pede = services.pede_confirmacao_juros(veiculo, documento.compra)
+        corpo = selectors.precos_do_veiculo(veiculo, request.user, documento, pede_confirmacao=pede)
+        return Response(PrecosDoVeiculoSerializer(corpo).data)
+
+
+class LigarPlanoView(APIView):
+    """O liga e desliga do cartão "Preços desta moto" da ficha (VEI-12), com confirmação na
+    tela. O suporte Giro só vê (VEI-12): 403 `PLT-07`."""
+
+    permission_classes = SO_ADMINISTRADOR
+    suporte_proibido = True
+
+    @extend_schema(
+        request=LigarPlanoSerializer,
+        responses=PrecosDoVeiculoSerializer,
+        operation_id="veiculos_precos_planos_ligado_create",
+        summary="Ligar ou desligar um plano do veículo (VEI-12, VEI-15)",
+    )
+    def post(self, request: Request, pk: int, plano_id: int) -> Response:
+        dados = _entrada(LigarPlanoSerializer, request)
+        services.ligar_plano(_veiculo(request, pk), plano_id, dados["ligado"], por=request.user)
+        veiculo = _veiculo(request, pk)
+        return Response(
+            PrecosDoVeiculoSerializer(selectors.precos_do_veiculo(veiculo, request.user)).data
+        )
+
+
 class VoltarParaFrotaView(APIView):
     permission_classes = GESTAO
 
@@ -385,6 +485,25 @@ class BaixarView(APIView):
         dados = _entrada(BaixarSerializer, request)
         veiculo = services.baixar(_veiculo(request, pk), dados["motivo"], dados["descricao"])
         return _representacao(veiculo, request)
+
+
+class ExcluirView(APIView):
+    """VEI-22 (T-515): administrador e gerente, no escopo de filiais (fora dele, 404, USR-07). O
+    suporte Giro não exclui, nem em "ver e editar" (403 `PLT-07`)."""
+
+    permission_classes = GESTAO
+    suporte_proibido = True
+
+    @extend_schema(
+        request=None,
+        responses=VeiculoExcluidoSerializer,
+        summary="Excluir o veículo sem histórico (VEI-22)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        veiculo = services.excluir(_veiculo(request, pk))
+        # O aviso da Frota depois de excluir, pronto para a tela.
+        mensagem = f"Veículo {placa_com_hifen(veiculo.placa)} excluído."
+        return Response(VeiculoExcluidoSerializer({"id": veiculo.pk, "mensagem": mensagem}).data)
 
 
 # --- Km ---

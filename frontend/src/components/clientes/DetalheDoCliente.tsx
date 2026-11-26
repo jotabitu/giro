@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tan
 import { Bike, Camera, Car, Check, ChevronLeft, Download, Eye, EyeOff, MessageCircle, Pencil, Info } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, type ReactNode } from "react";
-import { Button, DataTable, CelulaDupla, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
+import { Button, DataTable, CelulaDupla, Icone, KpiGrid, KpiTile, ListaComRolagem, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   clientes,
   type ClienteCompleto,
@@ -20,6 +20,8 @@ import { tomDoStatus } from "@/lib/tom";
 import { textoDoPagamento } from "@/lib/locacoes";
 import { useSessao } from "@/lib/sessao";
 import { AcoesDoCliente } from "./AcoesDoCliente";
+import { ExcluirCliente } from "./ExcluirCliente";
+import { Confirmacao } from "@/components/financeiro/Comuns";
 import { AnaliseDoCadastro } from "./AnaliseDoCadastro";
 import { ROTULO_DOCUMENTO } from "./BotaoDocumento";
 import { FichaDoFinanceiro } from "./FichaDoFinanceiro";
@@ -43,6 +45,8 @@ type Dados = {
   locacoes: UseQueryResult<LocacoesDoCliente>;
   docs: Documentos;
   podeLocar: boolean;
+  /** `clientes_cadastrar`: administrador, gerente e vendedor (PATCH, T-516). */
+  podeEditar: boolean;
   administrador: boolean;
 };
 
@@ -198,8 +202,9 @@ const dataDoDocumento = (c: ClienteCompleto, tipo: TipoDocumentoCliente) => {
 
 // ---------------------------------------------------------------------------------------------- desktop
 
-function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados & { c: ClienteCompleto }) {
+function DesktopCompleto({ c, locacoes, docs, podeLocar, podeEditar, administrador }: Dados & { c: ClienteCompleto }) {
   const [mostrar, setMostrar] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
   const fin = c.financeiro;
   const lista = locacoes.data;
   const atual = lista?.resultados.find((l) => l.id === c.locacao_atual?.id);
@@ -230,10 +235,11 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados 
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           <BotaoWhatsApp c={c} altura />
-          {podeLocar && (
-            <Button disabled title={EM_BREVE} icone={<Icone de={Pencil} />} style={{ height: 56 }}>
+          {podeEditar && (
+            <Link href={`/clientes/${c.id}/editar`} className="wl-btn no-underline" style={{ height: 56 }}>
+              <Icone de={Pencil} />
               Editar
-            </Button>
+            </Link>
           )}
           {podeLocar && (
             <Link href={`/locacoes/nova?cliente=${c.id}`} className="wl-btn wl-btn--solid no-underline" style={{ height: 56, padding: "0 28px" }}>
@@ -241,6 +247,7 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados 
               Iniciar locação
             </Link>
           )}
+          <ExcluirCliente c={c} aoAvisar={setAviso} />
         </div>
       </header>
 
@@ -263,6 +270,7 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados 
           <span>{textoDePendencias(c.pendencias)}</span>
         </p>
       )}
+      {aviso && <Confirmacao>{aviso}</Confirmacao>}
       <AcoesDoCliente c={c} />
 
       <div className="flex flex-wrap items-start gap-6">
@@ -303,7 +311,11 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados 
 
           <Panel titulo="Locações" acao={lista ? <span className="text-[13px] text-ink-muted">{lista.total} no total · {lista.com_atraso === 0 ? "nenhuma com atraso" : `${lista.com_atraso} com atraso`}</span> : undefined}>
             <Estado consulta={locacoes} vazio={lista?.resultados.length === 0}>
-              {lista && <DataTable colunas={COLUNAS_LOCACOES} linhas={lista.resultados} chaveDaLinha={(l) => String(l.id)} legenda="Locações do cliente" />}
+              {lista && (
+                <ListaComRolagem rotulo="Locações do cliente">
+                  <DataTable colunas={COLUNAS_LOCACOES} linhas={lista.resultados} chaveDaLinha={(l) => String(l.id)} legenda="Locações do cliente" />
+                </ListaComRolagem>
+              )}
             </Estado>
           </Panel>
 
@@ -421,7 +433,8 @@ function CartaoDoCelular({ titulo, children }: { titulo: string; children: React
 // O KpiTile não tem variante de celular: o cartão da referência (28px) entra por seletor de descendente.
 const KPI_DO_CELULAR = "[&_.wl-kpi]:px-4 [&_.wl-kpi]:py-[14px] [&_.wl-kpi__value]:text-[28px] [&_.wl-kpi__value]:leading-8 [&_.wl-kpi__meta]:text-[13px]";
 
-function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteCompleto }) {
+function CelularCompleto({ c, locacoes, docs, podeLocar, podeEditar }: Dados & { c: ClienteCompleto }) {
+  const [aviso, setAviso] = useState<string | null>(null);
   const fin = c.financeiro;
   const lista = locacoes.data;
   const atual = lista?.resultados.find((l) => l.id === c.locacao_atual?.id);
@@ -437,10 +450,10 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
           <Icone de={ChevronLeft} />
         </Link>
         <div className="flex-1 text-[13px] text-ink-muted">Clientes</div>
-        {podeLocar && (
-          <button type="button" className="wl-icon-btn wl-icon-btn--sm" aria-label="Editar" disabled title={EM_BREVE} style={{ width: 44, height: 44 }}>
+        {podeEditar && (
+          <Link href={`/clientes/${c.id}/editar`} className="wl-icon-btn wl-icon-btn--sm" aria-label="Editar" style={{ width: 44, height: 44 }}>
             <Icone de={Pencil} />
-          </button>
+          </Link>
         )}
       </header>
 
@@ -453,12 +466,13 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
         <p className="text-[14px] text-ink-muted">
           {celular(c.celular)} · cliente desde {mesAno(c.cliente_desde)}
         </p>
-        <div className={`mt-[6px] grid w-full gap-2 ${podeLocar ? "grid-cols-2" : ""}`}>
+        <div className={`mt-[6px] grid w-full gap-2 ${podeEditar ? "grid-cols-2" : ""}`}>
           <BotaoWhatsApp c={c} />
-          {podeLocar && (
-            <Button disabled title={EM_BREVE} icone={<Icone de={Pencil} />} style={{ justifyContent: "center" }}>
+          {podeEditar && (
+            <Link href={`/clientes/${c.id}/editar`} className="wl-btn justify-center no-underline">
+              <Icone de={Pencil} />
               Editar
-            </Button>
+            </Link>
           )}
         </div>
       </section>
@@ -532,24 +546,26 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
 
       <CartaoDoCelular titulo="Locações">
         <Estado consulta={locacoes} vazio={lista?.resultados.length === 0}>
-          <dl>
-            {lista?.resultados.map((l) => (
-              <Linha
-                key={l.id}
-                rotulo={
-                  <>
-                    <span className="wl-mono">{l.codigo}</span> · {l.veiculo.modelo}
-                    <br />
-                    <small className="text-[13px]">
-                      {ROTULO_PERIODICIDADE[l.periodicidade]} · {periodoDaLocacao(l)}
-                    </small>
-                  </>
-                }
-              >
-                {textoDoPagamento(l.pagamento, l.caucao)}
-              </Linha>
-            ))}
-          </dl>
+          <ListaComRolagem rotulo="Locações do cliente">
+            <dl>
+              {lista?.resultados.map((l) => (
+                <Linha
+                  key={l.id}
+                  rotulo={
+                    <>
+                      <span className="wl-mono">{l.codigo}</span> · {l.veiculo.modelo}
+                      <br />
+                      <small className="text-[13px]">
+                        {ROTULO_PERIODICIDADE[l.periodicidade]} · {periodoDaLocacao(l)}
+                      </small>
+                    </>
+                  }
+                >
+                  {textoDoPagamento(l.pagamento, l.caucao)}
+                </Linha>
+              ))}
+            </dl>
+          </ListaComRolagem>
         </Estado>
       </CartaoDoCelular>
 
@@ -569,6 +585,10 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
           Iniciar locação
         </Link>
       )}
+
+      {/* CLI-13: no fim da ficha, depois da última seção. */}
+      {aviso && <Confirmacao>{aviso}</Confirmacao>}
+      <ExcluirCliente c={c} celular aoAvisar={setAviso} />
     </div>
   );
 }
@@ -652,6 +672,7 @@ export function DetalheDoCliente({ id }: { id: number }) {
     locacoes,
     docs: { enviando, erros, enviar: podeCadastrar ? (tipo, arquivo) => enviar.mutate({ tipo, arquivo }) : null },
     podeLocar: eu.pode.locacoes_criar && (c.status === "ativo" || c.status === "incompleto"),
+    podeEditar: podeCadastrar,
     administrador: eu.perfil === "administrador",
   };
   return (

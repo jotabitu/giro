@@ -26,7 +26,7 @@ import secrets
 import uuid
 import warnings
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import IO, Any, Protocol
 from urllib.parse import quote, urlencode
@@ -175,12 +175,19 @@ class Provedor(Protocol):
     def tamanho(self, caminho: str) -> int: ...
     def url(self, caminho: str, expira_em: datetime, baixar_como: str | None = None) -> str: ...
     def apagar(self, caminho: str) -> None: ...
-    def apagar_prefixo(self, prefixo: str) -> int: ...
+    def apagar_prefixo(self, prefixo: str, antes_de: datetime | None = None) -> int: ...
+    def listar(self, prefixo: str) -> list[str]: ...
 
 
 # --- Falso: na memória, para desenvolvimento e testes ---
 
 guardados: dict[str, tuple[bytes, str]] = {}
+# Quando cada arquivo da memória foi gravado (hora real, não a simulada): o `antes_de`.
+gravados_em: dict[str, datetime] = {}
+
+
+def _agora_real() -> datetime:
+    return datetime.now(UTC)
 
 
 def assinar(caminho: str, expira: str, nonce: str, baixar: str = "") -> str:
@@ -225,6 +232,7 @@ class ProvedorFalso:
         pasta = _diretorio_falso()
         if pasta is None:
             guardados[caminho] = (conteudo, tipo_conteudo)
+            gravados_em[caminho] = _agora_real()
             return
         alvo = _arquivo_em_disco(pasta, caminho)
         alvo.parent.mkdir(parents=True, exist_ok=True)
@@ -247,23 +255,39 @@ class ProvedorFalso:
         pasta = _diretorio_falso()
         if pasta is None:
             guardados.pop(caminho, None)
+            gravados_em.pop(caminho, None)
             return
         alvo = _arquivo_em_disco(pasta, caminho)
         alvo.unlink(missing_ok=True)
         alvo.with_name(alvo.name + ".tipo").unlink(missing_ok=True)
 
-    def apagar_prefixo(self, prefixo: str) -> int:
+    def _gravado_em(self, caminho: str) -> datetime:
         pasta = _diretorio_falso()
         if pasta is None:
-            caminhos = [caminho for caminho in guardados if caminho.startswith(prefixo)]
-            for caminho in caminhos:
-                del guardados[caminho]
-            return len(caminhos)
+            return gravados_em.get(caminho, datetime.min.replace(tzinfo=UTC))
+        segundos = _arquivo_em_disco(pasta, caminho).stat().st_mtime
+        return datetime.fromtimestamp(segundos, tz=UTC)
+
+    def listar(self, prefixo: str) -> list[str]:
+        pasta = _diretorio_falso()
+        if pasta is None:
+            return sorted(caminho for caminho in guardados if caminho.startswith(prefixo))
         raiz = _arquivo_em_disco(pasta, prefixo)
+        if not raiz.exists():
+            return []
         arquivos = [a for a in raiz.rglob("*") if a.is_file() and not a.name.endswith(".tipo")]
-        for arquivo in arquivos:
-            self.apagar(arquivo.relative_to(pasta.resolve()).as_posix())
-        return len(arquivos)
+        return sorted(a.relative_to(pasta.resolve()).as_posix() for a in arquivos)
+
+    def apagar_prefixo(self, prefixo: str, antes_de: datetime | None = None) -> int:
+        """Com `antes_de`, só os gravados antes dele (o gravado depois fica)."""
+        caminhos = [
+            caminho
+            for caminho in self.listar(prefixo)
+            if antes_de is None or self._gravado_em(caminho) < antes_de
+        ]
+        for caminho in caminhos:
+            self.apagar(caminho)
+        return len(caminhos)
 
     def url(self, caminho: str, expira_em: datetime, baixar_como: str | None = None) -> str:
         expira = str(int(expira_em.timestamp()))
@@ -329,9 +353,34 @@ class ProvedorS3:
                     Bucket=self.bucket, Key=caminho, VersionId=item["VersionId"]
                 )
 
-    def apagar_prefixo(self, prefixo: str) -> int:
+    def listar(self, prefixo: str) -> list[str]:
+        """As chaves atuais do prefixo (sem as versões antigas)."""
+        paginas = self.cliente.get_paginator("list_objects_v2").paginate(
+            Bucket=self.bucket, Prefix=prefixo
+        )
+        return sorted(item["Key"] for pagina in paginas for item in pagina.get("Contents", []))
+
+    def apagar_prefixo(self, prefixo: str, antes_de: datetime | None = None) -> int:
         """Todos os objetos do prefixo, com as versões antigas e os marcadores de exclusão
-        (AUD-08, ADR 0025): nada fica recuperável pelo bucket. Devolve quantos arquivos saíram."""
+        (AUD-08, ADR 0025): nada fica recuperável pelo bucket. Devolve quantos arquivos saíram.
+
+        Com `antes_de`, só as chaves cuja versão atual foi gravada antes dele (T-517): o arquivo
+        gravado depois fica. O `LastModified` do S3 vem em segundos, então o corte é o segundo
+        inteiro de `antes_de` (o gravado no mesmo segundo fica)."""
+        if antes_de is not None:
+            corte = antes_de.replace(microsecond=0)
+            paginas_atuais = self.cliente.get_paginator("list_objects_v2").paginate(
+                Bucket=self.bucket, Prefix=prefixo
+            )
+            chaves = [
+                item["Key"]
+                for pagina in paginas_atuais
+                for item in pagina.get("Contents", [])
+                if item["LastModified"] < corte
+            ]
+            for chave in chaves:
+                self.apagar(chave)
+            return len(chaves)
         apagados = 0
         paginas = self.cliente.get_paginator("list_object_versions").paginate(
             Bucket=self.bucket, Prefix=prefixo

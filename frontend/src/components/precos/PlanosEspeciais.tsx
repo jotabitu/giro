@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { Button, Dialogo, Icone, StatusBadge, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, Dialogo, Icone, StatusBadge, TextField } from "@/design-system";
 import { precos as api, type PeriodicidadeDoPlano, type PlanoEspecialDePreco, type RegraDoPlano } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { centavosDoTexto } from "@/lib/veiculos";
@@ -112,7 +112,7 @@ function DialogoDoPlano({ plano, aoFechar, aoConcluir }: { plano: PlanoEspecialD
         <Opcoes rotulo="Modalidade" valor={periodicidade} aoMudar={setPeriodicidade} opcoes={PERIODICIDADES.map((p) => ({ valor: p, rotulo: ROTULO_DA_PERIODICIDADE[p] }))} />
         <Opcoes rotulo="Regra" valor={regra} aoMudar={setRegra} opcoes={REGRAS} />
         {regra === "preco_fixo" ? (
-          <TextField cheio rotulo="Preço por período" mono inputMode="decimal" autoComplete="off" value={preco} onChange={(e) => setPreco(e.target.value)} erro={erroLocal ?? campoDoErro(erro, "preco_centavos")} />
+          <CampoDeDinheiro cheio rotulo="Preço por período" mono autoComplete="off" value={preco} onChange={(e) => setPreco(e.target.value)} erro={erroLocal ?? campoDoErro(erro, "preco_centavos")} />
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <TextField cheio rotulo="Desconto (%)" mono inputMode="decimal" autoComplete="off" value={desconto} onChange={(e) => setDesconto(e.target.value)} erro={campoDoErro(erro, "desconto_pct")} />

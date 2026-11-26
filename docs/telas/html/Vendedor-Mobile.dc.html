@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- ajustada no repositório: 18/11/2026, T-503 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -15,6 +16,9 @@ body{margin:0}
 a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .lead{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:24px;background:var(--surface)}
 .lead small{display:block;font-size:13px;color:var(--ink-muted)}
+.sub{margin:0;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.est{display:flex;flex-direction:column;gap:12px}
+.est h3{margin:0;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)}
 </style>
 </helmet>
 <div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1700px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
@@ -29,7 +33,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <span style="font-size: 14px; color: var(--on-solid-muted);">Meta de outubro</span>
 <div style="font-size: 34px; line-height: 36px; font-weight: 600; letter-spacing: -0.03em;">R$ 31.200</div>
 <div class="wl-progress__track" style="background: rgba(255,255,255,0.14);"><div class="wl-progress__fill" style="width: 62%; background: var(--brand);"></div></div>
-<span style="font-size: 14px; color: var(--on-solid-muted);">62% de R$ 50.000 · faltam 18 dias</span>
+<span style="font-size: 14px; color: var(--on-solid-muted);">62% de R$ 50.000 · faltam 24 dias</span>
 </section>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -37,18 +41,19 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <div class="wl-kpi" style="padding: 14px 16px; background: var(--surface);"><div class="wl-kpi__label">Comissão</div><div class="wl-kpi__value" style="font-size: 30px; line-height: 32px;">R$ 968</div><div class="wl-kpi__meta" style="font-size: 13px;">paga em 05 nov</div></div>
 </div>
 
-<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 6px 4px 0;"><h2 style="margin: 0; font-size: 20px; font-weight: 600;">Para retornar hoje</h2><span style="font-size: 14px; color: var(--ink-muted);">4 propostas</span></div>
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 6px 4px 0;"><h2 style="margin: 0; font-size: 20px; font-weight: 600;">Para retornar hoje</h2><span style="font-size: 14px; color: var(--ink-muted);">3 propostas</span></div>
 
 <article class="lead">
-<div style="display: flex; justify-content: space-between; gap: 8px;"><div><div style="font-weight: 500;">Diego Martins</div><small>CB 300F Twister · R$ 22.900</small></div><span class="wl-badge wl-badge--sm wl-badge--warning">há 4 dias</span></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><div><div style="font-weight: 500;">Thiago Ramos</div><small>Biz 125 2024 · R$ 13.200</small></div><span class="wl-badge wl-badge--sm">ontem</span></div>
 <button class="wl-btn wl-btn--brand wl-btn--sm">Chamar no WhatsApp</button>
 </article>
 <article class="lead">
-<div style="display: flex; justify-content: space-between; gap: 8px;"><div><div style="font-weight: 500;">Larissa Costa</div><small>Fazer 250 · R$ 19.500</small></div><span class="wl-badge wl-badge--sm">há 2 dias</span></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><div><div style="font-weight: 500;">Fernanda Lopes</div><small>NMax 160 · R$ 21.800</small></div><span class="wl-badge wl-badge--sm">hoje</span></div>
 <button class="wl-btn wl-btn--quiet wl-btn--sm">Chamar no WhatsApp</button>
 </article>
 <article class="lead">
-<div style="display: flex; justify-content: space-between; gap: 8px;"><div><div style="font-weight: 500;">Thiago Ramos</div><small>Biz 125 2024 · R$ 13.200</small></div><span class="wl-badge wl-badge--sm">ontem</span></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><div><div style="font-weight: 500;">Diego Martins</div><small>CB 300F Twister · R$ 21.068</small></div><span class="wl-badge wl-badge--sm">há 1 h</span></div>
+<div><span class="wl-badge wl-badge--sm wl-badge--warning">Aguardando gerente</span></div>
 <button class="wl-btn wl-btn--quiet wl-btn--sm">Chamar no WhatsApp</button>
 </article>
 
@@ -60,8 +65,20 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <a href="Comissoes-Mobile.dc.html" aria-label="Minhas comissões" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg></a>
 </nav>
 </div>
+<section style="display: flex; flex-direction: column; gap: 28px; padding: 24px 16px 40px; border-top: 1px solid var(--line); background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div><h2 style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 600;">Estados desta tela</h2><p class="sub" style="margin-top: 4px;">Referência dos casos da VEN-09 e VEN-16. Na tela real, aparece um de cada vez. Tudo que é número vem da API; a tela só mostra.</p></div>
+<div class="est"><h3>Sem meta no mês</h3>
+<section style="display: flex; flex-direction: column; gap: 10px; padding: 20px; border-radius: 28px; background: var(--solid); color: var(--on-solid);">
+<span style="font-size: 14px; color: var(--on-solid-muted);">Meta de outubro</span>
+<div style="font-size: 34px; line-height: 36px; font-weight: 600; letter-spacing: -0.03em;">R$ 31.200</div>
+<span style="font-size: 14px; color: var(--on-solid-muted);">Sem meta em outubro.</span>
+</section>
+<span class="sub">Sem a barra de progresso. O vendedor não define a meta; quem define é o gerente da filial ou o administrador.</span></div>
+<div class="est"><h3>Nenhuma proposta aberta</h3>
+<div style="padding: 20px; border-radius: 24px; background: var(--surface); color: var(--ink-muted);">Você não tem propostas abertas.</div></div>
+</section>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1700}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2300}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');

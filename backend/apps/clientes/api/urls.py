@@ -9,6 +9,7 @@ ACOES = {
     "desbloquear": views.DesbloquearView,
     "inativar": views.InativarView,
     "reativar": views.ReativarView,
+    "excluir": views.ExcluirView,  # CLI-13
     "documentos": views.DocumentosView,
     "analise": views.AnaliseView,
 }

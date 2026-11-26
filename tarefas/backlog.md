@@ -648,8 +648,58 @@ Saíram da comparação com um sistema de gestão de revenda de motos, feita em 
 - **Agente:** produto → fullstack · **Regras:** `VEI`, `AUT` (alertas) · **Origem:** comparação de 13 nov 2026.
 - **O caso:** veículo à venda parado há muito tempo prende dinheiro; a revenda quer ver isso sem fazer conta.
 - **Pronto quando:** a API devolve os dias em estoque de cada veículo à venda (desde a entrada); a lista de veículos mostra e ordena por esse número; o início do gerente mostra os mais parados; passado o limite da empresa (padrão 30 dias, configurável), gera alerta; regra com código e testes.
+- **Andamento (18 nov 2026):** regra feita (`VEI-18`, `VEI-19`, `AUT-18`, PR #615; decisões do dono no PR #620, opção A nas três). Falta: ajuste das telas Frota, ficha, Gerente e configurações da empresa no design-system, depois o código no fullstack. Seed na T-499.
 
 #### T-487 · Capital imobilizado, margem potencial e ticket médio
 - **Agente:** produto → fullstack · **Regras:** `VEI` (custos de aquisição e preparação), `VEN`, `FIN` · **Origem:** comparação de 13 nov 2026.
 - **O caso:** o dono quer saber quanto dinheiro está parado no estoque e quanto pode ganhar com ele.
 - **Pronto quando:** a API calcula, para os veículos à venda, o capital imobilizado (soma do custo: compra mais despesas), o custo médio por unidade e a margem potencial (preço de venda menos custo, em R$ e %), e, para as vendas do mês, o ticket médio e a comparação com o mês anterior; o início do administrador e do gerente mostram esses números; o vendedor não vê custo nem margem; tudo em centavos; regra com código e testes.
+- **Andamento (18 nov 2026):** regra feita (`VEI-20`, `VEN-12`, PR #618; decisões do dono no PR #620, opção A nas três). O capital imobilizado, o custo médio e a margem (`VEI-20`) podem ir para o fullstack depois do ajuste das telas `Main`, `Dashboard-Mobile` e `Gerente`. O ticket médio (`VEN-12`) depende do fluxo de venda (T-502): até lá o bloco mostra "Sem vendas".
+
+#### T-499 · Seed: estoque parado à venda para as T-486 e T-487
+- **Agente:** qa · **Regras:** `VEI-13`, `VEI-18`, `VEI-19`, `VEI-20`, `APR-03` · **Origem:** casos de `dados-de-teste.md` das T-486 e T-487 (18 nov 2026).
+- **Pronto quando:** PVE-1A07, PVF-2B18 e PVG-3C29 à venda desde 15 ago, 06 set e 07 set pelo serviço de domínio, com compra, venda e despesas, e a despesa recusada de R$ 600,00 em 15 set pela aprovação normal; frota com 86 e 12 à venda; números de `dados-de-teste.md` exatos; testes. As vendas concluídas de setembro e outubro ficam para a T-504.
+
+### Preços por veículo (decisões do dono de 18 nov 2026)
+
+Regras `VEI-12` a `VEI-17` e ajustes em `LOC-01`, `LOC-03`, `LOC-04`, `LOC-09`, `LOC-10`, `LOC-12`, `LOC-16` e `VEN-01` (PR #612); desenho na ADR 0041 (PR #613); telas `Veiculo-Precos-Desktop` e `Veiculo-Componente-PrecosDaMoto`. Na tela nova, implementar idêntico ao canvas; na ficha, só o componente "Preços desta moto", sem mexer no resto.
+
+#### T-494 · Backend: preços do veículo
+- **Agente:** backend · **Regras:** `VEI-12` a `VEI-17`, `LOC-15` · **ADR:** 0041.
+- **Pronto quando:** os cinco models (com o preço agendado e a multa mínima) e as migrations 1 a 3 da ADR, com a cópia idempotente da categoria; `aviso_preco` na leitura do veículo; 409 `VEI-15` no "Colocar à venda"; rotina `consolidar_precos_agendados`; `precos.py` com os casos da Pop TBC-5H21 e da CG QXA-4B21 de `dados-de-teste.md`; `salvar_precos` com histórico, auditoria e confirmação acima de 1% ao mês; "sem preço" em `transicionar`; `GET`/`PUT` `veiculos/{id}/precos/`, `POST .../simular/` e o liga e desliga do plano; `docs/api/veiculos.md` e OpenAPI.
+
+#### T-495 · Backend: a locação lê o plano do veículo
+- **Agente:** backend · **Regras:** `LOC-01`, `LOC-04`, `LOC-09`, `LOC-10`, `LOC-12`, `LOC-15`, `LOC-16` · **ADR:** 0041 · **Depende de:** T-494.
+- **Pronto quando:** migrations 4 e 5; rascunho, confirmação, renovação e troca leem o preço do dia e recusam veículo sem plano; multa mínima congelada; caução parcelada; compra pelo `PlanoCompraVeiculo`; 410 no cadastro antigo de `PlanoCompra` e `PlanoEspecial`; comando `alinhar_veiculos_sem_preco`; seed Moto Rápida atualizado; testes.
+
+#### T-496 · Design system e frontend: tela de preços e componente na ficha
+- **Agente:** design-system → frontend · **Regras:** `VEI-12` a `VEI-17` · **Pode começar:** pelo contrato da T-494.
+- **Pronto quando:** `/veiculos/[id]/precos` idêntica ao canvas (com agendar preço e o modal de custos mensais); "Preços desta moto" na ficha, com liga e desliga confirmado; aviso de tabela não preenchida na Frota e na ficha; componentes que faltarem (controle segmentado, liga e desliga) no design system; o front só exibe o que a API calcula; testes e capturas.
+
+#### T-497 · Frontend: Nova locação e cadastro pelos planos do veículo
+- **Agente:** frontend · **Regras:** `LOC-01`, `VEI-01`, `VEI-15` · **Depende de:** T-495.
+- **Pronto quando:** a Nova locação oferece os planos do veículo e mostra o aviso do veículo sem plano; "Tipo de veículo" no cadastro e na importação; a tela antiga de preços só pela Administração, com o aviso de que os preços ficam em cada veículo; testes.
+
+#### T-498 · Desvinculação da tabela antiga e conferência
+- **Agente:** fullstack → qa · **Regras:** `VEI-12` a `VEI-17`, `LOC-15` · **Depende de:** T-495 e T-497.
+- **Pronto quando:** nenhuma leitura de `preco_vigente` da categoria na ficha, na Frota, na importação e no assistente; QA com os casos de `dados-de-teste.md`; lista dos veículos sem preço migrável, dos agendados não migrados e das empresas com plano Entregador, para avisar antes do deploy em giro.ceo.
+
+### Fluxo de venda (decisão do dono de 18 nov 2026)
+
+Hoje o backend só tem a venda da quitação (`VEN-11`), a transferência e o cancelamento (`backend/apps/vendas/services.py`). Falta o fluxo da `VEN-01` à `VEN-10`: interessado, proposta, negociação, aprovação do desconto, venda concluída, troca, parcelas, contrato, comissão, funil e meta. Sem ele, o ticket médio (`VEN-12`, T-487) e as vendas do seed ficam vazios, e o catálogo interno (T-418) não tem para onde levar o interessado. Telas já existem: `Vendas`, `Venda` e `Vendedor` (desktop e celular). Cada tarefa entra com o aval do dono.
+
+#### T-501 · ADR do fluxo de venda
+- **Agente:** produto → arquiteto · **Regras:** `VEN-01` a `VEN-12`, `APR-01`, `FIN-09`, `VEI-07`, `LOC-16`.
+- **Pronto quando:** o produto confere se as regras cobrem o fluxo inteiro e as telas, e leva ao dono o que faltar (pontos em aberto com padrão); a ADR define a máquina de estados da `Venda` sobre o model que já existe, os serviços, as rotas, a troca (`VEN-05`), as parcelas em contas a receber (`VEN-03`, `VEN-04`), o contrato de compra e venda, a comissão (`FIN-09`), o funil e a meta, e quebra o resto em fases se for grande; diz o que fica de fora (financiamento pelo banco parceiro, se não couber).
+
+#### T-502 · Backend: fluxo de venda
+- **Agente:** backend · **Regras:** `VEN-01` a `VEN-10`, `VEN-12` · **Depende de:** T-501.
+- **Pronto quando:** o fluxo da ADR com mudança de status só por serviço, auditoria, uma venda aberta por veículo (`VEN-10`), aprovação do desconto acima de 5% (`VEN-02`, `APR-01`), `vendida` com contrato, parcelas, comissão e veículo `vendido` (`VEN-06`), cancelamento com estornos (`VEN-07`), funil, meta e ticket médio (`VEN-08`, `VEN-09`, `VEN-12`); a venda da quitação continua como está; `docs/api/` e OpenAPI; testes com os casos de `dados-de-teste.md` (VEN-0177).
+
+#### T-503 · Design system e frontend: telas de venda
+- **Agente:** design-system → frontend · **Regras:** `VEN-01` a `VEN-12` · **Pode começar:** pelo contrato da T-501 · **Leva:** o critério da T-418 sobre a venda da quitação na tela `Vendas`.
+- **Pronto quando:** `Vendas`, `Venda` e `Vendedor` ligadas na API, desktop e celular, com proposta, negociação, aprovação pelo celular, troca, cancelamento, funil e meta; o front só mostra o que a API calcula; testes e capturas.
+
+#### T-504 · Seed: vendas de setembro e outubro e conferência
+- **Agente:** qa · **Regras:** `VEN-06`, `VEN-12` · **Depende de:** T-502 e T-499.
+- **Pronto quando:** as 4 vendas concluídas de setembro (R$ 55.000,00) e as 4 de outubro (R$ 31.200,00) de `dados-de-teste.md`, criadas pelos serviços de venda; ticket médio e variação conferidos; os casos `xfail` de venda da T-019 (VEN-0177) ligados; teste ponta a ponta do fluxo.

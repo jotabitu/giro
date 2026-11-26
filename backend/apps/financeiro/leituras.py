@@ -212,7 +212,33 @@ def montar_veiculo(veiculo: Any) -> dict[str, Any]:
     return selectors.custos_do_veiculo_no_ano(veiculo.pk, relogio.hoje().year)
 
 
+def despesas_do_veiculo(veiculo_id: int) -> int:
+    """VEI-13 (ADR 0041): todas as despesas do veículo, sem as recusadas, para o "pago na moto"."""
+    total = (
+        Despesa.objects.filter(veiculo_id=veiculo_id)
+        .exclude(status=StatusDespesa.RECUSADA)
+        .aggregate(total=Sum("valor_centavos"))["total"]
+    )
+    return int(total or 0)
+
+
+# --- Histórico para excluir (VEI-22, CLI-13, T-515): qualquer situação ---
+
+
+def historico_despesa_do_veiculo(veiculo_id: int) -> int:
+    """VEI-22: despesa ligada ao veículo, inclusive `recusada` (FIN-17)."""
+    return int(Despesa.objects.filter(veiculo_id=veiculo_id).exists())
+
+
+def historico_conta_do_cliente(cliente_id: int) -> int:
+    """CLI-13: conta a receber (a caução também é conta) ou reembolso (DEV-02)."""
+    contas = ContaReceber.objects.filter(cliente_id=cliente_id)
+    return int(contas.exists() or Reembolso.objects.filter(cliente_id=cliente_id).exists())
+
+
 def registrar() -> None:
+    leituras.registrar_contador(VEICULO, "historico_despesa", historico_despesa_do_veiculo)
+    leituras.registrar_contador(CLIENTE, "historico_conta", historico_conta_do_cliente)
     leituras.registrar_anotacao(CLIENTE, "financeiro", anotar_cliente, montar_cliente)
     leituras.registrar_anotacao(CLIENTE, "historico", _sem_anotacao, montar_historico)
     leituras.registrar_filtro(CLIENTE, "em_aberto", em_aberto)
@@ -223,3 +249,4 @@ def registrar() -> None:
     leituras.registrar_total(CLIENTE, "em_aberto_centavos", total_em_aberto)
     leituras.registrar_contador(FILIAL, "caixas", selectors.caixas_abertos_da_filial)
     leituras.registrar_anotacao(VEICULO, "indicadores_financeiros", anotar_veiculo, montar_veiculo)
+    leituras.registrar_contador(VEICULO, "despesas_centavos", despesas_do_veiculo)  # VEI-13

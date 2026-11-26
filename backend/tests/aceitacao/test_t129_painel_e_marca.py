@@ -204,7 +204,12 @@ def test_usr_08_vendedor_so_os_proprios_numeros(cenario, com_carteira):  # noqa:
     parcelas = [(p["locacao"], p["valor_centavos"], p["dias"]) for p in corpo["parcelas_atrasadas"]]
     assert parcelas == [("LOC-2790", 134700, 25), ("LOC-2841", 29940, 7)]
     assert {x["codigo"] for x in corpo["precisam_acao"]} == {"LOC-2790", "LOC-2841"}
-    assert (corpo["meta"], corpo["funil"], corpo["comissao_prevista"]) == (None, None, None)
+    # VEN-08, VEN-09, VEN-16 (T-502, fase 1c): a meta, o funil e as propostas da vendedora vêm
+    # do resumo das vendas; a comissão prevista segue nula (tela Comissões).
+    assert corpo["meta"]["texto"] == "Sem meta em outubro."
+    assert corpo["funil"]["interessados"] == 0
+    assert corpo["propostas"]["vazio"] == "Você não tem propostas abertas."
+    assert corpo["comissao_prevista"] is None
 
     # As locações passam a ser de outro vendedor: Bruna fica sem números.
     Locacao.objects.update(vendedor=cenario.pessoas["Rodrigo"])

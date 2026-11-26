@@ -74,7 +74,10 @@ class MarcadorSerializer(serializers.Serializer[Any]):
     exemplo = serializers.CharField()
     finalidade = serializers.CharField(
         allow_null=True,
-        help_text="null: vale em todo modelo; `locacao_compra`: só nessa finalidade (LOC-16)",
+        help_text=(
+            "null: vale em todo modelo; `locacao_compra` (LOC-16) ou `venda` (VEN-15): só nessa"
+            " finalidade"
+        ),
     )
 
 
@@ -94,7 +97,11 @@ class ListaDeModelosProntosSerializer(serializers.Serializer[Any]):
 
 
 class PreviaEntradaSerializer(serializers.Serializer[Any]):
+    """Uma locação ou, no modelo de compra e venda, uma venda (VEN-15); sem os dois, os
+    exemplos."""
+
     locacao_id = serializers.IntegerField(required=False, allow_null=True)
+    venda_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class PreviaSerializer(serializers.Serializer[Any]):

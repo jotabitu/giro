@@ -4,6 +4,7 @@ import { ErroApi } from "./tipos";
 import { accessAtual, aoPerderSessao, aoTerminarSuporte, chamar, chamarComStatus, cursoresDaLista, definirAccess, definirFilial, emModoSuporte, http, renovarAccess } from "./http";
 import { contasApi } from "./contas";
 import { locacoesApi } from "./locacoes";
+import { financeiroApi } from "./financeiro";
 
 type Resposta = { status?: number; corpo?: unknown };
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -225,6 +226,15 @@ describe("locações", () => {
     responder({ corpo: { resultados: [], proximo: null, anterior: null } });
     await locacoesApi.listar({ aba: "abertas", busca: "lucas", cursor: "xyz" });
     expect(chamada(0)[0]).toBe("/api/locacoes/?aba=abertas&busca=lucas&cursor=xyz");
+  });
+});
+
+describe("contas a receber (T-511)", () => {
+  it("listarContas manda o cursor da página com os filtros", async () => {
+    definirAccess("a");
+    responder({ corpo: { resultados: [], proximo: null, anterior: null } });
+    await financeiroApi.listarContas({ periodo: "mes", situacao: "a_vencer", cursor: "cD0y" });
+    expect(chamada(0)[0]).toBe("/api/financeiro/contas-receber/?periodo=mes&situacao=a_vencer&cursor=cD0y");
   });
 });
 

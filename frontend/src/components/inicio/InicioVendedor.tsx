@@ -5,21 +5,31 @@ import Link from "next/link";
 import { Icone, Panel, StatusBadge } from "@/design-system";
 import type { InicioDe } from "@/lib/api";
 import { dataCurta, dinheiro } from "@/lib/formatos";
+import { temNoMenu } from "@/lib/menu";
 import { tomDoStatus } from "@/lib/painel";
 import { useSessao } from "@/lib/sessao";
 import { CabecalhoInicio, KpisDoPainel, LinhaDoPainel, ListaDoPainel, Vazio } from "./comuns";
+import { PropostasDoVendedor } from "./PropostasDoVendedor";
 
 /**
  * Início do vendedor (USR-08, fase 1: locação). "Meus" = locações que ele criou.
- * Meta, funil, comissão e propostas vêm `null` até vendas e comissões existirem e não aparecem.
+ * Meta, funil e comissão vêm `null` até o resumo de vendas da 1c (T-502) e não aparecem. As propostas para retornar
+ * vêm da lista de vendas (T-503), para quem tem vendas no menu.
  */
 export function InicioVendedor({ d }: { d: InicioDe<"vendedor"> }) {
   const { eu } = useSessao();
   const parcelas = d.parcelas_atrasadas ?? [];
   const precisamAcao = d.precisam_acao ?? [];
+  const vende = eu.pode.vendas_criar && ["minhas_vendas", "propostas", "vendas"].some((c) => temNoMenu(eu.navegacao, c));
   return (
     <div className="flex flex-col gap-6">
       <CabecalhoInicio saudacao={d.saudacao}>
+        {vende && (
+          <Link href="/vendas/nova" className="wl-btn">
+            <Icone de={Plus} />
+            Nova proposta
+          </Link>
+        )}
         {eu.pode.locacoes_criar && (
           <Link href="/locacoes/nova" className="wl-btn wl-btn--solid">
             <Icone de={Plus} />
@@ -29,6 +39,8 @@ export function InicioVendedor({ d }: { d: InicioDe<"vendedor"> }) {
       </CabecalhoInicio>
 
       <KpisDoPainel kpis={d.kpis} />
+
+      {vende && <PropostasDoVendedor />}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel titulo="Parcelas atrasadas" subtitulo="das suas locações">

@@ -31,7 +31,7 @@ import type {
 
 export const financeiroApi = {
   listarContas(f: FiltroReceber = {}): Promise<ListaContasReceber> {
-    return http.get("/api/financeiro/contas-receber/", { periodo: f.periodo, situacao: f.situacao, faixa: f.faixa, cliente: f.cliente, busca: f.busca, ordem: f.ordem });
+    return http.get("/api/financeiro/contas-receber/", { periodo: f.periodo, situacao: f.situacao, faixa: f.faixa, cliente: f.cliente, busca: f.busca, ordem: f.ordem, cursor: f.cursor });
   },
 
   obterConta(id: number): Promise<ContaReceberDetalhe> {

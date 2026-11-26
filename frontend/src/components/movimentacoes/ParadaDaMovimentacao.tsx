@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Aviso } from "@/components/acesso/Aviso";
-import { Button, Icone, TextField } from "@/design-system";
+import { BarraDeAcoes, CampoDeDinheiro, Button, Icone, useBlocoVisivel } from "@/design-system";
 import { ErroApi, movimentacoes, type Movimentacao } from "@/lib/api";
 import { TAMANHO_MAXIMO_DA_NOTA } from "@/lib/despesas";
 import { mensagemDoErro } from "@/lib/erros";
@@ -41,6 +41,7 @@ function Percurso({ m, atual }: { m: Movimentacao; atual: number | null }) {
 export function ParadaDaMovimentacao({ id }: { id: number }) {
   const router = useRouter();
   const cliente = useQueryClient();
+  const blocos = useBlocoVisivel();
   const consulta = useQuery({ queryKey: ["movimentacoes", "detalhe", id], queryFn: () => movimentacoes.obter(id) });
   const m = consulta.data;
   const atual = m?.proxima_etapa?.startsWith("parada:") ? Number(m.proxima_etapa.slice("parada:".length)) : null;
@@ -135,11 +136,10 @@ export function ParadaDaMovimentacao({ id }: { id: number }) {
             sair.mutate();
           }}
         >
-          <TextField
+          <CampoDeDinheiro
             rotulo="Valor pago"
             mono
             cheio
-            inputMode="decimal"
             placeholder="0,00"
             value={valor}
             onChange={(e) => setValor(e.target.value)}
@@ -160,7 +160,7 @@ export function ParadaDaMovimentacao({ id }: { id: number }) {
             Valor acima de zero lança uma despesa de {placa(m.veiculo.placa)}, com vencimento hoje. Acima do limite da empresa, ela espera aprovação. Valor zero não lança despesa.
           </p>
           {erroGeral && <Aviso tipo="erro">{erroGeral}</Aviso>}
-          <div className="flex gap-2">
+          <div ref={blocos.ref()} className="flex gap-2">
             <Link href={ROTA_DAS_MOVIMENTACOES} className="wl-btn">
               Cancelar
             </Link>
@@ -168,6 +168,11 @@ export function ParadaDaMovimentacao({ id }: { id: number }) {
               Confirmar saída
             </Button>
           </div>
+          <BarraDeAcoes
+            blocos={blocos}
+            cancelar={{ href: ROTA_DAS_MOVIMENTACOES }}
+            principal={{ rotulo: "Confirmar saída", disabled: sair.isPending || valor === "" || centavosDoTexto(valor) === null }}
+          />
         </form>
       )}
     </div>

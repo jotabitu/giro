@@ -1487,6 +1487,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClienteDetalhe'
           description: ''
+  /api/clientes/{id}/excluir/:
+    post:
+      operationId: clientes_excluir_create
+      description: |-
+        CLI-13 (T-515): administrador e gerente (o cliente é da empresa, sem filial). O suporte
+        Giro não exclui, nem em "ver e editar" (403 `PLT-07`).
+      summary: Excluir o cliente sem histórico (CLI-13)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - clientes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClienteExcluido'
+          description: ''
   /api/clientes/{id}/inativar/:
     post:
       operationId: clientes_inativar_create
@@ -1599,6 +1623,54 @@ paths:
               schema:
                 $ref: '#/components/schemas/Configuracoes'
           description: ''
+  /api/configuracoes/estoque/:
+    get:
+      operationId: configuracoes_estoque_retrieve
+      description: |-
+        O limite de dias em estoque da tela Empresa e marca (VEI-19). Todos os perfis leem, para
+        o campo vir travado; só o administrador muda (403 aos outros). O suporte lê e nunca muda.
+      summary: Limite de dias em estoque da empresa (VEI-19)
+      tags:
+      - configuracoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstoqueDaEmpresa'
+          description: ''
+    patch:
+      operationId: configuracoes_estoque_partial_update
+      description: |-
+        O limite de dias em estoque da tela Empresa e marca (VEI-19). Todos os perfis leem, para
+        o campo vir travado; só o administrador muda (403 aos outros). O suporte lê e nunca muda.
+      summary: Mudar o limite de dias em estoque (VEI-19, só o administrador)
+      tags:
+      - configuracoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMudarEstoqueDaEmpresa'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMudarEstoqueDaEmpresa'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMudarEstoqueDaEmpresa'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstoqueDaEmpresa'
+          description: ''
+        '422':
+          description: '`VEI-19`: fora de 1 a 365, vazio ou não inteiro'
   /api/contratos/marcadores/:
     get:
       operationId: contratos_marcadores_retrieve
@@ -5060,7 +5132,8 @@ paths:
           description: ''
     post:
       operationId: planos_compra_create
-      summary: Criar plano de compra (LOC-16, LOC-15)
+      summary: 'Criar plano de compra: 410, o plano é de cada veículo (VEI-16, ADR
+        0041)'
       tags:
       - planos-compra
       requestBody:
@@ -5078,16 +5151,13 @@ paths:
       security:
       - jwtAuth: []
       responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PlanoCompra'
-          description: ''
+        '410':
+          description: Os planos agora são de cada veículo (ADR 0041)
   /api/planos-compra/{id}/:
     patch:
       operationId: planos_compra_partial_update
-      summary: Editar plano de compra (vale para locações novas, LOC-15)
+      summary: 'Editar plano de compra: 410, o plano é de cada veículo (VEI-16, ADR
+        0041)'
       parameters:
       - in: path
         name: id
@@ -5110,12 +5180,8 @@ paths:
       security:
       - jwtAuth: []
       responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PlanoCompra'
-          description: ''
+        '410':
+          description: Os planos agora são de cada veículo (ADR 0041)
   /api/planos-compra/{id}/desativar/:
     post:
       operationId: planos_compra_desativar_create
@@ -5163,7 +5229,8 @@ paths:
           description: ''
     post:
       operationId: planos_especiais_create
-      summary: Criar plano especial (LOC-01, LOC-15)
+      summary: 'Criar plano especial: 410, o plano é de cada veículo (VEI-12, ADR
+        0041)'
       tags:
       - planos-especiais
       requestBody:
@@ -5181,16 +5248,13 @@ paths:
       security:
       - jwtAuth: []
       responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PlanoEspecial'
-          description: ''
+        '410':
+          description: Os planos agora são de cada veículo (ADR 0041)
   /api/planos-especiais/{id}/:
     patch:
       operationId: planos_especiais_partial_update
-      summary: Editar plano especial (vale para locações novas, LOC-15)
+      summary: 'Editar plano especial: 410, o plano é de cada veículo (VEI-12, ADR
+        0041)'
       parameters:
       - in: path
         name: id
@@ -5213,12 +5277,8 @@ paths:
       security:
       - jwtAuth: []
       responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PlanoEspecial'
-          description: ''
+        '410':
+          description: Os planos agora são de cada veículo (ADR 0041)
   /api/planos-especiais/{id}/desativar/:
     post:
       operationId: planos_especiais_desativar_create
@@ -5897,6 +5957,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/Subdominio'
           description: ''
+  /api/publico/propostas/consultar/:
+    post:
+      operationId: publico_propostas_consultar_create
+      description: |-
+        Página pública `/proposta` (VEN-15): sem login, no host da empresa, com limites próprios
+        por IP e por token, como o recibo da devolução (T-411).
+      summary: Ler a proposta do link (VEN-15, S-15)
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenDaProposta'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenDaProposta'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenDaProposta'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaDaProposta'
+          description: ''
   /api/publico/recibos/consultar/:
     post:
       operationId: publico_recibos_consultar_create
@@ -6462,7 +6552,7 @@ paths:
   /api/veiculos/:
     get:
       operationId: veiculos_list
-      summary: Frota (VEI-06)
+      summary: Frota (VEI-06, VEI-18)
       parameters:
       - in: query
         name: busca
@@ -6486,6 +6576,7 @@ paths:
           type: string
           enum:
           - -km_atual
+          - em_estoque
           - modelo
           - placa
       - in: query
@@ -6863,6 +6954,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaDeDocumentos'
           description: ''
+  /api/veiculos/{id}/excluir/:
+    post:
+      operationId: veiculos_excluir_create
+      description: |-
+        VEI-22 (T-515): administrador e gerente, no escopo de filiais (fora dele, 404, USR-07). O
+        suporte Giro não exclui, nem em "ver e editar" (403 `PLT-07`).
+      summary: Excluir o veículo sem histórico (VEI-22)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VeiculoExcluido'
+          description: ''
   /api/veiculos/{id}/fotos/:
     get:
       operationId: veiculos_fotos_list
@@ -7070,6 +7185,144 @@ paths:
               schema:
                 $ref: '#/components/schemas/LeituraCrlvNoEditar'
           description: ''
+  /api/veiculos/{id}/precos/:
+    get:
+      operationId: veiculos_precos_retrieve
+      description: |-
+        Planos e preços do veículo (VEI-12 a VEI-17, ADR 0041). Ler: quem vê valores, nas suas
+        filiais (o vistoriador não vê dinheiro, USR-09); salvar: o administrador (o gerente recebe
+        403, padrão A de "quem edita"). O suporte Giro só vê (VEI-12): lê nos dois modos, e o `PUT`
+        responde 403 `PLT-07` mesmo com "ver e editar".
+      summary: Planos e preços do veículo (VEI-12 a VEI-17)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecosDoVeiculo'
+          description: ''
+    put:
+      operationId: veiculos_precos_update
+      description: |-
+        Planos e preços do veículo (VEI-12 a VEI-17, ADR 0041). Ler: quem vê valores, nas suas
+        filiais (o vistoriador não vê dinheiro, USR-09); salvar: o administrador (o gerente recebe
+        403, padrão A de "quem edita"). O suporte Giro só vê (VEI-12): lê nos dois modos, e o `PUT`
+        responde 403 `PLT-07` mesmo com "ver e editar".
+      summary: Salvar os preços do veículo (VEI-12 a VEI-17)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecosDoVeiculo'
+          description: ''
+  /api/veiculos/{id}/precos/planos/{plano_id}/ligado/:
+    post:
+      operationId: veiculos_precos_planos_ligado_create
+      description: |-
+        O liga e desliga do cartão "Preços desta moto" da ficha (VEI-12), com confirmação na
+        tela. O suporte Giro só vê (VEI-12): 403 `PLT-07`.
+      summary: Ligar ou desligar um plano do veículo (VEI-12, VEI-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: plano_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LigarPlano'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LigarPlano'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LigarPlano'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecosDoVeiculo'
+          description: ''
+  /api/veiculos/{id}/precos/simular/:
+    post:
+      operationId: veiculos_precos_simular_create
+      description: |-
+        O mesmo corpo do `PUT`, sem gravar (ADR 0005); o frontend chama a cada mudança. É parte de
+        editar: o suporte Giro, que só vê (VEI-12), recebe 403 `PLT-07`.
+      summary: Simular os preços do veículo, sem gravar (VEI-13, VEI-16)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PrecosEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecosDoVeiculo'
+          description: ''
   /api/veiculos/{id}/voltar-para-frota/:
     post:
       operationId: veiculos_voltar_para_frota_create
@@ -7152,12 +7405,37 @@ paths:
   /api/vendas/:
     get:
       operationId: vendas_list
-      summary: Vendas (na T-420, só as da quitação, VEN-11)
+      summary: Vendas (VEN-08, VEN-11, VEN-13)
       parameters:
+      - in: query
+        name: aba
+        schema:
+          type: string
+          enum:
+          - abertas
+          - aguardando
+          - minhas
+          - vendidas
       - in: query
         name: cliente
         schema:
           type: integer
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      - in: query
+        name: mes
+        schema:
+          type: string
+        description: AAAA-MM
+      - in: query
+        name: ordem
+        schema:
+          type: string
+          enum:
+          - ultimo_contato
+        description: 'VEN-16: da mais antiga para a mais recente pelo último contato'
       - in: query
         name: origem
         schema:
@@ -7165,6 +7443,18 @@ paths:
           enum:
           - balcao
           - quitacao_locacao
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - aguardando_aprovacao
+          - cancelada
+          - interessado
+          - negociacao
+          - perdida
+          - proposta
+          - vendida
       - in: query
         name: transferencia_pendente
         schema:
@@ -7186,6 +7476,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaDeVendas'
           description: ''
+    post:
+      operationId: vendas_create
+      summary: 'Nova venda: interessado, proposta ou pedido de aprovação (VEN-01,
+        VEN-02, VEN-10, VEN-13, VEN-14)'
+      tags:
+      - vendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarVenda'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CriarVenda'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CriarVenda'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
   /api/vendas/{id}/:
     get:
       operationId: vendas_retrieve
@@ -7205,7 +7522,435 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Venda'
+                $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
+    patch:
+      operationId: vendas_partial_update
+      summary: Editar a proposta antes da assinatura (VEN-02, VEN-14, FIN-09)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarVenda'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarVenda'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarVenda'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
+  /api/vendas/{id}/assinatura/:
+    post:
+      operationId: vendas_assinatura_create
+      description: A etapa "Assinatura" (VEN-15, VEN-19; ADR 0042, item 6).
+      summary: 'Preparar a assinatura: contrato e conta da entrada (VEN-15, VEN-14,
+        CLI-03, CLI-05, IMP-04)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
+    delete:
+      operationId: vendas_assinatura_destroy
+      description: A etapa "Assinatura" (VEN-15, VEN-19; ADR 0042, item 6).
+      summary: Cancelar a assinatura para mudar a proposta (VEN-19, VEN-06)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/vendas/{id}/contrato/link/:
+    post:
+      operationId: vendas_contrato_link_create
+      description: |-
+        Copiar link para assinar (VEN-15), como na retirada (T-411): o link sai só nesta resposta,
+        sem cache, e não vai para log.
+      summary: Copiar link para assinar o contrato da venda (S-15, VEN-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkDoContrato'
+          description: ''
+  /api/vendas/{id}/contrato/pdf/:
+    get:
+      operationId: vendas_contrato_pdf_retrieve
+      summary: PDF do contrato da venda, o assinado se houver (URL de 15 min, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlDoPdf'
+          description: ''
+  /api/vendas/{id}/contrato/reenviar/:
+    post:
+      operationId: vendas_contrato_reenviar_create
+      description: 'As ações do fluxo: só quem vende (administrador, gerente, vendedor).'
+      summary: Reenviar o contrato da venda (novo link; o anterior deixa de valer,
+        S-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContratoGerado'
+          description: ''
+  /api/vendas/{id}/enviar/:
+    post:
+      operationId: vendas_enviar_create
+      description: 'As ações do fluxo: só quem vende (administrador, gerente, vendedor).'
+      summary: Enviar ou reenviar a proposta, com o PDF por e-mail (VEN-13, VEN-15,
+        VEN-19)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaEnviada'
+          description: ''
+  /api/vendas/{id}/pedir-aprovacao/:
+    post:
+      operationId: vendas_pedir_aprovacao_create
+      description: 'As ações do fluxo: só quem vende (administrador, gerente, vendedor).'
+      summary: Pedir aprovação do gerente para o desconto acima de 5% (VEN-02, APR-01,
+        FIN-09)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedirAprovacao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PedirAprovacao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PedirAprovacao'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
+  /api/vendas/{id}/perder/:
+    post:
+      operationId: vendas_perder_create
+      description: 'As ações do fluxo: só quem vende (administrador, gerente, vendedor).'
+      summary: Marcar como perdida, com motivo (VEN-13, FIN-09)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Perder'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Perder'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Perder'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
+  /api/vendas/{id}/proposta/link/:
+    post:
+      operationId: vendas_proposta_link_create
+      description: |-
+        "Copiar link" (`VEN-15`, `VEN-19`): o link sai só nesta resposta. Ordem da T-252:
+        permissão e 403 `PLT-07`, depois o limite, depois o serviço.
+      summary: Copiar link da proposta (VEN-15, S-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkDaProposta'
+          description: ''
+  /api/vendas/{id}/resposta/:
+    post:
+      operationId: vendas_resposta_create
+      description: 'As ações do fluxo: só quem vende (administrador, gerente, vendedor).'
+      summary: 'Registrar a resposta do cliente: proposta → negociação (VEN-13)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Resposta'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Resposta'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Resposta'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
+  /api/vendas/{id}/transferencia/:
+    post:
+      operationId: vendas_transferencia_create
+      description: '`VEN-17`: "Transferência feita" na venda de balcão (e na da quitação,
+        pela venda).'
+      summary: 'Transferência feita no Detran (VEN-17, VEN-11): fecha a tarefa da
+        venda'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDetalhe'
+          description: ''
+  /api/vendas/metas/:
+    get:
+      operationId: vendas_metas_retrieve
+      summary: Metas dos vendedores da filial no mês (VEN-09)
+      parameters:
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      - in: query
+        name: mes
+        schema:
+          type: string
+        description: AAAA-MM; sem ele, o mês de hoje
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuadroDeMetas'
+          description: ''
+    put:
+      operationId: vendas_metas_update
+      summary: Definir as metas dos vendedores da filial (VEN-09); valor nulo tira
+        a meta
+      tags:
+      - vendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefinirMetas'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DefinirMetas'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DefinirMetas'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuadroDeMetas'
+          description: ''
+  /api/vendas/resumo/:
+    get:
+      operationId: vendas_resumo_retrieve
+      summary: 'Resumo das vendas: funil, conversão, vendido, ticket, meta (VEN-08,
+        VEN-09, VEN-12, VEN-16)'
+      parameters:
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      - in: query
+        name: mes
+        schema:
+          type: string
+        description: AAAA-MM; sem ele, o mês de hoje
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumoDeVendas'
+          description: ''
+  /api/vendas/simular/:
+    post:
+      operationId: vendas_simular_create
+      description: 'As ações do fluxo: só quem vende (administrador, gerente, vendedor).'
+      summary: Simular a proposta, sem gravar (VEN-02, VEN-04, FIN-09, ADR 0005)
+      tags:
+      - vendas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimularVenda'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SimularVenda'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SimularVenda'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulacaoDaVenda'
           description: ''
   /api/vistorias/{id}/:
     get:
@@ -7595,6 +8340,16 @@ components:
         * `ver_proposta` - ver_proposta
         * `ver_locacao` - ver_locacao
         * `nova_locacao` - nova_locacao
+    AcaoVendaEnum:
+      enum:
+      - interessado
+      - enviar
+      - pedir_aprovacao
+      type: string
+      description: |-
+        * `interessado` - interessado
+        * `enviar` - enviar
+        * `pedir_aprovacao` - pedir_aprovacao
     Access:
       type: object
       properties:
@@ -7891,6 +8646,10 @@ components:
           nullable: true
         editar_fotos:
           type: boolean
+        excluir:
+          allOf:
+          - $ref: '#/components/schemas/ExcluirVeiculo'
+          nullable: true
       required:
       - aviso_baixar
       - baixar
@@ -7900,6 +8659,7 @@ components:
       - desbloquear
       - editar
       - editar_fotos
+      - excluir
       - lancar_despesa
       - motivo_movimentar
       - motivo_trocar_tipo
@@ -7951,12 +8711,39 @@ components:
     AcoesDaVenda:
       type: object
       properties:
+        editar:
+          type: boolean
+        enviar:
+          type: boolean
+        registrar_resposta:
+          type: boolean
+        pedir_aprovacao:
+          type: boolean
+        perder:
+          type: boolean
         cancelar:
           type: boolean
         registrar_transferencia:
           type: boolean
+        preparar_assinatura:
+          type: boolean
+        cancelar_assinatura:
+          type: boolean
+        copiar_link_contrato:
+          type: boolean
+        reenviar_contrato:
+          type: boolean
       required:
       - cancelar
+      - cancelar_assinatura
+      - copiar_link_contrato
+      - editar
+      - enviar
+      - pedir_aprovacao
+      - perder
+      - preparar_assinatura
+      - reenviar_contrato
+      - registrar_resposta
       - registrar_transferencia
     AcoesDaVendaDaCompra:
       type: object
@@ -7986,6 +8773,15 @@ components:
       - fechar
       - receber
       - sangria
+    AcoesDoCliente:
+      type: object
+      properties:
+        excluir:
+          allOf:
+          - $ref: '#/components/schemas/ExcluirCliente'
+          nullable: true
+      required:
+      - excluir
     AcoesDoReembolso:
       type: object
       properties:
@@ -8163,6 +8959,47 @@ components:
       - proxima
       - resultados
       - resumo
+    Agendado:
+      type: object
+      properties:
+        valor_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+          nullable: true
+        a_partir_de:
+          type: string
+          format: date
+      required:
+      - a_partir_de
+      - caucao_centavos
+      - valor_centavos
+    AgendadoEntrada:
+      type: object
+      properties:
+        valor_centavos:
+          type: integer
+          minimum: 0
+        caucao_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        a_partir_de:
+          type: string
+          format: date
+      required:
+      - a_partir_de
+      - valor_centavos
+    AlertaDePreco:
+      type: object
+      properties:
+        codigo:
+          type: string
+        mensagem:
+          type: string
+      required:
+      - codigo
+      - mensagem
     AlternativaEssencial:
       type: object
       properties:
@@ -8320,6 +9157,37 @@ components:
           format: uri
       required:
       - nota
+    AprovacaoDaVenda:
+      type: object
+      properties:
+        situacao:
+          $ref: '#/components/schemas/PedidoStatusEnum'
+        pedido_id:
+          type: integer
+          nullable: true
+        desconto_pedido_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        desconto_aprovado_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        motivo_recusa:
+          type: string
+          nullable: true
+        texto:
+          type: string
+          nullable: true
+      required:
+      - desconto_aprovado_pct
+      - desconto_pedido_pct
+      - motivo_recusa
+      - pedido_id
+      - situacao
+      - texto
     AprovacoesDoInicio:
       type: object
       properties:
@@ -8664,12 +9532,16 @@ components:
       - mensagem
     Baixar:
       type: object
+      description: |-
+        VEI-23: o motivo é obrigatório; a descrição, até 200 caracteres, só é obrigatória no
+        `outro` (vazia ou só espaços: "Descreva o motivo da baixa.").
       properties:
         motivo:
           $ref: '#/components/schemas/MotivoEnum'
         descricao:
           type: string
           default: ''
+          maxLength: 200
       required:
       - motivo
     BlankEnum:
@@ -8791,6 +9663,72 @@ components:
       - recebido_centavos
       - saldo_dia_centavos
       - status
+    CalculoDaVenda:
+      type: object
+      description: O que a API calcula (ADR 0042, item 4); a tela só mostra.
+      properties:
+        preco_tabela_centavos:
+          type: integer
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        desconto_centavos:
+          type: integer
+        preco_final_centavos:
+          type: integer
+        forma:
+          type: string
+        entrada_centavos:
+          type: integer
+          nullable: true
+        saldo_centavos:
+          type: integer
+        num_parcelas:
+          type: integer
+          nullable: true
+        juros_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        parcela_centavos:
+          type: integer
+          nullable: true
+        ultima_parcela_centavos:
+          type: integer
+          nullable: true
+        total_parcelas_centavos:
+          type: integer
+        comissao_centavos:
+          type: integer
+        comissao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: 'FIN-09: o percentual da comissão (3,00)'
+        precisa_aprovacao:
+          type: boolean
+        limite_desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+      required:
+      - comissao_centavos
+      - comissao_pct
+      - desconto_centavos
+      - desconto_pct
+      - entrada_centavos
+      - forma
+      - juros_pct
+      - limite_desconto_pct
+      - num_parcelas
+      - parcela_centavos
+      - precisa_aprovacao
+      - preco_final_centavos
+      - preco_tabela_centavos
+      - saldo_centavos
+      - total_parcelas_centavos
+      - ultima_parcela_centavos
     CamposDoCrlv:
       type: object
       description: |-
@@ -9568,8 +10506,11 @@ components:
             type: string
         analise:
           $ref: '#/components/schemas/AnaliseCliente'
+        acoes:
+          $ref: '#/components/schemas/AcoesDoCliente'
       required:
       - acao_principal
+      - acoes
       - analise
       - bloqueio
       - celular
@@ -9648,6 +10589,18 @@ components:
       - documento
       - nome
       - tipo
+    ClienteExcluido:
+      type: object
+      description: 'Resposta do `POST .../excluir/` (CLI-13): o aviso da lista, sem
+        o nome.'
+      properties:
+        id:
+          type: integer
+        mensagem:
+          type: string
+      required:
+      - id
+      - mensagem
     CnhCliente:
       type: object
       properties:
@@ -9954,6 +10907,20 @@ components:
         * `diesel` - Diesel
         * `eletrico` - Elétrico
         * `hibrido` - Híbrido
+    ComoPagaEnum:
+      enum:
+      - tudo_na_retirada
+      - semana_adiantado
+      - mes_uma_parcela
+      - mes_duas_quinzenais
+      - mes_quatro_semanais
+      type: string
+      description: |-
+        * `tudo_na_retirada` - Tudo na retirada
+        * `semana_adiantado` - Toda semana, adiantado
+        * `mes_uma_parcela` - 1 parcela no mês
+        * `mes_duas_quinzenais` - 2 quinzenais
+        * `mes_quatro_semanais` - 4 semanais
     Comparacao:
       type: object
       properties:
@@ -9977,10 +10944,21 @@ components:
     CompraDaSimulacao:
       type: object
       properties:
+        periodicidade:
+          type: string
+          description: diaria, semanal, quinzenal (14 dias), mensal
         parcelas_total:
           type: integer
         valor_parcela_centavos:
           type: integer
+          description: a parcela do cliente
+        parcela_moto_centavos:
+          type: integer
+        adicional_centavos:
+          type: integer
+        entrada_centavos:
+          type: integer
+          description: cobrada na retirada (LOC-16)
         ultima_parcela_centavos:
           type: integer
           description: já com a caução abatida
@@ -9988,7 +10966,11 @@ components:
           type: integer
           description: 'caução maior que a parcela: volta ao cliente na quitação'
       required:
+      - adicional_centavos
+      - entrada_centavos
+      - parcela_moto_centavos
       - parcelas_total
+      - periodicidade
       - sobra_caucao_centavos
       - ultima_parcela_centavos
       - valor_parcela_centavos
@@ -10002,6 +10984,12 @@ components:
           allOf:
           - $ref: '#/components/schemas/IdNomeLocacao'
           nullable: true
+        periodicidade:
+          type: string
+          description: diaria, semanal, quinzenal ou mensal
+        entrada_centavos:
+          type: integer
+          description: LOC-16
         parcelas_total:
           type: integer
         parcelas_pagas:
@@ -10033,6 +11021,7 @@ components:
       - falta_para_quitar
       - parcelas_pagas
       - parcelas_total
+      - periodicidade
       - plano
       - quitada_em
       - venda
@@ -10183,6 +11172,16 @@ components:
       required:
       - contrato
       - empresa
+    ConsultaDaProposta:
+      type: object
+      properties:
+        empresa:
+          $ref: '#/components/schemas/EmpresaDaProposta'
+        proposta:
+          $ref: '#/components/schemas/PropostaPublica'
+      required:
+      - empresa
+      - proposta
     ConsultaDoRecibo:
       type: object
       properties:
@@ -10440,6 +11439,55 @@ components:
       - valor_hoje
       - veiculo_placa
       - vencimento
+    ContaEntradaDaVenda:
+      type: object
+      description: |-
+        A entrada (ou o total à vista) em Contas a receber (VEN-15): "Entrada de R$ 5.000,00",
+        "Aguardando pagamento · vence hoje".
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ContaEntradaDaVendaStatusEnum'
+        valor_centavos:
+          type: integer
+        vencimento:
+          type: string
+          format: date
+        rotulo:
+          type: string
+        texto:
+          type: string
+          description: '"Paga em 07 out, 11:02 · Pix" quando paga.'
+        pago_em:
+          type: string
+          format: date-time
+          nullable: true
+        forma_texto:
+          type: string
+          nullable: true
+          description: A forma do pagamento ("Pix"). Nula antes de pagar.
+      required:
+      - forma_texto
+      - id
+      - pago_em
+      - rotulo
+      - status
+      - texto
+      - valor_centavos
+      - vencimento
+    ContaEntradaDaVendaStatusEnum:
+      enum:
+      - aberta
+      - paga
+      - cancelada
+      - renegociada
+      type: string
+      description: |-
+        * `aberta` - Aberta
+        * `paga` - Paga
+        * `cancelada` - Cancelada
+        * `renegociada` - Renegociada
     ContaNova:
       type: object
       properties:
@@ -10781,6 +11829,51 @@ components:
       - pdf_url_expira_em
       - status
       - titulo
+    ContratoDaVenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusContratoEnum'
+        modelo:
+          type: string
+        versao:
+          type: integer
+          nullable: true
+        enviado_em:
+          type: string
+          format: date-time
+          nullable: true
+        assinado_em:
+          type: string
+          format: date-time
+          nullable: true
+        pdf_disponivel:
+          type: boolean
+        situacao_texto:
+          type: string
+        enviado_para:
+          type: string
+          nullable: true
+          description: O e-mail do cliente para onde o link foi. O suporte vê mascarado
+            (AUD-09).
+        enviado_texto:
+          type: string
+          nullable: true
+          description: '"Contrato enviado · 07 out, 10:20 · diego@exemplo.com.br".
+            Nulo antes do envio.'
+      required:
+      - assinado_em
+      - enviado_em
+      - enviado_para
+      - enviado_texto
+      - id
+      - modelo
+      - pdf_disponivel
+      - situacao_texto
+      - status
+      - versao
     ContratoGerado:
       type: object
       properties:
@@ -10821,6 +11914,21 @@ components:
       - pdf_disponivel
       - status
       - versao
+    Conversao:
+      type: object
+      properties:
+        vendidas:
+          type: integer
+        criadas:
+          type: integer
+        pct:
+          type: integer
+          nullable: true
+          description: últimos 30 dias, para baixo
+      required:
+      - criadas
+      - pct
+      - vendidas
     Convidar:
       type: object
       properties:
@@ -10965,6 +12073,43 @@ components:
       required:
       - semanas
       - valor_centavos
+    CriarVenda:
+      type: object
+      description: Os campos da proposta que a pessoa digita (VEN-02, VEN-03, VEN-04).
+      properties:
+        forma:
+          oneOf:
+          - $ref: '#/components/schemas/FormaVendaEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        entrada_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        num_parcelas:
+          type: integer
+          minimum: 0
+          nullable: true
+        veiculo_id:
+          type: integer
+        cliente_id:
+          type: integer
+          nullable: true
+        interessado:
+          allOf:
+          - $ref: '#/components/schemas/InteressadoDaVenda'
+          nullable: true
+        acao:
+          $ref: '#/components/schemas/AcaoVendaEnum'
+        motivo:
+          type: string
+          maxLength: 300
+      required:
+      - acao
+      - veiculo_id
     CriarVistoria:
       type: object
       properties:
@@ -10977,6 +12122,68 @@ components:
       - saida
       type: string
       description: '* `saida` - Saída'
+    CustosDoVeiculo:
+      type: object
+      properties:
+        manutencao_mes_centavos:
+          type: integer
+        seguro_mes_centavos:
+          type: integer
+        rastreador_mes_centavos:
+          type: integer
+        ipva_ano_centavos:
+          type: integer
+        ipva_mes_centavos:
+          type: integer
+        revenda_estimada_centavos:
+          type: integer
+          nullable: true
+        ocupacao_esperada_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        custo_mes_centavos:
+          type: integer
+        sem_custo_compra:
+          type: boolean
+        revenda_acima_do_pago:
+          type: boolean
+      required:
+      - custo_mes_centavos
+      - ipva_ano_centavos
+      - ipva_mes_centavos
+      - manutencao_mes_centavos
+      - ocupacao_esperada_pct
+      - rastreador_mes_centavos
+      - revenda_acima_do_pago
+      - revenda_estimada_centavos
+      - seguro_mes_centavos
+      - sem_custo_compra
+    CustosEntrada:
+      type: object
+      properties:
+        manutencao_mes_centavos:
+          type: integer
+          minimum: 0
+        seguro_mes_centavos:
+          type: integer
+          minimum: 0
+        rastreador_mes_centavos:
+          type: integer
+          minimum: 0
+        ipva_ano_centavos:
+          type: integer
+          minimum: 0
+        revenda_estimada_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        ocupacao_esperada_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
     DadosDoCnpj:
       type: object
       properties:
@@ -11038,6 +12245,23 @@ components:
       - inicio
       - lembrete
       - primeira_fatura
+    DefinirMetas:
+      type: object
+      properties:
+        filial_id:
+          type: integer
+        mes:
+          type: string
+          description: AAAA-MM
+          pattern: ^\d{4}-\d{2}$
+        metas:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetaPedida'
+      required:
+      - filial_id
+      - mes
+      - metas
     DesbloquearVeiculo:
       type: object
       properties:
@@ -11548,6 +12772,30 @@ components:
       - crlv
       type: string
       description: '* `crlv` - crlv'
+    DocumentosDaVenda:
+      type: object
+      description: |-
+        A etapa "Documentos" (VEN-14, VEN-19): as pendências do cadastro (`CLI-03`, os códigos
+        de `clientes`) e o texto pronto do cliente bloqueado ou inativo (`CLI-05`).
+      properties:
+        pendencias:
+          type: array
+          items:
+            type: string
+        gravidade:
+          type: string
+          nullable: true
+          description: '`critica` (CLI-05) ou `alerta` (CLI-03)'
+        texto:
+          type: string
+          nullable: true
+        pode_preparar:
+          type: boolean
+      required:
+      - gravidade
+      - pendencias
+      - pode_preparar
+      - texto
     DoisFatores:
       type: object
       properties:
@@ -11571,6 +12819,19 @@ components:
         * `15` - 15
         * `30` - 30
         * `60` - 60
+    EmNegociacao:
+      type: object
+      properties:
+        quantidade:
+          type: integer
+        soma_centavos:
+          type: integer
+        aguardando_aprovacao:
+          type: integer
+      required:
+      - aguardando_aprovacao
+      - quantidade
+      - soma_centavos
     Email:
       type: object
       properties:
@@ -11616,6 +12877,21 @@ components:
       - razao_social
       - subdominio
       - uf
+    EmpresaDaProposta:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        cor_marca:
+          type: string
+          nullable: true
+      required:
+      - cor_marca
+      - logo_url
+      - nome_exibicao
     EmpresaDetalhe:
       type: object
       properties:
@@ -12040,6 +13316,83 @@ components:
       - contexto
       - mais_antigo_em
       - quantidade
+    EstoqueAVenda:
+      type: object
+      description: VEI-20. Só para administrador e gerente; ausente para os outros
+        perfis.
+      properties:
+        quantidade:
+          type: integer
+          description: Veículos `a_venda` no escopo.
+        capital_imobilizado_centavos:
+          type: integer
+        veiculos_na_conta:
+          type: integer
+          description: Os com valor de compra.
+        custo_medio_centavos:
+          type: integer
+          nullable: true
+        margem_centavos:
+          type: integer
+          nullable: true
+        margem_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          nullable: true
+        margem_negativa:
+          type: boolean
+        sem_valor_compra:
+          type: integer
+        sem_valor_venda:
+          type: integer
+        subtitulo:
+          type: string
+        legenda_capital:
+          type: string
+        legenda_custo_medio:
+          type: string
+          nullable: true
+        margem_texto:
+          type: string
+          nullable: true
+          description: 'Com o sinal: −R$ 750,00.'
+        legenda_margem:
+          type: string
+          nullable: true
+        avisos:
+          type: array
+          items:
+            type: string
+      required:
+      - avisos
+      - capital_imobilizado_centavos
+      - custo_medio_centavos
+      - legenda_capital
+      - legenda_custo_medio
+      - legenda_margem
+      - margem_centavos
+      - margem_negativa
+      - margem_pct
+      - margem_texto
+      - quantidade
+      - sem_valor_compra
+      - sem_valor_venda
+      - subtitulo
+      - veiculos_na_conta
+    EstoqueDaEmpresa:
+      type: object
+      description: 'VEI-19 (T-486): o painel "Estoque à venda" de Empresa e marca.'
+      properties:
+        limite_dias_parado:
+          type: integer
+          description: Acima destes dias à venda, o veículo está parado. De 1 a 365.
+        pode_editar:
+          type: boolean
+          description: Só o administrador altera; para os outros, o campo vem travado.
+      required:
+      - limite_dias_parado
+      - pode_editar
     Etapa:
       type: object
       properties:
@@ -12412,6 +13765,101 @@ components:
             $ref: '#/components/schemas/Aberto'
         abertos_texto:
           type: string
+    ExcluirCliente:
+      type: object
+      description: 'CLI-13 (T-515): a confirmação (`permitido`) ou o aviso, prontos
+        para a tela.'
+      properties:
+        permitido:
+          type: boolean
+        titulo:
+          type: string
+        texto:
+          type: string
+          nullable: true
+        motivo:
+          type: string
+          nullable: true
+        caminho:
+          type: string
+          nullable: true
+        inativar:
+          type: boolean
+        historico:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcluirClienteHistoricoEnum'
+      required:
+      - caminho
+      - historico
+      - inativar
+      - motivo
+      - permitido
+      - texto
+      - titulo
+    ExcluirClienteHistoricoEnum:
+      enum:
+      - locacao
+      - venda
+      - conta
+      - contrato
+      - aprovacao
+      type: string
+      description: |-
+        * `locacao` - locacao
+        * `venda` - venda
+        * `conta` - conta
+        * `contrato` - contrato
+        * `aprovacao` - aprovacao
+    ExcluirVeiculo:
+      type: object
+      description: 'VEI-22 (T-515): a confirmação (`permitido`) ou o aviso com o histórico,
+        prontos.'
+      properties:
+        permitido:
+          type: boolean
+        titulo:
+          type: string
+        texto:
+          type: string
+          nullable: true
+        motivo:
+          type: string
+          nullable: true
+        caminho:
+          type: string
+          nullable: true
+        historico:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcluirVeiculoHistoricoEnum'
+      required:
+      - caminho
+      - historico
+      - motivo
+      - permitido
+      - texto
+      - titulo
+    ExcluirVeiculoHistoricoEnum:
+      enum:
+      - locacao
+      - troca
+      - venda
+      - vistoria
+      - ordem_servico
+      - despesa
+      - movimentacao
+      - transferencia
+      type: string
+      description: |-
+        * `locacao` - locacao
+        * `troca` - troca
+        * `venda` - venda
+        * `vistoria` - vistoria
+        * `ordem_servico` - ordem_servico
+        * `despesa` - despesa
+        * `movimentacao` - movimentacao
+        * `transferencia` - transferencia
     Exportacao:
       type: object
       properties:
@@ -13061,7 +14509,19 @@ components:
       description: |-
         * `locacao` - Locação
         * `locacao_compra` - Locação com intenção de compra
-        * `venda` - Venda
+        * `venda` - Compra e venda
+    FormaAceitaEnum:
+      enum:
+      - pix
+      - boleto
+      - cartao
+      - dinheiro
+      type: string
+      description: |-
+        * `pix` - Pix
+        * `boleto` - Boleto
+        * `cartao` - Cartão
+        * `dinheiro` - Dinheiro
     FormaAssinaturaEnum:
       enum:
       - cartao
@@ -13161,6 +14621,16 @@ components:
         * `cartao` - Cartão
         * `boleto` - Boleto
         * `dinheiro` - Dinheiro
+    FormaVendaEnum:
+      enum:
+      - a_vista
+      - entrada_parcelas
+      - financiamento
+      type: string
+      description: |-
+        * `a_vista` - À vista
+        * `entrada_parcelas` - Entrada e parcelas
+        * `financiamento` - Financiamento
     FormatoExportacaoEnum:
       enum:
       - planilha
@@ -13421,6 +14891,22 @@ components:
       - nota
       - ocupacao_pct
       - segmentos
+    Funil:
+      type: object
+      properties:
+        interessados:
+          type: integer
+        proposta:
+          type: integer
+        negociacao:
+          type: integer
+        vendido:
+          type: integer
+      required:
+      - interessados
+      - negociacao
+      - proposta
+      - vendido
     Galeria:
       type: object
       description: 'Bloco `galeria` da ficha: as ativas, capa primeiro, para todos
@@ -14051,6 +15537,10 @@ components:
           allOf:
           - $ref: '#/components/schemas/CaixaHoje'
           nullable: true
+        estoque_a_venda:
+          $ref: '#/components/schemas/EstoqueAVenda'
+        ticket_medio:
+          $ref: '#/components/schemas/TicketMedio'
       required:
       - atencao
       - atualizado_em
@@ -14085,6 +15575,12 @@ components:
           $ref: '#/components/schemas/Pendencias'
         frota_filial:
           $ref: '#/components/schemas/FrotaDaFilial'
+        estoque_a_venda:
+          $ref: '#/components/schemas/EstoqueAVenda'
+        parados_a_venda:
+          $ref: '#/components/schemas/ParadosAVenda'
+        ticket_medio:
+          $ref: '#/components/schemas/TicketMedio'
       required:
       - aprovacoes
       - atualizado_em
@@ -14158,16 +15654,20 @@ components:
             $ref: '#/components/schemas/LocacaoQuePrecisaDeAcao'
         meta:
           nullable: true
-          description: 'Fase 2: sempre `null`.'
+          description: 'VEN-09 (T-502, 1c): a `meta` de `GET /api/vendas/resumo/`;
+            `null` sem o módulo.'
         funil:
           nullable: true
-          description: 'Fase 2: sempre `null`.'
+          description: 'VEN-08: o `funil` do resumo, com `conversao`; `null` sem o
+            módulo de vendas.'
         comissao_prevista:
           nullable: true
-          description: 'Fase 2: sempre `null`.'
+          description: Sempre `null` (Comissões).
         propostas:
           nullable: true
-          description: 'Fase 2: sempre `null`.'
+          description: 'VEN-16: `{abertas, para_retornar, vazio}`, as abertas da mais
+            antiga para a mais recente pelo último contato; `null` sem o módulo de
+            vendas.'
       required:
       - atualizado_em
       - comissao_prevista
@@ -14199,6 +15699,18 @@ components:
       - avarias_abertas
       - saudacao
       - variante
+    InteressadoDaVenda:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 150
+        celular:
+          type: string
+          maxLength: 20
+      required:
+      - celular
+      - nome
     Intervalo:
       type: object
       properties:
@@ -14633,6 +16145,13 @@ components:
       required:
       - em
       - km
+    LigarPlano:
+      type: object
+      properties:
+        ligado:
+          type: boolean
+      required:
+      - ligado
     LimiteExcedido:
       type: object
       properties:
@@ -14828,6 +16347,21 @@ components:
       required:
       - rotulo
       - valor_centavos
+    LinkDaProposta:
+      type: object
+      properties:
+        link:
+          type: string
+          description: /proposta#<token>; o token só aparece aqui
+        expira_em:
+          type: string
+          format: date-time
+        aviso:
+          type: string
+      required:
+      - aviso
+      - expira_em
+      - link
     LinkDoContrato:
       type: object
       description: 'Copiar link para assinar (T-411): o link sai só nesta resposta,
@@ -15625,6 +17159,11 @@ components:
         km_saida:
           type: integer
           nullable: true
+        plano_veiculo:
+          allOf:
+          - $ref: '#/components/schemas/IdNomeLocacao'
+          nullable: true
+          description: LOC-01; null nas locações de antes
         km_livre:
           type: boolean
         forma_pagamento:
@@ -15728,26 +17267,35 @@ components:
           - $ref: '#/components/schemas/TipoLocacaoEnum'
           default: comum
           description: |-
-            LOC-16: `intencao_compra` pede `plano_compra_id`; muda só no rascunho
+            LOC-16: `intencao_compra` usa o plano de compra ligado do veículo (VEI-16); muda só no rascunho
 
             * `comum` - Comum
             * `intencao_compra` - Com intenção de compra
+        plano_veiculo_id:
+          type: integer
+          nullable: true
+          description: 'LOC-01 (ADR 0041): o plano ligado do veículo, de `GET /api/veiculos/{id}/precos/`.
+            Desligado: 409 `VEI-15`; de outro veículo: 400'
         plano_compra_id:
           type: integer
           nullable: true
-          description: 'LOC-16: o plano de compra (só no tipo `intencao_compra`)'
+          description: 'Ignorado: a compra usa o plano do veículo (ADR 0041, item
+            2)'
         periodicidade:
           allOf:
           - $ref: '#/components/schemas/PeriodicidadeEnum'
           description: |-
-            Obrigatória na comum; na compra vem do plano
+            Caminho antigo, até a T-497: sem `plano_veiculo_id`, escolhe o plano do veículo do mesmo nome (diária, semanal ou mensal). Com o plano, vem dele
 
             * `diaria` - Diária
             * `semanal` - Semanal
             * `mensal` - Mensal
+            * `quinzenal` - Quinzenal
         plano_especial_id:
           type: integer
           nullable: true
+          description: 'Preenchido: 400. O plano especial saiu da Nova locação (ADR
+            0041, item 2)'
         inicio:
           type: string
           format: date-time
@@ -15913,13 +17461,35 @@ components:
         finalidade:
           type: string
           nullable: true
-          description: 'null: vale em todo modelo; `locacao_compra`: só nessa finalidade
-            (LOC-16)'
+          description: 'null: vale em todo modelo; `locacao_compra` (LOC-16) ou `venda`
+            (VEN-15): só nessa finalidade'
       required:
       - chave
       - exemplo
       - finalidade
       - rotulo
+    MargemDoPlano:
+      type: object
+      properties:
+        receita_mes_centavos:
+          type: integer
+        lucro_mes_centavos:
+          type: integer
+        margem_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+          nullable: true
+        abaixo_da_minima:
+          type: boolean
+        sem_custo_compra:
+          type: boolean
+      required:
+      - abaixo_da_minima
+      - lucro_mes_centavos
+      - margem_pct
+      - receita_mes_centavos
+      - sem_custo_compra
     MeioDePagarEnum:
       enum:
       - cartao
@@ -15937,6 +17507,51 @@ components:
           type: string
       required:
       - mensagem
+    MetaDoResumo:
+      type: object
+      properties:
+        valor_centavos:
+          type: integer
+          nullable: true
+        vendido_centavos:
+          type: integer
+        pct:
+          type: integer
+          nullable: true
+        faltam_dias:
+          type: integer
+          nullable: true
+        texto:
+          type: string
+      required:
+      - faltam_dias
+      - pct
+      - texto
+      - valor_centavos
+      - vendido_centavos
+    MetaDoVendedor:
+      type: object
+      properties:
+        vendedor:
+          $ref: '#/components/schemas/RefDaMeta'
+        valor_centavos:
+          type: integer
+          nullable: true
+      required:
+      - valor_centavos
+      - vendedor
+    MetaPedida:
+      type: object
+      properties:
+        vendedor_id:
+          type: integer
+        valor_centavos:
+          type: integer
+          minimum: 1
+          nullable: true
+      required:
+      - valor_centavos
+      - vendedor_id
     MinhaFilial:
       type: object
       properties:
@@ -16142,6 +17757,14 @@ components:
       - status
       - tem_rascunho
       - versao_publicada
+    ModoParcelaEnum:
+      enum:
+      - calcular
+      - digitar
+      type: string
+      description: |-
+        * `calcular` - Calcular pelos juros
+        * `digitar` - Digitar a parcela
     Motivo:
       type: object
       properties:
@@ -16896,6 +18519,21 @@ components:
       required:
       - forma
       - pago_em
+    PagoNaMoto:
+      type: object
+      properties:
+        total_centavos:
+          type: integer
+          nullable: true
+        compra_centavos:
+          type: integer
+          nullable: true
+        despesas_centavos:
+          type: integer
+      required:
+      - compra_centavos
+      - despesas_centavos
+      - total_centavos
     PainelEnum:
       enum:
       - todas_filiais
@@ -16981,6 +18619,45 @@ components:
       - ordem
       - saiu_em
       - servico
+    ParadoAVenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        veiculo:
+          type: string
+        dias_em_estoque:
+          type: integer
+          nullable: true
+        parado:
+          type: boolean
+      required:
+      - dias_em_estoque
+      - id
+      - parado
+      - placa
+      - veiculo
+    ParadosAVenda:
+      type: object
+      description: 'VEI-18, VEI-19: os 5 com mais dias da filial, na ordem da lista.'
+      properties:
+        limite_dias_parado:
+          type: integer
+        acima_do_limite:
+          type: integer
+        subtitulo:
+          type: string
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParadoAVenda'
+      required:
+      - acima_do_limite
+      - itens
+      - limite_dias_parado
+      - subtitulo
     ParcelaAtrasada:
       type: object
       properties:
@@ -17007,6 +18684,19 @@ components:
       - locacao
       - valor_centavos
       - vencimento
+    ParcelaDoMes:
+      type: object
+      properties:
+        parcelas:
+          type: integer
+        parcela_centavos:
+          type: integer
+        ultima_parcela_centavos:
+          type: integer
+      required:
+      - parcela_centavos
+      - parcelas
+      - ultima_parcela_centavos
     ParcelaLocacao:
       type: object
       properties:
@@ -17073,6 +18763,19 @@ components:
       - valor_centavos
       - valor_hoje_centavos
       - vencimento
+    ParcelaNaPeriodicidade:
+      type: object
+      properties:
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeEnum'
+        parcelas:
+          type: integer
+        parcela_cliente_centavos:
+          type: integer
+      required:
+      - parcela_cliente_centavos
+      - parcelas
+      - periodicidade
     ParcelaPrevista:
       type: object
       properties:
@@ -17091,10 +18794,12 @@ components:
       enum:
       - a_vista
       - quatro_semanais
+      - duas_quinzenais
       type: string
       description: |-
         * `a_vista` - À vista
         * `quatro_semanais` - 4 parcelas semanais
+        * `duas_quinzenais` - 2 parcelas quinzenais
     Passo:
       type: object
       properties:
@@ -17328,6 +19033,33 @@ components:
         valor_centavos:
           type: integer
           minimum: 0
+    PatchedEditarVenda:
+      type: object
+      description: Os campos da proposta que a pessoa digita (VEN-02, VEN-03, VEN-04).
+      properties:
+        forma:
+          oneOf:
+          - $ref: '#/components/schemas/FormaVendaEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        entrada_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        num_parcelas:
+          type: integer
+          minimum: 0
+          nullable: true
+        cliente_id:
+          type: integer
+          nullable: true
+        interessado:
+          allOf:
+          - $ref: '#/components/schemas/InteressadoDaVenda'
+          nullable: true
     PatchedEditarVistoria:
       type: object
       properties:
@@ -17410,26 +19142,35 @@ components:
           - $ref: '#/components/schemas/TipoLocacaoEnum'
           default: comum
           description: |-
-            LOC-16: `intencao_compra` pede `plano_compra_id`; muda só no rascunho
+            LOC-16: `intencao_compra` usa o plano de compra ligado do veículo (VEI-16); muda só no rascunho
 
             * `comum` - Comum
             * `intencao_compra` - Com intenção de compra
+        plano_veiculo_id:
+          type: integer
+          nullable: true
+          description: 'LOC-01 (ADR 0041): o plano ligado do veículo, de `GET /api/veiculos/{id}/precos/`.
+            Desligado: 409 `VEI-15`; de outro veículo: 400'
         plano_compra_id:
           type: integer
           nullable: true
-          description: 'LOC-16: o plano de compra (só no tipo `intencao_compra`)'
+          description: 'Ignorado: a compra usa o plano do veículo (ADR 0041, item
+            2)'
         periodicidade:
           allOf:
           - $ref: '#/components/schemas/PeriodicidadeEnum'
           description: |-
-            Obrigatória na comum; na compra vem do plano
+            Caminho antigo, até a T-497: sem `plano_veiculo_id`, escolhe o plano do veículo do mesmo nome (diária, semanal ou mensal). Com o plano, vem dele
 
             * `diaria` - Diária
             * `semanal` - Semanal
             * `mensal` - Mensal
+            * `quinzenal` - Quinzenal
         plano_especial_id:
           type: integer
           nullable: true
+          description: 'Preenchido: 400. O plano especial saiu da Nova locação (ADR
+            0041, item 2)'
         inicio:
           type: string
           format: date-time
@@ -17465,6 +19206,13 @@ components:
           maxLength: 80
         texto:
           type: string
+    PatchedMudarEstoqueDaEmpresa:
+      type: object
+      properties:
+        limite_dias_parado:
+          type: integer
+          maximum: 365
+          minimum: 1
     PatchedPedidoDeDadosFiscais:
       type: object
       description: Parcial. `endereco` vem inteiro (nulo é recusado); o CNPJ não muda
@@ -17892,6 +19640,18 @@ components:
         * `APR-04` - Diferença no caixa
         * `APR-05` - Desbloqueio de cliente
         * `APR-06` - Correção de km para baixo
+    PedirAprovacao:
+      type: object
+      properties:
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        motivo:
+          type: string
+          maxLength: 300
+      required:
+      - desconto_pct
     PendenciaPagamento:
       type: object
       properties:
@@ -17980,6 +19740,12 @@ components:
             $ref: '#/components/schemas/PassoDaRetirada'
       required:
       - passos
+    Perder:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 200
     PerfilEnum:
       enum:
       - administrador
@@ -18007,11 +19773,13 @@ components:
       - diaria
       - semanal
       - mensal
+      - quinzenal
       type: string
       description: |-
         * `diaria` - Diária
         * `semanal` - Semanal
         * `mensal` - Mensal
+        * `quinzenal` - Quinzenal
     Periodo:
       type: object
       properties:
@@ -18051,6 +19819,16 @@ components:
       required:
       - fim
       - inicio
+    PeriodoPlanoEnum:
+      enum:
+      - dia
+      - semana
+      - mes
+      type: string
+      description: |-
+        * `dia` - Dia
+        * `semana` - Semana
+        * `mes` - Mês
     PermissaoExtraDoUsuario:
       type: object
       properties:
@@ -18268,6 +20046,84 @@ components:
       - periodicidade
       - ultima_parcela_centavos
       - valor_parcela_centavos
+    PlanoCompraDoVeiculo:
+      type: object
+      properties:
+        ligado:
+          type: boolean
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeEnum'
+        parcelas:
+          type: integer
+        entrada_centavos:
+          type: integer
+        juros_mes_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        modo:
+          $ref: '#/components/schemas/ModoParcelaEnum'
+        parcela_moto_centavos:
+          type: integer
+        adicional_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+        resultado:
+          allOf:
+          - $ref: '#/components/schemas/ResultadoCompra'
+          nullable: true
+      required:
+      - adicional_centavos
+      - caucao_centavos
+      - entrada_centavos
+      - juros_mes_pct
+      - ligado
+      - modo
+      - parcela_moto_centavos
+      - parcelas
+      - periodicidade
+      - resultado
+    PlanoCompraDoVeiculoEntrada:
+      type: object
+      properties:
+        ligado:
+          type: boolean
+          default: false
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeEnum'
+        parcelas:
+          type: integer
+          maximum: 1000
+          minimum: 2
+        entrada_centavos:
+          type: integer
+          minimum: 0
+          default: 0
+        juros_mes_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          default: '0.00'
+        modo:
+          allOf:
+          - $ref: '#/components/schemas/ModoParcelaEnum'
+          default: calcular
+        parcela_moto_centavos:
+          type: integer
+          minimum: 0
+          default: 0
+        adicional_centavos:
+          type: integer
+          minimum: 0
+          default: 0
+        caucao_centavos:
+          type: integer
+          minimum: 0
+          default: 0
+      required:
+      - parcelas
+      - periodicidade
     PlanoCompraEntrada:
       type: object
       description: 'LOC-16 (padrão A): nome, categoria, periodicidade, parcelas (2
@@ -18351,6 +20207,55 @@ components:
       - id
       - nome
       - preco_mensal_centavos
+    PlanoDaSimulacao:
+      type: object
+      description: O plano do veículo escolhido, com as regras que a confirmação congela
+        (ADR 0041, item 5).
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        rotulo:
+          type: string
+          description: '"Semanal", "Entregador" ou o nome do `outro`'
+        periodo:
+          type: string
+        como_paga:
+          type: string
+        formas_aceitas:
+          type: array
+          items:
+            type: string
+        caucao_parcelas:
+          type: integer
+        franquia_km:
+          type: integer
+          nullable: true
+          description: null = livre
+        prazo_minimo_periodos:
+          type: integer
+          nullable: true
+        multa_minima_centavos:
+          type: integer
+          description: LOC-12
+        desconto_sem_aprovacao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: LOC-03
+      required:
+      - caucao_parcelas
+      - como_paga
+      - desconto_sem_aprovacao_pct
+      - formas_aceitas
+      - franquia_km
+      - id
+      - multa_minima_centavos
+      - periodo
+      - prazo_minimo_periodos
+      - rotulo
+      - tipo
     PlanoDasFiliais:
       type: object
       properties:
@@ -18388,6 +20293,134 @@ components:
       - bloqueado
       - limite
       - usado
+    PlanoDoVeiculo:
+      type: object
+      description: |-
+        As chaves de custo (`AUSENTES_SEM_CUSTO`) que o selector não mandou ficam ausentes, não
+        nulas (VEI-13, USR-09): o DRF preencheria `null` num campo que aceita nulo.
+      properties:
+        id:
+          type: integer
+          nullable: true
+        tipo:
+          $ref: '#/components/schemas/TipoPlanoVeiculoEnum'
+        nome:
+          type: string
+          nullable: true
+        rotulo:
+          type: string
+        periodo:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/PeriodoPlanoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        ligado:
+          type: boolean
+        valor_centavos:
+          type: integer
+        como_paga:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/ComoPagaEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        formas_aceitas:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormaAceitaEnum'
+        caucao_centavos:
+          type: integer
+          nullable: true
+        caucao_parcelas:
+          type: integer
+        caucao_parcelada:
+          allOf:
+          - $ref: '#/components/schemas/ParcelaDoMes'
+          nullable: true
+        franquia_km:
+          type: integer
+          nullable: true
+        prazo_minimo_periodos:
+          type: integer
+          nullable: true
+        agendado:
+          allOf:
+          - $ref: '#/components/schemas/Agendado'
+          nullable: true
+        parcela_do_mes:
+          allOf:
+          - $ref: '#/components/schemas/ParcelaDoMes'
+          nullable: true
+        margem:
+          allOf:
+          - $ref: '#/components/schemas/MargemDoPlano'
+          nullable: true
+      required:
+      - agendado
+      - caucao_centavos
+      - caucao_parcelada
+      - caucao_parcelas
+      - como_paga
+      - formas_aceitas
+      - franquia_km
+      - id
+      - ligado
+      - nome
+      - parcela_do_mes
+      - periodo
+      - prazo_minimo_periodos
+      - rotulo
+      - tipo
+      - valor_centavos
+    PlanoEntrada:
+      type: object
+      description: |-
+        Um plano de `planos[]`: `id` nulo cria (`outro` novo, ou o tipo fixo que ainda não existe);
+        `ativo: false` retira o `outro`. Campo ausente fica como está.
+      properties:
+        id:
+          type: integer
+          nullable: true
+        tipo:
+          $ref: '#/components/schemas/TipoPlanoVeiculoEnum'
+        nome:
+          type: string
+          maxLength: 40
+        periodo:
+          $ref: '#/components/schemas/PeriodoPlanoEnum'
+        ligado:
+          type: boolean
+        valor_centavos:
+          type: integer
+          minimum: 0
+        como_paga:
+          $ref: '#/components/schemas/ComoPagaEnum'
+        formas_aceitas:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormaAceitaEnum'
+        caucao_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        caucao_parcelas:
+          type: integer
+          maximum: 12
+          minimum: 1
+        franquia_km:
+          type: integer
+          minimum: 1
+          nullable: true
+        prazo_minimo_periodos:
+          type: integer
+          maximum: 32767
+          minimum: 1
+          nullable: true
+        agendado:
+          allOf:
+          - $ref: '#/components/schemas/AgendadoEntrada'
+          nullable: true
+        ativo:
+          type: boolean
     PlanoEspecial:
       type: object
       properties:
@@ -18853,6 +20886,97 @@ components:
       - mensal_centavos
       - semanal_centavos
       - vigente_desde
+    PrecosDoVeiculo:
+      type: object
+      properties:
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDosPrecos'
+        valor_venda_centavos:
+          type: integer
+          nullable: true
+        aluguel_ligado:
+          type: boolean
+        aviso_aluguel:
+          type: string
+          nullable: true
+        fipe_centavos:
+          type: integer
+          nullable: true
+        ocupacao_real_90d_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        margem_minima_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        planos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanoDoVeiculo'
+        regras:
+          $ref: '#/components/schemas/RegrasDoVeiculo'
+        plano_compra:
+          allOf:
+          - $ref: '#/components/schemas/PlanoCompraDoVeiculo'
+          nullable: true
+        alertas:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertaDePreco'
+        aviso_preco:
+          type: string
+          nullable: true
+        pede_confirmacao_juros:
+          type: boolean
+        pode_editar:
+          type: boolean
+        pago_na_moto:
+          $ref: '#/components/schemas/PagoNaMoto'
+        custos:
+          $ref: '#/components/schemas/CustosDoVeiculo'
+      required:
+      - alertas
+      - aluguel_ligado
+      - aviso_aluguel
+      - aviso_preco
+      - fipe_centavos
+      - margem_minima_pct
+      - ocupacao_real_90d_pct
+      - pede_confirmacao_juros
+      - plano_compra
+      - planos
+      - pode_editar
+      - regras
+      - valor_venda_centavos
+      - veiculo
+    PrecosEntrada:
+      type: object
+      description: O documento inteiro da tela de preços (`PUT` e `simular`). Bloco
+        ausente fica como está.
+      properties:
+        valor_venda_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        aluguel_ligado:
+          type: boolean
+        custos:
+          $ref: '#/components/schemas/CustosEntrada'
+        planos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanoEntrada'
+        regras:
+          $ref: '#/components/schemas/RegrasEntrada'
+        plano_compra:
+          allOf:
+          - $ref: '#/components/schemas/PlanoCompraDoVeiculoEntrada'
+          nullable: true
+        confirmar_juros:
+          type: boolean
+          default: false
     PrecosLocacao:
       type: object
       properties:
@@ -18860,6 +20984,7 @@ components:
           type: integer
         diaria_centavos:
           type: integer
+          description: o dia de atraso (LOC-10)
         caucao_centavos:
           type: integer
         desconto_pct:
@@ -18870,11 +20995,28 @@ components:
           type: string
           format: date
           nullable: true
+        caucao_parcelas:
+          type: integer
+          description: LOC-04; 1 = à vista
+        multa_minima_centavos:
+          type: integer
+          description: LOC-12, congelada
+        franquia_km:
+          type: integer
+          nullable: true
+          description: null = livre (VEI-12)
+        km_excedente_centavos:
+          type: integer
+          description: só guardado (VEI-14)
       required:
       - assinado_em_preco_de
       - caucao_centavos
+      - caucao_parcelas
       - desconto_pct
       - diaria_centavos
+      - franquia_km
+      - km_excedente_centavos
+      - multa_minima_centavos
       - valor_periodo_centavos
     Preparo:
       type: object
@@ -18909,8 +21051,14 @@ components:
       - html
     PreviaEntrada:
       type: object
+      description: |-
+        Uma locação ou, no modelo de compra e venda, uma venda (VEN-15); sem os dois, os
+        exemplos.
       properties:
         locacao_id:
+          type: integer
+          nullable: true
+        venda_id:
           type: integer
           nullable: true
     PrimeirosPassos:
@@ -18955,6 +21103,64 @@ components:
       - pronto
       type: string
       description: '* `pronto` - pronto'
+    PropostaParaRetornar:
+      type: object
+      properties:
+        venda_id:
+          type: integer
+        codigo:
+          type: string
+        comprador_nome:
+          type: string
+        celular:
+          type: string
+        veiculo:
+          type: string
+        valor_centavos:
+          type: integer
+          nullable: true
+        situacao_texto:
+          type: string
+        ultimo_contato_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - celular
+      - codigo
+      - comprador_nome
+      - situacao_texto
+      - ultimo_contato_em
+      - valor_centavos
+      - veiculo
+      - venda_id
+    PropostaPublica:
+      type: object
+      properties:
+        codigo:
+          type: string
+        cliente_primeiro_nome:
+          type: string
+        veiculo:
+          type: string
+          description: marca e modelo, sem a placa
+        vence_em:
+          type: string
+          format: date
+          nullable: true
+        pdf_url:
+          type: string
+          description: URL assinada de 15 minutos (AUD-05)
+        pdf_url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - cliente_primeiro_nome
+      - codigo
+      - pdf_url
+      - pdf_url_expira_em
+      - veiculo
+      - vence_em
     ProximaAgenda:
       type: object
       properties:
@@ -19026,6 +21232,32 @@ components:
             $ref: '#/components/schemas/Coluna'
       required:
       - colunas
+    QuadroDeMetas:
+      type: object
+      properties:
+        filial:
+          $ref: '#/components/schemas/RefDaMeta'
+        mes:
+          type: string
+          format: date
+        vendedores:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetaDoVendedor'
+        soma_centavos:
+          type: integer
+          nullable: true
+        texto:
+          type: string
+        ajuda:
+          type: string
+      required:
+      - ajuda
+      - filial
+      - mes
+      - soma_centavos
+      - texto
+      - vendedores
     Ramo:
       type: object
       properties:
@@ -19290,6 +21522,16 @@ components:
       required:
       - id
       - nome
+    RefDaMeta:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     RefDaMovimentacao:
       type: object
       properties:
@@ -19386,6 +21628,49 @@ components:
       description: |-
         * `preco_fixo` - Preço fixo
         * `desconto` - Desconto
+    RegrasDoVeiculo:
+      type: object
+      properties:
+        km_excedente_centavos:
+          type: integer
+        dia_atraso_centavos:
+          type: integer
+        multa_minima_centavos:
+          type: integer
+        desconto_sem_aprovacao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        prazo_devolucao_caucao_dias:
+          type: integer
+          nullable: true
+      required:
+      - desconto_sem_aprovacao_pct
+      - dia_atraso_centavos
+      - km_excedente_centavos
+      - multa_minima_centavos
+      - prazo_devolucao_caucao_dias
+    RegrasEntrada:
+      type: object
+      properties:
+        km_excedente_centavos:
+          type: integer
+          minimum: 0
+        dia_atraso_centavos:
+          type: integer
+          minimum: 0
+        multa_minima_centavos:
+          type: integer
+          minimum: 0
+        desconto_sem_aprovacao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        prazo_devolucao_caucao_dias:
+          type: integer
+          maximum: 365
+          minimum: 0
+          nullable: true
     Renegociar:
       type: object
       properties:
@@ -19513,6 +21798,12 @@ components:
       required:
       - id
       - nome
+    Resposta:
+      type: object
+      properties:
+        nota:
+          type: string
+          maxLength: 300
     RespostaDaForma:
       type: object
       properties:
@@ -19565,6 +21856,74 @@ components:
       - texto
       - tipo
       - valor_centavos
+    ResultadoCompra:
+      type: object
+      description: |-
+        As chaves de custo (`AUSENTES_SEM_CUSTO`) que o selector não mandou ficam ausentes, não
+        nulas (VEI-13, USR-09): o DRF preencheria `null` num campo que aceita nulo.
+      properties:
+        financiado_centavos:
+          type: integer
+        meses_do_prazo:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+        taxa_periodo_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+        juros_mes_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        parcela_moto_centavos:
+          type: integer
+        adicional_centavos:
+          type: integer
+        parcela_cliente_centavos:
+          type: integer
+        recebe_pela_moto_centavos:
+          type: integer
+        juros_no_prazo_centavos:
+          type: integer
+        venda_abaixo_do_pago:
+          type: boolean
+        nas_periodicidades:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParcelaNaPeriodicidade'
+        lucro_centavos:
+          type: integer
+          nullable: true
+        margem_sobre_pago_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+          nullable: true
+        pago_sobre_recebe_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+          nullable: true
+        lucro_sobre_recebe_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+          nullable: true
+        sem_custo_compra:
+          type: boolean
+      required:
+      - adicional_centavos
+      - financiado_centavos
+      - juros_mes_pct
+      - juros_no_prazo_centavos
+      - meses_do_prazo
+      - nas_periodicidades
+      - parcela_cliente_centavos
+      - parcela_moto_centavos
+      - recebe_pela_moto_centavos
+      - taxa_periodo_pct
+      - venda_abaixo_do_pago
     ResumoCaixa:
       type: object
       properties:
@@ -19581,6 +21940,47 @@ components:
       - gaveta
       - por_forma
       - recebimentos
+    ResumoDeVendas:
+      type: object
+      properties:
+        mes:
+          type: string
+          format: date
+        subtitulo:
+          type: string
+        funil:
+          $ref: '#/components/schemas/Funil'
+        conversao:
+          $ref: '#/components/schemas/Conversao'
+        vendido:
+          $ref: '#/components/schemas/Vendido'
+        em_negociacao:
+          $ref: '#/components/schemas/EmNegociacao'
+        a_venda:
+          type: integer
+        meta:
+          $ref: '#/components/schemas/MetaDoResumo'
+        transferencias_pendentes:
+          type: integer
+        propostas_para_retornar:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropostaParaRetornar'
+        propostas_vazio:
+          type: string
+          nullable: true
+      required:
+      - a_venda
+      - conversao
+      - em_negociacao
+      - funil
+      - mes
+      - meta
+      - propostas_para_retornar
+      - propostas_vazio
+      - subtitulo
+      - transferencias_pendentes
+      - vendido
     ResumoDoPedido:
       type: object
       properties:
@@ -19789,6 +22189,79 @@ components:
       - parcelas_canceladas_centavos
       - periodo_atual
       - valor_restante_centavos
+    SimulacaoDaVenda:
+      type: object
+      description: O que a API calcula (ADR 0042, item 4); a tela só mostra.
+      properties:
+        preco_tabela_centavos:
+          type: integer
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        desconto_centavos:
+          type: integer
+        preco_final_centavos:
+          type: integer
+        forma:
+          type: string
+        entrada_centavos:
+          type: integer
+          nullable: true
+        saldo_centavos:
+          type: integer
+        num_parcelas:
+          type: integer
+          nullable: true
+        juros_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        parcela_centavos:
+          type: integer
+          nullable: true
+        ultima_parcela_centavos:
+          type: integer
+          nullable: true
+        total_parcelas_centavos:
+          type: integer
+        comissao_centavos:
+          type: integer
+        comissao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: 'FIN-09: o percentual da comissão (3,00)'
+        precisa_aprovacao:
+          type: boolean
+        limite_desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        erros:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+      - comissao_centavos
+      - comissao_pct
+      - desconto_centavos
+      - desconto_pct
+      - entrada_centavos
+      - erros
+      - forma
+      - juros_pct
+      - limite_desconto_pct
+      - num_parcelas
+      - parcela_centavos
+      - precisa_aprovacao
+      - preco_final_centavos
+      - preco_tabela_centavos
+      - saldo_centavos
+      - total_parcelas_centavos
+      - ultima_parcela_centavos
     SimulacaoLocacao:
       type: object
       properties:
@@ -19816,8 +22289,19 @@ components:
             $ref: '#/components/schemas/ParcelaPrevista'
         caucao_centavos:
           type: integer
+        caucoes_previstas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParcelaPrevista'
+          description: 'LOC-04: a caução em parcelas, a 1ª na retirada'
         diaria_centavos:
           type: integer
+          description: o dia de atraso do veículo (LOC-10)
+        plano:
+          allOf:
+          - $ref: '#/components/schemas/PlanoDaSimulacao'
+          nullable: true
+          description: LOC-01; null na compra
         compra:
           allOf:
           - $ref: '#/components/schemas/CompraDaSimulacao'
@@ -19836,6 +22320,7 @@ components:
       required:
       - avisos
       - caucao_centavos
+      - caucoes_previstas
       - compra
       - diaria_centavos
       - fim_previsto
@@ -19844,6 +22329,7 @@ components:
       - linhas
       - parcelas_previstas
       - periodos
+      - plano
       - precisa_aprovacao_desconto
       - proximos_periodos_centavos
       - texto_retirada
@@ -19891,6 +22377,30 @@ components:
           type: string
         nome_exibicao:
           type: string
+    SimularVenda:
+      type: object
+      description: '`venda_id` (a venda que se edita) ou `veiculo_id` (a Nova venda).'
+      properties:
+        forma:
+          oneOf:
+          - $ref: '#/components/schemas/FormaVendaEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        entrada_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        num_parcelas:
+          type: integer
+          minimum: 0
+          nullable: true
+        venda_id:
+          type: integer
+        veiculo_id:
+          type: integer
     SinaisLocacao:
       type: object
       properties:
@@ -20423,6 +22933,54 @@ components:
       - dias_restantes
       - fim
       - texto
+    TicketMedio:
+      type: object
+      description: VEN-12. Só para administrador e gerente; ausente para os outros
+        perfis.
+      properties:
+        mes:
+          type: string
+        vendas:
+          type: integer
+        soma_centavos:
+          type: integer
+        ticket_centavos:
+          type: integer
+          nullable: true
+        subtitulo:
+          type: string
+        rotulo:
+          type: string
+        resumo:
+          type: string
+          nullable: true
+          description: 4 vendas · R$ 31.200,00
+        vazio:
+          type: string
+          nullable: true
+          description: Sem vendas em novembro.
+        mes_anterior:
+          $ref: '#/components/schemas/VendasDoMes'
+        variacao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,2})?$
+          nullable: true
+        comparacao:
+          type: string
+          nullable: true
+      required:
+      - comparacao
+      - mes
+      - mes_anterior
+      - resumo
+      - rotulo
+      - soma_centavos
+      - subtitulo
+      - ticket_centavos
+      - variacao_pct
+      - vazio
+      - vendas
     TipoA50Enum:
       enum:
       - lava_jato
@@ -20539,6 +23097,20 @@ components:
       description: |-
         * `reembolso` - reembolso
         * `despesa` - despesa
+    TipoPlanoVeiculoEnum:
+      enum:
+      - diaria
+      - semanal
+      - mensal
+      - entregador
+      - outro
+      type: string
+      description: |-
+        * `diaria` - Diária
+        * `semanal` - Semanal
+        * `mensal` - Mensal
+        * `entregador` - Entregador
+        * `outro` - Outro
     TipoSessaoEnum:
       enum:
       - desktop
@@ -20571,6 +23143,14 @@ components:
         token:
           type: string
           maxLength: 100
+      required:
+      - token
+    TokenDaProposta:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 200
       required:
       - token
     TokenDeAssinatura:
@@ -21161,10 +23741,28 @@ components:
           nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDoVeiculo'
+        aviso_preco:
+          type: string
+          nullable: true
+        aluguel_ligado:
+          type: boolean
+        a_venda_desde:
+          type: string
+          format: date
+          nullable: true
+          description: Dia da entrada no estoque (São Paulo).
+        dias_em_estoque:
+          type: integer
+          nullable: true
+        parado:
+          type: boolean
+          description: Dias em estoque acima do limite da empresa (VEI-19).
       required:
       - acoes
+      - aluguel_ligado
       - ano_fabricacao
       - ano_modelo
+      - aviso_preco
       - capacidade_tanque_litros
       - categoria
       - chassi
@@ -21366,6 +23964,22 @@ components:
           nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDoVeiculo'
+        aviso_preco:
+          type: string
+          nullable: true
+        aluguel_ligado:
+          type: boolean
+        a_venda_desde:
+          type: string
+          format: date
+          nullable: true
+          description: Dia da entrada no estoque (São Paulo).
+        dias_em_estoque:
+          type: integer
+          nullable: true
+        parado:
+          type: boolean
+          description: Dias em estoque acima do limite da empresa (VEI-19).
         documento:
           $ref: '#/components/schemas/DocumentoDoVeiculo'
         rastreador:
@@ -21375,9 +23989,11 @@ components:
           nullable: true
       required:
       - acoes
+      - aluguel_ligado
       - ano_fabricacao
       - ano_modelo
       - anotacoes
+      - aviso_preco
       - capacidade_tanque_litros
       - categoria
       - chassi
@@ -21565,6 +24181,22 @@ components:
           nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDaFicha'
+        aviso_preco:
+          type: string
+          nullable: true
+        aluguel_ligado:
+          type: boolean
+        a_venda_desde:
+          type: string
+          format: date
+          nullable: true
+          description: Dia da entrada no estoque (São Paulo).
+        dias_em_estoque:
+          type: integer
+          nullable: true
+        parado:
+          type: boolean
+          description: Dias em estoque acima do limite da empresa (VEI-19).
         documento:
           $ref: '#/components/schemas/DocumentoDoVeiculo'
         rastreador:
@@ -21590,11 +24222,15 @@ components:
             $ref: '#/components/schemas/HistoricoStatus'
         vendas:
           nullable: true
+        limite_dias_parado:
+          type: integer
       required:
       - acoes
+      - aluguel_ligado
       - ano_fabricacao
       - ano_modelo
       - anotacoes
+      - aviso_preco
       - capacidade_tanque_litros
       - categoria
       - chassi
@@ -21623,6 +24259,25 @@ components:
       - situacao
       - status
       - tipo_veiculo
+    VeiculoDosPrecos:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        marca:
+          type: string
+        modelo:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusVeiculoEnum'
+      required:
+      - id
+      - marca
+      - modelo
+      - placa
+      - status
     VeiculoEntrada:
       type: object
       description: |-
@@ -21697,6 +24352,18 @@ components:
       - marca
       - modelo
       - placa
+    VeiculoExcluido:
+      type: object
+      description: 'Resposta do `POST .../excluir/` (VEI-22): o aviso da Frota, "Veículo
+        QXA-4B21 excluído.".'
+      properties:
+        id:
+          type: integer
+        mensagem:
+          type: string
+      required:
+      - id
+      - mensagem
     VeiculoRef:
       type: object
       properties:
@@ -21721,6 +24388,7 @@ components:
         * `nao` - nao
     Venda:
       type: object
+      description: O item da lista.
       properties:
         id:
           type: integer
@@ -21735,7 +24403,19 @@ components:
         descricao:
           type: string
         cliente:
-          $ref: '#/components/schemas/RefDaVenda'
+          allOf:
+          - $ref: '#/components/schemas/RefDaVenda'
+          nullable: true
+        interessado:
+          allOf:
+          - $ref: '#/components/schemas/InteressadoDaVenda'
+          nullable: true
+        comprador_nome:
+          type: string
+        comprador_celular:
+          type: string
+          description: 'VEN-16: só dígitos, do cliente ou do interessado; vazio sem
+            celular'
         veiculo:
           $ref: '#/components/schemas/VeiculoDaVenda'
         filial:
@@ -21748,29 +24428,77 @@ components:
           allOf:
           - $ref: '#/components/schemas/LocacaoDaVenda'
           nullable: true
+        valor:
+          type: integer
         preco_final_centavos:
           type: integer
+        forma:
+          type: string
+        forma_texto:
+          type: string
+        situacao_texto:
+          type: string
+        motivo_perda:
+          type: string
+          nullable: true
+        proposta_enviada_em:
+          type: string
+          format: date-time
+          nullable: true
+        proposta_vence_em:
+          type: string
+          format: date
+          nullable: true
+        ultimo_contato_em:
+          type: string
+          format: date-time
+          nullable: true
+        perdida_em:
+          type: string
+          format: date-time
+          nullable: true
         vendida_em:
           type: string
           format: date-time
           nullable: true
+        comissao_centavos:
+          type: integer
+          nullable: true
         transferencia:
           $ref: '#/components/schemas/Transferencia'
+        contrato_pdf_disponivel:
+          type: boolean
+          description: O contrato da venda tem PDF (o mesmo `contrato.pdf_disponivel`
+            do detalhe).
         acoes:
           $ref: '#/components/schemas/AcoesDaVenda'
       required:
       - acoes
       - cliente
       - codigo
+      - comissao_centavos
+      - comprador_celular
+      - comprador_nome
+      - contrato_pdf_disponivel
       - descricao
       - filial
+      - forma
+      - forma_texto
       - id
+      - interessado
       - locacao
+      - motivo_perda
       - origem
       - origem_rotulo
+      - perdida_em
       - preco_final_centavos
+      - proposta_enviada_em
+      - proposta_vence_em
+      - situacao_texto
       - status
       - transferencia
+      - ultimo_contato_em
+      - valor
       - veiculo
       - vendedor
       - vendida_em
@@ -21792,6 +24520,226 @@ components:
       - codigo
       - id
       - transferencia
+    VendaDetalhe:
+      type: object
+      description: O item da lista.
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusVendaEnum'
+        origem:
+          $ref: '#/components/schemas/OrigemVendaEnum'
+        origem_rotulo:
+          type: string
+        descricao:
+          type: string
+        cliente:
+          allOf:
+          - $ref: '#/components/schemas/RefDaVenda'
+          nullable: true
+        interessado:
+          allOf:
+          - $ref: '#/components/schemas/InteressadoDaVenda'
+          nullable: true
+        comprador_nome:
+          type: string
+        comprador_celular:
+          type: string
+          description: 'VEN-16: só dígitos, do cliente ou do interessado; vazio sem
+            celular'
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaVenda'
+        filial:
+          $ref: '#/components/schemas/RefDaVenda'
+        vendedor:
+          allOf:
+          - $ref: '#/components/schemas/RefDaVenda'
+          nullable: true
+        locacao:
+          allOf:
+          - $ref: '#/components/schemas/LocacaoDaVenda'
+          nullable: true
+        valor:
+          type: integer
+        preco_final_centavos:
+          type: integer
+        forma:
+          type: string
+        forma_texto:
+          type: string
+        situacao_texto:
+          type: string
+        motivo_perda:
+          type: string
+          nullable: true
+        proposta_enviada_em:
+          type: string
+          format: date-time
+          nullable: true
+        proposta_vence_em:
+          type: string
+          format: date
+          nullable: true
+        ultimo_contato_em:
+          type: string
+          format: date-time
+          nullable: true
+        perdida_em:
+          type: string
+          format: date-time
+          nullable: true
+        vendida_em:
+          type: string
+          format: date-time
+          nullable: true
+        comissao_centavos:
+          type: integer
+          nullable: true
+        transferencia:
+          $ref: '#/components/schemas/Transferencia'
+        contrato_pdf_disponivel:
+          type: boolean
+          description: O contrato da venda tem PDF (o mesmo `contrato.pdf_disponivel`
+            do detalhe).
+        acoes:
+          $ref: '#/components/schemas/AcoesDaVenda'
+        calculo:
+          allOf:
+          - $ref: '#/components/schemas/CalculoDaVenda'
+          nullable: true
+        aprovacao:
+          allOf:
+          - $ref: '#/components/schemas/AprovacaoDaVenda'
+          nullable: true
+        contrato:
+          allOf:
+          - $ref: '#/components/schemas/ContratoDaVenda'
+          nullable: true
+        conta_entrada:
+          allOf:
+          - $ref: '#/components/schemas/ContaEntradaDaVenda'
+          nullable: true
+        documentos:
+          allOf:
+          - $ref: '#/components/schemas/DocumentosDaVenda'
+          nullable: true
+        perder_texto:
+          type: string
+          nullable: true
+        conclusao_texto:
+          type: string
+          nullable: true
+      required:
+      - acoes
+      - aprovacao
+      - calculo
+      - cliente
+      - codigo
+      - comissao_centavos
+      - comprador_celular
+      - comprador_nome
+      - conclusao_texto
+      - conta_entrada
+      - contrato
+      - contrato_pdf_disponivel
+      - descricao
+      - documentos
+      - filial
+      - forma
+      - forma_texto
+      - id
+      - interessado
+      - locacao
+      - motivo_perda
+      - origem
+      - origem_rotulo
+      - perder_texto
+      - perdida_em
+      - preco_final_centavos
+      - proposta_enviada_em
+      - proposta_vence_em
+      - situacao_texto
+      - status
+      - transferencia
+      - ultimo_contato_em
+      - valor
+      - veiculo
+      - vendedor
+      - vendida_em
+    VendaEnviada:
+      type: object
+      description: |-
+        VEN-15, VEN-19 (fase 1c): `email_enviado` falso sem e-mail no cadastro; `texto` pronto
+        para a tela.
+      properties:
+        email_enviado:
+          type: boolean
+        texto:
+          type: string
+          description: '"Proposta enviada para diego@exemplo.com em 07 out. Sem resposta
+            do cliente, ela vence em 14 out." ou a variante sem e-mail'
+        venda:
+          $ref: '#/components/schemas/VendaDetalhe'
+      required:
+      - email_enviado
+      - texto
+      - venda
+    VendasDoMes:
+      type: object
+      properties:
+        mes:
+          type: string
+        vendas:
+          type: integer
+        soma_centavos:
+          type: integer
+        ticket_centavos:
+          type: integer
+          nullable: true
+      required:
+      - mes
+      - soma_centavos
+      - ticket_centavos
+      - vendas
+    VendidasDoMes:
+      type: object
+      properties:
+        quantidade:
+          type: integer
+        soma_centavos:
+          type: integer
+        ticket_centavos:
+          type: integer
+          nullable: true
+      required:
+      - quantidade
+      - soma_centavos
+      - ticket_centavos
+    Vendido:
+      type: object
+      properties:
+        quantidade:
+          type: integer
+        soma_centavos:
+          type: integer
+        ticket_centavos:
+          type: integer
+          nullable: true
+        vazio:
+          type: string
+          nullable: true
+          description: '"Sem vendas em outubro."'
+        mes_anterior:
+          $ref: '#/components/schemas/VendidasDoMes'
+      required:
+      - mes_anterior
+      - quantidade
+      - soma_centavos
+      - ticket_centavos
+      - vazio
     Verificar2FA:
       type: object
       properties:

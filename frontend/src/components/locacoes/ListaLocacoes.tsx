@@ -93,7 +93,7 @@ export function ListaLocacoes() {
   useAmbiente(); // o "hoje" da API muda o texto dos horários e períodos
   const router = useRouter();
   const { eu } = useSessao();
-  const { valor, definir } = useFiltrosNaUrl();
+  const { valor, definir, paginacao } = useFiltrosNaUrl();
   const aba = (valor("aba") ?? "abertas") as AbaLocacoes;
   const plano = (valor("periodicidade") ?? "todos") as Periodicidade | "todos";
   const cursor = valor("cursor") ?? undefined;
@@ -216,7 +216,7 @@ export function ListaLocacoes() {
               texto={total === null || total === undefined ? `Mostrando ${d.resultados.length}` : `Mostrando ${d.resultados.length} de ${total}`}
               anterior={d.anterior}
               proximo={d.proximo}
-              aoIr={(cur) => definir({ cursor: cur })}
+              {...paginacao}
             />
           </>
         )}

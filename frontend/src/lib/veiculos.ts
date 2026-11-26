@@ -16,7 +16,7 @@ export const esquemaVeiculo = z.object({
   cor: texto.min(1, "Informe a cor"),
   km_atual: texto.min(1, "Informe o km"),
   filial_id: texto.min(1, "Escolha a filial"),
-  categoria_id: texto.min(1, "Escolha a categoria de preço."), // VEI-11
+  categoria_id: texto.min(1, "Escolha o tipo de plano."), // VEI-11
   capacidade_tanque_litros: texto,
   data_compra: texto,
   crlv_validade: texto,
@@ -289,5 +289,5 @@ export function categoriaAoTrocarTipo(guardadas: CategoriasPorTipo, de: TipoVeic
 
 /** A lista de categorias do tipo veio vazia: a frase da VEI-11. */
 export function semCategoriaDoTipo(tipo: TipoVeiculo): string {
-  return `Nenhuma categoria de ${tipo} nesta filial. Cadastre uma em Preços.`;
+  return `Nenhum tipo de plano de ${tipo} nesta filial.`;
 }

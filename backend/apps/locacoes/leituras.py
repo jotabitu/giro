@@ -12,12 +12,14 @@
 - `veiculos.Veiculo`: `rendeu_no_ano_centavos` no bloco `indicadores_financeiros` (VEI-05), as
   contas pagas das locações do veículo no ano, sem caução.
 - `veiculos.Veiculo:ficha`: `plano` e `pagamento` da locação atual, só na ficha (T-275).
+- `veiculos.Veiculo` e `clientes.Cliente`: os contadores de histórico `historico_locacao` e
+  `historico_troca` (VEI-22, CLI-13), sem o recurso do plano: o histórico conta sempre.
 """
 
 from datetime import date
 from typing import Any
 
-from django.db.models import Count, Exists, IntegerField, OuterRef, QuerySet, Subquery, Sum
+from django.db.models import Count, Exists, IntegerField, OuterRef, Q, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -26,7 +28,15 @@ from apps.financeiro.models import ContaReceber, StatusConta, TipoConta
 from comum import leituras, relogio
 from comum.documentos import placa_com_hifen
 
-from .models import ABERTAS, Locacao, Periodicidade, StatusLocacao, StatusTroca, TrocaVeiculo
+from .models import (
+    ABERTAS,
+    Locacao,
+    Periodicidade,
+    StatusLocacao,
+    StatusTroca,
+    TrechoLocacao,
+    TrocaVeiculo,
+)
 
 S = StatusLocacao
 VEICULO = "veiculos.Veiculo"
@@ -435,7 +445,29 @@ def montar_ficha(veiculo: Any) -> dict[str, Any] | None:
 MODULO = "locacoes_vistoria"
 
 
+# --- Histórico para excluir (VEI-22, CLI-13, T-515): qualquer estado, inclusive rascunho ---
+
+
+def historico_locacao_do_veiculo(veiculo_id: int) -> int:
+    trechos = TrechoLocacao.objects.filter(veiculo_id=veiculo_id)
+    return int(Locacao.objects.filter(veiculo_id=veiculo_id).exists() or trechos.exists())
+
+
+def historico_troca_do_veiculo(veiculo_id: int) -> int:
+    trocas = TrocaVeiculo.objects.filter(
+        Q(veiculo_antigo_id=veiculo_id) | Q(veiculo_novo_id=veiculo_id)
+    )
+    return int(trocas.exists())
+
+
+def historico_locacao_do_cliente(cliente_id: int) -> int:
+    return int(Locacao.objects.filter(cliente_id=cliente_id).exists())
+
+
 def registrar() -> None:
+    leituras.registrar_contador(VEICULO, "historico_locacao", historico_locacao_do_veiculo)
+    leituras.registrar_contador(VEICULO, "historico_troca", historico_troca_do_veiculo)
+    leituras.registrar_contador(CLIENTE, "historico_locacao", historico_locacao_do_cliente)
     leituras.registrar_anotacao(CONTA, "locacao", anotar_conta, montar_conta, recurso=MODULO)
     leituras.registrar_anotacao(
         REEMBOLSO, "locacao", anotar_reembolso, montar_reembolso, recurso=MODULO

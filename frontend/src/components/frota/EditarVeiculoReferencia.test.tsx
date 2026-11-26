@@ -45,11 +45,11 @@ async function pagina(id: number): Promise<string> {
 describe("editar veículo na referência (T-448)", () => {
   beforeAll(() => entrarComo("rodrigo@motorapida.com.br"));
 
-  it("test_vei_01_editar_galeria_no_topo_cartao_ao_lado_acoes_no_cabecalho_e_documentos_no_fim", async () => {
+  it("test_vei_01_editar_galeria_no_topo_cartao_ao_lado_acoes_no_cabecalho_e_na_barra_do_pe_e_documentos_no_fim", async () => {
     const html = await pagina(501);
     const t = texto(html);
-    ordem(t, ["Editar veículo", "Cancelar", "Salvar alterações", "Carregando as fotos…", "Honda CG 160 Fan", "Identificação", "Documentos"]);
-    // O botão de salvar fica no cabeçalho e liga ao formulário pelo atributo form.
+    ordem(t, ["Editar veículo", "Cancelar", "Salvar alterações", "Carregando as fotos…", "Honda CG 160 Fan", "Identificação", "Documentos", "Cancelar", "Salvar alterações"]);
+    // O botão de salvar fica na barra flutuante do pé e liga ao formulário pelo atributo form.
     expect(html).toMatch(/<button[^>]*form="editar-veiculo"[^>]*>Salvar alterações/);
     expect(html).toContain('id="editar-veiculo"');
     // Sem Finalidade, Plano de manutenção nem Renovar: não há regra nem campo (T-448).
@@ -73,7 +73,7 @@ describe("editar veículo na referência (T-448)", () => {
     const html = await pagina(501);
     expect(texto(html)).toContain(ficha.situacao.rotulo);
     ordem(texto(html), ["Editar veículo", ficha.situacao.rotulo, "QXA-4B21"]);
-    // Dois botões de salvar ligados ao mesmo formulário: cabeçalho e pé fixo.
+    // T-519: dois botões de salvar ligados ao mesmo formulário: cabeçalho e barra flutuante do pé.
     expect(html.match(/form="editar-veiculo"[^>]*>(?:<!-- -->)?Salvar alterações/g)).toHaveLength(2);
     expect(html).toContain("sticky bottom-");
   });

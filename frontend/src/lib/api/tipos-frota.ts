@@ -1,6 +1,11 @@
 // Tipos do contrato docs/api/veiculos.md. TEMPORÁRIO: sai quando o cliente gerado do OpenAPI existir.
 import type { components } from "./schema";
 
+/** VEI-22: `acoes.excluir` da ficha (docs/api/veiculos.md). */
+export type ExcluirVeiculo = components["schemas"]["ExcluirVeiculo"];
+/** Resposta de `POST /api/veiculos/{id}/excluir/`: o aviso da Frota vem pronto. */
+export type VeiculoExcluido = { id: number; mensagem: string };
+
 export type StatusVeiculo = "disponivel" | "alugado" | "reservado" | "em_manutencao" | "a_venda" | "indisponivel" | "vendido" | "baixado";
 export type TipoVeiculo = "moto" | "carro";
 
@@ -95,6 +100,10 @@ export type Veiculo = {
   filial: { id: number; nome: string };
   status: StatusVeiculo;
   motivo_status: string | null;
+  /** VEI-15 (T-494): o texto pronto de "tabela de preços não preenchida" quando não há plano ligado, em qualquer status; senão `null`. */
+  aviso_preco?: string | null;
+  /** VEI-21 (T-507): "Oferecer aluguel"; `false` mostra o selo "Aluguel desativado" ao lado do status. */
+  aluguel_ligado?: boolean;
   km_atual: number;
   km_atualizado_em: string;
   capacidade_tanque_litros: string | null;
@@ -105,6 +114,13 @@ export type Veiculo = {
   valor_compra_centavos?: number | null;
   data_compra?: string | null;
   entrou_na_frota_em: string;
+  /**
+   * VEI-18, VEI-19 (T-486): dias em estoque do veículo `a_venda`, calculados pela API. Fora do estoque ou sem entrada no
+   * histórico, `null` e `parado: false`. Ausentes para o vistoriador.
+   */
+  a_venda_desde?: string | null;
+  dias_em_estoque?: number | null;
+  parado?: boolean;
   /** `desde` (LOC-10, T-449): data pronta do "desde" do card "Agora"; `null` sem locação aberta. A tela não usa `inicio` nem `fim_previsto` para isso. */
   situacao: { codigo: string; rotulo: string; tom: TomApi; desde: string | null };
   /** T-410: só no veículo `reservado`. O texto "Reservado na LOC-x" já vem em `situacao.rotulo`; aqui só o que serve de link. */
@@ -120,6 +136,8 @@ export type Veiculo = {
     desbloquear: boolean;
     transferir: boolean;
     baixar: boolean;
+    /** MOV-03 (T-311): com `baixar` e a movimentação aberta, "A MOV-0002 será cancelada."; senão `null`. A tela mostra como vem. */
+    aviso_baixar?: string | null;
     registrar_km: boolean;
     corrigir_km: boolean;
     /** T-275: `movimentar` e o motivo quando for `false`; ausentes até a API mandar. */
@@ -131,8 +149,13 @@ export type Veiculo = {
     motivo_trocar_tipo?: string | null;
     /** VEI-10 (T-414): administrador e gerente, com o veículo fora de vendido e baixado. */
     editar_fotos: boolean;
+    /** VEI-22 (T-515): só na ficha; `null` para quem não exclui. A confirmação ou o aviso com o histórico vêm prontos. */
+    excluir?: ExcluirVeiculo | null;
   };
 };
+
+/** VEI-23 (T-518): o motivo da baixa, como o contrato (`POST .../baixar/`). */
+export type MotivoDaBaixa = "perda_total" | "roubo" | "sucata" | "outro";
 
 export type VendaDoVeiculo = {
   id: number;
@@ -161,6 +184,8 @@ export type VeiculoDetalhe = Veiculo & {
   /** VEI-05, FIN-17: o rendeu já vem com as despesas descontadas; o custo é só manutenção e peças. */
   indicadores_financeiros?: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number; despesas_ano_centavos?: number } | null;
   ocupacao: { pct: string; periodo_dias: number };
+  /** VEI-19 (T-486): o "Limite da empresa" ao lado dos dias em estoque; ausente para o vistoriador. */
+  limite_dias_parado?: number;
   /** Ausente para o financeiro e quando o veículo nunca teve vistoria. */
   vistoria_recente?: VistoriaRecente | null;
   movimentacoes?: MovimentacoesDoVeiculo | null;
@@ -176,7 +201,9 @@ export type ListaVeiculos = {
   anterior: string | null;
 };
 
-export type FiltroVeiculos = { status?: string; tipo_veiculo?: TipoVeiculo; busca?: string; cursor?: string };
+/** `ordem`: `em_estoque` (VEI-18) ou `placa`; sem ela, a API usa `em_estoque` com o filtro "À venda" e `placa` nos outros. */
+export type OrdemDaFrota = "placa" | "em_estoque";
+export type FiltroVeiculos = { status?: string; tipo_veiculo?: TipoVeiculo; busca?: string; cursor?: string; ordem?: OrdemDaFrota };
 
 /** `url` é assinada e vale 15 minutos (AUD-05): cada leitura da API traz outra. */
 export type ArquivoDoDocumento = { nome: string; url: string; url_expira_em?: string };

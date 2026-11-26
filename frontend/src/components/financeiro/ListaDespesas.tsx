@@ -94,7 +94,7 @@ function PorCategoria({ valores }: { valores: Partial<Record<Despesa["categoria"
 /** Despesas do mês: indicadores, lista com situação, gasto por categoria e o formulário de nova despesa. */
 export function ListaDespesas({ abrirId }: { abrirId?: number }) {
   const { eu } = useSessao();
-  const { valor, definir } = useFiltrosNaUrl();
+  const { valor, definir, paginacao } = useFiltrosNaUrl();
   const aba = (valor("aba") ?? "todas") as Aba;
   const cursor = valor("cursor") ?? undefined;
   const buscaNaUrl = valor("busca") ?? "";
@@ -242,7 +242,7 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
                       <CartaoDaDespesa key={x.id} d={x} origem={origem(x)} aoAbrir={(y) => setDetalhe({ id: y.id, inicial: y })} />
                     ))}
                   </div>
-                  <Paginacao texto={`Mostrando ${despesas.length}`} anterior={d.anterior} proximo={d.proximo} aoIr={(cur) => definir({ cursor: cur })} />
+                  <Paginacao texto={`Mostrando ${despesas.length}`} anterior={d.anterior} proximo={d.proximo} {...paginacao} />
                 </>
               )}
             </section>

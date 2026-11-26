@@ -77,8 +77,12 @@ describe("detalhe do cliente, gerente: Juliana Rocha", () => {
     expect(texto(desktop)).toContain("|Ativa|");
   });
 
-  it("desktop: Editar, Receber devolução e Exportar ficam desativados (sem tela ou endpoint); Iniciar locação é link", () => {
-    for (const nome of ["Editar", "Receber devolução"]) expect(desktop).toMatch(new RegExp(`<button[^>]*disabled[^>]*>(<svg.*?</svg>)?${nome}</button>`));
+  it("T-516: Editar é link para /clientes/1201/editar no desktop e no celular; Receber devolução fica desativado (sem endpoint); Iniciar locação é link", () => {
+    expect(desktop).toMatch(/<a[^>]*href="\/clientes\/1201\/editar"[^>]*>(<svg.*?<\/svg>)?Editar<\/a>/);
+    expect(desktop).not.toMatch(/<button[^>]*disabled[^>]*>(<svg.*?<\/svg>)?Editar<\/button>/);
+    expect(celular).toMatch(/<a[^>]*aria-label="Editar"[^>]*href="\/clientes\/1201\/editar"/);
+    expect(celular).toMatch(/<a[^>]*href="\/clientes\/1201\/editar"[^>]*>(<svg.*?<\/svg>)?Editar<\/a>/);
+    expect(desktop).toMatch(/<button[^>]*disabled[^>]*>(<svg.*?<\/svg>)?Receber devolução<\/button>/);
     expect(desktop).toContain('href="/locacoes/nova?cliente=1201"');
     expect(desktop).toContain('href="https://wa.me/5585981142290"');
   });

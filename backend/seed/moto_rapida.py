@@ -34,10 +34,11 @@ from apps.locacoes import services as locacoes_services
 from apps.locacoes.models import Locacao, PlanoEspecial
 from apps.plataforma.models import Empresa, Plano
 from apps.plataforma.services import Administrador, criar_empresa, registrar_passo_implantacao
+from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import Categoria, Veiculo
 from comum.estados import transicionar
 
-from . import carteira, fotos, frota
+from . import carteira, estoque, fotos, frota, precos
 from . import financeiro as financeiro_do_seed
 from .relogio import RelogioDoSeed
 
@@ -298,6 +299,18 @@ def carregar_negocio(
         with transaction.atomic():
             if frota.garantir_dados_do_crlv():
                 criado.append("dados do CRLV-e do QXA-4B21")
+    with transaction.atomic():
+        categorias = {c.nome: c for c in Categoria.objects.all()}
+        if estoque.garantir_estoque_parado(empresa, centro, categorias, pessoas, relogio):
+            criado.append("estoque à venda parado")
+    with transaction.atomic():
+        if precos.garantir_precos_dos_veiculos(empresa, centro, categorias, pessoas, relogio):
+            criado.append("preços da Pop TBC-5H21 e do QXA-4B21")
+    with transaction.atomic():
+        # VEI-15 (ADR 0041, item 3, passo 6): o disponível sem plano ligado fica sem preço.
+        alinhados = veiculos_services.alinhar_veiculos_sem_preco()
+        if alinhados["sem_preco"] or alinhados["com_preco"]:
+            criado.append("veículos sem preço alinhados")
     _configuracao(criado)
     if not Caixa.objects.exists():
         with transaction.atomic():

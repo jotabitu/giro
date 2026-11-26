@@ -1,4 +1,5 @@
 // Tipos do contrato docs/api/clientes.md. TEMPORÁRIO: sai quando o cliente gerado do OpenAPI existir.
+import type { components } from "./schema";
 import type { TomApi } from "./tipos-frota";
 
 export type StatusCliente = "ativo" | "incompleto" | "bloqueado" | "inativo";
@@ -59,6 +60,19 @@ export type NovoCliente = {
   consentimento?: boolean;
 };
 
+/** Corpo de PATCH /api/clientes/{id}/: qualquer campo do POST menos `tipo`. Texto apagado vai `""`; data e blocos apagados vão `null`. */
+export type EdicaoCliente = Pick<NovoCliente, "nome" | "documento" | "celular" | "consentimento"> extends infer Base
+  ? Partial<Base> & {
+      email?: string | null;
+      profissao?: string | null;
+      nascimento?: string | null;
+      cnh?: NovoCliente["cnh"] | null;
+      responsavel?: NovoCliente["responsavel"] | null;
+      endereco?: NovoCliente["endereco"] | null;
+      referencia?: NovoCliente["referencia"] | null;
+    }
+  : never;
+
 export type ItemAnalise = { codigo: string; situacao: "ok" | "pendente" | "problema"; rotulo: string };
 export type AnaliseCadastro = { itens: ItemAnalise[] };
 
@@ -90,7 +104,14 @@ export type ClienteCompleto = ClienteResumo & {
   documentos: DocumentoDoCliente[];
   pendencias: string[];
   analise: AnaliseCadastro;
+  /** CLI-13 (T-515): `excluir` vem `null` para o vendedor; a confirmação ou o aviso com o histórico vêm prontos. */
+  acoes?: { excluir: ExcluirCliente | null };
 };
+
+/** CLI-13: `acoes.excluir` da ficha (docs/api/clientes.md). */
+export type ExcluirCliente = components["schemas"]["ExcluirCliente"];
+/** Resposta de `POST /api/clientes/{id}/excluir/`: "Cliente excluído.", sem o nome. */
+export type ClienteExcluido = { id: number; mensagem: string };
 
 /** Preço, parcelas e caução da locação em andamento, lidos do detalhe dela (`GET /api/locacoes/{id}/`). Só a locação atual os traz. */
 export type DetalheDaLocacaoAtual = {
@@ -107,7 +128,7 @@ export type LocacaoDoCliente = {
   codigo: string;
   status: "aguardando_retirada" | "ativa" | "devolucao_atrasada" | "encerrada" | "cancelada";
   veiculo: { id: number; modelo: string; placa: string; tipo: "moto" | "carro" };
-  periodicidade: "diaria" | "semanal" | "mensal";
+  periodicidade: "diaria" | "semanal" | "quinzenal" | "mensal";
   inicio: string;
   fim_previsto: string;
   situacao: { codigo: string; rotulo: string; tom: TomApi };

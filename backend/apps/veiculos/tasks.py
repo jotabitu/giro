@@ -21,3 +21,35 @@ def aut_06_vencimento_de_documentos(schema_name: str) -> dict[str, int]:
 def aut_06_vencimento_de_documentos_de_todas(**_: Any) -> int:
     """Chamada pelo Beat: uma tarefa por empresa que opera."""
     return para_cada_empresa(aut_06_vencimento_de_documentos)
+
+
+@shared_task(name="consolidar_precos_agendados")
+@tarefa_de_empresa
+def consolidar_precos_agendados(schema_name: str) -> dict[str, int]:
+    """VEI-12 (ADR 0041, item 1), às 00:05: o preço agendado vencido vira o vigente, com
+    histórico e auditoria do Sistema. Idempotente; a leitura por data já usa o preço certo."""
+    from .services import consolidar_precos_agendados as consolidar
+
+    return consolidar(relogio.hoje())
+
+
+@shared_task(name="consolidar_precos_agendados_de_todas")
+def consolidar_precos_agendados_de_todas(**_: Any) -> int:
+    """Chamada pelo Beat: uma tarefa por empresa que opera."""
+    return para_cada_empresa(consolidar_precos_agendados)
+
+
+@shared_task(name="aut_18_veiculos_parados")
+@tarefa_de_empresa
+def aut_18_veiculos_parados(schema_name: str) -> dict[str, int]:
+    """AUT-18 às 07:00: avisa os gerentes do veículo à venda parado (VEI-19), uma vez por
+    entrada no estoque. Idempotente."""
+    from .services import avisar_veiculos_parados
+
+    return avisar_veiculos_parados(relogio.hoje())
+
+
+@shared_task(name="aut_18_veiculos_parados_de_todas")
+def aut_18_veiculos_parados_de_todas(**_: Any) -> int:
+    """Chamada pelo Beat: uma tarefa por empresa que opera."""
+    return para_cada_empresa(aut_18_veiculos_parados)

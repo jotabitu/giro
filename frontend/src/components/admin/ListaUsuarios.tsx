@@ -123,7 +123,7 @@ function CartaoDoUsuario({ u, agora, aoAbrir, aoReenviar, aoCancelar, ocupado }:
 export function ListaUsuarios() {
   const { eu } = useSessao();
   const cliente = useQueryClient();
-  const { valor, definir } = useFiltrosNaUrl();
+  const { valor, definir, paginacao } = useFiltrosNaUrl();
   const aba = (valor("aba") ?? "todos") as Aba;
   const cursor = valor("cursor") ?? undefined;
   const agora = useAgora();
@@ -321,7 +321,7 @@ export function ListaUsuarios() {
                   <CartaoDoUsuario key={u.id} u={u} agora={agora} aoAbrir={abrir} aoReenviar={(x) => reenviar.mutate(x)} aoCancelar={(x) => cancelar.mutate(x)} ocupado={ocupado} />
                 ))}
               </div>
-              <Paginacao texto={`Mostrando ${gente.length}`} anterior={d.anterior} proximo={d.proximo} aoIr={(cur) => definir({ cursor: cur })} />
+              <Paginacao texto={`Mostrando ${gente.length}`} anterior={d.anterior} proximo={d.proximo} {...paginacao} />
             </>
           )}
         </section>

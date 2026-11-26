@@ -10,7 +10,7 @@ from django.db import transaction
 
 from apps.plataforma import selectors as plataforma_selectors
 from apps.plataforma import services as plataforma_services
-from comum import arquivos, modulos
+from comum import arquivos, modulos, painel
 from comum import empresa as empresa_config
 from comum.auditoria import Categoria, auditar
 from comum.conexao import schema_atual
@@ -47,6 +47,45 @@ def definir_exige_2fa_todos(valor: bool) -> ConfiguracaoEmpresa:
         with auditar(configuracao, "empresa.exigir_2fa_todos", Categoria.SEGURANCA, regra="USR-02"):
             configuracao.exige_2fa_todos = valor
             configuracao.save(update_fields=["exige_2fa_todos", "atualizado_em"])
+    return configuracao
+
+
+# --- Estoque à venda (VEI-19, T-486) ---
+
+LIMITE_DIAS_PARADO_MINIMO = 1
+LIMITE_DIAS_PARADO_MAXIMO = 365
+MENSAGEM_LIMITE_DIAS_PARADO = "Informe um número inteiro de 1 a 365."
+
+
+def _limite_valido(valor: Any) -> int | None:
+    """Inteiro de 1 a 365 (o número, ou o texto só com dígitos); senão, `None`."""
+    if isinstance(valor, bool):
+        return None
+    if isinstance(valor, str) and valor.strip().isdigit():
+        valor = int(valor.strip())
+    if not isinstance(valor, int):
+        return None
+    return valor if LIMITE_DIAS_PARADO_MINIMO <= valor <= LIMITE_DIAS_PARADO_MAXIMO else None
+
+
+def definir_limite_dias_parado(valor: Any) -> ConfiguracaoEmpresa:
+    """VEI-19: o limite de dias em estoque, igual para todas as filiais. Fora de 1 a 365, vazio
+    ou não inteiro: 422, e nada é gravado. A mudança vale na hora (o destaque e o painel) e grava
+    o evento `empresa.alterar_limite_estoque` com o antes e o depois (AUD-01)."""
+    limite = _limite_valido(valor)
+    if limite is None:
+        raise ErroDeRegra("VEI-19", MENSAGEM_LIMITE_DIAS_PARADO, {"campo": "limite_dias_parado"})
+    with transaction.atomic():
+        criar_configuracao_padrao()
+        configuracao = ConfiguracaoEmpresa.objects.select_for_update().get(unica=1)
+        if configuracao.limite_dias_parado == limite:
+            return configuracao
+        with auditar(
+            configuracao, "empresa.alterar_limite_estoque", Categoria.CONFIGURACOES, regra="VEI-19"
+        ):
+            configuracao.limite_dias_parado = limite
+            configuracao.save(update_fields=["limite_dias_parado", "atualizado_em"])
+        painel.renovar()  # o destaque de parado no início segue o limite novo na hora
     return configuracao
 
 

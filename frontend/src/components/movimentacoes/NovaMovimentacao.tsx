@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Aviso } from "@/components/acesso/Aviso";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
-import { Button, Dialogo, Icone, SearchField, SegmentedControl, StatusBadge, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, Dialogo, Icone, SearchField, SegmentedControl, StatusBadge, TextField } from "@/design-system";
 import { ErroApi, filiais, movimentacoes, veiculos, type Veiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa } from "@/lib/formatos";
@@ -235,7 +235,7 @@ function FormularioDaMovimentacao({ aoFechar }: { aoFechar: () => void }) {
                   </button>
                   <div className="grid gap-3 md:grid-cols-2">
                     <TextField rotulo="Serviço" cheio erro={erro(`paradas.${i}.servico`)} {...register(`paradas.${i}.servico`)} />
-                    <TextField rotulo="Valor previsto" cheio inputMode="decimal" placeholder="35,00" dica="Confira com o recibo na saída." erro={erro(`paradas.${i}.valor_previsto`)} {...register(`paradas.${i}.valor_previsto`)} />
+                    <CampoDeDinheiro rotulo="Valor previsto" cheio placeholder="35,00" dica="Confira com o recibo na saída." erro={erro(`paradas.${i}.valor_previsto`)} {...register(`paradas.${i}.valor_previsto`)} />
                   </div>
                 </div>
               ))}

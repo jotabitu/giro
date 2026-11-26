@@ -119,6 +119,39 @@ PRONTOS = (
         "locacao_compra", "Locação com intenção de compra", TEXTO_COMPRA, "locacao_compra"
     ),
 )
+
+# VEN-15 (T-502, fase 1b; ADR 0042, item 6): RASCUNHO do backend, só com os marcadores e as
+# cláusulas mínimas. O texto é do dono do produto com o advogado; o pronto vira um modelo em
+# rascunho na empresa e nunca se publica sozinho.
+TEXTO_COMPRA_E_VENDA = """<h1>Contrato de compra e venda de veículo</h1>
+<p><strong>Vendedora:</strong> {{empresa.razao_social}}, CNPJ {{empresa.cnpj}}, \
+{{empresa.endereco}}, {{empresa.cidade}}, pela {{filial.nome}}, {{filial.endereco}}, telefone \
+{{filial.telefone}}.</p>
+<p><strong>Comprador:</strong> {{cliente.nome}}, CPF ou CNPJ {{cliente.cpf}}, residente em \
+{{cliente.endereco}}, celular {{cliente.celular}}, e-mail {{cliente.email}}.</p>
+<h2>1. Objeto</h2>
+<p>A vendedora vende ao comprador o veículo {{veiculo.marca}} {{veiculo.modelo}}, ano \
+{{veiculo.ano}}, cor {{veiculo.cor}}, placa {{veiculo.placa}}, chassi {{veiculo.chassi}}, \
+Renavam {{veiculo.renavam}}, no estado em que se encontra, na venda {{venda.codigo}}.</p>
+<h2>2. Preço</h2>
+<p>O preço de tabela é {{venda.preco_tabela}}, com desconto de {{venda.desconto}}. O preço final \
+é {{venda.preco_final}}, pago por {{venda.forma}}.</p>
+<h2>3. Pagamento</h2>
+<p>A entrada (ou o valor à vista) é de {{venda.entrada}}, paga antes da entrega. O saldo, quando \
+houver, é pago em {{venda.parcelas}}, com juros de {{venda.juros_mes}} ao mês. O primeiro \
+vencimento é {{venda.primeiro_vencimento}}, e os outros no mesmo dia dos meses seguintes.</p>
+<h2>4. Atraso no pagamento</h2>
+<p>A parcela paga depois do vencimento tem multa de {{cobranca.multa_atraso_pct}} e juros de \
+{{cobranca.juros_mes_pct}} ao mês, calculados por dia de atraso.</p>
+<h2>5. Entrega e transferência</h2>
+<p>A venda se conclui com este contrato assinado e a entrada paga. A vendedora faz a \
+transferência no Detran para o nome do comprador.</p>
+<p>{{contrato.cidade_assinatura}}, {{contrato.data}}.</p>
+"""
+PRONTOS = (
+    *PRONTOS,
+    ModeloPronto("compra_venda", "Compra e venda", TEXTO_COMPRA_E_VENDA, "venda"),
+)
 POR_CHAVE = {pronto.chave: pronto for pronto in PRONTOS}
 
 # LOC-08: o aditivo da renovação não tem modelo da locadora; usa este texto do sistema.

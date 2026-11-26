@@ -1,6 +1,7 @@
 // Veículos na API real (docs/api/veiculos.md).
 import { http } from "./http";
 import type { ListaLocacoes } from "./tipos-locacoes";
+import type { PrecosDoVeiculo, PrecosEntrada } from "./tipos-precos-veiculo";
 import type {
   CorrecaoDeIdentificacao,
   CrlvDoCadastro,
@@ -14,12 +15,14 @@ import type {
   ListaVeiculos,
   LocacoesDoVeiculo,
   ManutencoesDoVeiculo,
+  MotivoDaBaixa,
   EdicaoVeiculo,
   GaleriaDoEditar,
   NovoVeiculo,
   TipoVeiculo,
   Veiculo,
   VeiculoDetalhe,
+  VeiculoExcluido,
 } from "./tipos-frota";
 
 const ROTULO_DOCUMENTO: Record<string, string> = { crlv: "CRLV", seguro: "Seguro", ipva: "IPVA", rastreador: "Rastreador" };
@@ -95,11 +98,51 @@ export const veiculosApi = {
   },
 
   listar(f: FiltroVeiculos = {}): Promise<ListaVeiculos> {
-    return http.get<ListaVeiculos>("/api/veiculos/", { status: f.status && f.status !== "todos" ? f.status : undefined, tipo_veiculo: f.tipo_veiculo, busca: f.busca, cursor: f.cursor });
+    return http.get<ListaVeiculos>("/api/veiculos/", { status: f.status && f.status !== "todos" ? f.status : undefined, tipo_veiculo: f.tipo_veiculo, busca: f.busca, cursor: f.cursor, ordem: f.ordem });
+  },
+
+  /** VEI-12 a VEI-17: planos, regras, custos e compra do veículo, com tudo que a API calcula (margem, parcela, juros, alertas). */
+  precos(id: number): Promise<PrecosDoVeiculo> {
+    return http.get<PrecosDoVeiculo>(`/api/veiculos/${id}/precos/`);
+  },
+
+  /** Salva o documento inteiro ou só os blocos mandados. 400 traz os campos pontuados (`planos.0.valor_centavos`); 409 `VEI-16` pede a confirmação dos juros. */
+  salvarPrecos(id: number, corpo: PrecosEntrada): Promise<PrecosDoVeiculo> {
+    return http.put<PrecosDoVeiculo>(`/api/veiculos/${id}/precos/`, corpo);
+  },
+
+  /** O mesmo corpo do salvar, sem gravar: devolve os resultados calculados e `pede_confirmacao_juros` (ADR 0005). */
+  simularPrecos(id: number, corpo: PrecosEntrada): Promise<PrecosDoVeiculo> {
+    return http.post<PrecosDoVeiculo>(`/api/veiculos/${id}/precos/simular/`, corpo);
+  },
+
+  /** O liga e desliga do cartão da ficha. Ligar sem valor, forma ou caução volta 400 com o campo. */
+  ligarPlano(id: number, planoId: number, ligado: boolean): Promise<PrecosDoVeiculo> {
+    return http.post<PrecosDoVeiculo>(`/api/veiculos/${id}/precos/planos/${planoId}/ligado/`, { ligado });
   },
 
   obter(id: number): Promise<VeiculoDetalhe> {
     return http.get<VeiculoDetalhe>(`/api/veiculos/${id}/`);
+  },
+
+  /** VEN-01: `disponivel` → `a_venda`. 409 `VEI-15` sem plano ligado; a resposta traz o valor que vale. */
+  colocarAVenda(id: number, corpo: { valor_venda_centavos: number; referencia_fipe_centavos?: number | null }): Promise<Veiculo> {
+    return http.post<Veiculo>(`/api/veiculos/${id}/colocar-a-venda/`, corpo);
+  },
+
+  /** `a_venda` → `disponivel` (ou `indisponivel` "sem preço", VEI-15). 409 `VEN-10` com `detalhes.venda_id` se há venda aberta. */
+  voltarParaFrota(id: number): Promise<Veiculo> {
+    return http.post<Veiculo>(`/api/veiculos/${id}/voltar-para-frota/`, {});
+  },
+
+  /** Só o administrador (VEI-23, MOV-03). 400 em `motivo` ou `descricao`; 409 `transicao_veiculo` (alugado) ou `VEN-10`. */
+  baixar(id: number, corpo: { motivo: MotivoDaBaixa; descricao: string }): Promise<Veiculo> {
+    return http.post<Veiculo>(`/api/veiculos/${id}/baixar/`, corpo);
+  },
+
+  /** VEI-22: 409 `VEI-22` com `detalhes.historico` quando o veículo tem histórico; 403 para quem não exclui. */
+  excluir(id: number): Promise<VeiculoExcluido> {
+    return http.post<VeiculoExcluido>(`/api/veiculos/${id}/excluir/`, {});
   },
 
   async documentos(id: number): Promise<DocumentoVeiculo[]> {

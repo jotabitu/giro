@@ -9,6 +9,7 @@ cabeçalho `X-Filial` em toda requisição da empresa.
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
+from django.http import Http404
 from django_tenants.utils import get_public_schema_name
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
@@ -46,6 +47,19 @@ class ModuloDoPlano(BasePermission):
         if recurso is None or empresa_config.tem_recurso(recurso):
             return True
         raise empresa_config.recusa_do_recurso(recurso)
+
+
+class ModuloDoPlanoOu404(BasePermission):
+    """PLT-12 nas páginas públicas por token (S-15: recibo, proposta), sem login. Deixa passar o
+    anônimo e só cobra o plano; o recurso desligado dá 404, como as outras recusas da consulta
+    (não diz por quê). Vai junto do `AllowAny`, que marca a rota como pública no OpenAPI
+    (`security: [{}]`). Revisão da Segurança no #650, item 2 (T-517)."""
+
+    def has_permission(self, request: "Request", view: "APIView") -> bool:
+        recurso = recurso_da_view(view, request)
+        if recurso is None or empresa_config.tem_recurso(recurso):
+            return True
+        raise Http404
 
 
 class EmpresaOperando(BasePermission):

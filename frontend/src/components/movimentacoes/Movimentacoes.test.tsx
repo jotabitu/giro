@@ -93,6 +93,15 @@ describe("quadro das movimentações (Movimentacoes)", () => {
 });
 
 describe("registrar chegada (Movimentacao-Chegada-Mobile)", () => {
+  it("T-519: Confirmar chegada fica no fim do formulário e de novo na barra flutuante, com Cancelar", async () => {
+    await entrarComo("rodrigo@motorapida.com.br", "gerir");
+    const h = await chegada(2);
+    expect(h).toContain("sticky bottom-[88px]");
+    expect(h.match(/>Confirmar chegada</g)).toHaveLength(2);
+    expect(h.match(/>Cancelar</g)).toHaveLength(1);
+    expect(h.lastIndexOf("Confirmar chegada")).toBeGreaterThan(h.indexOf("sticky bottom-[88px]"));
+  });
+
   it("transferência com vistoria rápida: percurso, km, combustível, fotos 2 de 4 e quem recebe", async () => {
     await entrarComo("rodrigo@motorapida.com.br", "gerir");
     const t = texto(await chegada(2));

@@ -58,14 +58,14 @@ describe("Nova locação com veículo reservado ou início vencido (LOC-12)", ()
   const AGORA = new Date("2026-10-07T12:20:00Z");
 
   it("o reservado não passa: impedimento LOC-03 na simulação e 409 ao confirmar", async () => {
-    const corpo = corpoDaLocacao(valoresIniciais(1201, 506, AGORA), [])!;
+    const corpo = corpoDaLocacao({ ...valoresIniciais(1201, 506, AGORA), plano_veiculo_id: 7002 })!;
     expect((await locacoes.simular(corpo)).impedimentos.map((i) => i.codigo)).toContain("LOC-03");
     const rascunho = await locacoes.criar(corpo);
     await expect(locacoes.confirmar(rascunho.id)).rejects.toMatchObject({ status: 409, codigo: "LOC-03" });
   });
 
   it("início com mais de 3 dias: impedimento inicio_vencido e 409 com a mensagem e as datas da API", async () => {
-    const corpo = { ...corpoDaLocacao(valoresIniciais(1201, 509, AGORA), [])!, inicio: "2026-10-01T12:00:00.000Z" };
+    const corpo = { ...corpoDaLocacao({ ...valoresIniciais(1201, 509, AGORA), plano_veiculo_id: 7002 })!, inicio: "2026-10-01T12:00:00.000Z" };
     const sim = await locacoes.simular(corpo);
     expect(sim.impedimentos.map((i) => i.codigo)).toContain("inicio_vencido");
     const rascunho = await locacoes.criar(corpo);
@@ -75,7 +75,7 @@ describe("Nova locação com veículo reservado ou início vencido (LOC-12)", ()
   });
 
   it("início de hoje com veículo disponível não tem impedimento de início", async () => {
-    const corpo = corpoDaLocacao(valoresIniciais(1201, 509, AGORA), [])!;
+    const corpo = corpoDaLocacao({ ...valoresIniciais(1201, 509, AGORA), plano_veiculo_id: 7002 })!;
     expect((await locacoes.simular(corpo)).impedimentos.map((i) => i.codigo)).not.toContain("inicio_vencido");
   });
 });

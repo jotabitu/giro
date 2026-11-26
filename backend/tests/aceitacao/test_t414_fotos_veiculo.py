@@ -28,7 +28,12 @@ from apps.plataforma.models import Empresa
 from apps.plataforma.services import abrir_acesso_suporte
 from apps.veiculos import selectors as veiculos_selectors
 from apps.veiculos import services as veiculos_services
-from apps.veiculos.models import TRANSICOES_VEICULO, FotoVeiculo, Veiculo
+from apps.veiculos.models import (
+    SO_PELA_VOLTA_SEM_PRECO,
+    TRANSICOES_VEICULO,
+    FotoVeiculo,
+    Veiculo,
+)
 from apps.vistorias import leituras as vistorias_leituras
 from apps.vistorias.models import Avaria, Vistoria
 from comum import arquivos
@@ -134,7 +139,9 @@ def _levar(veiculo: Veiculo, destino: str) -> None:
     while fila and destino not in caminhos:
         atual = fila.pop(0)
         for proximo in TRANSICOES_VEICULO[atual]:
-            if proximo not in caminhos:
+            # VEI-15 (T-494): essas idas a `indisponivel` só existem pela volta sem preço.
+            so_sem_preco = proximo == "indisponivel" and atual in SO_PELA_VOLTA_SEM_PRECO
+            if proximo not in caminhos and not so_sem_preco:
                 caminhos[proximo] = [*caminhos[atual], proximo]
                 fila.append(proximo)
     for status in caminhos[destino]:

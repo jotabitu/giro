@@ -1,7 +1,9 @@
 "use client";
 
+import { ArrowDown, ChevronsUpDown } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { cx } from "../../cx";
+import { Icone } from "../../Icone";
 
 export type ColunaTabela<L> = {
   chave: string;
@@ -10,7 +12,26 @@ export type ColunaTabela<L> = {
   celula?: (linha: L) => ReactNode;
   /** Placa, código ou data curta (Geist Mono). */
   mono?: boolean;
+  /**
+   * Coluna ordenável (T-486, "Em estoque" da Frota): o título vira botão, e o `th` leva `aria-sort`. A ordem é da API;
+   * a tabela só pede a troca.
+   */
+  ordem?: { estado: "descending" | "none"; rotulo: string; aoOrdenar: () => void };
 };
+
+function TituloOrdenavel({ titulo, ordem }: { titulo: string; ordem: NonNullable<ColunaTabela<unknown>["ordem"]> }) {
+  return (
+    <button
+      type="button"
+      onClick={ordem.aoOrdenar}
+      aria-label={ordem.rotulo}
+      className="inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-[inherit] text-[inherit]"
+    >
+      {titulo}
+      <Icone de={ordem.estado === "descending" ? ArrowDown : ChevronsUpDown} className="h-3.5 w-3.5" />
+    </button>
+  );
+}
 
 /** Célula com duas informações: principal (nome do veículo) e secundária (cliente, cidade). */
 export function CelulaDupla({ principal, secundaria }: { principal: ReactNode; secundaria: ReactNode }) {
@@ -48,8 +69,8 @@ export function DataTable<L extends Record<string, unknown>>({
       <thead>
         <tr>
           {colunas.map((c) => (
-            <th key={c.chave} scope="col">
-              {c.titulo}
+            <th key={c.chave} scope="col" aria-sort={c.ordem?.estado}>
+              {c.ordem ? <TituloOrdenavel titulo={c.titulo} ordem={c.ordem} /> : c.titulo}
             </th>
           ))}
         </tr>

@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- ajustada no repositório: 18/11/2026, T-503 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -24,10 +25,6 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .card{padding:16px;border-radius:24px;background:var(--surface)}
 .h2{margin:0;font-size:20px;font-weight:600}
 .lbl{font-size:13px;color:var(--ink-muted)}
-.kv{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
-.kv:last-child{border-bottom:0}
-.kv span:first-child{color:var(--ink-muted)}
-.kv span:last-child{font-weight:500;text-align:right}
 .thumb{display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:14px;background:var(--surface-sunken);color:var(--ink-muted)}
 .chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
@@ -41,28 +38,196 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .opt{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);font-size:15px;background:var(--surface)}
 .opt.on{box-shadow:inset 0 0 0 2px var(--ink)}
 .h2{margin:0;font-size:20px;line-height:26px;font-weight:600}
-.plan{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-.plan div{display:flex;flex-direction:column;gap:2px;padding:14px 16px;border-radius:20px;box-shadow:inset 0 0 0 1.5px var(--line);background:var(--surface)}
-.plan div small{font-size:13px;color:var(--ink-muted)}
-.plan div.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.sub{margin:0;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.est{display:flex;flex-direction:column;gap:12px}
+.est h3{margin:0;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)}
+.cx{box-sizing:border-box;display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:var(--radius-lg);background:var(--surface-sunken)}
+.vrow{display:flex;align-items:center;gap:14px}
+.vrow .thumb{background:var(--surface)}
+.dlg{box-sizing:border-box;display:flex;flex-direction:column;gap:14px;padding:20px 16px;border-radius:var(--radius-xl);background:var(--surface);box-shadow:var(--shadow-pop)}
+.dlg h4{margin:0;font-size:22px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+.dlg p{margin:0;font-size:15px;line-height:22px;color:var(--ink-muted)}
+.acts{display:flex;flex-direction:column;gap:8px}
+.acts .wl-btn{width:100%;box-sizing:border-box;justify-content:center;height:48px}
+.f2{display:grid;grid-template-columns:1fr;gap:12px}
+.wl-field{width:auto;min-width:0}
+.wl-input{width:100%;box-sizing:border-box}
+.f2 .wl-input,.wl-field .ta{width:100%;box-sizing:border-box}
+.pend{margin:0;padding-left:20px;color:var(--ink);font-size:15px;line-height:24px}
+.ta{height:auto;min-height:88px;padding-top:12px;resize:vertical;font:inherit}
+.wl-steps__acts .wl-btn{height:44px}
 
 </style>
 </helmet>
 <div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1900px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 <header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><a href="Vendas-Mobile.dc.html" class="wl-icon-btn wl-icon-btn--sm" aria-label="Voltar" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a><div style="display: flex; flex-direction: column; flex: 1; min-width: 0;"><span style="font-weight: 600; font-size: 20px; letter-spacing: -0.01em;">Nova venda</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">Etapa 1 de 3 · negócio</span></div></header>
-<section class="card" style="display: flex; flex-direction: column; gap: 10px;"><div style="font-weight: 600; font-size: 18px;">Veículo e cliente</div><div style="display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 20px; background: var(--surface-sunken);"><div class="thumb" style="background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="5.5" cy="16" r="3"></circle><circle cx="18.5" cy="16" r="3"></circle><path d="M5.5 16 9 10h5l4.5 6M9 10 7.5 7.5H5M14 10l1-3h3"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Honda CB 300F Twister</div><div class="lbl">2024 · 8.210 km · FIPE R$ 23.400</div></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Trocar</button></div><div style="display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 20px; background: var(--surface-sunken);"><div class="thumb" style="background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Diego Martins</div><div class="lbl">CPF 456.789.123-00 · cliente desde 2025</div></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Trocar</button></div></section>
-<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 12px;">Pagamento</div><div class="plan"><div><span style="font-weight: 500;">À vista</span><small>Pix ou TED</small></div><div class="on"><span style="font-weight: 500;">Entrada + parcelas</span><small>boleto ou Pix mensal</small></div><div><span style="font-weight: 500;">Financiamento</span><small>pelo banco parceiro</small></div></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px;">
+<section class="card" style="display: flex; flex-direction: column; gap: 10px;"><div style="font-weight: 600; font-size: 18px;">Veículo e cliente</div><div style="display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 20px; background: var(--surface-sunken);"><div class="thumb" style="background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="5.5" cy="16" r="3"></circle><circle cx="18.5" cy="16" r="3"></circle><path d="M5.5 16 9 10h5l4.5 6M9 10 7.5 7.5H5M14 10l1-3h3"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Honda CB 300F Twister</div><div class="lbl">2024 · 8.210 km · FIPE R$ 23.400</div></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Trocar</button></div><div style="display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 20px; background: var(--surface-sunken);"><div class="thumb" style="background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Diego Martins</div><div class="lbl">CPF 456.789.123-00 · cliente desde 2025</div></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Trocar</button></div><button class="wl-btn wl-btn--quiet wl-btn--sm" type="button" style="align-self: flex-start;">Cliente sem cadastro: só nome e celular</button></section>
+<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 12px;">Pagamento</div><div class="wl-choice" role="radiogroup" aria-label="Forma de pagamento"><button type="button" class="wl-choice__item" role="radio" aria-checked="false"><span style="font-weight: 500;">À vista</span><small>Pix ou TED</small></button><button type="button" class="wl-choice__item" role="radio" aria-checked="true"><span style="font-weight: 500;">Entrada + parcelas</span><small>boleto ou Pix mensal</small></button></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px;">
 <label class="wl-field"><span class="wl-field__label">Preço de tabela</span><input class="wl-input" value="R$ 22.900,00" disabled></label>
 <label class="wl-field wl-field--error"><span class="wl-field__label">Desconto</span><input class="wl-input" value="8%"><span class="wl-field__hint">Acima de 5% precisa do gerente</span></label>
 <label class="wl-field"><span class="wl-field__label">Entrada</span><input class="wl-input" value="R$ 5.000,00"></label>
 <label class="wl-field"><span class="wl-field__label">Parcelas</span><input class="wl-input" value="12 × R$ 1.339,00"></label>
-</div><div style="display: flex; align-items: center; gap: 12px; min-height: 52px;"><input type="checkbox" style="width: 22px; height: 22px; accent-color: var(--solid);"><span>Cliente vai dar um veículo como parte do pagamento</span></div></section>
-<section class="card"><div style="font-weight: 600; font-size: 18px;">Resumo</div><div class="kv"><span>Preço de tabela</span><span>R$ 22.900,00</span></div><div class="kv"><span>Desconto 8%</span><span>− R$ 1.832,00</span></div><div class="kv"><span>Preço final</span><span>R$ 21.068,00</span></div><div class="kv"><span>Entrada</span><span>R$ 5.000,00</span></div><div class="kv"><span>Saldo</span><span>12 × R$ 1.339,00</span></div><div class="kv"><span>Comissão Bruna (3%)</span><span>R$ 632,04</span></div></section>
+</div><!-- fase 2 (VEN-05): a troca não entra na primeira entrega; a caixa fica desligada e some da tela real até lá -->
+<div style="display: flex; align-items: center; gap: 12px; min-height: 52px; opacity: 0.6;"><input type="checkbox" disabled style="width: 22px; height: 22px; accent-color: var(--solid); flex: none;"><span style="flex: 1;">Cliente vai dar um veículo como parte do pagamento</span><span class="wl-badge wl-badge--sm">Fase 2</span></div></section>
+<section class="card"><div style="font-weight: 600; font-size: 18px;">Resumo</div><div class="wl-kv"><span>Preço de tabela</span><span>R$ 22.900,00</span></div><div class="wl-kv"><span>Desconto 8%</span><span>− R$ 1.832,00</span></div><div class="wl-kv"><span>Preço final</span><span>R$ 21.068,00</span></div><div class="wl-kv"><span>Entrada</span><span>R$ 5.000,00</span></div><div class="wl-kv"><span>Saldo</span><span>12 × R$ 1.339,00</span></div><div class="wl-kv"><span>Comissão Bruna (3%)</span><span>R$ 632,04</span></div></section>
 <div style="display: flex; gap: 10px; align-items: flex-start; padding: 14px; border-radius: 18px; background: var(--warning-soft); color: var(--warning-ink); font-size: 14px; line-height: 20px;"><svg class="wl-i" viewBox="0 0 24 24" style="flex:none"><path d="M12 4 2.5 20h19z"></path><path d="M12 10v4.5M12 17.5v.01"></path></svg><span>Desconto acima de 5%. O gerente aprova pelo celular.</span></div>
+<p style="margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted);">Depois de assinada e com a entrada paga, a venda gera as parcelas em Contas a receber, lança a comissão e tira o veículo da frota de locação.</p>
 <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line); display: flex; gap: 8px;"><button class="wl-btn wl-btn--solid" style="flex: 1; justify-content: center;">Pedir aprovação do gerente</button></div>
 </div>
+<section style="display: flex; flex-direction: column; gap: 28px; padding: 24px 16px 40px; border-top: 1px solid var(--line); background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div><h2 class="h2">Estados desta tela</h2><p class="sub" style="margin-top: 4px;">Referência dos casos da VEN-02, VEN-06, VEN-10, VEN-13 a VEN-16 e VEN-18. Na tela real, aparece um de cada vez. Preço final, saldo, parcelas, comissão e "precisa do gerente" vêm do simular; a tela só mostra.</p></div>
+
+<div class="est"><h3>Interessado rápido: só nome e celular</h3>
+<div class="cx">
+<div class="vrow"><div class="thumb"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="5.5" cy="16" r="3"></circle><circle cx="18.5" cy="16" r="3"></circle><path d="M5.5 16 9 10h5l4.5 6M9 10 7.5 7.5H5M14 10l1-3h3"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Honda Biz 125 2023</div><div class="lbl">Preço de tabela R$ 12.900,00</div></div></div>
+<div class="f2">
+<label class="wl-field"><span class="wl-field__label">Nome</span><input class="wl-input" value="Mateus Oliveira"></label>
+<label class="wl-field"><span class="wl-field__label">Celular</span><input class="wl-input" value="(85) 98888-0000" inputmode="tel"></label>
+</div>
+<span class="lbl">O CPF é pedido para enviar a proposta, e o cadastro completo, na etapa Documentos.</span>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Cancelar</button><button class="wl-btn wl-btn--solid">Salvar interessado</button></div>
+</div></div>
+
+<div class="est"><h3>Desconto recusado pelo gerente</h3>
+<div class="cx">
+<div class="wl-note wl-note--critical" role="alert">Desconto de 8% recusado por Rodrigo Pinheiro: margem baixa neste mês. Dê até 5% ou peça uma nova aprovação.</div>
+<div class="f2">
+<label class="wl-field"><span class="wl-field__label">Preço de tabela</span><input class="wl-input" value="R$ 22.900,00" disabled></label>
+<label class="wl-field"><span class="wl-field__label">Desconto</span><input class="wl-input" value="0%"></label>
+</div>
+<div class="acts"><button class="wl-btn">Pedir aprovação do gerente</button><button class="wl-btn wl-btn--solid">Salvar proposta e enviar ao cliente</button></div>
+</div></div>
+
+<div class="est"><h3>Aguardando o gerente</h3>
+<div class="cx">
+<div class="wl-note wl-note--info" role="note">Pedido de 8% enviado para Rodrigo Pinheiro. Você não edita a proposta até ele decidir.</div>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Marcar como perdida</button></div>
+</div></div>
+
+<div class="est"><h3>Proposta enviada ao cliente</h3>
+<div class="cx">
+<div class="wl-note wl-note--info" role="note">Proposta enviada para diego.martins@exemplo.com.br em 07 out. Sem resposta do cliente, ela vence em 14 out.</div>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Marcar como perdida</button><button class="wl-btn">Copiar link</button><button class="wl-btn">Reenviar proposta</button><button class="wl-btn wl-btn--solid">Registrar resposta do cliente</button></div>
+</div></div>
+
+<div class="est"><h3>Proposta salva, cliente sem e-mail</h3>
+<div class="cx">
+<div class="wl-note" role="note">A proposta foi salva, mas este cliente não tem e-mail cadastrado. Copie o link e envie para ele.</div>
+<div class="acts"><button class="wl-btn wl-btn--solid">Copiar link</button></div>
+</div></div>
+
+<div class="est"><h3>Registrar resposta do cliente</h3>
+<div class="dlg" role="dialog" aria-label="Registrar resposta do cliente">
+<h4>Registrar resposta do cliente</h4>
+<p>A venda passa para negociação.</p>
+<label class="wl-field"><span class="wl-field__label">O que o cliente respondeu</span><textarea class="wl-input ta" rows="3">Quer 24 parcelas e pediu o desconto de 8%.</textarea><span class="wl-field__hint">Até 300 caracteres. Fica no histórico da venda.</span></label>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Cancelar</button><button class="wl-btn wl-btn--solid">Registrar resposta</button></div>
+</div></div>
+
+<div class="est"><h3>Marcar como perdida</h3>
+<div class="dlg" role="dialog" aria-label="Marcar como perdida">
+<h4>Marcar como perdida</h4>
+<p>A venda sai das abertas e o veículo fica livre para outra proposta.</p>
+<label class="wl-field"><span class="wl-field__label">Motivo</span><textarea class="wl-input ta" rows="3">Cliente desistiu da compra.</textarea><span class="wl-field__hint">Obrigatório.</span></label>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Voltar</button><button class="wl-btn wl-btn--solid">Marcar como perdida</button></div>
+</div></div>
+
+<div class="est"><h3>Marcar como perdida com a entrada paga: gerente e administrador</h3>
+<div class="dlg" role="dialog" aria-label="Marcar como perdida">
+<h4>Marcar como perdida</h4>
+<p>A venda sai das abertas e o veículo fica livre para outra proposta.</p>
+<div class="wl-note" role="note">A entrada de R$ 5.000,00 já foi paga. O valor vira um reembolso a fazer para o cliente.</div>
+<label class="wl-field"><span class="wl-field__label">Motivo</span><textarea class="wl-input ta" rows="3">Cliente não conseguiu o restante do valor.</textarea><span class="wl-field__hint">Obrigatório.</span></label>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Voltar</button><button class="wl-btn wl-btn--solid">Marcar como perdida</button></div>
+</div></div>
+
+<div class="est"><h3>Marcar como perdida com a entrada paga: para o vendedor</h3>
+<div class="cx">
+<div class="wl-note wl-note--critical" role="alert">Só o gerente ou o administrador marca como perdida uma venda com a entrada paga.</div>
+</div></div>
+
+<div class="est"><h3>Etapa 2 · Documentos: cadastro do cliente incompleto</h3>
+<div class="cx">
+<div class="wl-note" role="note">Falta completar o cadastro de Diego Martins para preparar a assinatura.</div>
+<ul class="pend"><li>E-mail</li><li>Endereço</li><li>CNH</li></ul>
+<div class="acts"><button class="wl-btn">Completar cadastro</button><button class="wl-btn wl-btn--solid" disabled>Preparar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 2 · Documentos: cadastro completo</h3>
+<div class="cx">
+<div class="vrow"><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Diego Martins</div><div class="lbl">CPF 456.789.123-00 · cadastro completo</div></div></div>
+<div class="acts"><button class="wl-btn wl-btn--solid">Preparar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 2 · Documentos: cliente bloqueado (para o vendedor)</h3>
+<div class="cx">
+<div class="wl-note wl-note--critical" role="alert">Diego Martins está bloqueado e não pode comprar. A assinatura fica liberada depois do desbloqueio. Peça o desbloqueio ao gerente.</div>
+<div class="acts"><button class="wl-btn wl-btn--solid" disabled>Preparar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 2 · Documentos: cliente bloqueado (para o gerente e o administrador)</h3>
+<div class="cx">
+<div class="wl-note wl-note--critical" role="alert">Diego Martins está bloqueado e não pode comprar. A assinatura fica liberada depois do desbloqueio.</div>
+<div class="acts"><button class="wl-btn wl-btn--solid" disabled>Preparar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 2 · Documentos: cliente inativo</h3>
+<div class="cx">
+<div class="wl-note wl-note--critical" role="alert">Diego Martins está inativo e não pode comprar. O gerente ou o administrador reativa o cadastro.</div>
+<div class="acts"><button class="wl-btn wl-btn--solid" disabled>Preparar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 3 · Assinatura: contrato enviado, falta assinar e pagar a entrada</h3>
+<div class="cx">
+<ol class="wl-steps" aria-label="Assinatura e entrada">
+<li data-state="done"><span class="wl-steps__title">Contrato enviado</span><span class="wl-steps__text">07 out, 10:20 · diego.martins@exemplo.com.br</span><div class="wl-steps__acts"><button class="wl-btn wl-btn--sm">Copiar link para assinar</button><button class="wl-btn wl-btn--quiet wl-btn--sm">Reenviar contrato</button></div></li>
+<li aria-current="step"><span class="wl-steps__title">Assinatura do cliente</span><span class="wl-steps__text">Aguardando assinatura. O cliente assina pelo celular.</span></li>
+<li aria-current="step"><span class="wl-steps__title">Entrada de R$ 5.000,00</span><span class="wl-steps__text">Aguardando pagamento · vence hoje</span><div class="wl-steps__acts"><button class="wl-btn wl-btn--sm">Gerar Pix</button><button class="wl-btn wl-btn--sm">Gerar boleto</button><button class="wl-btn wl-btn--sm">Receber no caixa</button></div></li>
+<li><span class="wl-steps__title">Venda concluída</span><span class="wl-steps__text">Com o contrato assinado e a entrada paga, em qualquer ordem, a venda é concluída sozinha.</span></li>
+</ol>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Cancelar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 3 · Assinatura: contrato assinado, falta a entrada</h3>
+<div class="cx">
+<ol class="wl-steps" aria-label="Assinatura e entrada">
+<li data-state="done"><span class="wl-steps__title">Contrato enviado</span><span class="wl-steps__text">07 out, 10:20 · diego.martins@exemplo.com.br</span></li>
+<li data-state="done"><span class="wl-steps__title">Assinatura do cliente</span><span class="wl-steps__text">Assinado em 07 out, 10:41</span></li>
+<li aria-current="step"><span class="wl-steps__title">Entrada de R$ 5.000,00</span><span class="wl-steps__text">Aguardando pagamento · vence hoje</span><div class="wl-steps__acts"><button class="wl-btn wl-btn--sm">Gerar Pix</button><button class="wl-btn wl-btn--sm">Gerar boleto</button><button class="wl-btn wl-btn--sm">Receber no caixa</button></div></li>
+<li><span class="wl-steps__title">Venda concluída</span><span class="wl-steps__text">Com o contrato assinado e a entrada paga, em qualquer ordem, a venda é concluída sozinha.</span></li>
+</ol>
+</div></div>
+
+<div class="est"><h3>Etapa 3 · Assinatura: concluída</h3>
+<div class="cx">
+<ol class="wl-steps" aria-label="Assinatura e entrada">
+<li data-state="done"><span class="wl-steps__title">Contrato enviado</span><span class="wl-steps__text">07 out, 10:20 · diego.martins@exemplo.com.br</span></li>
+<li data-state="done"><span class="wl-steps__title">Assinatura do cliente</span><span class="wl-steps__text">Assinado em 07 out, 10:41</span></li>
+<li data-state="done"><span class="wl-steps__title">Entrada de R$ 5.000,00</span><span class="wl-steps__text">Paga em 07 out, 11:02 · Pix</span></li>
+<li data-state="done"><span class="wl-steps__title">Venda concluída</span><span class="wl-steps__text">07 out, 11:02</span></li>
+</ol>
+<div class="wl-note wl-note--info" role="note">Venda concluída. As 12 parcelas estão em Contas a receber, a comissão de R$ 632,04 foi lançada e o veículo saiu da frota de locação.</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;"><span class="wl-badge wl-badge--sm wl-badge--warning">Falta a transferência no Detran</span><button class="wl-btn wl-btn--sm">Contrato</button></div>
+</div></div>
+
+<div class="est"><h3>Etapa 3 · Assinatura: sem modelo de contrato publicado</h3>
+<div class="cx">
+<div class="wl-note wl-note--critical" role="alert">Publique um modelo de contrato de compra e venda antes de concluir a venda.</div>
+<div class="acts"><button class="wl-btn">Publicar modelo</button></div>
+</div></div>
+
+<div class="est"><h3>Cancelar assinatura</h3>
+<div class="dlg" role="dialog" aria-label="Cancelar a assinatura">
+<h4>Cancelar a assinatura?</h4>
+<p>O contrato e a cobrança da entrada são cancelados, e você pode mudar a proposta.</p>
+<div class="acts"><button class="wl-btn wl-btn--quiet">Manter assinatura</button><button class="wl-btn wl-btn--solid">Cancelar assinatura</button></div>
+</div></div>
+
+<div class="est"><h3>Fase 2, sem desenho agora</h3>
+<span class="lbl">A troca (VEN-05) e o cancelamento da venda concluída (VEN-07) entram na fase 2. A caixa da troca fica marcada como fase 2 no passo 1 e não aparece até lá.</span></div>
+</section>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1900}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":6800}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');

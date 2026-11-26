@@ -45,7 +45,7 @@ export function textoFaltam(minutos: number): string {
   return `${minutos === 1 ? "falta" : "faltam"} ${minutos} ${minutos === 1 ? "minuto" : "minutos"}`;
 }
 
-const UNIDADE: Record<Periodicidade, [string, string]> = { diaria: ["diária", "diárias"], semanal: ["semana", "semanas"], mensal: ["mês", "meses"] };
+const UNIDADE: Record<Periodicidade, [string, string]> = { diaria: ["diária", "diárias"], semanal: ["semana", "semanas"], quinzenal: ["quinzena", "quinzenas"], mensal: ["mês", "meses"] };
 
 /** "2 semanas". */
 export function textoDoPeriodo(periodos: number, periodicidade: Periodicidade): string {

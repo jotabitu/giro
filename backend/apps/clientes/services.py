@@ -15,12 +15,13 @@ from django.db import IntegrityError, transaction
 from comum import aprovacoes, arquivos, estados, leituras, relogio
 from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.auditoria import TipoAtor, ator_atual, auditar, registrar_evento, retrato
-from comum.campos import buscar_por_hash
+from comum.campos import anonimizar_cifrado, buscar_por_hash
 from comum.dinheiro import formatar_reais
 from comum.documentos import cnpj_valido, cpf_valido, so_digitos
-from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao
+from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, NaoEncontrado
+from comum.tasks import apagar_depois_do_commit
 
-from . import selectors
+from . import exclusao, selectors
 from .models import (
     CategoriaCnh,
     Cliente,
@@ -63,6 +64,20 @@ def _travar_id(cliente_id: int) -> Cliente:
 
 def _travar(cliente: Cliente) -> Cliente:
     return _travar_id(cliente.pk)
+
+
+def travar_para_vincular(cliente_id: Any) -> Cliente:
+    """Para quem cria registro ligado ao cliente (locação, venda, conta), dentro da transação de
+    quem chama: trava a linha (`FOR NO KEY UPDATE`, que espera o `FOR UPDATE` do excluir) e lê de
+    novo pelo manager, que tira o excluído. Sem isso, a locação criada no mesmo instante do
+    excluir entrava depois da conferência do histórico (CLI-13; T-517, Segurança no #679, B2).
+    400 no campo `cliente_id` quando o cliente não existe ou foi excluído."""
+    travado: Cliente | None = (
+        Cliente.objects.select_for_update(no_key=True).filter(pk=cliente_id).first()
+    )
+    if travado is None:
+        raise ErroDeValidacao({"cliente_id": ["Cliente não encontrado."]})
+    return travado
 
 
 def _recarregar(cliente: Cliente) -> None:
@@ -543,3 +558,117 @@ def reativar(cliente: Cliente, motivo: str) -> Cliente:
         )
     _recarregar(cliente)
     return cliente
+
+
+# --- Dados pessoais apagados (AUD-06, CLI-13) ---
+
+CIFRADOS = ("documento", "cnh_numero", "responsavel_cpf")
+NOME_ANONIMO = "Cliente anonimizado"
+NOME_EXCLUIDO = "Cliente excluído"
+# Nome, contato, endereço e referência (clientes.md). Categoria e datas da CNH não identificam
+# a pessoa (ADR 0014, item 3) e ficam.
+CAMPOS_APAGADOS = (
+    "email",
+    "profissao",
+    "responsavel_nome",
+    "responsavel_celular",
+    "cep",
+    "logradouro",
+    "numero",
+    "complemento",
+    "bairro",
+    "cidade",
+    "uf",
+    "referencia_nome",
+    "referencia_parentesco",
+    "referencia_telefone",
+)
+
+
+def apagar_dados_pessoais(cliente: Cliente, nome: str) -> None:
+    """Os cifrados viram vazios com hash aleatório (o CPF fica livre, CLI-01) e nome, contato,
+    endereço e referência saem. Quem chama audita e salva (a anonimização e o excluir)."""
+    for campo in CIFRADOS:
+        anonimizar_cifrado(cliente, campo)
+    cliente.nome = nome
+    cliente.celular = ""
+    cliente.nascimento = None
+    for campo in CAMPOS_APAGADOS:
+        setattr(cliente, campo, "")
+    _limpar_linhas_de_importacao(cliente)
+
+
+def _limpar_linhas_de_importacao(cliente: Cliente) -> None:
+    """T-517 (Segurança no #679, B4): a linha da planilha que criou o cliente guarda CPF e contato
+    (`dados_cifrados`) e o hash do documento até `apagar_em`; saem junto com o cadastro. Pelo
+    registro do app, sem importar `importacao` (ADR 0011, ADR 0017). Dado temporário, sem evento."""
+    from django.apps import apps
+
+    linha = apps.get_model("importacao", "LinhaImportacao")
+    linha.objects.filter(objeto_tipo="cliente", objeto_id=cliente.pk).update(
+        dados_cifrados="", dados={}, chave_documento=""
+    )
+
+
+def soltar_documentos(cliente: Cliente, acao: str, categoria: str, regra: str) -> list[str]:
+    """Os documentos ficam inativos e sem arquivo, cada um com o seu evento. Devolve os caminhos,
+    que quem chama apaga do armazenamento depois do commit."""
+    caminhos: list[str] = []
+    for documento in DocumentoCliente.objects.select_for_update().filter(cliente=cliente):
+        with auditar(documento, acao, categoria, regra=regra):
+            if documento.arquivo:
+                caminhos.append(documento.arquivo.name)
+            documento.arquivo = None
+            documento.ativo = False
+            documento.save(update_fields=["arquivo", "ativo", "atualizado_em"])
+    return caminhos
+
+
+# --- Excluir (CLI-13, T-515) ---
+
+
+def excluir(cliente: Cliente) -> Cliente:
+    """O cadastro feito por engano, sem histórico (CLI-13). Fica guardado e marcado, sem os dados
+    pessoais (apagados como na AUD-06) e sem os arquivos dos documentos; some de tudo para a
+    empresa (o manager padrão tira o excluído). O histórico é conferido com o cliente travado.
+
+    409 `CLI-13` com `historico`; 409 `transicao_cliente` no bloqueado; 404 no já excluído.
+    Perfil, na view."""
+    with transaction.atomic():
+        try:
+            travado = _travar(cliente)
+        except Cliente.DoesNotExist as erro:
+            raise NaoEncontrado("nao_encontrado", "Cliente não encontrado.") from erro
+        achados = exclusao.historico(travado)
+        if achados:
+            raise Conflito("CLI-13", exclusao.motivo(achados), {"historico": achados})
+        if travado.status == S.BLOQUEADO:
+            raise Conflito(
+                "transicao_cliente",
+                exclusao.BLOQUEADO,
+                {"de": travado.status, "para": "excluido"},
+            )
+        agora = relogio.agora()
+        quem = _quem()
+        # O nome e o tipo no momento, para a locadora saber quem saiu (mascarados como em todo
+        # evento do cliente; CPF, CNPJ e CNH omitidos, ADR 0014).
+        antes = {"nome": travado.nome, "tipo": travado.tipo, "status": travado.status}
+        apagar_dados_pessoais(travado, NOME_EXCLUIDO)
+        travado.excluido_em = agora
+        travado.excluido_por_id = quem
+        travado.save()
+        caminhos = soltar_documentos(
+            travado, "documento_cliente.excluir", CategoriaAuditoria.OPERACAO, "CLI-13"
+        )
+        registrar_evento(
+            "cliente.excluir",
+            CategoriaAuditoria.OPERACAO,
+            objeto=travado,
+            antes=antes,
+            depois={"excluido_em": agora.isoformat(), "excluido_por": quem},
+            regra="CLI-13",
+        )
+        # Depois do commit (se algo antes falhar, nenhum arquivo some sem o registro mudar), por
+        # uma tarefa com nova tentativa; a resposta não depende dela (T-517, Segurança no #679, B3).
+        apagar_depois_do_commit(caminhos)
+    return travado

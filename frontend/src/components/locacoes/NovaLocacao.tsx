@@ -7,23 +7,26 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
-import { Button, Icone, Panel, TextField } from "@/design-system";
+import { BarraDeAcoes, Button, Icone, Panel, TextField, useBlocoVisivel } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
-import { clientes, ErroApi, locacoes, veiculos, type EntradaDaLocacao, type Periodicidade, type PlanoDeCompra, type PlanoEspecial } from "@/lib/api";
+import { clientes, ErroApi, locacoes, veiculos, type EntradaDaLocacao, type Periodicidade } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
-import { dataCompleta, dinheiro, dinheiroSemZeros, diaDe, instanteDeLocal, localDeInstante } from "@/lib/formatos";
+import { dataCompleta, dinheiro, diaDe, instanteDeLocal, localDeInstante } from "@/lib/formatos";
 import { agoraNoDia, useAgora, useAmbiente } from "@/lib/ambiente";
 import { useFilial } from "@/lib/filial-escolhida";
-import { corpoDaLocacao, descontoValido, esquemaLocacao, FORMAS_DE_PAGAMENTO, opcoesDeParcelamento, retiradaPadrao, valoresDoRascunho, valoresIniciais, type Modalidade, type ValoresLocacao } from "@/lib/locacao-form";
+import { corpoDaLocacao, descontoValido, esquemaLocacao, formasDoPlano, linhasDoPlano, periodicidadeDoPlano, retiradaPadrao, valoresDoRascunho, valoresIniciais, valorDoPlano, type ValoresLocacao } from "@/lib/locacao-form";
 import { textoDoPeriodo } from "@/lib/locacoes";
+import { porPeriodoDaCompra, textoDaCaucaoParcelada, textoDoPagamento } from "@/lib/precos-veiculo";
 import { CartaoDoCliente, CartaoDoVeiculo, EscolherCliente, EscolherVeiculo } from "./SeletoresDaLocacao";
 
 // Referência: docs/telas/html/Locacao-Desktop.dc.html e Locacao-Mobile.dc.html.
+// Os planos, o valor, a caução, a franquia e o prazo mínimo são os do veículo (LOC-01, VEI-12, ADR 0041): a tela só manda o id do plano.
 // A tela só envia o formulário; preço, parcelas, caução, desconto e impedimentos voltam da simulação da API (POST /api/locacoes/simular/).
 
 const UNIDADE: Record<Periodicidade, { por: string; plural: string }> = {
   diaria: { por: "dia", plural: "diárias" },
   semanal: { por: "semana", plural: "semanas" },
+  quinzenal: { por: "quinzena", plural: "quinzenas" },
   mensal: { por: "mês", plural: "meses" },
 };
 
@@ -49,7 +52,10 @@ function Etapas() {
   );
 }
 
-function Plano({ ativo, nome, detalhe, onClick }: { ativo: boolean; nome: string; detalhe?: string; onClick: () => void }) {
+/** VEI-15: o texto da regra, para o veículo que a API não mandou com aviso. */
+const AVISO_SEM_PLANO = "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda.";
+
+function Plano({ ativo, nome, detalhe, linhas, onClick }: { ativo: boolean; nome: string; detalhe?: string; linhas?: string[]; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -59,25 +65,20 @@ function Plano({ ativo, nome, detalhe, onClick }: { ativo: boolean; nome: string
     >
       <span className="text-body font-medium">{nome}</span>
       {detalhe && <small className={`text-caption ${ativo ? "opacity-80" : "text-ink-muted"}`}>{detalhe}</small>}
+      {linhas?.map((l) => (
+        <small key={l} className={`text-caption ${ativo ? "opacity-80" : "text-ink-muted"}`}>
+          {l}
+        </small>
+      ))}
     </button>
   );
 }
 
-function detalheDoPlano(p: PlanoEspecial): string {
-  if (p.regra === "preco_fixo" && p.preco_centavos) return `${dinheiro(p.preco_centavos)} / ${UNIDADE[p.periodicidade].por}`;
-  if (p.desconto_pct && p.a_partir_do_periodo) return `${Number(p.desconto_pct)}% a partir do ${p.a_partir_do_periodo}º ${UNIDADE[p.periodicidade].por}`;
-  return p.condicoes;
-}
-
-/** LOC-16: "24 parcelas de R$ 1.190,00 · mensal", só o que o plano traz. */
-function detalheDoPlanoDeCompra(p: PlanoDeCompra): string {
-  return `${p.parcelas} parcelas de ${dinheiro(p.valor_parcela_centavos)} · ${p.periodicidade}`;
-}
-
 /** Nova locação (etapa 1, Dados): simula a cada mudança, guarda o rascunho e confirma. */
-export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, tipoInicial, planoDeCompraInicial }: { clienteInicial?: number; veiculoInicial?: number; rascunhoInicial?: number; tipoInicial?: "comum" | "intencao_compra"; planoDeCompraInicial?: number }) {
+export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, tipoInicial, planoInicial }: { clienteInicial?: number; veiculoInicial?: number; rascunhoInicial?: number; tipoInicial?: "comum" | "intencao_compra"; planoInicial?: number }) {
   const router = useRouter();
   const cache = useQueryClient();
+  const blocos = useBlocoVisivel();
   const [escolhendo, setEscolhendo] = useState<"cliente" | "veiculo" | null>(null);
   const [rascunhoId, setRascunhoId] = useState<number | null>(rascunhoInicial ?? null);
   const agoraDaPagina = useAgora();
@@ -87,7 +88,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
 
   const { register, handleSubmit, watch, setValue, reset, clearErrors, formState: { errors, dirtyFields } } = useForm<ValoresLocacao>({
     resolver: zodResolver(esquemaLocacao) as unknown as Resolver<ValoresLocacao>,
-    defaultValues: { ...valoresIniciais(clienteInicial ?? null, veiculoInicial ?? null, agora.current), tipo: tipoInicial ?? "comum", plano_compra_id: planoDeCompraInicial ?? null },
+    defaultValues: { ...valoresIniciais(clienteInicial ?? null, veiculoInicial ?? null, agora.current), tipo: tipoInicial ?? "comum", plano_veiculo_id: planoInicial ?? null },
   });
   const v = watch();
 
@@ -101,45 +102,44 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
   }, [hojeDaApi]);
 
   const extras = useQuery({ queryKey: ["extras"], queryFn: () => locacoes.extras() });
-  const planos = useQuery({ queryKey: ["planos-especiais"], queryFn: () => locacoes.planosEspeciais() });
-  const listaPlanos = useMemo(() => planos.data?.resultados ?? [], [planos.data]);
-  const planosDeCompra = useQuery({ queryKey: ["planos-compra"], queryFn: () => locacoes.planosDeCompra() });
-  const listaDeCompra = useMemo(() => planosDeCompra.data?.resultados ?? [], [planosDeCompra.data]);
   const compra = v.tipo === "intencao_compra";
-  const planoDeCompra = compra ? listaDeCompra.find((p) => p.id === v.plano_compra_id) : undefined;
   const cliente = useQuery({ queryKey: ["cliente", v.cliente_id], queryFn: () => clientes.obter(v.cliente_id ?? 0), enabled: !!v.cliente_id, retry: false });
   const veiculo = useQuery({ queryKey: ["veiculo", v.veiculo_id], queryFn: () => veiculos.obter(v.veiculo_id ?? 0), enabled: !!v.veiculo_id, retry: false });
+  // Os planos ligados do veículo (e o plano de compra dele) vêm da API; plano desligado não aparece (VEI-12).
+  const precos = useQuery({ queryKey: ["veiculo-precos", v.veiculo_id], queryFn: () => veiculos.precos(v.veiculo_id ?? 0), enabled: !!v.veiculo_id, retry: false });
+  // VEI-21: com o aluguel desligado, nenhum plano de aluguel; a locação com compra fica.
+  const ligados = useMemo(() => (precos.data?.aluguel_ligado === false ? [] : (precos.data?.planos ?? []).filter((p) => p.ligado)), [precos.data]);
+  const plano = ligados.find((p) => p.id === v.plano_veiculo_id);
+  const planoDeCompra = precos.data?.plano_compra?.ligado ? precos.data.plano_compra : null;
+  const avisoDoVeiculo = precos.data && ligados.length === 0 ? (precos.data.aviso_aluguel ?? precos.data.aviso_preco ?? AVISO_SEM_PLANO) : null;
 
   // Retomar um rascunho: o formulário volta do detalhe da locação.
   const rascunho = useQuery({ queryKey: ["locacao", rascunhoInicial], queryFn: () => locacoes.obter(rascunhoInicial ?? 0), enabled: !!rascunhoInicial, retry: false });
-  // A cobrança (D-30) depende do plano: só aparece depois que a pessoa escolhe um (ou retoma um rascunho).
-  const [planoEscolhido, setPlanoEscolhido] = useState(false);
   const carregado = useRef(false);
   useEffect(() => {
     if (carregado.current || !rascunho.data || !extras.data) return;
     carregado.current = true;
     reset(valoresDoRascunho(rascunho.data, extras.data.resultados));
-    setPlanoEscolhido(true);
   }, [rascunho.data, extras.data, reset]);
 
-  const corpo = useMemo(() => corpoDaLocacao(v, listaPlanos, listaDeCompra), [v, listaPlanos, listaDeCompra]);
+  const corpo = useMemo(() => corpoDaLocacao(v, plano), [v, plano]);
   const corpoAtrasado = useAtraso(JSON.stringify(corpo));
   const simulacao = useQuery({
     queryKey: ["locacao-simulacao", corpoAtrasado],
     queryFn: () => locacoes.simular(JSON.parse(corpoAtrasado) as EntradaDaLocacao),
-    enabled: corpoAtrasado !== "null" && planos.isSuccess && (!compra || planosDeCompra.isSuccess) && !todasAsFiliais,
+    enabled: corpoAtrasado !== "null" && (compra ? !!planoDeCompra : precos.isSuccess) && !todasAsFiliais,
     placeholderData: (anterior) => anterior,
     retry: false,
   });
   const sim = simulacao.data;
-  const periodicidade: Periodicidade = planoDeCompra?.periodicidade ?? corpo?.periodicidade ?? (v.modalidade.startsWith("especial:") ? (listaPlanos.find((p) => `especial:${p.id}` === v.modalidade)?.periodicidade ?? "semanal") : (v.modalidade as Periodicidade));
+  const periodicidade: Periodicidade = compra ? ((sim?.compra?.periodicidade as Periodicidade | undefined) ?? planoDeCompra?.periodicidade ?? "semanal") : periodicidadeDoPlano(plano?.periodo ?? sim?.plano?.periodo);
   const un = UNIDADE[periodicidade];
   const hoje = diaDe(agoraDaPagina.toISOString());
 
   const erroSim = (campo: string) => campoDoErro(simulacao.error, campo);
   const avisoDeFilial = todasAsFiliais ? "Escolha uma filial no menu para criar a locação." : erroSim("filial");
   // Erro de campo que nenhum campo da tela mostra: aparece no resumo, para o botão não ficar desligado sem explicação.
-  const camposDaTela = ["filial", "plano_especial_id", "plano_compra_id", "veiculo_id", "inicio", "fim_previsto", "periodos", "desconto_pct"];
+  const camposDaTela = ["filial", "plano_veiculo_id", "veiculo_id", "inicio", "fim_previsto", "periodos", "desconto_pct"];
   const erroSemCampo = simulacao.error instanceof ErroApi && simulacao.error.campos ? Object.entries(simulacao.error.campos).find(([c]) => !camposDaTela.includes(c))?.[1] : undefined;
   const impedimentos = sim?.impedimentos ?? [];
 
@@ -163,7 +163,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
     )();
 
   const descontoErro = !descontoValido(v.desconto) ? "Informe um percentual, como 5 ou 2,5" : erroSim("desconto_pct");
-  const escolhido = compra ? !!planoDeCompra : planoEscolhido;
+  const escolhido = compra ? !!planoDeCompra : !!plano;
   const pronto = escolhido && !todasAsFiliais && !!sim && !simulacao.isError && impedimentos.length === 0 && !salvar.isPending && !descontoErro;
   const erroDoEnvio = salvar.error instanceof ErroApi ? salvar.error : null;
   const linkDoErro = typeof erroDoEnvio?.detalhes?.link === "string" ? erroDoEnvio.detalhes.link : null;
@@ -177,12 +177,16 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
   };
   const escolherVeiculo = (id: number) => {
     setValue("veiculo_id", id, { shouldValidate: true });
+    setValue("plano_veiculo_id", null);
     clearErrors("veiculo_id");
     setEscolhendo(null);
   };
-  const preco = veiculo.data?.preco_vigente;
   const alternarExtra = (id: number) => setValue("extras", v.extras.includes(id) ? v.extras.filter((x) => x !== id) : [...v.extras, id]);
-  const opcoes = opcoesDeParcelamento(periodicidade);
+  const formas = formasDoPlano(compra ? undefined : plano);
+  // Plano novo, forma de pagamento que ele aceita: a API recusa a que ficou de fora (VEI-12).
+  useEffect(() => {
+    if (!formas.some((f) => f.valor === v.forma_pagamento) && formas[0]) setValue("forma_pagamento", formas[0].valor);
+  }, [formas, v.forma_pagamento, setValue]);
   const primeiroVencimento = v.primeiro_vencimento || sim?.parcelas_previstas[0]?.vencimento || "";
   const fimMostrado = v.fim || (sim?.fim_previsto ? localDeInstante(sim.fim_previsto) : "");
   const fimInvalido = v.fim !== "" && instanteDeLocal(v.fim) === null;
@@ -204,11 +208,9 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
     salvar.reset();
   };
 
-  const modalidade = (m: Modalidade) => () => {
-    setPlanoEscolhido(true);
-    setValue("modalidade", m);
+  const escolherPlano = (id: number | null) => () => {
+    setValue("plano_veiculo_id", id);
     setValue("fim", "");
-    if (m !== "mensal") setValue("parcelamento_mensal", "a_vista");
   };
 
   return (
@@ -256,16 +258,28 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
           {compra && (
             <Panel titulo="Plano de compra">
               <div className="flex flex-col gap-4">
-                {planosDeCompra.isPending && <p className="text-body text-ink-muted">Carregando os planos de compra…</p>}
-                {planosDeCompra.isError && <p role="alert" className="text-body">{mensagemDoErro(planosDeCompra.error)}</p>}
-                {planosDeCompra.isSuccess && listaDeCompra.length === 0 && <p className="text-body text-ink-muted">Nenhum plano de compra ativo. O administrador cadastra os planos em Preços.</p>}
-                <div role="group" aria-label="Plano de compra" className="grid gap-2 md:grid-cols-2">
-                  {listaDeCompra.map((p) => (
-                    <Plano key={p.id} ativo={v.plano_compra_id === p.id} nome={p.nome} detalhe={detalheDoPlanoDeCompra(p)} onClick={() => setValue("plano_compra_id", p.id)} />
-                  ))}
-                </div>
-                {!planoDeCompra && listaDeCompra.length > 0 && <p className="text-caption text-ink-muted">Escolha o plano para ver a cobrança.</p>}
-                {erroSim("plano_compra_id") && <p role="alert" className="text-caption text-critical">{erroSim("plano_compra_id")}</p>}
+                {!v.veiculo_id && <p className="text-body text-ink-muted">Escolha o veículo para ver o plano de compra.</p>}
+                {precos.isPending && !!v.veiculo_id && <p className="text-body text-ink-muted">Carregando o plano de compra…</p>}
+                {precos.isError && <p role="alert" className="text-body">{mensagemDoErro(precos.error)}</p>}
+                {precos.isSuccess && !planoDeCompra && (
+                  <p role="status" className="text-body text-ink-muted">
+                    Este veículo não tem locação com compra ligada.{" "}
+                    <Link href={`/veiculos/${v.veiculo_id}/precos`} className="underline">
+                      Abrir Planos e preços
+                    </Link>
+                  </p>
+                )}
+                {planoDeCompra && (
+                  <div role="group" aria-label="Plano de compra" className="grid gap-2 md:grid-cols-2">
+                    <Plano
+                      ativo
+                      nome="Locação com compra"
+                      detalhe={planoDeCompra.resultado ? `${dinheiro(planoDeCompra.resultado.parcela_cliente_centavos)} ${porPeriodoDaCompra(planoDeCompra.periodicidade)}` : undefined}
+                      linhas={[`${planoDeCompra.parcelas} parcelas`, ...(planoDeCompra.entrada_centavos > 0 ? [`Entrada ${dinheiro(planoDeCompra.entrada_centavos)}`] : [])]}
+                      onClick={() => undefined}
+                    />
+                  </div>
+                )}
                 <div className="grid gap-4 md:grid-cols-2">
                   <TextField cheio mono rotulo="Retirada" type="datetime-local" erro={errors.inicio?.message ?? erroSim("inicio")} {...register("inicio")} />
                   <TextField
@@ -285,16 +299,26 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
           {!compra && (
           <Panel titulo="Plano e período">
             <div className="flex flex-col gap-4">
-              <div role="group" aria-label="Modalidade" className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                <Plano ativo={planoEscolhido && v.modalidade === "diaria"} nome="Diária" detalhe={preco ? `${dinheiro(preco.diaria_centavos)} / dia` : undefined} onClick={modalidade("diaria")} />
-                <Plano ativo={planoEscolhido && v.modalidade === "semanal"} nome="Semanal" detalhe={preco ? `${dinheiro(preco.semanal_centavos)} / semana` : undefined} onClick={modalidade("semanal")} />
-                <Plano ativo={planoEscolhido && v.modalidade === "mensal"} nome="Mensal" detalhe={preco ? `${dinheiroSemZeros(preco.mensal_centavos)} / mês` : undefined} onClick={modalidade("mensal")} />
-                {listaPlanos.map((p) => (
-                  <Plano key={p.id} ativo={v.modalidade === `especial:${p.id}`} nome={p.nome} detalhe={detalheDoPlano(p)} onClick={modalidade(`especial:${p.id}`)} />
-                ))}
-              </div>
-              {!planoEscolhido && <p className="text-caption text-ink-muted">Escolha o plano para ver a cobrança.</p>}
-              {erroSim("plano_especial_id") && <p role="alert" className="text-caption text-critical">{erroSim("plano_especial_id")}</p>}
+              {!v.veiculo_id && <p className="text-body text-ink-muted">Escolha o veículo para ver os planos.</p>}
+              {precos.isPending && !!v.veiculo_id && <p className="text-body text-ink-muted">Carregando os planos…</p>}
+              {precos.isError && <p role="alert" className="text-body">{mensagemDoErro(precos.error)}</p>}
+              {avisoDoVeiculo && (
+                <p role="status" className="rounded-md bg-surface-sunken px-4 py-3 text-body">
+                  {avisoDoVeiculo}{" "}
+                  <Link href={`/veiculos/${v.veiculo_id}/precos`} className="underline">
+                    Abrir Planos e preços
+                  </Link>
+                </p>
+              )}
+              {ligados.length > 0 && (
+                <div role="group" aria-label="Plano do veículo" className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  {ligados.map((p) => (
+                    <Plano key={p.id} ativo={v.plano_veiculo_id === p.id} nome={p.rotulo} detalhe={valorDoPlano(p)} linhas={linhasDoPlano(p)} onClick={escolherPlano(p.id)} />
+                  ))}
+                </div>
+              )}
+              {ligados.length > 0 && !plano && <p className="text-caption text-ink-muted">Escolha o plano para ver a cobrança.</p>}
+              {erroSim("plano_veiculo_id") && <p role="alert" className="text-caption text-critical">{erroSim("plano_veiculo_id")}</p>}
               <div className="grid gap-4 md:grid-cols-3">
                 <TextField
                   cheio
@@ -314,7 +338,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
                   dica={sim ? `${textoDoPeriodo(sim.periodos, periodicidade)}${periodicidade === "diaria" ? "" : ` · renova a cada ${un.por}`}` : undefined}
                   erro={fimInvalido ? "Informe a data e a hora" : (erroSim("fim_previsto") ?? erroSim("periodos"))}
                 />
-                <TextField cheio rotulo="Franquia de km" value="Livre" readOnly dica="Km livre em todos os planos" />
+                <TextField cheio rotulo="Franquia de km" value={plano ? (plano.franquia_km == null ? "Livre" : `${new Intl.NumberFormat("pt-BR").format(plano.franquia_km)} km por ${un.por}`) : "—"} readOnly dica={plano?.franquia_km == null && plano ? "Km livre neste plano" : undefined} />
               </div>
             </div>
           </Panel>
@@ -323,9 +347,10 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
           {compra && planoDeCompra && (
             <Panel titulo="Cobrança">
               <div className="grid gap-4 md:grid-cols-2">
-                <CampoSelecao rotulo="Forma de pagamento" value={v.forma_pagamento} onChange={(e) => setValue("forma_pagamento", e.target.value as ValoresLocacao["forma_pagamento"])} opcoes={FORMAS_DE_PAGAMENTO.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))} />
+                <CampoSelecao rotulo="Forma de pagamento" value={v.forma_pagamento} onChange={(e) => setValue("forma_pagamento", e.target.value as ValoresLocacao["forma_pagamento"])} opcoes={formas.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))} />
+                {!!sim?.compra?.entrada_centavos && <TextField cheio rotulo="Entrada" value={dinheiro(sim.compra.entrada_centavos)} readOnly dica="Cobrada na retirada" />}
                 <TextField cheio rotulo="Primeiro vencimento" mono type="date" value={sim?.parcelas_previstas[0]?.vencimento ?? ""} readOnly dica={sim?.parcelas_previstas[0] ? dataCompleta(sim.parcelas_previstas[0].vencimento) : undefined} />
-                <TextField cheio rotulo="Caução" value={sim ? dinheiro(sim.caucao_centavos) : "—"} readOnly dica="Abatida na última parcela" />
+                <TextField cheio rotulo="Caução" value={sim ? dinheiro(sim.caucao_centavos) : "—"} readOnly dica="Abatida da última parcela" />
               </div>
               <p className="mt-4 flex items-start gap-2 rounded-md bg-surface-sunken px-4 py-3 text-caption text-ink-muted">
                 <Icone de={Info} />
@@ -334,16 +359,11 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
             </Panel>
           )}
 
-          {!compra && planoEscolhido && (
+          {!compra && !!plano && (
             <Panel titulo="Cobrança">
               <div className="grid gap-4 md:grid-cols-2">
-                <CampoSelecao
-                  rotulo="Parcelamento"
-                  value={opcoes.some((o) => o.valor === v.parcelamento_mensal) ? v.parcelamento_mensal : "a_vista"}
-                  onChange={(e) => setValue("parcelamento_mensal", e.target.value as ValoresLocacao["parcelamento_mensal"])}
-                  opcoes={opcoes.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
-                />
-                <CampoSelecao rotulo="Forma de pagamento" value={v.forma_pagamento} onChange={(e) => setValue("forma_pagamento", e.target.value as ValoresLocacao["forma_pagamento"])} opcoes={FORMAS_DE_PAGAMENTO.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))} />
+                <TextField cheio rotulo="Como o cliente paga" value={plano ? textoDoPagamento(plano.como_paga ?? "tudo_na_retirada", plano.parcela_do_mes) : ""} readOnly dica="Definido no plano deste veículo" />
+                <CampoSelecao rotulo="Forma de pagamento" value={v.forma_pagamento} onChange={(e) => setValue("forma_pagamento", e.target.value as ValoresLocacao["forma_pagamento"])} opcoes={formas.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))} />
                 <TextField
                   cheio
                   mono
@@ -353,7 +373,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
                   onChange={(e) => setValue("primeiro_vencimento", e.target.value)}
                   dica={primeiroVencimento ? dataCompleta(primeiroVencimento) : undefined}
                 />
-                <TextField cheio rotulo="Caução" value={sim ? dinheiro(sim.caucao_centavos) : "—"} readOnly dica="Devolvida no encerramento sem pendências" />
+                <TextField cheio rotulo="Caução" value={sim ? dinheiro(sim.caucao_centavos) : "—"} readOnly dica={plano?.caucao_parcelada && plano.caucao_parcelas > 1 ? textoDaCaucaoParcelada(plano.caucao_parcelada) : "Devolvida no encerramento sem pendências"} />
                 <TextField
                   cheio
                   rotulo="Desconto (%)"
@@ -392,7 +412,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
         <aside className="flex min-w-0 flex-col gap-6 md:sticky md:top-6">
           <Panel titulo="Resumo">
             {(avisoDeFilial ?? erroSemCampo) && <p role="alert" className="text-body">{avisoDeFilial ?? erroSemCampo}</p>}
-            {!sim && !simulacao.isError && !avisoDeFilial && <p className="text-body text-ink-muted">{corpo ? "Calculando…" : "Escolha o cliente e o veículo para ver os valores."}</p>}
+            {!sim && !simulacao.isError && !avisoDeFilial && <p className="text-body text-ink-muted">{corpo ? "Calculando…" : v.cliente_id && v.veiculo_id && !compra ? "Escolha o plano para ver os valores." : "Escolha o cliente e o veículo para ver os valores."}</p>}
             {simulacao.isError && !(simulacao.error instanceof ErroApi && simulacao.error.campos) && <p role="alert" className="text-body">{mensagemDoErro(simulacao.error)}</p>}
             {sim && (
               <div aria-busy={simulacao.isFetching}>
@@ -452,7 +472,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
             )}
           </Panel>
 
-          <section className="wl-panel flex flex-col gap-3">
+          <section ref={blocos.ref()} className="wl-panel flex flex-col gap-3">
             {salvar.isError && (
               <p role="alert" className="text-body text-critical">
                 {mensagemDoErro(salvar.error)}{" "}
@@ -472,6 +492,12 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
           </section>
         </aside>
       </div>
+
+      <BarraDeAcoes
+        blocos={blocos}
+        cancelar={{ href: "/locacoes" }}
+        principal={{ rotulo: "Continuar para vistoria", disabled: !pronto, ocupado: salvar.isPending, aoClicar: () => enviar("vistoria") }}
+      />
 
       {escolhendo === "cliente" && <EscolherCliente aoFechar={() => setEscolhendo(null)} aoEscolher={(c) => escolherCliente(c.id)} />}
       {escolhendo === "veiculo" && <EscolherVeiculo aoFechar={() => setEscolhendo(null)} aoEscolher={(x) => escolherVeiculo(x.id)} />}

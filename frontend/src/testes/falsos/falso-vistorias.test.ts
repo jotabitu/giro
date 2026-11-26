@@ -54,7 +54,7 @@ describe("vistoria de saída (VIS-01 a VIS-04, VEI-01, CLI-03)", () => {
   });
 
   it("fluxo completo com cliente ativo: concluir grava o km da saída e a vistoria não se edita mais (409)", async () => {
-    const corpo = corpoDaLocacao(valoresIniciais(1201, 509, new Date("2026-10-07T12:20:00Z")), [])!;
+    const corpo = corpoDaLocacao({ ...valoresIniciais(1201, 509, new Date("2026-10-07T12:20:00Z")), plano_veiculo_id: 7002 })!;
     const rascunho = await locacoes.criar(corpo);
     await locacoes.confirmar(rascunho.id);
     const v = await vistorias.iniciarSaida(rascunho.id);

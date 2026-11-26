@@ -43,8 +43,8 @@ export const precoIgual = (a: CorpoDoPreco, b: CorpoDoPreco) => CAMPOS_DE_PRECO.
 
 export const ROTULO_DA_COBRANCA: Record<CobrancaDoExtra, string> = { por_periodo: "por período", unica: "cobrança única" };
 
-const SUFIXO: Record<PeriodicidadeDoPlano, string> = { diaria: "dia", semanal: "sem", mensal: "mês" };
-export const ROTULO_DA_PERIODICIDADE: Record<PeriodicidadeDoPlano, string> = { diaria: "Diária", semanal: "Semanal", mensal: "Mensal" };
+const SUFIXO: Record<PeriodicidadeDoPlano, string> = { diaria: "dia", semanal: "sem", quinzenal: "quinzena", mensal: "mês" };
+export const ROTULO_DA_PERIODICIDADE: Record<PeriodicidadeDoPlano, string> = { diaria: "Diária", semanal: "Semanal", quinzenal: "Quinzenal", mensal: "Mensal" };
 
 /** "R$ 279,00/sem" para preço fixo e "−10%" para desconto, como a lista de planos especiais mostra. */
 export function valorDoPlano(p: Pick<PlanoEspecialDePreco, "regra" | "preco_centavos" | "desconto_pct" | "periodicidade">): string {

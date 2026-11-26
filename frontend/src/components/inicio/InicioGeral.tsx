@@ -8,6 +8,7 @@ import {
   DataTable,
   FleetBar,
   Icone,
+  ListaComRolagem,
   Panel,
   SearchField,
   SegmentedControl,
@@ -20,6 +21,7 @@ import { hrefDoDestino } from "@/lib/menu";
 import { atualizadoHa, tomDoStatus } from "@/lib/painel";
 import { useSessao } from "@/lib/sessao";
 import { CabecalhoInicio, KpisDoPainel } from "./comuns";
+import { BlocoEstoqueAVenda, BlocoTicketMedio } from "./EstoqueAVenda";
 
 type Linha = InicioDe<"geral">["devolucoes_semana"]["linhas"][number];
 
@@ -93,10 +95,33 @@ export function InicioGeral({ d, periodo, aoMudarPeriodo }: { d: InicioDe<"geral
         </div>
       </Panel>
 
+      {/* T-487: só administrador e gerente recebem os blocos (VEI-20, VEN-12). */}
+      {(d.estoque_a_venda || d.ticket_medio) && (
+        <div className="flex flex-wrap items-start gap-6">
+          {d.estoque_a_venda && (
+            <div className="min-w-0 flex-[2_1_560px]">
+              <BlocoEstoqueAVenda e={d.estoque_a_venda} />
+            </div>
+          )}
+          {d.ticket_medio && (
+            <div className="min-w-0 flex-[1_1_300px]">
+              <BlocoTicketMedio t={d.ticket_medio} />
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Panel titulo="Devoluções da semana" subtitulo={d.devolucoes_semana?.subtitulo}>
-          <DataTable colunas={COLUNAS} linhas={devolucoes} chaveDaLinha={(l) => l.codigo} legenda="Devoluções da semana" />
-        </Panel>
+        {/* No desktop, Devoluções da semana vai até o fim do Caixa de hoje: a coluna da direita dá a altura e a lista
+            rola no espaço que sobra (no mínimo 360 px, para o perfil sem caixa). Empilhado (abaixo de xl), segue a
+            altura máxima da ListaComRolagem. */}
+        <div className="min-w-0 xl:relative xl:min-h-[360px]">
+          <Panel titulo="Devoluções da semana" subtitulo={d.devolucoes_semana?.subtitulo} className="xl:absolute xl:inset-0 xl:flex xl:flex-col">
+            <ListaComRolagem rotulo="Devoluções da semana" className="xl:max-h-none xl:min-h-0 xl:flex-1">
+              <DataTable colunas={COLUNAS} linhas={devolucoes} chaveDaLinha={(l) => l.codigo} legenda="Devoluções da semana" />
+            </ListaComRolagem>
+          </Panel>
+        </div>
         <div className="flex flex-col gap-6">
           <AlertCard
             atualizadoHa={ha}

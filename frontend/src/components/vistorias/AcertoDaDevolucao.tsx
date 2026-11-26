@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Info } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, Icone, Panel, TextField } from "@/design-system";
+import { CampoDeDinheiro, Button, Icone, Panel, TextField } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { vistorias, type AcertoDaDevolucao, type DevolucaoCompleta, type FormaDevolucaoAcerto, type ItemDoAcerto } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
@@ -88,7 +88,7 @@ function ValorEditavel({ item, aoSalvar, desativado, erro }: { item: ItemDoAcert
     if (c === null) return setTexto(emReais(item.valor_centavos));
     if (c !== item.valor_centavos) aoSalvar(c);
   };
-  return <TextField cheio rotulo={item.descricao} inputMode="decimal" value={texto} disabled={desativado} onChange={(e) => setTexto(e.target.value)} onBlur={confirmar} onKeyDown={(e) => e.key === "Enter" && confirmar()} dica="Valor em reais, dado por quem fecha a conta" erro={erro} />;
+  return <CampoDeDinheiro cheio rotulo={item.descricao} value={texto} disabled={desativado} onChange={(e) => setTexto(e.target.value)} onBlur={confirmar} onKeyDown={(e) => e.key === "Enter" && confirmar()} dica="Valor em reais, dado por quem fecha a conta" erro={erro} />;
 }
 
 /** Etapa 2 · Acerto: itens calculados, valores informados, multa de trânsito e forma de devolução. */
@@ -141,7 +141,7 @@ export function EtapaDoAcerto({ d, aoMudar, semNivel = false }: { d: DevolucaoCo
           {!concluido && (
             <div className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_160px_auto]">
               <TextField cheio rotulo="Multa de trânsito" placeholder="Descreva a multa" value={descricao} onChange={(e) => setDescricao(e.target.value)} erro={adicionar.isError ? campoDoErro(adicionar.error, "descricao") : undefined} />
-              <TextField cheio rotulo="Valor" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} erro={adicionar.isError ? campoDoErro(adicionar.error, "valor_centavos") : undefined} />
+              <CampoDeDinheiro cheio rotulo="Valor" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} erro={adicionar.isError ? campoDoErro(adicionar.error, "valor_centavos") : undefined} />
               <div className="md:pt-[26px]">
                 <Button
                   disabled={!descricao.trim() || centavos === null || adicionar.isPending}

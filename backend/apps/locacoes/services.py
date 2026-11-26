@@ -21,6 +21,7 @@ from django.utils import timezone
 
 from apps.auditoria.models import EventoAuditoria
 from apps.clientes import selectors as clientes_selectors
+from apps.clientes import services as clientes_services
 from apps.clientes.models import Cliente
 from apps.contratos import selectors as contratos_selectors
 from apps.contratos.models import Finalidade
@@ -34,13 +35,20 @@ from apps.plataforma import services as plataforma
 from apps.veiculos import selectors as veiculos_selectors
 from apps.veiculos import services as veiculos
 from apps.veiculos.models import Categoria as CategoriaVeiculo
-from apps.veiculos.models import Extra, StatusVeiculo, Veiculo
+from apps.veiculos.models import Extra, PlanoVeiculo, StatusVeiculo, TipoPlano, Veiculo
+from apps.veiculos.selectors import PrecoDaCompra, PrecoDoPlano
 from comum import aprovacoes, estados, relogio
 from comum.auditoria import ATOR_SISTEMA, Categoria, auditar, registrar_evento, usar_ator
 from comum.dinheiro import dividir_em_parcelas, formatar_reais, proporcional
 from comum.documentos import placa_com_hifen
 from comum.empresa import nome_da_empresa
-from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, SemPermissao, TransicaoInvalida
+from comum.erros import (
+    Conflito,
+    ErroDeRegra,
+    ErroDeValidacao,
+    SemPermissao,
+    TransicaoInvalida,
+)
 from comum.eventos import publicar
 from comum.permissoes import pode
 from integracoes.whatsapp import enviar_whatsapp, whatsapp_ao_cliente_final
@@ -48,7 +56,9 @@ from integracoes.whatsapp import enviar_whatsapp, whatsapp_ao_cliente_final
 from . import calculo, contrato, fim
 from .models import (
     ABERTAS,
+    PARTES_DO_MES,
     ExtraLocacao,
+    FormaPagamento,
     Locacao,
     ParcelamentoMensal,
     Periodicidade,
@@ -70,6 +80,7 @@ HORAS_DO_RASCUNHO = 24
 CAMPOS_DO_FORMULARIO = (
     "periodicidade",
     "plano_especial_id",
+    "plano_veiculo_id",
     "periodos",
     "inicio",
     "fim_previsto",
@@ -86,9 +97,41 @@ CAMPOS_DO_FORMULARIO = (
     "usado_em",
     "tipo",
     "plano_compra_id",
+    "plano_compra_veiculo_id",
     "compra_parcelas",
     "compra_valor_parcela_centavos",
+    # ADR 0041, item 5: as regras do veículo congeladas com o plano (LOC-15).
+    "caucao_parcelas",
+    "franquia_km",
+    "km_excedente_centavos",
+    "desconto_sem_aprovacao_pct",
+    "multa_minima_centavos",
+    "prazo_devolucao_caucao_dias",
+    "compra_entrada_centavos",
+    "compra_adicional_centavos",
+    "compra_valor_venda_centavos",
+    "compra_juros_mes_pct",
 )
+# ADR 0041, item 4: a periodicidade da locação sai do período do plano, e o parcelamento do mês,
+# do "como paga" (VEI-12).
+PERIODICIDADE_DO_PERIODO = {
+    "dia": Periodicidade.DIARIA,
+    "semana": Periodicidade.SEMANAL,
+    "mes": Periodicidade.MENSAL,
+}
+PARCELAMENTO_DO_COMO_PAGA = {
+    "mes_uma_parcela": ParcelamentoMensal.A_VISTA,
+    "mes_quatro_semanais": ParcelamentoMensal.QUATRO_SEMANAIS,
+    "mes_duas_quinzenais": ParcelamentoMensal.DUAS_QUINZENAIS,
+}
+# Os tipos de plano do veículo que têm a periodicidade como nome (as locações de antes).
+TIPO_DA_PERIODICIDADE: dict[str, str] = {
+    Periodicidade.DIARIA: TipoPlano.DIARIA,
+    Periodicidade.SEMANAL: TipoPlano.SEMANAL,
+    Periodicidade.MENSAL: TipoPlano.MENSAL,
+}
+PLANO_ESPECIAL_SAIU = "A Nova locação usa os planos do veículo. O plano especial não vale mais."
+ESCOLHA_O_PLANO = "Escolha o plano."
 
 # --- LOC-16: locação com intenção de compra (T-420, ADR 0037) ---
 
@@ -163,7 +206,11 @@ class Montagem:
     preco_periodo_centavos: int
     impedimentos: list[dict[str, Any]] = field(default_factory=list)
     avisos: list[dict[str, Any]] = field(default_factory=list)
-    plano_compra: PlanoCompra | None = None  # LOC-16
+    plano_compra: PlanoCompra | None = None  # LOC-16, só as locações de antes
+    preco_plano: PrecoDoPlano | None = None  # LOC-01: o plano do veículo, pelo preço do dia
+    preco_compra: PrecoDaCompra | None = None  # LOC-16: o plano de compra do veículo
+    periodicidade: str = ""
+    parcelamento_mensal: str = ""
 
 
 def _cliente(cliente_id: Any) -> Cliente:
@@ -182,50 +229,21 @@ def _veiculo(veiculo_id: Any) -> Veiculo:
     return veiculo
 
 
-def _plano(plano_id: Any, periodicidade: str, veiculo: Veiculo) -> PlanoEspecial | None:
-    if not plano_id:
-        return None
-    plano: PlanoEspecial | None = PlanoEspecial.ativos.filter(pk=plano_id).first()
-    if plano is None:
-        raise ErroDeValidacao({"plano_especial_id": ["Plano especial não encontrado."]})
-    if plano.periodicidade != periodicidade:
-        rotulo = Periodicidade(plano.periodicidade).label.lower()
-        raise ErroDeValidacao({"plano_especial_id": [f"O plano {plano.nome} é {rotulo}."]})
-    categorias = set(plano.categorias.values_list("pk", flat=True))
-    if categorias and veiculo.categoria_id not in categorias:
-        raise ErroDeValidacao(
-            {
-                "plano_especial_id": [
-                    f"O plano {plano.nome} não vale para a categoria {veiculo.categoria.nome}."
-                ]
-            }
-        )
-    return plano
-
-
 def _tipo(dados: dict[str, Any]) -> str:
     return str(dados.get("tipo") or TipoLocacao.COMUM)
 
 
-def _plano_compra(plano_id: Any, veiculo: Veiculo) -> PlanoCompra:
-    """LOC-16: plano ativo, da categoria do veículo (400 nos dois casos)."""
-    if not plano_id:
-        raise ErroDeValidacao({"plano_compra_id": ["Escolha o plano de compra."]})
-    plano: PlanoCompra | None = PlanoCompra.ativos.filter(pk=plano_id).first()
-    if plano is None:
-        raise ErroDeValidacao(
-            {"plano_compra_id": ["Plano de compra não encontrado ou desativado."]}
-        )
-    if plano.categoria_id != veiculo.categoria_id:
-        raise ErroDeValidacao({"veiculo_id": ["O veículo não é da categoria do plano."]})
-    return plano
-
-
-def _recusar_fora_do_plano(dados: dict[str, Any], plano: PlanoCompra) -> None:
-    """LOC-16, CA-420-02: sem desconto, extras, plano especial, fim escolhido ou parcelamento.
-    A periodicidade e os períodos vêm do plano; mandados iguais, passam."""
+def _recusar_fora_do_plano(dados: dict[str, Any], plano: PrecoDaCompra) -> None:
+    """LOC-16, CA-420-02: sem desconto, extras, plano especial ou de aluguel, fim escolhido ou
+    parcelamento. A periodicidade e os períodos vêm do plano; mandados iguais, passam."""
     erros: dict[str, list[str]] = {}
-    for campo in ("plano_especial_id", "fim_previsto", "parcelamento_mensal", "extras"):
+    for campo in (
+        "plano_especial_id",
+        "plano_veiculo_id",
+        "fim_previsto",
+        "parcelamento_mensal",
+        "extras",
+    ):
         if dados.get(campo):
             erros[campo] = [SO_O_PLANO]
     if Decimal(dados.get("desconto_pct") or 0) != 0:
@@ -351,6 +369,53 @@ def avisos(cliente: Cliente, filial: Filial, tipo: str = TipoLocacao.COMUM) -> l
     return lista
 
 
+def _plano_do_veiculo(dados: dict[str, Any], veiculo: Veiculo, dia: date) -> PrecoDoPlano:
+    """LOC-01, VEI-15 (ADR 0041, item 4): o plano ligado escolhido do veículo, pelo preço do
+    `dia`. Veículo sem plano ligado: 409 `VEI-15`. Enquanto a Nova locação não manda o plano
+    (T-497), a `periodicidade` escolhe o plano do mesmo nome (diária, semanal ou mensal)."""
+    veiculos.conferir_aluguel_ligado(veiculo)  # VEI-21
+    if dados.get("plano_veiculo_id"):
+        return veiculos_selectors.plano_para_locacao(veiculo, dados["plano_veiculo_id"], dia)
+    if not veiculos_selectors.planos_para_locacao(veiculo, dia):
+        raise veiculos.sem_preco()
+    tipo = TIPO_DA_PERIODICIDADE.get(dados.get("periodicidade") or "")
+    if tipo is None:
+        raise ErroDeValidacao({"plano_veiculo_id": [ESCOLHA_O_PLANO]})
+    return veiculos_selectors.plano_do_mesmo_tipo(veiculo, tipo, "", dia)
+
+
+def _parcelamento_do_plano(dados: dict[str, Any], plano: PrecoDoPlano) -> str:
+    """VEI-12: o parcelamento do mês sai do "como paga" do plano. O `parcelamento_mensal`
+    mandado (o caminho antigo, até a T-497) ou o guardado no rascunho ainda vale: a confirmação
+    remonta pelo rascunho, que já aponta para o plano. Trocar o plano no rascunho sem mandar o
+    parcelamento volta ao "como paga" do plano novo (`editar_rascunho`)."""
+    if plano.periodo != "mes":
+        return ""
+    if dados.get("parcelamento_mensal"):
+        return str(dados["parcelamento_mensal"])
+    return str(PARCELAMENTO_DO_COMO_PAGA.get(plano.como_paga, ParcelamentoMensal.A_VISTA))
+
+
+def _forma_aceita(forma: Any, formas_aceitas: tuple[str, ...]) -> None:
+    """VEI-12: a forma de pagamento precisa estar entre as aceitas pelo plano (o Pix automático
+    conta como Pix)."""
+    if not forma:
+        return
+    base = "pix" if forma == FormaPagamento.PIX_AUTOMATICO else str(forma)
+    if formas_aceitas and base not in formas_aceitas:
+        rotulo = FormaPagamento(forma).label if forma in FormaPagamento.values else str(forma)
+        raise ErroDeValidacao({"forma_pagamento": [f"Este plano não aceita {rotulo}."]})
+
+
+def _prazo_minimo(plano: PrecoDoPlano, periodicidade: str, periodos: int) -> None:
+    """VEI-12: "Este plano pede no mínimo 12 semanas." (400 em `periodos`)."""
+    minimo = plano.prazo_minimo_periodos
+    if minimo and periodos < minimo:
+        singular, plural = calculo.UNIDADE[Periodicidade(periodicidade)]
+        unidade = singular if minimo == 1 else plural
+        raise ErroDeValidacao({"periodos": [f"Este plano pede no mínimo {minimo} {unidade}."]})
+
+
 def montar(
     dados: dict[str, Any],
     filial: Filial,
@@ -358,56 +423,52 @@ def montar(
     desconto_pct: Decimal | None = None,
     exceto: int | None = None,
 ) -> Montagem:
-    """Preços de hoje (LOC-15) sobre o formulário. Não grava nada."""
+    """Preços de hoje (LOC-15) sobre o formulário, pelo plano ligado do veículo (LOC-01, ADR
+    0041): valor, caução e as parcelas dela (LOC-04), o dia de atraso (LOC-10) e a multa mínima
+    (LOC-12). Não grava nada."""
     cliente = _cliente(dados.get("cliente_id"))
     veiculo = _veiculo(dados.get("veiculo_id"))
     if _tipo(dados) == COMPRA:
         return _montar_compra(dados, filial, cliente, veiculo, exceto)
-    if not dados.get("periodicidade"):
-        raise ErroDeValidacao({"periodicidade": ["Escolha a periodicidade."]})
-    periodicidade = dados["periodicidade"]
-    plano = _plano(dados.get("plano_especial_id"), periodicidade, veiculo)
+    if dados.get("plano_especial_id"):
+        raise ErroDeValidacao({"plano_especial_id": [PLANO_ESPECIAL_SAIU]})
+    plano = _plano_do_veiculo(dados, veiculo, relogio.hoje())
+    periodicidade = PERIODICIDADE_DO_PERIODO[plano.periodo]
+    parcelamento = _parcelamento_do_plano(dados, plano)
+    _forma_aceita(dados.get("forma_pagamento"), plano.formas_aceitas)
     extras = _extras(list(dados.get("extras") or []))
-    preco = veiculos_selectors.preco_vigente(veiculo.categoria_id, relogio.hoje())
-    if preco is None:
-        raise ErroDeRegra("LOC-01", "A categoria do veículo não tem preço vigente.")
-    tabela = {
-        Periodicidade.DIARIA: preco.diaria_centavos,
-        Periodicidade.SEMANAL: preco.semanal_centavos,
-        Periodicidade.MENSAL: preco.mensal_centavos,
-    }[Periodicidade(periodicidade)]
-    preco_periodo = (
-        plano.preco_centavos
-        if plano is not None and plano.regra == PlanoEspecial.Regra.PRECO_FIXO
-        else tabela
-    )
     entrada = calculo.Entrada(
         periodicidade=periodicidade,
         inicio=dados["inicio"],
         fuso=fuso(filial),
-        preco_periodo_centavos=int(preco_periodo or 0),
-        diaria_centavos=preco.diaria_centavos,
-        caucao_centavos=preco.caucao_centavos,
+        preco_periodo_centavos=plano.valor_centavos,
+        diaria_centavos=plano.dia_atraso_centavos,
+        caucao_centavos=plano.caucao_centavos,
         periodos=dados.get("periodos"),
         fim_previsto=dados.get("fim_previsto"),
-        desconto_do_plano=_desconto_do_plano(plano),
         extras=tuple(extras),
         desconto_pct=Decimal(
             desconto_pct if desconto_pct is not None else dados.get("desconto_pct") or 0
         ),
-        parcelamento_mensal=_parcelamento(dados),
+        parcelamento_mensal=parcelamento,
         primeiro_vencimento=dados.get("primeiro_vencimento"),
+        caucao_parcelas=plano.caucao_parcelas,
     )
+    conta = calculo.calcular(entrada)
+    _prazo_minimo(plano, periodicidade, conta.periodos)
     return Montagem(
         cliente=cliente,
         veiculo=veiculo,
-        plano=plano,
+        plano=None,
         extras=extras,
-        calculo=calculo.calcular(entrada),
-        diaria_centavos=preco.diaria_centavos,
-        preco_periodo_centavos=int(preco_periodo or 0),
+        calculo=conta,
+        diaria_centavos=plano.dia_atraso_centavos,
+        preco_periodo_centavos=plano.valor_centavos,
         impedimentos=impedimentos(cliente, veiculo, filial, exceto, inicio=dados["inicio"]),
         avisos=avisos(cliente, filial),
+        preco_plano=plano,
+        periodicidade=periodicidade,
+        parcelamento_mensal=parcelamento,
     )
 
 
@@ -418,23 +479,23 @@ def _montar_compra(
     veiculo: Veiculo,
     exceto: int | None,
 ) -> Montagem:
-    """LOC-16: o valor e o prazo do plano de compra; a caução e a diária da categoria (LOC-04,
-    base da LOC-10 depois de um encerramento). A última parcela nasce com a caução abatida."""
-    plano = _plano_compra(dados.get("plano_compra_id"), veiculo)
+    """LOC-16 pelo plano de compra ligado do veículo (VEI-16, ADR 0041): a parcela do cliente
+    (moto + adicional), o prazo, a entrada e a caução do plano; o dia de atraso do veículo (base
+    da LOC-10 depois de um encerramento). Sem o plano ligado, 409 `VEI-15`. A última parcela
+    nasce com a caução abatida."""
+    plano = veiculos_selectors.plano_compra_para_locacao(veiculo)
     _recusar_fora_do_plano(dados, plano)
-    preco = veiculos_selectors.preco_vigente(veiculo.categoria_id, relogio.hoje())
-    if preco is None:
-        raise ErroDeRegra("LOC-01", "A categoria do veículo não tem preço vigente.")
     entrada = calculo.Entrada(
         periodicidade=plano.periodicidade,
         inicio=dados["inicio"],
         fuso=fuso(filial),
-        preco_periodo_centavos=plano.valor_parcela_centavos,
-        diaria_centavos=preco.diaria_centavos,
-        caucao_centavos=preco.caucao_centavos,
+        preco_periodo_centavos=plano.parcela_cliente_centavos,
+        diaria_centavos=plano.dia_atraso_centavos,
+        caucao_centavos=plano.caucao_centavos,
         periodos=plano.parcelas,
         primeiro_vencimento=dados.get("primeiro_vencimento"),
         compra=True,
+        entrada_centavos=plano.entrada_centavos,
     )
     return Montagem(
         cliente=cliente,
@@ -442,30 +503,34 @@ def _montar_compra(
         plano=None,
         extras=[],
         calculo=calculo.calcular(entrada),
-        diaria_centavos=preco.diaria_centavos,
-        preco_periodo_centavos=plano.valor_parcela_centavos,
+        diaria_centavos=plano.dia_atraso_centavos,
+        preco_periodo_centavos=plano.parcela_cliente_centavos,
         impedimentos=impedimentos(cliente, veiculo, filial, exceto, inicio=dados["inicio"]),
         avisos=avisos(cliente, filial, COMPRA),
-        plano_compra=plano,
+        preco_compra=plano,
+        periodicidade=plano.periodicidade,
     )
 
 
-def _parcelamento(dados: dict[str, Any]) -> str:
-    if _tipo(dados) == COMPRA:
-        return ""
-    if dados.get("periodicidade") != Periodicidade.MENSAL:
-        return ""
-    return str(dados.get("parcelamento_mensal") or ParcelamentoMensal.A_VISTA)
-
-
-def limite_de_desconto() -> Decimal:
+def limite_de_desconto(locacao: Locacao | None = None, veiculo: Veiculo | None = None) -> Decimal:
+    """LOC-03: o "desconto sem aprovação" do veículo (VEI-14), congelado na locação; nas
+    locações de antes (campo nulo), o da empresa."""
+    if locacao is not None and locacao.desconto_sem_aprovacao_pct is not None:
+        return Decimal(locacao.desconto_sem_aprovacao_pct)
+    if veiculo is not None:
+        regras = veiculos_selectors.regras_para_locacao(veiculo)
+        return Decimal(regras["desconto_sem_aprovacao_pct"])
     return Decimal(empresas_selectors.configuracao().desconto_sem_aprovacao_pct)
 
 
-def precisa_aprovacao_desconto(desconto_pct: Decimal, usuario: Any) -> bool:
-    """LOC-03: acima do limite, só o vendedor pede (`APR-01`); gerente e administrador dão
-    direto (decisão de 07 out 2026)."""
-    return desconto_pct > limite_de_desconto() and getattr(usuario, "perfil", "") not in GESTAO
+def precisa_aprovacao_desconto(
+    desconto_pct: Decimal, usuario: Any, limite: Decimal | None = None
+) -> bool:
+    """LOC-03: acima do limite do veículo, só o vendedor pede (`APR-01`); gerente e
+    administrador dão direto (decisão de 07 out 2026)."""
+    if limite is None:
+        limite = limite_de_desconto()
+    return desconto_pct > limite and getattr(usuario, "perfil", "") not in GESTAO
 
 
 # --- Rascunho ---
@@ -474,25 +539,37 @@ def precisa_aprovacao_desconto(desconto_pct: Decimal, usuario: Any) -> bool:
 def _preencher(locacao: Locacao, dados: dict[str, Any], montagem: Montagem) -> None:
     locacao.cliente = montagem.cliente
     locacao.veiculo = montagem.veiculo
-    plano_compra = montagem.plano_compra
-    # LOC-16: o tipo e o plano de compra. No rascunho, os valores do plano escolhido; na
-    # confirmação, congelados (LOC-15, CA-420-04).
-    locacao.tipo = COMPRA if plano_compra is not None else TipoLocacao.COMUM
-    locacao.plano_compra = plano_compra
-    locacao.compra_parcelas = plano_compra.parcelas if plano_compra else None
-    locacao.compra_valor_parcela_centavos = (
-        plano_compra.valor_parcela_centavos if plano_compra else None
-    )
-    locacao.periodicidade = (
-        plano_compra.periodicidade if plano_compra is not None else dados["periodicidade"]
-    )
-    locacao.plano_especial = montagem.plano
+    compra = montagem.preco_compra
+    plano = montagem.preco_plano
+    # LOC-16: o tipo e o plano de compra do veículo. No rascunho, os valores do plano escolhido;
+    # na confirmação, congelados (LOC-15, CA-420-04). O plano de compra da categoria (as
+    # locações de antes) não se escolhe mais (ADR 0041, item 2).
+    locacao.tipo = COMPRA if compra is not None else TipoLocacao.COMUM
+    locacao.plano_compra = None
+    locacao.plano_compra_veiculo_id = compra.plano_id if compra else None
+    locacao.compra_parcelas = compra.parcelas if compra else None
+    locacao.compra_valor_parcela_centavos = compra.parcela_cliente_centavos if compra else None
+    locacao.compra_entrada_centavos = compra.entrada_centavos if compra else None
+    locacao.compra_adicional_centavos = compra.adicional_centavos if compra else None
+    locacao.compra_valor_venda_centavos = compra.valor_venda_centavos if compra else None
+    locacao.compra_juros_mes_pct = compra.juros_mes_pct if compra else None
+    locacao.periodicidade = montagem.periodicidade
+    locacao.plano_especial = None
+    locacao.plano_veiculo_id = plano.plano_id if plano else None
+    # ADR 0041, item 5: as regras do veículo do dia, congeladas na confirmação (LOC-15).
+    regras = plano or compra
+    locacao.caucao_parcelas = plano.caucao_parcelas if plano else 1
+    locacao.franquia_km = plano.franquia_km if plano else None
+    locacao.km_excedente_centavos = regras.km_excedente_centavos if regras else 0
+    locacao.desconto_sem_aprovacao_pct = plano.desconto_sem_aprovacao_pct if plano else None
+    locacao.multa_minima_centavos = regras.multa_minima_centavos if regras else None
+    locacao.prazo_devolucao_caucao_dias = regras.prazo_devolucao_caucao_dias if regras else None
     locacao.periodos = montagem.calculo.periodos
     locacao.inicio = dados["inicio"]
     locacao.fim_previsto = montagem.calculo.fim_previsto
     locacao.desconto_pct = Decimal(dados.get("desconto_pct") or 0)
     locacao.forma_pagamento = dados["forma_pagamento"]
-    locacao.parcelamento_mensal = _parcelamento(dados)
+    locacao.parcelamento_mensal = montagem.parcelamento_mensal
     locacao.primeiro_vencimento = dados.get("primeiro_vencimento")
     locacao.valor_periodo_centavos = montagem.preco_periodo_centavos
     locacao.diaria_centavos = montagem.diaria_centavos
@@ -509,6 +586,7 @@ def criar_rascunho(dados: dict[str, Any], filial: Filial, vendedor: Any) -> Loca
     locacao = Locacao(filial=filial, vendedor=vendedor)
     _preencher(locacao, dados, montagem)
     with transaction.atomic(), auditar(locacao, "locacao.criar", Categoria.OPERACAO):
+        clientes_services.travar_para_vincular(locacao.cliente_id)  # CLI-13 (T-517, B2)
         locacao.save()
     return locacao
 
@@ -530,7 +608,10 @@ def editar_rascunho(locacao: Locacao, dados: dict[str, Any]) -> Locacao:
         if travada.status != S.RASCUNHO:
             raise transicao_invalida(travada.status, S.RASCUNHO)
         completos = {**_formulario(travada), **dados}
+        if "plano_veiculo_id" in dados and "parcelamento_mensal" not in dados:
+            completos["parcelamento_mensal"] = None  # VEI-12: o "como paga" do plano novo
         montagem = montar(completos, travada.filial, exceto=travada.pk)
+        clientes_services.travar_para_vincular(completos["cliente_id"])  # CLI-13 (T-517, B2)
         with auditar(travada, "locacao.editar", Categoria.OPERACAO):
             _preencher(travada, completos, montagem)
             travada.save(update_fields=[*_campos_salvos(), "atualizado_em"])
@@ -541,6 +622,8 @@ def editar_rascunho(locacao: Locacao, dados: dict[str, Any]) -> Locacao:
 def _campos_salvos() -> list[str]:
     return [
         c.replace("plano_especial_id", "plano_especial")
+        .replace("plano_veiculo_id", "plano_veiculo")
+        .replace("plano_compra_veiculo_id", "plano_compra_veiculo")
         .replace("plano_compra_id", "plano_compra")
         .replace("cliente_id", "cliente")
         .replace("veiculo_id", "veiculo")
@@ -554,7 +637,7 @@ def _formulario(locacao: Locacao) -> dict[str, Any]:
         "cliente_id": locacao.cliente_id,
         "veiculo_id": locacao.veiculo_id,
         "periodicidade": locacao.periodicidade,
-        "plano_especial_id": locacao.plano_especial_id,
+        "plano_veiculo_id": locacao.plano_veiculo_id,
         "inicio": locacao.inicio,
         "periodos": locacao.periodos,
         "fim_previsto": None,
@@ -564,7 +647,6 @@ def _formulario(locacao: Locacao) -> dict[str, Any]:
         "parcelamento_mensal": locacao.parcelamento_mensal or None,
         "primeiro_vencimento": locacao.primeiro_vencimento,
         "tipo": locacao.tipo,
-        "plano_compra_id": locacao.plano_compra_id,
     }
 
 
@@ -609,6 +691,8 @@ def _origem(locacao: Locacao) -> financeiro.Origem:
 
 
 def _contas(locacao: Locacao, conta: calculo.Calculo) -> list[financeiro.NovaConta]:
+    """As parcelas, a caução (LOC-04: à vista, uma conta; parcelada, uma por vencimento, a 1ª na
+    retirada) e, na compra, a entrada na retirada (LOC-16)."""
     total = len(conta.parcelas)
     contas = [
         financeiro.NovaConta(
@@ -620,15 +704,32 @@ def _contas(locacao: Locacao, conta: calculo.Calculo) -> list[financeiro.NovaCon
         )
         for p in conta.parcelas
     ]
-    contas.append(
-        financeiro.NovaConta(
-            tipo="caucao",
-            vencimento=conta.parcelas[0].vencimento,
-            valor_centavos=conta.caucao_centavos,
-            # LOC-16: na compra, a caução é abatida na última parcela.
-            observacao="Abatida na última parcela" if e_compra(locacao) else "Devolver na entrega",
+    # LOC-16: na compra, a caução é abatida na última parcela.
+    observacao = "Abatida na última parcela" if e_compra(locacao) else "Devolver na entrega"
+    caucoes = conta.caucoes or [
+        calculo.Parcela(1, conta.parcelas[0].vencimento, conta.caucao_centavos)
+    ]
+    parcelada = len(caucoes) > 1
+    for caucao in caucoes:
+        contas.append(
+            financeiro.NovaConta(
+                tipo="caucao",
+                vencimento=caucao.vencimento,
+                valor_centavos=caucao.valor_centavos,
+                numero_parcela=caucao.numero if parcelada else None,
+                total_parcelas=len(caucoes) if parcelada else None,
+                observacao=observacao,
+            )
         )
-    )
+    if conta.entrada_centavos:
+        contas.append(
+            financeiro.NovaConta(
+                tipo="entrada",
+                vencimento=conta.parcelas[0].vencimento,
+                valor_centavos=conta.entrada_centavos,
+                observacao="Entrada da locação com compra",
+            )
+        )
     # A última parcela de R$ 0,00 da compra (caução maior que a parcela, LOC-16) não nasce:
     # `financeiro` não cria conta zerada; ela conta como paga na quitação (`parcelas_pagas`).
     return contas
@@ -658,7 +759,9 @@ def confirmar(locacao: Locacao, usuario: Any, primeiro_vencimento: date | None =
         if primeiro_vencimento is not None:
             dados["primeiro_vencimento"] = primeiro_vencimento
         pedido_pct = Decimal(travada.desconto_pct)
-        pendente = precisa_aprovacao_desconto(pedido_pct, usuario)
+        # LOC-03: o limite do veículo (VEI-14), o mesmo que a confirmação congela.
+        limite = limite_de_desconto(veiculo=travada.veiculo)
+        pendente = precisa_aprovacao_desconto(pedido_pct, usuario, limite)
         montagem = montar(
             dados,
             travada.filial,
@@ -767,7 +870,9 @@ def _pedir_desconto(locacao: Locacao, usuario: Any, pct: Decimal) -> None:
             ("Com desconto", formatar_reais(com_desconto)),
             ("Desconto", f"{formatar_reais(desconto)} · {_pct(pct)}"),
         ],
-        f"O limite de {primeiro_nome} é {_pct(limite_de_desconto())}." if primeiro_nome else None,
+        f"O limite de {primeiro_nome} é {_pct(limite_de_desconto(locacao))}."
+        if primeiro_nome
+        else None,
     )
     ref = aprovacoes.pedir(
         tipo="APR-01",
@@ -806,6 +911,7 @@ def _entrada_congelada(locacao: Locacao, desconto_pct: Decimal) -> calculo.Entra
         desconto_pct=desconto_pct,
         parcelamento_mensal=locacao.parcelamento_mensal,
         primeiro_vencimento=locacao.primeiro_vencimento,
+        caucao_parcelas=locacao.caucao_parcelas,
     )
 
 
@@ -1248,17 +1354,11 @@ def montar_renovacao(locacao: Locacao, dados: dict[str, Any]) -> Renovacao:
             {"de": locacao.status},
         )
     _sem_cancelamento_em_curso(locacao)
-    preco = veiculos_selectors.preco_vigente(locacao.veiculo.categoria_id, relogio.hoje())
-    if preco is None:
-        raise ErroDeRegra("LOC-01", "A categoria do veículo não tem preço vigente.")
-    plano = locacao.plano_especial
+    preco = plano_da_renovacao(locacao, relogio.hoje())
+    plano = locacao.plano_especial  # só as locações de antes (ADR 0041, item 2)
     if plano is not None and not plano.ativo:
-        plano = None  # plano desativado: a renovação usa a tabela
-    preco_periodo = {
-        Periodicidade.DIARIA: preco.diaria_centavos,
-        Periodicidade.SEMANAL: preco.semanal_centavos,
-        Periodicidade.MENSAL: preco.mensal_centavos,
-    }[Periodicidade(locacao.periodicidade)]
+        plano = None  # plano desativado: a renovação usa o plano do veículo
+    preco_periodo = preco.valor_centavos
     if plano is not None and plano.regra == PlanoEspecial.Regra.PRECO_FIXO:
         preco_periodo = int(plano.preco_centavos or 0)
     desconto_do_plano = _desconto_do_plano(plano)
@@ -1285,7 +1385,7 @@ def montar_renovacao(locacao: Locacao, dados: dict[str, Any]) -> Renovacao:
             inicio=inicio,
             fuso=fuso(locacao.filial),
             preco_periodo_centavos=preco_periodo,
-            diaria_centavos=preco.diaria_centavos,
+            diaria_centavos=preco.dia_atraso_centavos,
             caucao_centavos=0,
             periodos=dados.get("periodos"),
             fim_previsto=novo_fim,
@@ -1295,7 +1395,31 @@ def montar_renovacao(locacao: Locacao, dados: dict[str, Any]) -> Renovacao:
             parcelamento_mensal=locacao.parcelamento_mensal,
         )
     )
-    return Renovacao(conta, preco_periodo, preco.diaria_centavos, inicio, atraso, valores_de_hoje)
+    return Renovacao(
+        conta, preco_periodo, preco.dia_atraso_centavos, inicio, atraso, valores_de_hoje
+    )
+
+
+def _tipo_contratado(locacao: Locacao) -> tuple[str, str]:
+    """O tipo (e o nome, no `outro`) do plano contratado; nas locações de antes dos planos por
+    veículo, o tipo da periodicidade (diária, semanal ou mensal)."""
+    if locacao.plano_veiculo_id is not None:
+        plano = PlanoVeiculo.objects.get(pk=locacao.plano_veiculo_id)
+        return plano.tipo, plano.nome
+    return TIPO_DA_PERIODICIDADE[Periodicidade(locacao.periodicidade)], ""
+
+
+def plano_da_renovacao(locacao: Locacao, dia: date) -> PrecoDoPlano:
+    """LOC-08 (ADR 0041, item 5): o mesmo plano do veículo da locação, pelo preço do `dia`;
+    desligado ou retirado, 409 `VEI-15`. Depois de uma troca, o plano do mesmo tipo do veículo
+    atual. Nas locações de antes, o plano do veículo do tipo da periodicidade."""
+    plano_id = locacao.plano_veiculo_id
+    if plano_id is not None:
+        plano = PlanoVeiculo.objects.filter(pk=plano_id).first()
+        if plano is not None and plano.veiculo_id == locacao.veiculo_id:
+            return veiculos_selectors.plano_para_locacao(locacao.veiculo, plano_id, dia)
+    tipo, nome = _tipo_contratado(locacao)
+    return veiculos_selectors.plano_do_mesmo_tipo(locacao.veiculo, tipo, nome, dia)
 
 
 def _ultima_parcela(locacao: Locacao) -> int:
@@ -1408,22 +1532,30 @@ class PrecoDaTroca:
 
 
 def preco_da_troca(locacao: Locacao, veiculo: Veiculo, dia: date) -> PrecoDaTroca:
-    """LOC-09: o preço da nova categoria no dia do pedido, como na renovação (LOC-15). O plano
-    especial de preço fixo continua se valer para a nova categoria; senão, vale a tabela."""
-    preco = veiculos_selectors.preco_vigente(veiculo.categoria_id, dia)
-    if preco is None:
-        raise ErroDeRegra("LOC-01", "A categoria do veículo novo não tem preço vigente.")
-    periodo = {
-        Periodicidade.DIARIA: preco.diaria_centavos,
-        Periodicidade.SEMANAL: preco.semanal_centavos,
-        Periodicidade.MENSAL: preco.mensal_centavos,
-    }[Periodicidade(locacao.periodicidade)]
+    """LOC-09: o plano ligado do veículo novo do mesmo tipo do contratado, pelo preço do dia do
+    pedido, como na renovação (LOC-15): período, dia de atraso e caução. Sem esse plano, 409
+    `VEI-15` (decisão do dono de 18 nov 2026). Nas locações de antes, o plano especial de preço
+    fixo continua se valer para a categoria do veículo novo."""
+    veiculos.conferir_aluguel_ligado(veiculo)  # VEI-21: a troca não oferece o veículo para aluguel
+    tipo, nome = _tipo_contratado(locacao)
+    preco = veiculos_selectors.plano_do_mesmo_tipo(veiculo, tipo, nome, dia)
+    periodo = preco.valor_centavos
     plano = locacao.plano_especial
     if plano is not None and plano.ativo and plano.regra == PlanoEspecial.Regra.PRECO_FIXO:
         categorias = set(plano.categorias.values_list("pk", flat=True))
         if not categorias or veiculo.categoria_id in categorias:
             periodo = int(plano.preco_centavos or 0)
-    return PrecoDaTroca(int(periodo or 0), preco.diaria_centavos, preco.caucao_centavos)
+    return PrecoDaTroca(int(periodo or 0), preco.dia_atraso_centavos, preco.caucao_centavos)
+
+
+def _plano_depois_da_troca(locacao: Locacao, veiculo: Veiculo) -> int | None:
+    """O plano do veículo novo do mesmo tipo do contratado, que a renovação passa a usar."""
+    tipo, nome = _tipo_contratado(locacao)
+    planos = PlanoVeiculo.ativos.filter(veiculo_id=veiculo.pk, tipo=tipo)
+    if tipo == TipoPlano.OUTRO:
+        planos = planos.filter(nome__iexact=nome)
+    plano = planos.order_by("-ligado", "id").first()
+    return plano.pk if plano is not None else locacao.plano_veiculo_id
 
 
 def _impedimento_da_troca(locacao: Locacao, veiculo: Veiculo) -> ErroDeRegra | None:
@@ -1561,10 +1693,12 @@ def _parcela_refeita(
         unidade = calculo.preco_com_descontos(antiga, 1) + extras
         diarias = max(1, round(int(conta.valor_centavos) / unidade)) if unidade else 1
         return diarias * (calculo.preco_com_descontos(nova, 1) + extras)
-    if locacao.parcelamento_mensal == ParcelamentoMensal.QUATRO_SEMANAIS:
-        k, semana = divmod(numero - 1, 4)
+    partes_do_mes = PARTES_DO_MES.get(locacao.parcelamento_mensal)
+    if partes_do_mes is not None:
+        partes = partes_do_mes[0]
+        k, parte = divmod(numero - 1, partes)
         mes = calculo.preco_com_descontos(nova, k + 1) + extras
-        return dividir_em_parcelas(mes, 4)[semana]
+        return dividir_em_parcelas(mes, partes)[parte]
     return calculo.preco_com_descontos(nova, numero) + extras
 
 
@@ -1613,7 +1747,7 @@ def _diferenca_do_periodo(
         abs(novo - antigo), periodo.dias_restantes, periodo.dias_do_periodo
     )
     ja_refeito = 0
-    if locacao.parcelamento_mensal == ParcelamentoMensal.QUATRO_SEMANAIS:
+    if locacao.parcelamento_mensal in PARTES_DO_MES:
         ja_refeito = sum(
             r.depois_centavos - r.antes_centavos for r in refeitas if r.vencimento < periodo.fim
         )
@@ -1668,6 +1802,7 @@ def concluir_troca(troca: TrocaVeiculo, *, km_saida: int, momento: datetime) -> 
         with auditar(
             travada, "locacao.trocar_veiculo", Categoria.OPERACAO, motivo=motivo, regra="LOC-09"
         ):
+            travada.plano_veiculo_id = _plano_depois_da_troca(travada, veiculo)
             travada.veiculo = veiculo
             travada.valor_periodo_centavos = preco.periodo_centavos
             travada.diaria_centavos = preco.diaria_centavos
@@ -1675,6 +1810,7 @@ def concluir_troca(troca: TrocaVeiculo, *, km_saida: int, momento: datetime) -> 
             travada.km_saida = km_saida
             travada.save(
                 update_fields=[
+                    "plano_veiculo",
                     "veiculo",
                     "valor_periodo_centavos",
                     "diaria_centavos",
@@ -1807,13 +1943,21 @@ def calcular_encerramento(
         fuso=fuso(locacao.filial),
         dia=dia,
         preco_do_periodo=lambda k: calculo.preco_com_descontos(entrada, k),
-        diaria_centavos=locacao.diaria_centavos,
+        multa_minima_centavos=multa_minima(locacao),
         momento=momento,
         parcelas_canceladas_centavos=canceladas,
     )
     if resultado is None:
         raise _sem_dias_restantes()
     return resultado
+
+
+def multa_minima(locacao: Locacao) -> int:
+    """LOC-12: o mínimo da multa do encerramento antecipado, o do veículo congelado na
+    confirmação (VEI-14); nas locações de antes (campo nulo), a diária, como era."""
+    if locacao.multa_minima_centavos is not None:
+        return int(locacao.multa_minima_centavos)
+    return int(locacao.diaria_centavos)
 
 
 def _encerramento_da_compra(locacao: Locacao, dia: date) -> fim.Encerramento:
@@ -1832,7 +1976,7 @@ def _encerramento_da_compra(locacao: Locacao, dia: date) -> fim.Encerramento:
 def _parcelas_do_mes_a_cancelar(locacao: Locacao, dia: date) -> list[Any]:
     """LOC-13, mensal em 4 semanais: as parcelas em aberto do mês em curso que vencem depois de
     `dia` e que o encerramento cancela (saem do crédito das semanas)."""
-    if locacao.parcelamento_mensal != ParcelamentoMensal.QUATRO_SEMANAIS:
+    if locacao.parcelamento_mensal not in PARTES_DO_MES:
         return []
     achado = fim.periodo_em(
         locacao.periodicidade,
@@ -2502,9 +2646,7 @@ def vencimento_da_parcela(locacao: Locacao, numero: int) -> date:
     """O calendário da `LOC-05` para a parcela `numero` da compra, a partir do 1º vencimento (o
     gravado ou o dia do início, no fuso da filial), como em `calculo.calcular`."""
     primeiro = locacao.primeiro_vencimento or data_local(locacao.inicio, locacao.filial)
-    if locacao.periodicidade == Periodicidade.SEMANAL:
-        return primeiro + timedelta(days=7 * (numero - 1))
-    return calculo.somar_meses_data(primeiro, numero - 1)
+    return calculo.vencimento_da_parcela(locacao.periodicidade, primeiro, numero)
 
 
 def caucao_paga(locacao: Locacao, contas: list[Any] | None = None) -> bool:

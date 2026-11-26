@@ -10,7 +10,9 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 | Consultar veículos (Frota e ficha, só leitura) | sim | sim | sim | sim (Consultar veículo) | sim |
 | Cadastrar e editar veículo | sim | sim | — | atualizar km e avarias | — |
 | Ver rendimento e custo de manutenção do veículo (`VEI-05`) | sim | sim | — | — | sim |
+| Excluir veículo sem histórico (`VEI-22`) | sim | sim (sua filial) | — | — | — |
 | Cadastrar cliente | sim | sim | sim | — | — |
+| Excluir cliente sem histórico (`CLI-13`) | sim | sim | — | — | — |
 | Criar locação | sim | sim | sim | — | — |
 | Fazer vistoria (saída e devolução) | sim | sim | sim | sim | — |
 | Cancelar locação | sim | sim, e aprova os pedidos | pede | — | — |

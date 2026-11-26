@@ -6,7 +6,7 @@ import { Bike, Car, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { Icone, Panel, SelectField, TextField } from "@/design-system";
+import { BarraDeAcoes, CampoDeDinheiro, Icone, Panel, SelectField, TextField, useBlocoVisivel } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
@@ -56,6 +56,7 @@ export function Preco({ rotulo, centavos }: { rotulo: string; centavos: number }
 /** Cadastrar veículo (Veiculo-Novo-Desktop|Mobile): POST /api/veiculos/ (VEI-01, PLT-03). A API valida; o erro volta no campo. */
 export function NovoVeiculoForm() {
   const cliente = useQueryClient();
+  const blocos = useBlocoVisivel();
   const { eu } = useSessao();
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [existente, setExistente] = useState<{ id: number } | null>(null);
@@ -353,13 +354,13 @@ export function NovoVeiculoForm() {
           <Panel titulo="Uso na frota">
             <div className="grid gap-4 md:grid-cols-2">
               <Selecao id="filial" rotulo="Filial" vazio="Escolha" opcoes={filiais} erro={erro("filial_id")} {...register("filial_id")} />
-              <SelectField cheio rotulo="Tipo de veículo" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} />
+              <SelectField cheio rotulo="Moto ou carro" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} />
               <Selecao
                 id="categoria"
-                rotulo="Categoria de preço"
+                rotulo="Tipo de plano"
                 vazio={categorias.isPending ? "Carregando…" : "Escolha"}
                 opcoes={lista.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
-                dica={semCategoria}
+                dica={semCategoria ?? "Modelo de preço dos planos deste veículo; depois você ajusta em Planos e preços"}
                 erro={erro("categoria_id")}
                 {...register("categoria_id")}
                 value={v.categoria_id}
@@ -383,7 +384,7 @@ export function NovoVeiculoForm() {
           <Panel titulo="Compra e valores">
             <div className="grid gap-4 md:grid-cols-2">
               <TextField cheio mono type="date" rotulo="Data da compra" erro={erro("data_compra")} {...register("data_compra")} />
-              <TextField cheio rotulo="Valor de compra" inputMode="decimal" placeholder="R$ 0,00" dica="Base da rentabilidade do veículo" erro={erro("valor_compra")} {...register("valor_compra")} />
+              <CampoDeDinheiro prefixo cheio rotulo="Valor de compra" placeholder="R$ 0,00" dica="Base da rentabilidade do veículo" erro={erro("valor_compra")} {...register("valor_compra")} />
               <TextField cheio rotulo="Referência FIPE" disabled dica="A consulta FIPE ainda não está disponível" />
             </div>
           </Panel>
@@ -435,7 +436,7 @@ export function NovoVeiculoForm() {
             <p className="text-body text-ink-muted">O veículo entra na frota como Disponível. Placa e chassi não podem repetir, nem de veículo vendido ou baixado.</p>
           </section>
 
-          <section className="wl-panel flex flex-col gap-3">
+          <section ref={blocos.ref()} className="wl-panel flex flex-col gap-3">
             <button type="submit" disabled={ocupado} className="wl-btn wl-btn--solid">
               Salvar veículo
             </button>
@@ -448,6 +449,8 @@ export function NovoVeiculoForm() {
           </section>
         </aside>
       </div>
+
+      <BarraDeAcoes blocos={blocos} cancelar={{ href: "/veiculos" }} principal={{ rotulo: "Salvar veículo", ocupado: false, disabled: ocupado }} />
     </form>
   );
 }

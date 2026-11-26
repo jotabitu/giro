@@ -11,7 +11,8 @@ export function fatoDoVeiculo(v: Veiculo): { rotulo: string; valor: string } {
 }
 
 /** Diária da tabela; `undefined` quando a API não manda o preço (vistoriador, D-25) e a tela esconde a coluna. */
-export const diaria = (v: Veiculo) => (v.preco_vigente ? dinheiro(v.preco_vigente.diaria_centavos) : undefined);
+// VEI-21: com o aluguel desligado, a Frota não mostra preço de aluguel ("—"), como a ficha.
+export const diaria = (v: Veiculo) => (v.preco_vigente ? (v.aluguel_ligado === false ? "—" : dinheiro(v.preco_vigente.diaria_centavos)) : undefined);
 
 /** Rótulo e tom do documento do veículo a partir do que a API devolveu. */
 export function situacaoDoDocumento(
@@ -23,4 +24,11 @@ export function situacaoDoDocumento(
   if (situacao === "vencido") return { rotulo: "Vencido", tom: "critico" };
   if (situacao === "vence_em_breve") return { rotulo: dias === null ? "Vence em breve" : `Vence em ${dias} ${dias === 1 ? "dia" : "dias"}`, tom: "alerta" };
   return { rotulo: "Em dia", tom: "sucesso" };
+}
+
+/** VEI-18: "53 dias", "1 dia", "Hoje" com 0, e "—" sem o número (fora do estoque ou sem entrada). A API já contou os dias. */
+export function diasEmEstoque(dias: number | null | undefined): string {
+  if (dias == null) return "—";
+  if (dias === 0) return "Hoje";
+  return `${dias} ${dias === 1 ? "dia" : "dias"}`;
 }

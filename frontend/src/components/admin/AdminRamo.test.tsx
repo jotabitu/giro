@@ -56,6 +56,15 @@ describe("AdminRamo", () => {
     expect(h).toMatch(/aria-pressed="true"[^>]*aria-disabled="true"/);
   });
 
+  it("T-519: Cancelar e Salvar ficam no fim da coluna e de novo na barra flutuante", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const h = tela(RAMO_PROFISSIONAL);
+    expect(h).toContain("sticky bottom-[88px]");
+    expect(h.match(/>Salvar</g)).toHaveLength(2);
+    expect(h.match(/>Cancelar</g)).toHaveLength(2);
+    expect(h.indexOf('class="flex items-center justify-end gap-2"')).toBeLessThan(h.indexOf("sticky bottom-[88px]"));
+  });
+
   it("sem alteração o Salvar fica desligado", async () => {
     await entrar("mariana@motorapida.com.br");
     expect(tela(RAMO_PROFISSIONAL)).toMatch(/<button[^>]*disabled=""[^>]*>Salvar<\/button>/);

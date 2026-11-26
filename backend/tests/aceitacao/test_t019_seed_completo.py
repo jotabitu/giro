@@ -734,7 +734,8 @@ def test_fin_07_seed_019_22_caixa_de_07_out(seed):
 def test_fin_05_seed_019_23_despesas_de_outubro(seed):
     linhas = {
         d.descricao: (d.data.isoformat()[5:], d.valor_centavos, d.lancada_por.nome, d.status)
-        for d in Despesa.objects.select_related("lancada_por")
+        # Só as de outubro: as de agosto são do estoque parado (T-499, `VEI-20`).
+        for d in Despesa.objects.select_related("lancada_por").filter(data__gte=date(2026, 10, 1))
     }
     assert linhas == {
         "Pneus (2)": ("10-07", 120000, "João Silva", "aguardando_aprovacao"),
@@ -1124,3 +1125,57 @@ def test_dev_02_seed_reembolso_e_pendencia_idempotentes(seed):
     with tenant_context(Empresa.objects.get(subdominio="motorapida")):
         assert Reembolso.objects.count() == 1
         assert PendenciaPagamento.objects.count() == 1
+
+
+# --- Preços por veículo (T-495, ADR 0041) ---
+
+
+def _precos(placa: str, seed: Any) -> dict[str, Any]:
+    veiculo = Veiculo.objects.get(placa=placa)
+    resposta = _api(seed).get(f"/api/veiculos/{veiculo.pk}/precos/")
+    assert resposta.status_code == 200, resposta.json()
+    return dict(resposta.json())
+
+
+def test_vei_16_seed_pop_tbc_5h21_locacao_com_compra(seed):
+    """A "Locação com compra da Pop 110i TBC-5H21" (dados-de-teste.md): pago na moto R$ 13.800,00;
+    semanal 104 × R$ 191,01 (R$ 161,24 + R$ 29,77); recebe pela moto R$ 17.768,96; lucro
+    R$ 3.968,96; juros no prazo R$ 1.868,96. A Pop está disponível, na frota de 86."""
+    pop = Veiculo.objects.get(placa="TBC5H21")
+    assert (pop.modelo, pop.status) == ("Pop 110i", "disponivel")
+    assert pop.categoria.nome == "Urbana 110–125"
+    precos = _precos("TBC5H21", seed)
+    assert precos["pago_na_moto"]["total_centavos"] == 1380000
+    compra = precos["plano_compra"]
+    assert (compra["ligado"], compra["entrada_centavos"], compra["parcelas"]) == (True, 100000, 104)
+    resultado = compra["resultado"]
+    assert (resultado["parcela_moto_centavos"], resultado["parcela_cliente_centavos"]) == (
+        16124,
+        19101,
+    )
+    assert resultado["recebe_pela_moto_centavos"] == 1776896
+    assert (resultado["lucro_centavos"], resultado["juros_no_prazo_centavos"]) == (396896, 186896)
+    assert precos["aviso_preco"] is None
+
+
+def test_vei_16_seed_qxa_4b21_venda_abaixo_do_pago(seed):
+    """A "Locação com compra da CG QXA-4B21": parcela R$ 135,05; recebe no contrato R$ 14.045,20;
+    lucro R$ 145,20; o alerta da venda abaixo do pago. A compra fica desligada (a CG está na
+    LOC-2841)."""
+    precos = _precos("QXA4B21", seed)
+    assert precos["pago_na_moto"]["total_centavos"] == 1390000
+    compra = precos["plano_compra"]
+    assert compra["ligado"] is False
+    resultado = compra["resultado"]
+    assert resultado["parcela_moto_centavos"] == 13505
+    assert (resultado["recebe_pela_moto_centavos"], resultado["lucro_centavos"]) == (1404520, 14520)
+    assert resultado["venda_abaixo_do_pago"] is True
+    assert Veiculo.objects.get(placa="QXA4B21").status == "alugado"
+
+
+def test_vei_15_seed_sem_disponivel_sem_plano(seed):
+    """O seed roda o `alinhar_veiculos_sem_preco`: nenhum veículo disponível fica sem plano."""
+    from apps.veiculos.selectors import anotar_tem_plano_ligado
+
+    disponiveis = anotar_tem_plano_ligado(Veiculo.objects.filter(status="disponivel"))
+    assert not disponiveis.filter(tem_plano_ligado=False).exists()  # type: ignore[misc]

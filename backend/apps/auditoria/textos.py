@@ -49,6 +49,7 @@ OBJETOS: dict[str, tuple[str, str]] = {
     "suporte": ("o", "suporte"),
     "usuario": ("o", "usuário"),
     "veiculo": ("o", "veículo"),
+    "venda": ("a", "venda"),
     "vistoria": ("a", "vistoria"),
 }
 
@@ -63,6 +64,7 @@ VERBOS: dict[str, str] = {
     "bloquear": "Bloqueou",
     "cadastrar": "Cadastrou",
     "cancelar": "Cancelou",
+    "cancelar_assinado": "Cancelou",  # o contrato assinado da venda perdida (ADR 0042, item 6a)
     "cobrar": "Cobrou",
     "concluir": "Concluiu",
     "confirmar": "Confirmou",
@@ -84,6 +86,7 @@ VERBOS: dict[str, str] = {
     "pedir": "Pediu",
     "reabrir": "Reabriu",
     "reativar": "Reativou",
+    "recalcular": "Recalculou",
     "recusar": "Recusou",
     "reenviar": "Reenviou",
     "renegociar": "Renegociou",

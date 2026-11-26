@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { CelulaDupla, DataTable, Icone, KpiGrid, KpiTile, SearchField, SegmentedControl, StatusBadge, type ColunaTabela } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { FiltroChips, type OpcaoChip } from "@/components/lista/FiltroChips";
@@ -15,6 +16,8 @@ import { celular, dinheiro, iniciais, mesAno, percentual } from "@/lib/formatos"
 import { useBuscaNaUrl, useFiltrosNaUrl } from "@/lib/filtros-url";
 import { tomDoStatus } from "@/lib/tom";
 import { useSessao } from "@/lib/sessao";
+import { avisoDaLista, esquecerAvisoDaLista } from "@/lib/aviso-da-lista";
+import { Confirmacao } from "@/components/financeiro/Comuns";
 
 type Ordem = NonNullable<FiltroClientes["ordem"]>;
 
@@ -126,7 +129,10 @@ const SITUACOES: { valor: string; rotulo: string; chave: "todos" | "com_locacao"
 export function ListaClientes() {
   const router = useRouter();
   const { eu } = useSessao();
-  const { valor, definir } = useFiltrosNaUrl();
+  const { valor, definir, paginacao } = useFiltrosNaUrl();
+  // CLI-13: a frase que a ficha deixou depois de excluir ("Cliente excluído."), como a API mandou.
+  const [aviso] = useState(() => avisoDaLista("/clientes"));
+  useEffect(() => esquecerAvisoDaLista("/clientes"), []);
   const situacao = valor("situacao") ?? "todos";
   const ordem = (valor("ordem") ?? "-criado_em") as Ordem;
   // CLI-10: o filtro da lista é próprio e começa em "Todas as filiais"; o seletor do topo não o muda.
@@ -170,6 +176,8 @@ export function ListaClientes() {
           )}
         </div>
       </header>
+
+      {aviso && <Confirmacao>{aviso}</Confirmacao>}
 
       {c && ind && (
         <KpiGrid>
@@ -238,7 +246,7 @@ export function ListaClientes() {
               texto={total === null || total === undefined ? `Mostrando ${d.resultados.length}` : `Mostrando ${d.resultados.length} de ${total}`}
               anterior={d.anterior}
               proximo={d.proximo}
-              aoIr={(cur) => definir({ cursor: cur })}
+              {...paginacao}
             />
           </>
         )}

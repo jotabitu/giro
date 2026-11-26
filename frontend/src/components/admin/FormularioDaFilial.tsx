@@ -5,7 +5,7 @@ import { ArrowLeft, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ReactNode } from "react";
-import { Button, Icone, ProgressBar, SegmentedControl, StatusBadge, TextField } from "@/design-system";
+import { BarraDeAcoes, CampoDeDinheiro, Button, Icone, ProgressBar, SegmentedControl, StatusBadge, TextField, useBlocoVisivel } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { filiais, type FilialDetalhada } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
@@ -120,6 +120,7 @@ function Horarios({ valores, aoMudar, aviso, erro }: { valores: ValoresDaFilial[
 function Formulario({ filial }: { filial?: FilialDetalhada }) {
   const router = useRouter();
   const cliente = useQueryClient();
+  const blocos = useBlocoVisivel();
   const { eu } = useSessao();
   const [v, setV] = useState<ValoresDaFilial>(filial ? valoresDaFilial(filial) : VALORES_INICIAIS_DA_FILIAL);
   const [horarioMudou, setHorarioMudou] = useState(false);
@@ -187,7 +188,7 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
           </div>
           <h1 className="text-title md:mt-1.5 md:text-display">{titulo}</h1>
         </div>
-        <div className="hidden items-center gap-2 md:flex">
+        <div ref={blocos.ref("cabecalho")} className="hidden items-center gap-2 md:flex">
           <Link href="/admin/filiais" className="wl-btn">
             Cancelar
           </Link>
@@ -315,12 +316,11 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
                 <span className="wl-field__hint">Quem gerencia é quem tem perfil gerente nesta filial, em Usuários.</span>
               </div>
               {eu.pode.administracao && (
-                <TextField
+                <CampoDeDinheiro prefixo
                   cheio
                   mono
                   rotulo="Preço do litro do combustível"
                   placeholder="R$ 0,00"
-                  inputMode="decimal"
                   value={v.precoLitro}
                   onChange={(e) => definir("precoLitro", e.target.value)}
                   erro={erro("preco_litro_centavos")}
@@ -330,7 +330,7 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
             </div>
           </Secao>
 
-          <div className="grid grid-cols-2 gap-2 md:hidden">
+          <div ref={blocos.ref("pe")} className="grid grid-cols-2 gap-2 md:hidden">
             <Link href="/admin/filiais" className="wl-btn justify-center">
               Cancelar
             </Link>
@@ -404,6 +404,8 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
           </Secao>
         </aside>
       </div>
+
+      <BarraDeAcoes blocos={blocos} cancelar={{ href: "/admin/filiais" }} principal={{ rotulo: "Salvar filial", disabled: !pode, ocupado: salvar.isPending }} />
     </form>
   );
 }

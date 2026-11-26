@@ -134,6 +134,65 @@ class CaixaHojeSerializer(serializers.Serializer[Any]):
     saldo_dia_centavos = serializers.IntegerField()
 
 
+# --- Estoque à venda e ticket médio (VEI-18, VEI-20, VEN-12; T-486, T-487) ---
+
+
+class EstoqueAVendaSerializer(serializers.Serializer[Any]):
+    """VEI-20. Só para administrador e gerente; ausente para os outros perfis."""
+
+    quantidade = serializers.IntegerField(help_text="Veículos `a_venda` no escopo.")
+    capital_imobilizado_centavos = serializers.IntegerField()
+    veiculos_na_conta = serializers.IntegerField(help_text="Os com valor de compra.")
+    custo_medio_centavos = serializers.IntegerField(allow_null=True)
+    margem_centavos = serializers.IntegerField(allow_null=True)
+    margem_pct = serializers.DecimalField(max_digits=7, decimal_places=2, allow_null=True)
+    margem_negativa = serializers.BooleanField()
+    sem_valor_compra = serializers.IntegerField()
+    sem_valor_venda = serializers.IntegerField()
+    subtitulo = serializers.CharField()
+    legenda_capital = serializers.CharField()
+    legenda_custo_medio = serializers.CharField(allow_null=True)
+    margem_texto = serializers.CharField(allow_null=True, help_text="Com o sinal: −R$ 750,00.")
+    legenda_margem = serializers.CharField(allow_null=True)
+    avisos = serializers.ListField(child=serializers.CharField())
+
+
+class ParadoAVendaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    placa = serializers.CharField()
+    veiculo = serializers.CharField()
+    dias_em_estoque = serializers.IntegerField(allow_null=True)
+    parado = serializers.BooleanField()
+
+
+class ParadosAVendaSerializer(serializers.Serializer[Any]):
+    """VEI-18, VEI-19: os 5 com mais dias da filial, na ordem da lista."""
+
+    limite_dias_parado = serializers.IntegerField()
+    acima_do_limite = serializers.IntegerField()
+    subtitulo = serializers.CharField()
+    itens = ParadoAVendaSerializer(many=True)
+
+
+class VendasDoMesSerializer(serializers.Serializer[Any]):
+    mes = serializers.CharField()
+    vendas = serializers.IntegerField()
+    soma_centavos = serializers.IntegerField()
+    ticket_centavos = serializers.IntegerField(allow_null=True)
+
+
+class TicketMedioSerializer(VendasDoMesSerializer):
+    """VEN-12. Só para administrador e gerente; ausente para os outros perfis."""
+
+    subtitulo = serializers.CharField()
+    rotulo = serializers.CharField()
+    resumo = serializers.CharField(allow_null=True, help_text="4 vendas · R$ 31.200,00")
+    vazio = serializers.CharField(allow_null=True, help_text="Sem vendas em novembro.")
+    mes_anterior = VendasDoMesSerializer()
+    variacao_pct = serializers.DecimalField(max_digits=9, decimal_places=2, allow_null=True)
+    comparacao = serializers.CharField(allow_null=True)
+
+
 class InicioGeralSerializer(CabecalhoDoInicioSerializer):
     atencao = AtencaoSerializer()
     kpis = KpiSerializer(many=True)
@@ -141,6 +200,8 @@ class InicioGeralSerializer(CabecalhoDoInicioSerializer):
     devolucoes_semana = DevolucoesDaSemanaSerializer()
     pendencias = PendenciasSerializer()
     caixa_hoje = CaixaHojeSerializer(allow_null=True)
+    estoque_a_venda = EstoqueAVendaSerializer(required=False)
+    ticket_medio = TicketMedioSerializer(required=False)
 
 
 # --- implantacao ---
@@ -234,6 +295,9 @@ class InicioGerenteSerializer(CabecalhoDoInicioSerializer):
     equipe_hoje = PessoaDaEquipeSerializer(many=True)
     pendencias = PendenciasSerializer()
     frota_filial = FrotaDaFilialSerializer()
+    estoque_a_venda = EstoqueAVendaSerializer(required=False)
+    parados_a_venda = ParadosAVendaSerializer(required=False)
+    ticket_medio = TicketMedioSerializer(required=False)
 
 
 # --- vendedor ---
@@ -260,10 +324,24 @@ class InicioVendedorSerializer(CabecalhoDoInicioSerializer):
     kpis = KpiSerializer(many=True)
     parcelas_atrasadas = ParcelaAtrasadaSerializer(many=True)
     precisam_acao = LocacaoQuePrecisaDeAcaoSerializer(many=True)
-    meta = serializers.JSONField(allow_null=True, help_text="Fase 2: sempre `null`.")
-    funil = serializers.JSONField(allow_null=True, help_text="Fase 2: sempre `null`.")
-    comissao_prevista = serializers.JSONField(allow_null=True, help_text="Fase 2: sempre `null`.")
-    propostas = serializers.JSONField(allow_null=True, help_text="Fase 2: sempre `null`.")
+    meta = serializers.JSONField(
+        allow_null=True,
+        help_text="VEN-09 (T-502, 1c): a `meta` de `GET /api/vendas/resumo/`; `null` sem o módulo.",
+    )
+    funil = serializers.JSONField(
+        allow_null=True,
+        help_text="VEN-08: o `funil` do resumo, com `conversao`; `null` sem o módulo de vendas.",
+    )
+    comissao_prevista = serializers.JSONField(
+        allow_null=True, help_text="Sempre `null` (Comissões)."
+    )
+    propostas = serializers.JSONField(
+        allow_null=True,
+        help_text=(
+            "VEN-16: `{abertas, para_retornar, vazio}`, as abertas da mais antiga para a mais "
+            "recente pelo último contato; `null` sem o módulo de vendas."
+        ),
+    )
 
 
 # --- vistoriador ---

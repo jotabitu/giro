@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 05 nov 2026 (T-422, referência FIPE, ADR 0038); 03 nov 2026 (T-414, fotos do veículo, `VEI-10`, ADR 0036; T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-10, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026, 0036, 0038 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
+**Dono:** arquiteto · **Versão:** 24 nov 2026 (T-507, aluguel ligado ou desligado, `VEI-21`); 18 nov 2026 (T-494, preços do veículo, `VEI-12` a `VEI-17`, ADR 0041); 05 nov 2026 (T-422, referência FIPE, ADR 0038); 03 nov 2026 (T-414, fotos do veículo, `VEI-10`, ADR 0036; T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-10, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026, 0036, 0038 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -14,7 +14,10 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`Prec
 | Corrigir km para baixo | sim | sim (direto, com motivo) | — | pede (`APR-06`) | — |
 | Bloquear, desbloquear, colocar à venda, voltar para a frota | sim | sim | — | — | — |
 | Baixar | sim | — | — | — | — |
+| Excluir o veículo sem histórico (`VEI-22`) | sim | sim (sua filial) | — | — | — |
 | Categorias, preços e extras | sim | — | — | — | — |
+| Ver os preços do veículo (`GET .../precos/`) | sim | sim | sim | — | sim |
+| Salvar e simular os preços do veículo, ligar e desligar plano | sim | — | — | — | — |
 
 Ver é liberado a todos os perfis no escopo das suas filiais porque toda a operação (nova locação, vistoria, caixa) consulta o veículo; dados de compra (`valor_compra_centavos`) só saem para administrador e gerente. Rendimento e custo de manutenção (`indicadores_financeiros`, `VEI-05`) só saem para administrador, gerente e financeiro; para vendedor e vistoriador a chave vem ausente, não `null` (`USR-09`, T-156). O vistoriador recebe a frota, a ficha e as categorias sem valor em dinheiro: sem nenhum campo `_centavos`, sem `preco_vigente`, `proximo_preco`, `indicadores_financeiros` e `data_compra` (as chaves vêm ausentes); o histórico de preços da categoria e os extras respondem 403 para ele (`USR-09`, T-136).
 
@@ -44,10 +47,20 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   "acoes": { "editar": true, "colocar_a_venda": true, "voltar_para_frota": false, "bloquear": true,
              "desbloquear": false, "transferir": true, "baixar": false, "registrar_km": true, "corrigir_km": true,
              "movimentar": true, "motivo_movimentar": null },
-  "movimentacao_aberta": null
+  "movimentacao_aberta": null,
+  "aviso_preco": null,
+  "aluguel_ligado": true
 }
 ```
 
+- `aviso_preco` (T-494, `VEI-15`, ADR 0041): na lista e na ficha, em qualquer status, `"A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda."` quando o veículo não tem nenhum plano ligado (de aluguel ou a locação com compra); senão `null`. Não é status: o veículo `disponivel` sem plano vai para `indisponivel` com `motivo_status` "Sem preço · ligue um plano" (seção "Preços do veículo").
+- `aluguel_ligado` (T-507, `VEI-21`): o "Oferecer aluguel" do veículo. `false` não é status: a Frota e a ficha mostram o selo neutro "Aluguel desativado" ao lado do status, que continua o dele (seção "Aluguel desligado").
+
+- **Dias em estoque** (T-486, `VEI-18`, `VEI-19`): na lista e na ficha, `a_venda_desde` (data da última entrada no estoque, em `America/Sao_Paulo`), `dias_em_estoque` (inteiro, 0 = colocado à venda hoje) e `parado` (`dias_em_estoque` acima do limite da empresa). Exemplo do PVE-1A07 em 07 out: `"a_venda_desde": "2026-08-15", "dias_em_estoque": 53, "parado": true`.
+  - A entrada é a última passagem para `a_venda` no histórico de status, vinda de qualquer estado menos `vendido`: a venda cancelada (`VEN-07`) não recomeça a contagem; voltar para a frota e ser colocado à venda de novo recomeça do zero.
+  - Fora de `a_venda`, ou sem entrada no histórico: `a_venda_desde` e `dias_em_estoque` `null`, `parado` `false`; a tela mostra "—".
+  - Para o vistoriador, os três campos ficam **ausentes** (não nulos), como os valores.
+  - A tela só mostra: "53 dias", "1 dia", "Hoje" com 0, e o tom de alerta quando `parado`.
 - `placa` sai sem hífen no campo, e a tela põe o hífen; dentro de um texto montado pela API, sai com hífen (`docs/api/README.md`, Convenções, T-340). Aceita padrão antigo (`ABC1234`) e Mercosul (`ABC1D23`). `chassi` com 17 letras e números.
 - `preco_vigente`: preço da categoria vigente hoje (`LOC-15`). A coluna "Diária" da Frota usa `diaria_centavos`; veículo `a_venda` mostra `valor_venda_centavos`.
 - `situacao`: a API decide. Base no `status` do veículo; um bloco com `alerta` (ADR 0015) sobrepõe, ex.: "Atrasado" (`perigo`) quando a locação atual está `devolucao_atrasada`.
@@ -136,7 +149,8 @@ Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
 
 ### GET /api/veiculos/
 Perfis: todos (escopo de filial).
-Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (placa, modelo, chassi), `?ordem=placa|-km_atual|modelo`. A filial vem do `X-Filial` (`filiais.md`).
+Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (placa, modelo, chassi), `?ordem=placa|-km_atual|modelo|em_estoque`. A filial vem do `X-Filial` (`filiais.md`).
+- `?ordem=em_estoque` (T-486, `VEI-18`): do mais parado para o menos (a entrada mais antiga primeiro, com data e hora), depois a placa; os veículos sem o número (fora do estoque ou sem entrada) vão para o fim. Com `?status=a_venda` e sem `?ordem`, essa é a ordem padrão.
 200:
 ```json
 {
@@ -160,6 +174,7 @@ Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (pla
 "historico_status": [ { "de": "disponivel", "para": "alugado", "em": "...", "origem_tipo": "locacao", "origem_codigo": "LOC-2841", "motivo": null } ]
 ```
 - `ocupacao` (`VEI-06`): dias `alugado` ÷ dias na frota nos últimos 90 dias, a partir do `HistoricoStatusVeiculo`, excluindo os dias em `a_venda`, `vendido` e `baixado`. Calculada pelo app `veiculos`, pelo tempo exato entre as mudanças de status: conta a fração de dia (`VEI-06`), e um veículo alugado às 14:00 conta 0,42 daquele dia. Com mudanças em dias inteiros, dá o mesmo que contar dias.
+- `limite_dias_parado` (T-486, `VEI-19`): o limite de dias em estoque da empresa (padrão 30), para o "Limite da empresa" ao lado de "À venda desde 15 ago · 53 dias". Ausente para o vistoriador.
 - Locações e manutenções da ficha vêm das listas dos outros módulos: `GET /api/locacoes/?veiculo=<id>` e `GET /api/manutencao/ordens/?veiculo=<id>` (contratos de locações e manutenção). O "14 no total" é o `total` da lista de locações; as linhas são as que a lista devolve.
 
 #### Blocos da ficha (T-275, telas `Veiculo-Desktop` e `Veiculo-Mobile`)
@@ -316,10 +331,47 @@ Todas `POST /api/veiculos/{id}/<acao>/`, respondem 200 com a representação. Tr
 | `voltar-para-frota` | `{}` | `a_venda` → `disponivel`. 409 `VEN-10` se houver venda aberta do veículo | administrador, gerente |
 | `baixar` | `{ motivo: "perda_total" \| "roubo" \| "sucata" \| "outro", descricao }` | qualquer, exceto `alugado` → `baixado`, inclusive `em_movimentacao` e com movimentação aberta (abaixo) | administrador |
 
+**Baixa: motivo e descrição** (`VEI-23`, T-518): 400 `validacao` sem `motivo` ou com motivo fora da lista, em `motivo`: "Escolha o motivo da baixa.". `descricao` tem até 200 caracteres em todos os motivos (acima, em `descricao`: "Use até 200 caracteres.") e é obrigatória só no `outro` (ausente, vazia ou só espaços, em `descricao`: "Descreva o motivo da baixa."). Nos outros motivos, é opcional.
+
+**Venda aberta** (`VEN-10`): `voltar-para-frota` e `baixar` com venda em `proposta`, `negociacao` ou `aguardando_aprovacao` respondem 409 `{ "codigo": "VEN-10", "mensagem": "Este veículo tem uma venda em andamento (VEN-0177).", "detalhes": { "venda_id": 177 } }`. O `venda_id` leva o "Ver a venda" do diálogo da ficha (`VEI-23`).
+
 As transições de locação, vistoria, OS e venda não têm endpoint aqui: acontecem pelos serviços desses módulos.
 
 **Baixa com movimentação aberta** (`MOV-03`, decisão do dono em 16 out 2026, T-310; contrato na T-311): não há 409. A baixa leva o veículo a `baixado` e, na mesma transação, cancela a movimentação `agendada`, `em_transito` ou `no_local` dele com o motivo "Veículo baixado: {motivo}". As despesas das paradas ficam, a transferência não acontece e o veículo fica na filial em que está, que é a de saída. O detalhe está em `movimentacoes.md`, "Baixa do veículo com a movimentação aberta". 200: a representação, com `movimentacao_aberta: null`.
 - `acoes.aviso_baixar`: com `acoes.baixar` `true` e `movimentacao_aberta`, o texto para o diálogo da baixa, "A MOV-0001 será cancelada."; senão `null`. A tela mostra o texto como vem.
+
+## Excluir o veículo sem histórico (`VEI-22`, T-515)
+
+Para o cadastro feito por engano. Padrão A nos pontos em aberto da T-515: o veículo fica guardado no banco, marcado (`excluido_em`, `excluido_por`), e some de tudo para a locadora; o botão aparece com ou sem histórico, e com histórico a API diz por quê.
+
+### POST /api/veiculos/{id}/excluir/
+
+- **Perfis:** administrador e gerente; o gerente só nas filiais dele (fora delas, 404, como toda rota do veículo, `USR-07`). Vendedor, vistoriador e financeiro: 403 `permissao`. Suporte Giro, nos dois modos: 403 `PLT-07` (`suporte_proibido`).
+- **Corpo:** nenhum (`{}`). Sem motivo.
+- **200:** `{ "id": 41, "mensagem": "Veículo SAK-1D39 excluído." }`. A tela volta para a Frota e mostra a `mensagem` como vem.
+- **409 com histórico:** `{ "codigo": "VEI-22", "mensagem": "Este veículo já tem locação e vistoria. Ele fica guardado e não pode ser excluído.", "detalhes": { "historico": ["locacao", "vistoria"] } }`. `historico` traz os tipos achados, nesta ordem: `locacao`, `troca`, `venda`, `vistoria`, `ordem_servico`, `despesa`, `movimentacao`, `transferencia`; a frase usa os nomes da regra (locação, troca de veículo, venda, vistoria, ordem de serviço, despesa, movimentação, transferência).
+- **404:** veículo que não existe, fora do escopo de filiais ou já excluído.
+
+**O que conta como histórico** (qualquer estado, inclusive rascunho, cancelado e `recusada`): locação ou trecho de locação; troca de veículo, como antigo ou novo; venda, como veículo vendido ou recebido na troca; vistoria ou avaria; ordem de serviço (fase 2: sem fornecedor, vale 0); despesa ligada ao veículo; movimentação; transferência entre filiais. Cada app dono registra um contador `historico_<tipo>` no alvo `veiculos.Veiculo` (ADR 0015), sem `recurso=`: o histórico conta mesmo com o módulo desligado no plano.
+
+**O que acontece**, na mesma gravação e com o veículo travado: `excluido_em` e `excluido_por` gravados (o status não muda); os planos ficam `ativo=false`, desligados e sem agendamento; documentos e fotos ficam `ativo=false`, com o arquivo guardado, como a foto apagada (`VEI-10`); o uso do plano desce 1 quando o veículo estava na frota (`PLT-03`). Evento `veiculo.excluir` ("Excluiu o veículo SAK-1D39"), com o código da placa e, no `antes`, placa, chassi, marca, modelo, anos, filial e status.
+
+**Depois:** o manager padrão (`Veiculo.objects`) tira o excluído de todas as consultas: Frota, filtros, busca, contagens, Nova locação, troca, início, relatórios, importação; a ficha responde 404. A placa e o chassi ficam livres (`VEI-01`: as constraints `veiculo_placa_unica` e `veiculo_chassi_unico` valem só fora do excluído). `Veiculo.todos` vê também os excluídos (conferência da equipe Giro).
+
+### Na ficha: `acoes.excluir`
+
+Só no `GET /api/veiculos/{id}/` (não vem na Frota). `null` para quem não exclui (vendedor, vistoriador, financeiro e o suporte Giro): o botão não aparece. Para administrador e gerente, sempre um objeto:
+
+| Campo | Sem histórico | Com histórico |
+| --- | --- | --- |
+| `permitido` | `true` | `false` |
+| `titulo` | "Excluir a SAK-1D39?" | "Este veículo não pode ser excluído" |
+| `texto` | "Use só para um cadastro feito por engano. A moto sai da frota e de todas as listas, com as fotos, os documentos e os preços. A placa e o chassi ficam livres para um novo cadastro. Não dá para desfazer." (carro: "O carro") | `null` |
+| `motivo` | `null` | a frase do 409 |
+| `caminho` | `null` | administrador: "Para tirar a moto da frota, coloque à venda ou faça a baixa (perda total, roubo ou sucata)."; gerente: "... coloque à venda ou peça a baixa ao administrador (perda total, roubo ou sucata)." (carro: "o carro") |
+| `historico` | `[]` | os tipos achados |
+
+O aviso com histórico mostra `motivo` e, em seguida, `caminho`; o botão "Colocar à venda" do aviso segue `acoes.colocar_a_venda`. Os botões ("Excluir veículo", "Manter veículo", "Fechar") são da tela.
 
 ### POST /api/veiculos/{id}/transferir/ (saiu)
 **Saiu do contrato com as movimentações (T-286, ADR 0028, item 6; rota removida na T-288 parte 2).** "Transferir" na ficha abre a Nova movimentação (`MOV-06`), e a transferência acontece na chegada, por `veiculos.services.transferir` com a origem `movimentacao`. O `POST` responde 404. O serviço segue com as regras da `VEI-04` (categoria no destino, `TransferenciaVeiculo`, auditoria com a categoria de antes e a de depois) para a chegada, a importação e o seed.
@@ -603,6 +655,191 @@ A tela guarda os dois ids com a escolha e manda no bloco `fipe`. Linha com ids `
 
 ---
 
+## Preços do veículo (`VEI-12` a `VEI-17`, T-494, ADR 0041)
+
+Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços desta moto" da ficha (`Veiculo-Componente-PrecosDaMoto`). O preço é de cada veículo: planos de aluguel, regras, custos e a locação com compra. A API calcula tudo (margem, parcela, juros, alertas); a tela só mostra e chama o `simular` a cada mudança, com debounce. A locação ainda lê a tabela da categoria até a T-495 (ADR 0041, tarefa 2).
+
+### Quem pode
+
+- `GET`: administrador, gerente, vendedor e financeiro, no veículo das suas filiais (fora delas, 404). O vistoriador recebe 403 (não vê dinheiro, `USR-09`). O suporte Giro lê nos dois modos ("só ver" e "ver e editar"); a rota está na lista do `PLT-07`.
+- `PUT`, `simular` e o liga e desliga: só o administrador. O gerente recebe 403 (padrão A de "quem edita"). O suporte Giro só vê (`VEI-12`): recebe 403 `PLT-07` mesmo com "ver e editar" (`suporte_proibido`).
+- `custos`, `pago_na_moto`, `planos[].margem` e o lucro e a margem da compra só saem para administrador, gerente e financeiro; para o vendedor, as chaves vêm **ausentes**, não `null` (`VEI-13`, `USR-09`).
+
+### GET /api/veiculos/{id}/precos/
+
+```json
+{
+  "veiculo": { "id": 900, "placa": "TBC5H21", "marca": "Honda", "modelo": "Pop 110i", "status": "disponivel" },
+  "valor_venda_centavos": 1590000,
+  "aluguel_ligado": true,
+  "aviso_aluguel": null,
+  "fipe_centavos": 1390000,
+  "ocupacao_real_90d_pct": "84.00",
+  "margem_minima_pct": null,
+  "pago_na_moto": { "total_centavos": 1380000, "compra_centavos": 1349000, "despesas_centavos": 31000 },
+  "custos": {
+    "manutencao_mes_centavos": 10000, "seguro_mes_centavos": 8000, "rastreador_mes_centavos": 5000,
+    "ipva_ano_centavos": 120000, "ipva_mes_centavos": 10000, "revenda_estimada_centavos": 900000,
+    "ocupacao_esperada_pct": "85.00", "custo_mes_centavos": 53000,
+    "sem_custo_compra": false, "revenda_acima_do_pago": false
+  },
+  "planos": [
+    {
+      "id": 31, "tipo": "semanal", "nome": null, "rotulo": "Semanal", "periodo": "semana", "ligado": true,
+      "valor_centavos": 32900, "como_paga": "semana_adiantado", "formas_aceitas": ["pix", "boleto", "cartao", "dinheiro"],
+      "caucao_centavos": 30000, "caucao_parcelas": 1, "caucao_parcelada": null, "franquia_km": 1000, "prazo_minimo_periodos": null,
+      "agendado": { "valor_centavos": 34900, "caucao_centavos": null, "a_partir_de": "2026-12-01" },
+      "parcela_do_mes": null,
+      "margem": { "receita_mes_centavos": 121182, "lucro_mes_centavos": 68182, "margem_pct": "56.26", "abaixo_da_minima": false, "sem_custo_compra": false }
+    },
+    { "id": null, "tipo": "entregador", "nome": null, "rotulo": "Entregador", "periodo": null, "ligado": false, "valor_centavos": 0, "...": "..." }
+  ],
+  "regras": {
+    "km_excedente_centavos": 35, "dia_atraso_centavos": 5500, "multa_minima_centavos": 5490,
+    "desconto_sem_aprovacao_pct": "10.00", "prazo_devolucao_caucao_dias": 3
+  },
+  "plano_compra": {
+    "ligado": true, "periodicidade": "semanal", "parcelas": 104, "entrada_centavos": 100000, "juros_mes_pct": "1.00",
+    "modo": "calcular", "parcela_moto_centavos": 16124, "adicional_centavos": 2977, "caucao_centavos": 30000,
+    "resultado": {
+      "financiado_centavos": 1490000, "meses_do_prazo": "24.00", "taxa_periodo_pct": "0.23", "juros_mes_pct": "1.00",
+      "parcela_moto_centavos": 16124, "adicional_centavos": 2977, "parcela_cliente_centavos": 19101,
+      "recebe_pela_moto_centavos": 1776896, "juros_no_prazo_centavos": 186896, "venda_abaixo_do_pago": false,
+      "lucro_centavos": 396896, "margem_sobre_pago_pct": "28.76",
+      "pago_sobre_recebe_pct": "77.66", "lucro_sobre_recebe_pct": "22.34", "sem_custo_compra": false,
+      "nas_periodicidades": [
+        { "periodicidade": "diaria", "parcelas": 730, "parcela_cliente_centavos": 2719 },
+        { "periodicidade": "semanal", "parcelas": 104, "parcela_cliente_centavos": 19101 },
+        { "periodicidade": "quinzenal", "parcelas": 52, "parcela_cliente_centavos": 38239 },
+        { "periodicidade": "mensal", "parcelas": 24, "parcela_cliente_centavos": 83039 }
+      ]
+    }
+  },
+  "alertas": [],
+  "aviso_preco": null,
+  "pede_confirmacao_juros": false,
+  "pode_editar": true
+}
+```
+
+- `planos`: sempre os quatro tipos fixos, nesta ordem (`diaria`, `semanal`, `mensal`, `entregador`), e depois os `outro` ativos. Tipo fixo que o veículo ainda não tem vem com `id` `null`, desligado e valor 0 ("Ligue para definir valor, prazo mínimo e caução").
+- `valor_centavos` e `caucao_centavos` são os **efetivos de hoje**: com o preço agendado já na data, vêm os agendados e `agendado` vem `null`, mesmo antes da rotina das 00:05 (ADR 0041, risco 3). `agendado` só aparece enquanto a data é futura ("R$ 349,00 a partir de 01 dez").
+- `periodo`: `dia`, `semana` ou `mes`. `como_paga`: `tudo_na_retirada` (dia), `semana_adiantado` (semana), `mes_uma_parcela`, `mes_duas_quinzenais` ou `mes_quatro_semanais` (mês). `parcela_do_mes` só no mês dividido: `{ "parcelas": 4, "parcela_centavos": 24750, "ultima_parcela_centavos": 24750 }` (a diferença de centavos vai para a última).
+- `franquia_km` `null` = livre; `prazo_minimo_periodos` `null` = sem mínimo; `caucao_centavos` `null` = não preenchida (R$ 0,00 é válido).
+- `caucao_parcelada` (`LOC-04`): a caução de hoje dividida em `caucao_parcelas`, no mesmo formato do `parcela_do_mes`, com a diferença de centavos na última: R$ 500,00 em 2 → `{ "parcelas": 2, "parcela_centavos": 25000, "ultima_parcela_centavos": 25000 }` ("2 × R$ 250,00"). `null` à vista (`caucao_parcelas` 1) ou sem caução preenchida.
+- `custos.ipva_mes_centavos`: o IPVA do ano ÷ 12, arredondado ao centavo (`ROUND_HALF_UP`), só para mostrar ("R$ 39,00 por mês"); o custo por mês usa o valor sem arredondar.
+- `plano_compra.resultado.pago_sobre_recebe_pct` e `lucro_sobre_recebe_pct`: a divisão da barra do "recebe pela moto", com 2 casas e somando 100,00 (o do lucro é 100 − o do pago). Pop: 77,66% e 22,34%. Com lucro negativo (venda abaixo do pago e juros que não cobrem), o do pago passa de 100 e o do lucro fica negativo. Só para administrador, gerente e financeiro; nulos sem valor de compra.
+- `margem` `null` sem `ocupacao_esperada_pct` ("Informe a ocupação"). `margem_pct` `null` com receita zero. `abaixo_da_minima` pinta a faixa de amarelo (`margem_minima_pct` da empresa; nula = nunca).
+- `pago_na_moto.total_centavos` = compra + despesas do veículo sem as recusadas (`FIN-17`); `null` sem valor de compra (aí `lucro_centavos` e `margem_sobre_pago_pct` também vêm `null`).
+- **Desvalorização** (`VEI-13`, padrão A de 22 nov 2026, T-505): entra no `custo_mes_centavos` como max(0, pago na moto − revenda estimada) ÷ 24. Vazia (zero) sem revenda estimada, sem valor de compra ou com a revenda acima do pago; nunca negativa.
+- `sem_custo_compra` (`VEI-13`, `VEI-16`): `true` quando o veículo não tem valor de compra. Vem em `custos`, em cada `planos[].margem` e em `plano_compra.resultado`, só para quem vê custo (ausente para o vendedor, como o resto). A margem continua calculada (sem a desvalorização), e a tela a marca "sem custo de compra" com a dica "A margem não conta a compra desta moto. Informe o valor de compra para ver a margem real."; `abaixo_da_minima` vem sempre `false` (sem a faixa amarela). Na compra, `lucro_centavos`, `margem_sobre_pago_pct` e a divisão da barra vêm `null`. Biz ADJ-4T71 (revenda R$ 9.000,00): custo R$ 330,00 por mês, e não −R$ 45,00; semanal R$ 299,40 a 85%, margem 70,08%.
+- `custos.revenda_acima_do_pago`: `true` quando a revenda estimada passa do pago na moto; a desvalorização fica em R$ 0,00, e a tela mostra a dica "A revenda passa do que foi pago: sem desvalorização no custo.".
+- `plano_compra` `null` enquanto o veículo não tem um; `resultado` `null` sem valor de venda ou com entrada maior ou igual a ele. O "recebe pela moto" usa a parcela arredondada × `n` + entrada (padrão A: Pop R$ 17.768,96). A parcela nas 4 periodicidades usa o mesmo prazo em meses; a parcela da moto e o adicional se arredondam cada um.
+- `alertas`: `{ "codigo": "venda_abaixo_do_pago", "mensagem": "Valor de venda abaixo do que foi pago: o lucro vem só dos juros." }` e, com juros acima de 1% ao mês, `{ "codigo": "VEI-16", "mensagem": "Locadora não é financeira: juros acima de 1% ao mês (12% ao ano) pedem confirmação. Valide o contrato com seu advogado." }`.
+- `aviso_preco`: o mesmo da representação do veículo, calculado sobre o documento mostrado.
+- `aluguel_ligado` e `aviso_aluguel` (`VEI-21`): com o aluguel desligado, `aviso_aluguel` traz "O aluguel desta moto está desativado. O administrador ativa em Planos e preços." ("deste carro" no carro, pelo tipo da categoria); ligado, `null`. A Nova locação mostra esse texto no lugar dos planos de aluguel.
+- `pode_editar`: `true` só para o administrador; `false` para o suporte Giro, nos dois modos.
+
+### PUT /api/veiculos/{id}/precos/
+
+Corpo com o documento da tela; bloco ausente fica como está, e campo ausente dentro de um plano também. Devolve o mesmo corpo do `GET`. `aluguel_ligado` (`VEI-21`, opcional) liga e desliga o aluguel inteiro: o "Oferecer aluguel" manda só `{ "aluguel_ligado": false }` (ou `true`).
+
+```json
+{
+  "valor_venda_centavos": 1590000,
+  "custos": { "manutencao_mes_centavos": 10000, "seguro_mes_centavos": 8000, "rastreador_mes_centavos": 5000,
+              "ipva_ano_centavos": 120000, "revenda_estimada_centavos": 900000, "ocupacao_esperada_pct": "85.00" },
+  "planos": [
+    { "id": 31, "valor_centavos": 32900, "ligado": true, "franquia_km": 1000,
+      "agendado": { "valor_centavos": 34900, "caucao_centavos": null, "a_partir_de": "2026-12-01" } },
+    { "tipo": "entregador", "periodo": "semana", "ligado": true, "valor_centavos": 27900, "formas_aceitas": ["pix"],
+      "caucao_centavos": 0, "caucao_parcelas": 3, "prazo_minimo_periodos": 12 },
+    { "id": null, "tipo": "outro", "nome": "Fim de semana", "periodo": "dia", "valor_centavos": 9900 },
+    { "id": 44, "ativo": false }
+  ],
+  "regras": { "km_excedente_centavos": 35, "dia_atraso_centavos": 5500, "multa_minima_centavos": 5490,
+              "desconto_sem_aprovacao_pct": "10.00", "prazo_devolucao_caucao_dias": 3 },
+  "plano_compra": { "ligado": true, "periodicidade": "semanal", "parcelas": 104, "entrada_centavos": 100000,
+                    "juros_mes_pct": "1.00", "modo": "calcular", "parcela_moto_centavos": 0,
+                    "adicional_centavos": 2977, "caucao_centavos": 30000 },
+  "confirmar_juros": false
+}
+```
+
+- O plano se acha pelo `id`, ou pelo `tipo` nos tipos fixos sem `id` (cria o que ainda não existe). `outro` com `id` `null` cria um novo; precisa de `nome` (até 40), único entre os `outro` ativos sem diferenciar maiúsculas. `entregador` e `outro` precisam de `periodo`.
+- `ativo: false` retira só o `outro` (fica `ativo=false`, nada se apaga); nos tipos fixos responde 400 "Este plano não se retira. Desligue o plano.".
+- `agendado: null` desfaz o agendado; um objeto troca o anterior. `a_partir_de` a partir de amanhã (data sem hora, `America/Sao_Paulo`).
+- `plano_compra`: `periodicidade` (`diaria`, `semanal`, `quinzenal`, `mensal`), `parcelas` de 2 a 1000. No `calcular`, a API calcula a parcela pelos juros e ignora `parcela_moto_centavos`; no `digitar`, grava a parcela digitada e acha os juros por bisseção, gravados com 2 casas.
+- 400 `validacao`, com os campos pontuados (`planos.0.valor_centavos`, `plano_compra.entrada_centavos`):
+
+| Campo | Mensagem |
+| --- | --- |
+| `planos.N.valor_centavos` | Informe um valor maior que zero para ligar o plano. |
+| `planos.N.formas_aceitas` | Escolha ao menos uma forma de pagamento para ligar o plano. |
+| `planos.N.caucao_centavos` | Informe a caução para ligar o plano. Pode ser R$ 0,00. |
+| `planos.N.como_paga` | Escolha como o cliente paga neste período. |
+| `planos.N.nome` | Dê um nome ao plano. |
+| `planos.N.agendado.a_partir_de` | Escolha uma data a partir de amanhã. |
+| `valor_venda_centavos` | Informe o valor de venda para ligar a locação com compra. |
+| `plano_compra.entrada_centavos` | A entrada precisa ser menor que o valor de venda. |
+| `plano_compra.parcela_moto_centavos` | A parcela não cobre o valor de venda. |
+
+- 409 `VEI-16` quando a compra fica ligada com juros acima de 1,00% ao mês (o digitado no `calcular`, o achado no `digitar`), mudados desde a última gravação ou com a compra ligada agora, sem `confirmar_juros: true`:
+  `{ "codigo": "VEI-16", "mensagem": "Locadora não é financeira: juros acima de 1% ao mês (12% ao ano) pedem confirmação. Valide o contrato com seu advogado.", "detalhes": { "juros_mes_pct": "1.46" } }`. A tela confirma e reenvia com `confirmar_juros: true`; o evento de auditoria grava `juros_confirmados: { pct, por, em }`.
+- A gravação é uma transação com o veículo travado. Cada campo mudado vira uma linha do histórico de preços (`VEI-17`, origem `tela_precos`), e a gravação inteira um evento de auditoria `veiculo.precos_salvar` ("Mudou os preços do veículo TBC-5H21"), com o `lote`.
+- Depois de gravar, o "sem preço" se alinha (abaixo).
+
+### POST /api/veiculos/{id}/precos/simular/
+
+O mesmo corpo do `PUT` (o `confirmar_juros` é ignorado), sem gravar nada (ADR 0005). Devolve o corpo do `GET` com o documento simulado e `pede_confirmacao_juros` `true` quando salvar pediria a confirmação. Os mesmos 400.
+
+### POST /api/veiculos/{id}/precos/planos/{plano_id}/ligado/
+
+`{ "ligado": false }`: o liga e desliga do cartão da ficha, com confirmação na tela. Mesmo histórico (origem `ficha`), auditoria e "sem preço" do `PUT`. Ligar sem valor, forma ou caução: 400 com `valor_centavos`, `formas_aceitas` ou `caucao_centavos`. Plano de outro veículo ou retirado: 404. Devolve o corpo do `GET`.
+
+### Sem preço (`VEI-15`)
+
+- O veículo `disponivel` que fica sem nenhum plano ligado (nem a compra) vai para `indisponivel` com `motivo_status` "Sem preço · ligue um plano", na mesma gravação. Ligar um plano o devolve a `disponivel`, desde que o motivo seja esse e nenhum CRLV ou seguro tenha vencido; bloqueio ou documento vencido não voltam sozinhos.
+- `reservado`, `alugado`, `em_manutencao` e `em_movimentacao` mantêm o status. Na volta (`transicionar(..., "disponivel")`: devolução, reserva cancelada, fim de OS, chegada da movimentação), o veículo sem plano ligado vai para `indisponivel` "sem preço" (`acao` `veiculo.sem_preco`).
+- Vale em todo retorno (PR #630), inclusive o desbloqueio e o "Voltar para a frota":
+  - **`desbloquear` sem plano ligado:** responde 200 com o veículo `indisponivel` e `motivo_status` "Sem preço · ligue um plano". O bloqueio sai e o motivo dele deixa de aparecer. O histórico de status ganha uma linha de `indisponivel` para `indisponivel` com o motivo novo, e a auditoria um evento `veiculo.sem_preco`. CRLV ou seguro vencido continua respondendo 422 `VEI-03` antes disso.
+  - **`voltar-para-frota` sem plano ligado:** `a_venda` vai para `indisponivel` "sem preço".
+  - **As idas a `indisponivel` a partir de `alugado`, `reservado`, `em_manutencao` e `a_venda`** existem só por essa volta. Bloquear um veículo nesses status continua 409 `transicao_veiculo`.
+- "Colocar à venda" sem plano ligado: 409 `{ "codigo": "VEI-15", "mensagem": "A tabela de preços desta moto não está preenchida. Preencha para alugar ou colocar à venda." }` (`VEN-01`).
+
+### Aluguel desligado (`VEI-21`, T-507)
+
+- `PUT .../precos/` com `aluguel_ligado`: só o administrador (o gerente recebe 403; o suporte Giro, 403 `PLT-07`), como os preços. Grava `Veiculo.aluguel_ligado` e uma linha de histórico (`alvo` `aluguel`, `campo` `aluguel_ligado`, `de` e `para`) no evento `veiculo.precos_salvar` (`VEI-17`). O mesmo valor de novo não grava nada.
+- Os planos ficam como estão, com o ligado de cada um, o valor, o agendado e o histórico, e continuam editáveis. O agendado que chega à data entra em vigor do mesmo jeito.
+- **Status (padrão A, decisão do dono de 24 nov 2026):** não muda e não é "sem preço". A `VEI-15` continua olhando o ligado de cada plano, e o `aviso_preco` também.
+- **Nova locação de aluguel e troca de veículo (`LOC-09`):** 409 `{ "codigo": "VEI-21", "mensagem": "O aluguel desta moto está desativado. O administrador ativa em Planos e preços." }` no `simular`, no rascunho e no pedido de troca (`veiculos.services.conferir_aluguel_ligado`).
+- **Locação com compra (padrão A):** independente; com a compra ligada, o veículo segue na Nova locação só para ela.
+- **Locação aberta:** desligar é aceito, e a locação segue com o preço e as renovações dela (`LOC-15`); a renovação não confere o aluguel.
+- Veículo novo, importado ou migrado começa com o aluguel ligado (migration `veiculos 0012`, `default` `true`).
+
+### Preço agendado
+
+Um por plano. Quem lê o preço pergunta pelo dia: o agendado vale a partir de `a_partir_de`. A rotina `consolidar_precos_agendados` (Celery Beat, 00:05, uma por empresa, idempotente) passa o agendado vencido a vigente e limpa os campos, com histórico (origem `agendamento`, sem pessoa) e o evento `veiculo.precos_agendado_vigente` do Sistema. O plano que nasceu sem preço na migração e só com o agendado liga no dia, se tiver forma e caução.
+
+### Veículo novo e migração
+
+- O veículo cadastrado (tela, CRLV, importação, troca) nasce com `diaria`, `semanal` e `mensal` pelo preço vigente da categoria (`veiculos.services.aplicar_modelo_de_preco`), ligados quando há valor e caução; o primeiro preço futuro da categoria vira o agendado; regras com dia de atraso e multa mínima iguais à diária e 5% sem aprovação.
+- A migration `veiculos 0010` faz o mesmo para os veículos que já existem (origem `migracao`), uma vez por veículo (sem `RegrasVeiculo`); um segundo preço futuro da categoria não cabe e sai listado no `migrate`.
+
+### Interface interna
+
+| Item | Uso |
+| --- | --- |
+| `veiculos.services.tem_plano_ligado(veiculo)` | algum plano ativo e ligado, ou a compra ligada |
+| `veiculos.services.sem_preco()` | o `Conflito` 409 `VEI-15` com o aviso, para a Nova locação e a troca (T-495) |
+| `veiculos.services.conferir_aluguel_ligado(veiculo)` | 409 `VEI-21` com o aluguel desligado, para a Nova locação de aluguel e a troca (T-507) |
+| `veiculos.services.MOTIVO_SEM_PRECO`, `AVISO_PRECO` | os textos |
+| `PlanoVeiculo.valor_em(dia)`, `caucao_em(dia)` | o preço do dia, com o agendado |
+| `veiculos.precos` | o cálculo puro (`simular`, `simular_compra`, `pmt`, `juros_por_bissecao`, `margem`) |
+| `financeiro` registra o contador `("veiculos.Veiculo", "despesas_centavos")` | as despesas do veículo sem as recusadas, para o "pago na moto" (ADR 0015) |
+
+---
+
 ## Categorias e preços (Precos)
 
 ### GET /api/categorias/
@@ -657,6 +894,8 @@ Planos especiais (`Entregador`, `Mensal fidelidade`) aparecem na tela `Precos`, 
 | evento `veiculos.veiculo_baixado(veiculo_id, motivo_texto)` | publicado por `baixar` dentro da transação, síncrono; assinado por `movimentacoes`, que cancela a movimentação aberta (`MOV-03`, T-311). Falha no assinante desfaz a baixa. |
 | evento `veiculos.km_atualizado` | assinado por `manutencao` (preventivas, `MAN-03`). |
 | evento `veiculos.documento_vencendo` / tarefa `aut_06_vencimento_de_documentos` | `VEI-03`, `AUT-06`: 30 dias antes avisa; no dia, CRLV ou seguro vencido leva `disponivel` → `indisponivel`; veículo `alugado`, `reservado` ou `em_manutencao` não muda e gera tarefa urgente para os gerentes da filial (`FIL-02`). |
+| tarefa `aut_18_veiculos_parados` (Beat às 07:00) | `VEI-19`, `AUT-18`: avisa os gerentes ativos da filial (`FIL-02`) de cada veículo `a_venda` com `dias_em_estoque` acima do limite, uma vez por entrada no estoque (`Veiculo.estoque_aviso_entrada_em`), no sino e por e-mail: "O veículo PVF-2B18 (Honda CG 160 Fan) está à venda há 31 dias. O limite da empresa é 30 dias.", com o link da ficha. Administradores não recebem; filial sem gerente ativo fica sem o aviso. Execução perdida e limite que baixou avisam na próxima execução. |
+| `veiculos.selectors.estoque_a_venda(filiais)`, `parados_a_venda(filiais, limite, hoje)` | `VEI-20` e `VEI-18` para o painel (`painel.md`). |
 | anotações de leitura fornecidas | `indicadores` de `Filial` (`veiculos`, `ocupacao_pct`), ver `filiais.md`. |
 
 ## Preencher pelo CRLV-e (`VEI-08`, ADR 0026, T-247)
