@@ -8,7 +8,7 @@ Todas as telas usam a mesma empresa de exemplo. Use estes dados como seed do ban
 
 **Pessoas:** Mariana Costa (administradora), Rodrigo Pinheiro (gerente), Bruna Alves (vendedora), João Silva (vistoriador), Lúcia Freitas (financeiro). Plataforma: você (dono), Diego Santos (suporte), Paula Andrade (financeiro), Caio Ribeiro (sucesso), Larissa Melo (suporte, convite pendente).
 
-**Tabela de preços da Filial Centro** (tela `Precos`; base do `LOC-01`):
+**Preços dos veículos da Filial Centro** (base do `LOC-01`). O seed grava estes planos em cada veículo do modelo, direto, sem categoria (`VEI-12`; a categoria saiu na T-522, `VEI-11`). A primeira coluna é o nome da antiga categoria, mantido só para os exemplos ("semanal Street"):
 
 | Categoria | Modelos | Diária | Semanal | Mensal | Caução |
 | --- | --- | --- | --- | --- | --- |
