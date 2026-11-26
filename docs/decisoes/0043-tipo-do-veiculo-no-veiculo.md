@@ -1,49 +1,36 @@
-# Tipo do veículo no próprio veículo e tipo de plano opcional
+# Tipo do veículo no próprio veículo e saída do tipo de plano (categoria)
 
-**Status:** aceita · 26 nov 2026 · T-522 (regras: `VEI-01`, `VEI-04`, `VEI-11`, `VEI-12`, `VEI-15`, `IMP-02`, `IMP-08`, `CLI-02`, `VIS-01`, `FIL-04`; decisão do dono de 26 nov 2026; regras no PR #692 do Produto; pontos em aberto T-522 · 1 a 7 com os padrões desta ADR) · **substitui em parte a 0041** (o "a categoria vira só tipo" do item sobre `Categoria`: o moto ou carro sai dela como fonte do veículo) · detalha a 0011 e a 0015
+**Status:** aceita · 26 nov 2026 · T-522 (regras: `VEI-01`, `VEI-04`, `VEI-11`, `VEI-12`, `VEI-15`, `IMP-02`, `IMP-05`, `IMP-07`, `IMP-08`, `MOV-06`, `FIL-04`, `LOC-01`, `LOC-02`, `LOC-08`, `LOC-09`, `CLI-02`, `VIS-01`; decisões do dono de 26 nov 2026; regras no PR #692 do Produto; pontos em aberto T-522 · 1 a 3 com os padrões desta ADR) · **substitui em parte a 0041** (o papel da `Categoria` como "tipo" e como modelo de preço do cadastro, da importação e do assistente) · detalha a 0011 e a 0015
 
 ## Contexto
 
-Até aqui o veículo não tinha tipo próprio. `Veiculo.categoria` é FK obrigatória (`PROTECT`) para `veiculos.Categoria`, que a tela chama de "Tipo de plano" (T-507), e o moto ou carro do veículo é `veiculo.categoria.tipo_veiculo` (`VEI-11`, decisão de 05 nov 2026, "para os dois nunca discordarem"). Esse tipo decide a CNH exigida (`CLI-02`), os itens da vistoria (`VIS-01`), os filtros Moto e Carro da Frota e da Nova locação, o ícone e os textos "desta moto" ou "deste carro".
+Até aqui o veículo não tinha tipo próprio. `Veiculo.categoria` é FK obrigatória (`PROTECT`) para `veiculos.Categoria`, que as telas chamam de "Tipo de plano" (T-507), e o moto ou carro do veículo é `veiculo.categoria.tipo_veiculo` (`VEI-11`). Esse tipo decide a CNH exigida (`CLI-02`), os itens da vistoria (`VIS-01`), os filtros Moto e Carro da Frota e da Nova locação, o ícone e os textos "desta moto" ou "deste carro". Desde a ADR 0041 o preço é de cada veículo; a categoria sobrou como tipo, como modelo de preço (`PrecoCategoria`) do cadastro, da importação e do passo Preços do assistente, como tabela da filial (`FIL-04`) na transferência e como restrição dos planos especiais antigos.
 
-A decisão do dono de 26 nov 2026:
+Decisões do dono de 26 nov 2026, em duas etapas no mesmo dia:
 
-1. O "Tipo de plano" sai do cadastro do veículo. Cadastro novo não pede nem grava tipo de plano.
-2. O veículo pode ficar sem tipo de plano.
-3. Moto ou carro passa a ser dado do próprio veículo.
-4. O editar e a importação (`IMP-08`) mantêm o tipo de plano, opcional.
-5. O seletor "Moto ou carro" passa a se chamar **"Veículo"**, no cadastro, no editar e onde mais o rótulo aparecer.
+1. Moto ou carro passa a ser dado do próprio veículo, com o rótulo **"Veículo"**.
+2. O tipo de plano sai **de vez**: "não faz mais sentido na regra de negócio atual; a escolha dos preços vai ser feita individualmente em cada veículo, então esse campo é inútil". Sai do cadastro, do editar, da importação (`IMP-08`), da transferência (`FIL-04`, `MOV-06`), dos planos especiais, do passo Preços do assistente (`IMP-05`, `IMP-07`) e da tela de administração dos tipos de plano.
 
-É caro de desfazer porque muda uma coluna de um model central, migra todos os veículos de todas as empresas e troca a fonte de uma informação lida por seis apps.
+A primeira versão desta ADR (mesmo PR, #693) deixava o tipo de plano opcional; esta a substitui inteira.
+
+É caro de desfazer porque muda uma coluna de um model central, migra todos os veículos de todas as empresas, tira um passo do assistente e do funil da plataforma e troca a fonte de uma informação lida por seis apps.
 
 ## Decisão
 
-### 1. Modelo: `Veiculo.tipo_veiculo` e `Veiculo.categoria` nula
+### 1. Modelo
 
-| Campo | Antes | Depois |
-| --- | --- | --- |
-| `tipo_veiculo` | não existe (lido de `categoria.tipo_veiculo`) | `CharField(max_length=10, choices=TipoVeiculo.choices)`, obrigatório, **sem default no model** |
-| `categoria` | FK → `Categoria`, obrigatória, `PROTECT` | FK → `Categoria`, `null=True, blank=True`, `PROTECT` |
+**`Veiculo.tipo_veiculo`, novo.** `CharField(max_length=10, choices=TipoVeiculo.choices)`, obrigatório, **sem default no model**. `TipoVeiculo` é o enum que já existe em `veiculos.models` (`moto`, `carro`). Um default `moto` faria um carro esquecido virar moto em silêncio, e a CNH (`CLI-02`) é conferida por ele; quem cria veículo informa o tipo, e a falta é erro de validação. `CheckConstraint` `veiculo_tipo_valido` (`tipo_veiculo IN ('moto', 'carro')`) e índice `(filial, tipo_veiculo)` para os filtros e as contagens.
 
-- `TipoVeiculo` é o enum que já existe em `veiculos.models` (`moto`, `carro`). Não se cria outro.
-- **Sem default no model**: um default `moto` faria um carro esquecido virar moto em silêncio, e a CNH (`CLI-02`) é conferida por ele. Quem cria veículo informa o tipo; a falta é erro de validação.
-- `CheckConstraint` `veiculo_tipo_valido`: `tipo_veiculo IN ('moto', 'carro')`.
-- **Coerência com a categoria**: com `categoria` preenchida, `categoria.tipo_veiculo == veiculo.tipo_veiculo`. Não dá para ser constraint (é entre tabelas); é conferida no serviço de domínio, em todo caminho que grava `categoria` ou `tipo_veiculo` (cadastro, editar, importação, transferência), e por um teste de varredura (item 7). `Categoria.tipo_veiculo` continua travado com veículos na categoria (`editar_categoria`, `categoria_com_veiculos`), o que mantém a coerência pelo outro lado.
-- Índice: `(filial, tipo_veiculo)` para os filtros da Frota e da Nova locação e as contagens por tipo. O índice de `categoria` fica.
-- `Categoria` não muda: nome, `tipo_veiculo`, `filial`, `ativo`, e o `PrecoCategoria` como modelo de preço (ADR 0041). Ela continua precisando do moto ou carro para filtrar a lista do editar e da importação.
-- Nada se apaga: a categoria dos veículos que existem fica.
+**`Veiculo.categoria`, dado antigo.** Vira `null=True, blank=True`, continua `PROTECT` e continua no banco com o valor de hoje nos veículos que já existem. Veículo novo nasce com `categoria` nula. Nenhuma tela, nenhuma API e nenhuma regra nova lê ou grava o campo; a única leitura que fica é a das locações antigas (item 3, "Locações antigas"). Ele sai do `retrato` da auditoria dos eventos novos; os eventos antigos não mudam.
+
+**Guardados sem leitura e sem tela** (nada de negócio se apaga, `CLAUDE.md`): `veiculos.Categoria`, `veiculos.PrecoCategoria`, `locacoes.PlanoCompra`, `locacoes.PlanoEspecial` (com o M2M `categorias`), `movimentacoes.Movimentacao.categoria_destino` e os campos de categoria de `TransferenciaVeiculo`. Os models ficam no código (as FKs das locações antigas apontam para eles) e no Django Admin só para leitura do suporte, se já estiverem lá. Tirar as tabelas do banco, se um dia for o caso, pede outra ADR, como a 0041 já dizia.
 
 ### 2. Migração
 
-Duas migrações em `veiculos`, depois da `0013_excluido`:
+**`veiculos`, depois da `0013_excluido`:**
 
-**`0014_tipo_do_veiculo` (esquema)**
-
-1. `AddField("veiculo", "tipo_veiculo", CharField(..., default="moto"), preserve_default=False)`: o default só existe para preencher a coluna nas linhas que já estão lá; o model fica sem default.
-2. `AlterField("veiculo", "categoria", ForeignKey(..., null=True, blank=True, on_delete=PROTECT))`.
-3. `AddConstraint` `veiculo_tipo_valido` e `AddIndex` `(filial, tipo_veiculo)`.
-
-**`0015_tipo_pela_categoria` (dados, `RunPython`)**
+- `0014_tipo_do_veiculo` (esquema): `AddField("veiculo", "tipo_veiculo", ..., default="moto", preserve_default=False)` (o default só preenche a coluna nas linhas que existem; o model fica sem default); `AlterField` de `categoria` para nula; `AddConstraint` e `AddIndex`.
+- `0015_tipo_pela_categoria` (dados, `RunPython`):
 
 ```python
 def preencher(apps, schema_editor):
@@ -56,165 +43,169 @@ def preencher(apps, schema_editor):
     )
 ```
 
-- **`.using(schema_editor.connection.alias)`**, como a `0010_copiar_precos_da_categoria`: a empresa nova é migrada pela conexão do papel de migração, no schema dela (ADR 0040, `plataforma.banco.criar_schema`). A `default` aponta para outro schema e não tem a tabela.
-- **`_base_manager`**: o veículo excluído (`VEI-22`) e os `vendido` e `baixado` também recebem o tipo; o manager padrão pode filtrar o excluído.
-- Todos nascem `moto` pelo passo 1 da `0014`; a `0015` só corrige os de categoria de carro. Um `UPDATE` por empresa, sem laço em Python.
-- **Idempotente**: rodar de novo dá o mesmo resultado.
-- **Na criação de empresa nova** a migração roda (o schema novo passa por todas as migrações) e não acha veículo: nada é alterado e nada quebra. Teste explícito (item 7).
-- O `update()` aqui não fere a regra de status por serviço: `tipo_veiculo` não é status, e a migração não gera evento de auditoria, como a `0010` (dado copiado, nada que a pessoa fez).
-- **Reversa**: `RunPython.noop` na `0015`. A reversa da `0014` volta `categoria` a obrigatória, e só funciona enquanto nenhum veículo ficou sem categoria. Isso é aceito: depois do primeiro cadastro novo, voltar exige escolher categoria para cada veículo, decisão de produto e não de migração.
-- **Seed**: `seed/frota.py` e os outros que criam `Veiculo` passam o `tipo_veiculo` explicitamente (igual ao da categoria). A Moto Rápida não muda nenhum número de `dados-de-teste.md`.
+- **`.using(schema_editor.connection.alias)`**, como a `0010_copiar_precos_da_categoria`: a empresa nova é migrada pela conexão do papel de migração, no schema dela (ADR 0040, `plataforma.banco.criar_schema`); a `default` aponta para outro schema e não tem a tabela.
+- **`_base_manager`**: o excluído (`VEI-22`), o `vendido` e o `baixado` também recebem o tipo; o manager `objects` tira o excluído.
+- Todos nascem `moto` pela `0014`; a `0015` só corrige os de categoria de carro. Um `UPDATE` por empresa, idempotente.
+- **Na criação de empresa nova** a migração roda e não acha veículo: nada é alterado. Teste explícito (item 8).
+- O `update()` não fere a regra de status por serviço (`tipo_veiculo` não é status) e não gera evento de auditoria, como a `0010`.
+- **Reversa**: `noop` na `0015`; a da `0014` volta `categoria` a obrigatória e só funciona antes do primeiro veículo novo sem categoria. Aceito.
 
-### 3. Quem passa a ler o tipo do veículo no lugar da categoria
+**`plataforma` (schema público), etapa Preços do funil (`IMP-05`):**
 
-Levantado no código da `origin/develop` de 26 nov 2026 (`1be376d2`). Toda leitura de `veiculo.categoria.tipo_veiculo` ou `categoria__tipo_veiculo` vira `veiculo.tipo_veiculo` ou `tipo_veiculo`. Sem isso, um veículo sem categoria quebra com `AttributeError` em `None`.
+- `00NN_funil_sem_precos` (`RunPython`): cada `Empresa` com `etapa_implantacao = "precos"` passa para a etapa que o cálculo de sempre dá sem o passo Preços (a função que hoje devolve a etapa, chamada com o `FUNIL` novo). `etapa_implantacao_desde` passa a ser a hora da migração, para a empresa não cair em "precisam de ajuda" (3 dias no mesmo passo) por um passo que ela não fez.
+- Depois, o valor `precos` sai de `EtapaImplantacao` (é só `choices`, sem mudança de coluna).
+- O `"precos"` que já está em `UsoEmpresa.passos_implantacao` (json dos passos feitos) fica guardado e é ignorado, porque o passo sai de `PASSOS_IMPLANTACAO`.
 
-| App | Onde | O que lê | Regra |
+**Seed (`seed/frota.py`, `seed/precos.py`)**: as categorias e o `criar_preco` saem; cada veículo é criado com `tipo_veiculo` e recebe os planos direto pelo serviço da tela de preços (ADR 0041), com os mesmos valores de hoje (Street semanal R$ 329,00 e o resto). Nenhum número de `dados-de-teste.md` muda; o texto que fala das 4 categorias é do Produto.
+
+### 3. Quem lia a categoria e o que fica no lugar
+
+Levantado no código da `origin/develop` de 26 nov 2026 (`1be376d2`).
+
+**O tipo: lê `veiculo.tipo_veiculo`** (sem isso, um veículo sem categoria quebra com `AttributeError` em `None`).
+
+| App | Onde | Uso | Regra |
 | --- | --- | --- | --- |
-| `veiculos` | `selectors.do_tipo` | filtro Moto ou Carro da Frota e da Nova locação (`categoria__tipo_veiculo`) | `VEI-11` |
-| `veiculos` | `selectors.contagens` | contagem por tipo das abas da Frota (`values_list("categoria__tipo_veiculo")`) | `VEI-11` |
-| `veiculos` | `selectors` ficha e lista (`"tipo_veiculo": veiculo.categoria.tipo_veiculo`, `"categoria": {...}`) | campo `tipo_veiculo` e `categoria` da resposta | `VEI-11` |
-| `veiculos` | `services.editar` | troca de tipo com locação aberta (409 `tipo_com_locacao_aberta`) e os campos da auditoria | `VEI-11`, `AUD-01` |
-| `veiculos` | `services.categoria_no_destino`, `transferir` | tipo de plano no destino da transferência | `VEI-04`, `FIL-04` |
-| `veiculos` | `services` linha do texto "deste carro" ou "desta moto" (`veiculo.categoria.tipo_veiculo == CARRO`) | textos | `VEI-15` |
-| `veiculos` | `exclusao.py` (`é moto?`) | texto da exclusão | `VEI-22` |
-| `veiculos` | `services.aplicar_modelo_de_preco`, `planos_do_modelo` | modelo de preço do cadastro e da importação | `VEI-12` |
-| `veiculos` | `selectors` ficha (`precos_vigentes({veiculo.categoria_id})`) e `api/views` lista (`{v.categoria_id for v in pagina}`) | `preco_vigente` da categoria na resposta | ADR 0041 |
-| `locacoes` | `services` (rascunho e confirmação, linha 331; troca de veículo, linha 1563) | CNH exigida | `CLI-02`, `LOC-09` |
-| `locacoes` | `selectors` (linha 476, `"tipo"` do veículo; linha 905, impedimentos da CNH) | tipo na resposta e CNH | `CLI-02` |
-| `locacoes` | `services` plano especial (linha 1545, `veiculo.categoria_id in categorias`) | plano especial restrito a tipos de plano | `LOC-01` |
-| `vistorias` | `services.ITENS_PADRAO[veiculo.categoria.tipo_veiculo]` (linha 135), CNH (linha 361) | itens da vistoria e CNH | `VIS-01`, `CLI-02` |
-| `vistorias` | `selectors` linha 95 | CNH na vistoria | `CLI-02` |
-| `clientes` | `selectors` (função da CNH, recebe `tipo_veiculo: str`) | nada muda: quem chama passa `veiculo.tipo_veiculo` | `CLI-02` |
-| `importacao` | `linhas`, `selectors`, `services`, `api/serializers` | categoria da linha e do modelo; tipo do veículo importado | `IMP-02`, `IMP-08` |
-| `movimentacoes` | `services._categoria_destino` (`veiculo.categoria.filial_id`), `api/serializers` | tipo de plano no destino | `VEI-04`, `MOV` |
-| `relatorios` | `configuracoes.resumo_precos`, `selectors.categorias_ativas` | contagem de tipos de plano | não muda (não lê o veículo) |
-| `auditoria` | `retrato(veiculo)` | passa a ter `tipo_veiculo`; `categoria_id` pode ser `null` | `AUD-01` |
-| `vendas` | `veiculos.services.receber_na_troca` (veículo recebido na troca, `VEI-07`, fase 2 da ADR 0042) | `dados` do cadastro: passa a exigir `tipo_veiculo` | `VEN-05` |
+| `veiculos` | `selectors.do_tipo` e `selectors.contagens` | filtro e contagem Moto ou Carro da Frota e da Nova locação | `VEI-11` |
+| `veiculos` | `selectors` ficha e lista | `tipo_veiculo` da resposta | `VEI-11` |
+| `veiculos` | `services.editar`, `motivo_de_nao_trocar_tipo` | troca do Veículo, 409 `tipo_com_locacao_aberta` | `VEI-11` |
+| `veiculos` | `services` ("deste carro" ou "desta moto"), `exclusao.py` | textos | `VEI-15`, `VEI-22` |
+| `locacoes` | `services` linhas 331 e 1563, `selectors` linhas 476 e 905 | CNH exigida e o `tipo` na resposta | `CLI-02`, `LOC-09` |
+| `vistorias` | `services.ITENS_PADRAO[...]` (linha 135), CNH (linha 361), `selectors` linha 95 | itens da vistoria e CNH | `VIS-01`, `CLI-02` |
+| `clientes` | `selectors` (CNH) | nada muda: recebe `tipo_veiculo: str`, e quem chama passa `veiculo.tipo_veiculo` | `CLI-02` |
 
-Os `select_related("categoria")` que existem só para ler o tipo (locações, vistorias, movimentações, views de veículos) saem ou ficam conforme o resto da função ainda use a categoria; com FK nula o `select_related` continua valendo (LEFT JOIN).
+**O resto: sai sem substituto, porque o preço já é do veículo (ADR 0041).**
 
-**O que não muda:** `Categoria` e os endpoints de tipo de plano (`/api/categorias/`, preços da categoria, histórico), `PrecoCategoria`, `PlanoCompra` antigo e `PlanoEspecial` (ADR 0041), as locações já gravadas (o preço é do veículo e congelado, `LOC-15`), os contratos (`cliente.cnh_categoria` é a categoria da CNH, não a do veículo), `relatorios`, `financeiro`.
+| Uso da categoria | Onde | O que fica |
+| --- | --- | --- |
+| Modelo de preço do cadastro e da importação | `veiculos.services._criar` → `aplicar_modelo_de_preco`, `planos_do_modelo` | o veículo nasce com os planos vazios (item 5). `aplicar_modelo_de_preco` passa a não ler categoria e grava só o padrão; `planos_do_modelo` sai |
+| Escolha na tela | cadastro, editar, `_categoria_para`, `_validar_dados`, `OBRIGATORIOS_DO_CADASTRO`, `CAMPOS_EDITAVEIS` | sai; `tipo_veiculo` entra nos obrigatórios e nos editáveis |
+| Tabela da filial na transferência | `veiculos.services.categoria_no_destino`, `transferir`; `movimentacoes.services._categoria_destino` | sai. A transferência só muda a filial; some o caso de recusa da `VEI-04` (`MOV-06`). `categoria_destino` deixa de ser gravada |
+| Importação por modelo | `importacao.linhas` (`CATEGORIA`, `CATEGORIA_PROPRIA`, `categorias_da_filial`), `selectors` (`faltam_categorias`, `_categorias`), `services` (`escolher_categorias`, `_categoria_na_correcao`, `sem_categoria`) | vira o Veículo por modelo (item 4) |
+| Tela de tipos de plano e histórico | `veiculos.api` `/categorias/`, `.../precos/`, histórico; serviços `criar_categoria`, `editar_categoria`, `desativar_categoria`, `reativar_categoria`, `criar_preco`, `trocar_preco_futuro`; `locacoes.leituras.locacoes_da_categoria` | sai (rotas e serviços). Os formatadores de auditoria dos eventos `categoria.*` ficam, para os eventos antigos se lerem |
+| Lista de planos especiais e de compra da tela | `locacoes.api` (lista com `?categoria=`, detalhe do `PlanoCompra`), `selectors.planos_especiais`, `planos_compra` | sai (cadastro já respondia 410 desde a ADR 0041) |
+| Passo Preços e cartão de Configurações | `plataforma.services.PASSOS_IMPLANTACAO`, `FUNIL`, `veiculos.apps` (`registrar_conferencia_de_passo("precos", ...)`, `registrar_passo_implantacao("precos")`), `relatorios.configuracoes` (`precos`, `resumo_precos`), `relatorios.selectors.PASSOS_DA_CONFIGURACAO`, `categorias_ativas` | sai o passo, a conferência, o funil e o resumo. O cartão "Tabelas de preço" depende do ponto em aberto T-522 · 2 (extras) |
+| Filtro `?categoria=` | `GET /api/veiculos/`, `selectors` linha 298 | sai |
+| `preco_vigente` da categoria na ficha e na lista | `selectors` linha 502, `api/views` linha 180 | sai (já era só informativo) |
 
-### 4. Contrato da API (`docs/api/veiculos.md`, `docs/api/importacao.md`, `docs/api/movimentacoes.md`)
+**Locações antigas: a leitura fica, só para elas.** A locação confirmada antes da ADR 0041 pode ter `plano_especial` ou `plano_compra` gravados. Renovação (`LOC-08`), troca (`LOC-09`) e acerto delas continuam lendo esses models, como hoje, e nada muda para essas locações:
 
-**`POST /api/veiculos/` (cadastro)**
+- `locacoes.services` linha 1358 (renovação: preço fixo e desconto do plano especial);
+- `preco_da_troca` linha 1543: o plano especial de preço fixo restrito a categorias continua conferindo `veiculo.categoria_id` do veículo novo. Veículo cadastrado depois desta ADR tem categoria nula e não entra no plano restrito; a troca usa o plano do veículo novo (`LOC-09`), que é o que a ADR 0041 já faz para o plano desligado;
+- `locacoes.selectors` linhas 1202 e 1410 (plano de compra antigo).
 
-- `tipo_veiculo` (`moto` | `carro`) **obrigatório**. Sem ele: 400 `{"tipo_veiculo": ["Escolha moto ou carro."]}`.
-- `categoria_id` sai dos obrigatórios. Continua aceito, opcional e nulo (o mesmo serviço serve a importação e a troca na venda); a tela de cadastro não manda. Com valor, precisa ser ativa, da empresa ou da filial (`FIL-04`) e do mesmo tipo (item 5).
-- Sem `categoria_id`, o veículo nasce com os planos `diaria`, `semanal` e `mensal` com R$ 0,00 e desligados, e regras como na migração da ADR 0041 (`VEI-12`, `VEI-14`): dia de atraso e multa mínima R$ 0,00, km excedente R$ 0,00 (franquia livre), desconto sem aprovação 5% e prazo da caução vazio; custos vazios. É o mesmo `aplicar_modelo_de_preco` com o modelo vazio (`ModeloDePreco(0, 0, 0, None, None)`, que já existe para categoria sem preço); o B1 confere que os defaults de `RegrasVeiculo` dão esses valores. Status em que nasce: ver item 6. Ponto em aberto **T-522 · 1**, com este padrão.
-- O cadastro pelo CRLV-e (`cadastrar_com_crlv`) e o `validar_novo` da importação seguem as mesmas regras.
+**O que não muda:** os preços do veículo (`PlanoVeiculo`, `RegrasVeiculo`, `CustosVeiculo`, `PlanoCompraVeiculo`, `HistoricoPrecoVeiculo`), os extras (`LOC-02`, `veiculos.Extra` e `/api/extras/`), as locações já gravadas (`LOC-15`), os contratos (`cliente.cnh_categoria` é a categoria da CNH), `financeiro` (a "categoria" de lá é da despesa, `FIN-06`).
 
-**`PATCH /api/veiculos/{id}/` (editar)**
+### 4. Contrato da API
 
-- Aceita `tipo_veiculo` e `categoria_id` (nulo = tirar o tipo de plano). Os dois se gravam juntos, num só evento `veiculo.editar`.
-- O tipo vem de `tipo_veiculo`, não mais da categoria. Item 5 para as combinações.
+`docs/api/veiculos.md`, `importacao.md`, `movimentacoes.md`, `locacoes.md`, `plataforma.md` e `configuracoes.md` mudam nos PRs de cada tarefa.
 
-**Ficha (`GET /api/veiculos/{id}/`) e lista (`GET /api/veiculos/`)**
+**Veículos**
 
-- `tipo_veiculo`: lido do veículo. Não muda de forma.
-- `categoria`: `{id, nome}` **ou `null`** (`IdNomeSerializer(allow_null=True)`).
-- `preco_vigente` da categoria (ADR 0041, informativo): `null` sem categoria.
-- Filtro `?tipo_veiculo=` e `?categoria=` continuam; `?categoria=` não traz veículo sem categoria.
+- `POST /api/veiculos/`: `tipo_veiculo` (`moto` | `carro`) obrigatório; sem ele, 400 `{"tipo_veiculo": ["Escolha moto ou carro."]}`. `categoria_id` sai do corpo (chave enviada é ignorada, como qualquer campo fora do contrato). O cadastro pelo CRLV-e e o `validar_novo` da importação seguem as mesmas regras. A leitura do CRLV-e não preenche o tipo (o "Motocicleta" do documento fica em `tipo_documento`; ligar os dois é tarefa à parte, se o Produto quiser).
+- `PATCH /api/veiculos/{id}/`: aceita `tipo_veiculo`. Com locação aberta, a troca dá 409 `tipo_com_locacao_aberta`, com a frase de hoje. `categoria_id` sai. O evento `veiculo.editar` leva `tipo_veiculo` de antes e depois pelo `retrato`.
+- Ficha e lista: `tipo_veiculo` lido do veículo; saem `categoria` e o `preco_vigente` da categoria. Filtro `?tipo_veiculo=` fica; `?categoria=` sai.
+- Saem `/api/categorias/` e as rotas filhas (preços, histórico, desativar, reativar). Sem 410: o frontend e o backend sobem juntos, e não há cliente de fora.
+- `veiculos.services.receber_na_troca` (troca na venda, `VEI-07`, fase 2 da ADR 0042): `dados` passa a exigir `tipo_veiculo`.
 
-**Transferência (Movimentações, `docs/api/movimentacoes.md`; o serviço é `veiculos.services.transferir`)**
+**Movimentações e transferência**
 
-- `categoria_destino_id`: opcional e nulo. Item 5.
-- `Movimentacao.categoria_destino` já é nula; o `CHECK mov_categoria_so_na_transferencia` não muda.
+- `categoria_destino_id` sai do corpo de criação; `categoria_destino` sai da resposta. Some o 400 "Escolha a categoria do veículo na <filial>".
 
-**Importação (`docs/api/importacao.md`)**
+**Importação**
 
-- A linha guarda `_tipo_veiculo` ao lado de `_categoria_id` (`linhas.py`), e as duas seguem o modelo (marca e modelo) ou são exceção da linha (`_categoria_propria` passa a cobrir o par).
-- `POST /api/importacoes/{id}/categorias/` (escolha por modelo) recebe `[{marca, modelo, tipo_veiculo, categoria_id}]`, com `categoria_id` nulo aceito e do mesmo tipo quando preenchido. O nome da rota fica (mudar quebra o cliente gerado sem ganho).
-- O bloco `categorias` da importação devolve, por modelo, `tipo_veiculo` e `categoria_id` (nulo); `pergunta` passa a ser sempre `true` na importação de veículos (o Veículo sempre se escolhe), e as `opcoes` levam o `tipo_veiculo` de cada tipo de plano (já levam).
-- "Importar" trava só com linha a gravar sem `tipo_veiculo` (`faltam_categorias` vira `faltam_tipos`; o código de erro `categoria_do_modelo` passa a `tipo_do_modelo`, "Escolha o veículo de cada modelo.").
-- Sai o 422 `sem_categoria` do começo da importação: sem tipo de plano cadastrado, importa do mesmo jeito.
-- Correção da linha ("Corrigir aqui"): aceita `tipo_veiculo` além de `categoria_id`.
-- A categoria escolhida que for desativada no meio do caminho continua gerando o erro da linha.
-- Linha sem tipo de plano nasce como no cadastro sem tipo de plano (planos, regras e status dos itens 4 e 6); com tipo de plano, os planos vêm do modelo de preço, como hoje.
-- O passo Preços do assistente de implantação não muda (ponto em aberto **T-522 · 7**, padrão "sem mudança").
-- Ponto em aberto **T-522 · 3**, com o padrão desta seção.
+- A linha guarda `_tipo_veiculo` no lugar de `_categoria_id`; a exceção da linha (`_tipo_propria`) e a escolha por modelo seguem o mecanismo que existe.
+- `POST /api/importacoes/{id}/tipos/` (no lugar de `.../categorias/`) recebe `[{marca, modelo, tipo_veiculo}]`.
+- O bloco da importação passa a `tipos`: por modelo `{marca, modelo, veiculos, tipo_veiculo}` (nulo até escolher), sempre perguntado na importação de veículos.
+- "Importar" trava com linha a gravar sem `tipo_veiculo`: erro `tipo_do_modelo`, "Escolha o veículo de cada modelo.".
+- Sai o 422 `sem_categoria` do começo da importação e o erro da categoria desativada no meio do caminho.
+- Correção da linha ("Corrigir aqui"): aceita `tipo_veiculo` no lugar de `categoria_id`.
+- A linha nasce como o cadastro (item 5).
 
-**OpenAPI**: muda (`categoria` nulo na ficha e na lista, `tipo_veiculo` obrigatório no cadastro, campos novos na importação). Quem muda roda `npm run api:gerar`, `npm run typecheck` e conserta no mesmo PR o que deixar de compilar no frontend (`tarefas/README.md`).
+**Locações**: saem as listas de planos especiais e de planos de compra da tela de preços e o filtro `?categoria=`; o cadastro deles já respondia 410 e passa a 404 com as rotas fora.
 
-### 5. Combinações de tipo e tipo de plano (editar, importação, transferência)
+**Plataforma e Configurações**: o passo `precos` sai da lista de passos (`GET /api/implantacao/`, `Plat-Empresa-Detalhe`), do funil (`Plat-Implantacoes`) e do status da configuração (`GET /api/configuracoes/`). O cartão `precos` de Configurações segue o ponto em aberto T-522 · 2.
 
-A regra é uma só, no serviço `veiculos.services._tipo_e_categoria(tipo, categoria_id, filial_id, erros)`, usado pelo cadastro, pelo editar, pela importação e pela transferência:
+**OpenAPI**: muda. Quem muda roda `npm run api:gerar`, `npm run typecheck` e conserta no mesmo PR o que deixar de compilar no frontend (`tarefas/README.md`).
 
-| Recebe | Resultado |
-| --- | --- |
-| tipo de plano do mesmo tipo do veículo | grava |
-| tipo de plano de **outro** tipo | **400 no campo** `categoria_id`: "Escolha um tipo de plano de moto." (ou "de carro"). O veículo **não** troca de tipo sozinho, e a categoria não é tirada em silêncio. |
-| `categoria_id: null` | tira o tipo de plano; planos e status não mudam |
-| troca de `tipo_veiculo` com o tipo de plano atual do tipo antigo e sem mandar `categoria_id` | 400 no campo `categoria_id`: a mesma frase. A tela já esvazia o tipo de plano ao trocar o Veículo (`VEI-11`), então manda `categoria_id: null` ou um do tipo novo. |
-| troca de `tipo_veiculo` com locação aberta | 409 `tipo_com_locacao_aberta`, como hoje, conferido **antes** da coerência (a frase da dica é a mesma) |
+### 5. Veículo novo: planos, regras e status
 
-Ponto em aberto **T-522 · 2**, com este padrão (400 no campo).
+Cadastro, importação e troca na venda criam o veículo pelo mesmo `_criar`, que grava, na mesma transação:
 
-Por que recusar em vez de seguir a categoria: até aqui a API recebia só a categoria e o tipo vinha dela. Agora o tipo é dado do veículo e decide a CNH; deixar uma categoria de carro transformar uma moto em carro é exatamente o efeito escondido que a decisão do dono quer tirar. A tela evita o caso; a API garante.
+- planos `diaria`, `semanal` e `mensal` com R$ 0,00, desligados, com o "como paga" padrão do período e as quatro formas;
+- regras como na migração da ADR 0041 (`VEI-12`, `VEI-14`): dia de atraso e multa mínima R$ 0,00, km excedente R$ 0,00 (franquia livre), desconto sem aprovação 5%, prazo da caução vazio;
+- custos vazios e o histórico de preços com a origem `cadastro` ou `importacao`;
+- **status `indisponivel` com o motivo "sem preço"** (`VEI-15`); o histórico inicial fica `"" → indisponivel`. A troca na venda já nasce `indisponivel` ("Recebido numa troca") e continua assim. O primeiro plano ligado na tela de preços leva a `disponivel` pelo caminho que já existe.
 
-Trocar ou tirar o tipo de plano não aplica modelo de preço nem mexe nos planos (já é assim depois do cadastro, `VEI-11`) e é livre em qualquer estado em que o veículo se edita. Auditoria: o evento `veiculo.editar` leva `tipo_veiculo` e `categoria_id` de antes e depois pelo `retrato`, e `categoria_nome` (nulo quando sem tipo de plano).
+Ponto em aberto **T-522 · 1**, com este padrão. Se o dono decidir nascer `disponivel` (só fora da Nova locação), muda o status no `_criar` e um teste.
 
-**Transferência** (`categoria_no_destino`):
+### 6. Assistente de implantação
 
-- veículo sem tipo de plano, ou com tipo de plano da empresa: passa direto, sem pergunta;
-- tipo de plano só da filial de origem: a resposta de erro deixa de ser recusa. Sem `categoria_id`, o veículo fica sem tipo de plano no destino; com `categoria_id`, precisa ser ativa, do mesmo tipo, da empresa ou do destino (400 no campo, como hoje). A tela pergunta, com a opção "Sem tipo de plano". Ponto em aberto **T-522 · 4**, com este padrão.
+- O passo `precos` sai de `PASSOS_IMPLANTACAO` (o assistente fica com um passo a menos) e o `Onboarding-Precos` sai do frontend (`PassoPrecos.tsx`).
+- O funil da `IMP-05` fica Conta → Marca → Filial → Dados → 1ª locação (migração no item 2).
+- Sai a conferência do passo Preços da `IMP-07` (o preço agendado que chegava à data e marcava o passo).
+- Sai o atalho "Cadastre os preços antes de importar veículos." da importação.
 
-**Tipo de plano na Administração:** desativar um tipo de plano com veículos continua recusado (`categoria_com_veiculos`); agora dá para tirar o tipo de plano do veículo no editar antes. Ponto em aberto **T-522 · 5**, com este padrão.
+### 7. Rótulos (com o Produto, `VEI-11`)
 
-### 6. Status do veículo cadastrado sem tipo de plano
-
-Sem modelo de preço, o veículo nasce sem plano ligado. A `VEI-15` diz que veículo sem plano ligado é `indisponivel` "sem preço". O cadastro de hoje já tem o caso (categoria sem preço) e deixa o veículo `disponivel`, fora da Nova locação só porque não tem plano ligado.
-
-**Padrão desta ADR**, combinado com o Produto (regras no PR #692; ponto em aberto **T-522 · 1**): o cadastro sem plano ligado passa a nascer `indisponivel` com o motivo "sem preço", no próprio `_criar` (o histórico inicial fica `"" → indisponivel`), e o primeiro plano ligado na tela de preços leva a `disponivel` pelo caminho que já existe (`VEI-15`). Vale para todo cadastro sem plano ligado, com ou sem tipo de plano. Se o dono decidir o contrário (nascer `disponivel`), muda uma linha no `_criar` e um teste; nada do resto desta ADR depende disso.
-
-### 7. Testes que a mudança pede
-
-- `test_vei_11_tipo_e_do_veiculo`: veículo sem categoria tem tipo; Frota filtra e conta pelo tipo do veículo.
-- `test_vei_11_categoria_de_outro_tipo_recusada` (editar, importação, transferência).
-- `test_vei_11_trocar_tipo_com_locacao_aberta_409` (já existe; passa a mandar `tipo_veiculo`).
-- `test_vei_01_cadastro_sem_tipo_de_plano` e `test_vei_01_cadastro_sem_tipo_veiculo_400`.
-- `test_vei_15_cadastro_sem_plano_nasce_sem_preco` (item 6).
-- `test_cli_02_cnh_pelo_tipo_do_veiculo` e `test_vis_01_itens_pelo_tipo_do_veiculo` com veículo **sem** categoria.
-- `test_vei_04_transferencia_sem_tipo_de_plano`.
-- `test_imp_08_veiculo_e_tipo_de_plano_por_modelo`, `test_imp_08_importa_sem_tipo_de_plano_cadastrado`.
-- Migração: `test_t522_migracao_preenche_tipo_pela_categoria` (carros e motos, excluído incluído) e `test_t522_migracao_na_empresa_nova` (schema vazio, pela conexão da migração).
-- Varredura: nenhum veículo do seed com `categoria.tipo_veiculo != tipo_veiculo`.
-
-### 8. Rótulos (com o Produto, `VEI-11`)
-
-- "Moto ou carro" → **"Veículo"** no cadastro e no editar (`SelectField rotulo`), obrigatório, com as opções Moto e Carro.
-- Importação: "Tipo de plano de cada modelo" passa a "Veículo e tipo de plano de cada modelo" (título confirmado pelo Produto), com as duas listas por modelo; "Tipo de plano desta linha" ganha o "Veículo desta linha".
-- Ficha: a linha "Tipo de plano" mostra "Sem tipo de plano" quando vazio.
-- Transferência: a opção vazia passa de "Manter a categoria atual" a "Sem tipo de plano" quando o tipo de plano é só da origem.
+- "Moto ou carro" → **"Veículo"** no cadastro e no editar, obrigatório, com Moto e Carro; no cadastro começa em Moto.
+- Importação: "Tipo de plano de cada modelo" passa a **"Veículo de cada modelo"**, e "Tipo de plano desta linha" a "Veículo desta linha".
+- Ficha: sai a linha "Tipo de plano"; o Veículo aparece no lugar.
+- Nova movimentação: sai o campo da categoria no destino.
 - Auditoria: a chave `tipo_veiculo` aparece como "veículo".
 
-Os textos finais são os de `docs/regras/veiculos.md` e `implantacao.md`, no PR #692; se divergirem daqui, valem os das regras.
+Os textos finais são os das regras no PR #692; se divergirem daqui, valem os das regras.
+
+### 8. Testes que a mudança pede
+
+- `test_vei_11_tipo_e_do_veiculo`: Frota filtra e conta pelo tipo do veículo, com veículo de categoria nula.
+- `test_vei_11_trocar_tipo_com_locacao_aberta_409` (existe; passa a mandar `tipo_veiculo`).
+- `test_vei_01_cadastro_sem_tipo_veiculo_400` e `test_vei_01_cadastro_ignora_categoria_id`.
+- `test_vei_15_cadastro_nasce_sem_preco` (planos, regras e status do item 5).
+- `test_cli_02_cnh_pelo_tipo_do_veiculo` e `test_vis_01_itens_pelo_tipo_do_veiculo`, com veículo de categoria nula.
+- `test_mov_06_transferencia_sem_categoria`.
+- `test_imp_08_veiculo_por_modelo`, `test_imp_08_importa_sem_tabela_de_preco`.
+- `test_imp_05_funil_sem_precos` e a migração da etapa (empresa parada em Preços vai para a seguinte, com `etapa_implantacao_desde` novo).
+- `test_loc_09_troca_antiga_com_plano_especial_restrito` (veículo novo sem categoria usa o plano do veículo).
+- Migração: `test_t522_migracao_preenche_tipo_pela_categoria` (carros e motos, excluído incluído) e `test_t522_migracao_na_empresa_nova` (schema vazio, pela conexão da migração).
+- O `grep` do PR final: nenhum `categoria` de veículo lido fora de `locacoes` (locações antigas) e das migrações.
+
+## Pontos em aberto (dependem do dono)
+
+Registrados pelo Produto em `docs/regras/pontos-em-aberto.md` (PR #692). Os pontos 2 a 7 da primeira versão saem: sem tipo de plano, não há categoria de outro tipo, transferência com tabela da filial, desativar com veículos, plano especial restrito nem passo Preços para decidir.
+
+| Ponto | Pergunta | Opções | Padrão desta ADR |
+| --- | --- | --- | --- |
+| **T-522 · 1** | Em que status nasce o veículo cadastrado ou importado, que vem sem plano ligado? | A `indisponivel` "sem preço" (`VEI-15`), sai quando um plano é ligado; B `disponivel`, só fora da Nova locação até ligar um plano | A |
+| **T-522 · 2** | Onde ficam os extras (`LOC-02`), que hoje estão na tela Tabelas de preço, que sai? | A a tela vira "Extras", só com o painel de extras, e o cartão de Configurações vira "Extras"; B dentro de Configurações, num cartão de locação; C na tela de preços de cada veículo | A |
+| **T-522 · 3** | Como a locadora preenche o preço de muitos veículos (os 86 importados da Moto Rápida nascem todos sem preço)? | A um a um na tela de preços do veículo (palavras do dono); B "copiar os planos de outro veículo" na tela de preços (tarefa nova); C colunas de preço opcionais na planilha da importação (tarefa nova) | A |
+
+Nenhum dos três muda o modelo desta ADR: o 1 é uma linha do `_criar`, o 2 é a rota de uma tela, o 3 é tarefa nova se o dono escolher B ou C.
 
 ## Divisão em tarefas
 
-Ordem: B1 → F1; B2 → F2. B1 e B2 podem correr em paralelo depois da migração de B1 mesclada (B2 depende do campo). F1 pode começar pelo contrato desta ADR com o falso da API.
-
 | Tarefa | Agente | Depende de | O que entrega | Pronto quando |
 | --- | --- | --- | --- | --- |
-| **B1** · tipo no veículo | backend | #692 (regras) e este PR | itens 1, 2, 3 (todos os leitores menos `importacao`), 4 (cadastro, editar, ficha, lista, transferência e movimentações), 5, 6, 7; seed com `tipo_veiculo`; `docs/api/veiculos.md` e `movimentacoes.md`; OpenAPI regerado e o frontend compilando (`categoria?.nome` na ficha e no editar, falsos com `categoria: null` aceitos) | veículo sem categoria passa por Nova locação, confirmação com CNH, vistoria de saída e devolução, transferência; migração testada em empresa existente e nova; `make check` limpo |
-| **B2** · importação | backend | B1 | item 4 da importação e item 5 na importação; `docs/api/importacao.md`; OpenAPI | Moto Rápida importa 86 veículos com e sem tipo de plano por modelo; `test_imp_08_*` |
-| **F1** · cadastro, editar, ficha, transferência | frontend | B1 | cadastro sem o campo "Tipo de plano" e sem a prévia "Preços da categoria", com "Veículo"; editar com "Veículo" e "Tipo de plano" opcional ("Sem tipo de plano" na lista), esvaziando ao trocar o Veículo, travado com locação aberta como hoje; ficha com "Sem tipo de plano"; Nova movimentação com "Sem tipo de plano" no destino; capturas claro e escuro, 1440 e 390 px | testes dos componentes e o E2E do cadastro passando |
-| **F2** · importação | frontend | B2 | `CaixaDeImportacao`: "Veículo e tipo de plano de cada modelo" e a exceção da linha com os dois campos | teste do assistente com uma importação sem tipo de plano |
+| **B1** · tipo no veículo | backend | #692 e este PR | itens 1 e 2 (migrações de `veiculos`), o tipo do item 3 em todos os leitores, cadastro e editar sem categoria e com `tipo_veiculo`, item 5, transferência e movimentação sem categoria, saída do `?categoria=` e do `preco_vigente` da categoria, seed sem categorias com os mesmos números; `docs/api/veiculos.md` e `movimentacoes.md`; OpenAPI e o frontend compilando (os campos `categoria` tirados das telas com o mínimo para compilar) | veículo de categoria nula passa por Nova locação, CNH, vistoria de saída, devolução e transferência; migração testada em empresa existente e nova; `make check` limpo |
+| **B2** · importação e assistente | backend | B1 | importação com o Veículo por modelo (item 4), saída do passo Preços, do funil, da `IMP-07` e do resumo de Configurações, migração da etapa no `plataforma`, saída das rotas de categoria, planos especiais e de compra da tela; `docs/api/importacao.md`, `plataforma.md`, `configuracoes.md`, `locacoes.md`; OpenAPI | Moto Rápida importa 86 veículos escolhendo o Veículo por modelo; empresa parada em Preços sai da etapa; `test_imp_*` |
+| **F1** · cadastro, editar, ficha, movimentação | frontend | B1 | cadastro sem "Tipo de plano" e sem a prévia "Preços da categoria", com "Veículo"; editar com "Veículo", travado com locação aberta como hoje; ficha sem a linha "Tipo de plano"; Nova movimentação sem a categoria no destino; capturas claro e escuro, 1440 e 390 px | testes dos componentes e o E2E do cadastro passando |
+| **F2** · importação, assistente e Administração | frontend | B2 e o ponto T-522 · 2 | `CaixaDeImportacao` com "Veículo de cada modelo"; assistente sem `PassoPrecos`; `/admin/precos` conforme o ponto 2 (padrão: só "Extras"), sem categorias, histórico, planos especiais e planos de compra; cartão de Configurações; capturas | testes do assistente e da tela de extras |
 
-Cuidado com conflito: o PR #691 (T-521, aberto) mexe no `NovoVeiculoForm`; F1 começa depois dele mesclado ou faz `merge origin/develop` antes do push.
+B1 vem antes de tudo (o campo novo). B2 e F1 podem correr em paralelo depois de B1 mesclado. Cuidado com conflito: o PR #691 (T-521, aberto) mexe no `NovoVeiculoForm`; F1 começa depois dele mesclado ou faz `merge origin/develop` antes do push.
 
 ## Alternativas consideradas
 
-- **Manter o tipo só na categoria e criar uma categoria "sem plano" por tipo** (uma "Moto" e uma "Carro" escondidas): nenhuma migração de esquema, mas a categoria continua sendo o lugar do tipo, que é o que o dono tirou; a lista de tipos de plano ganharia itens que não são planos, e a importação, a transferência e a Administração teriam que esconder esses dois. Recusada.
-- **`tipo_veiculo` no veículo e a categoria trocando o tipo junto** (como hoje, a categoria manda): mantém o "nunca discordam", mas o editar com uma categoria de carro viraria a moto em carro sem a pessoa mexer no Veículo. Recusada pelo item 5.
-- **Default `moto` no model**: facilita os testes e o seed, mas esconde carro sem tipo. Recusada pelo item 1.
-- **Migração em uma só (esquema e dados juntos)**: funciona no PostgreSQL nesta ordem, mas separar deixa a reversa e a leitura mais claras, como na ADR 0041.
+- **Tipo de plano opcional** (primeira versão desta ADR, mesmo dia): mantinha a categoria no editar, na importação e na transferência. Superada pela decisão do dono de tirar o campo de vez.
+- **Apagar `Categoria`, `PrecoCategoria`, `PlanoCompra` e `PlanoEspecial`**: recusada; nada de negócio se apaga, e as locações antigas apontam para eles.
+- **Esconder a categoria na API mas continuar gravando** (por exemplo, uma categoria "Moto" e uma "Carro" criadas sozinhas): mantém o `NOT NULL`, mas guarda um dado que ninguém lê e que pode voltar a ser usado por engano. Recusada.
+- **Default `moto` no model**: facilita testes e seed, mas esconde carro sem tipo. Recusada.
+- **Rotas antigas com 410 por uma versão**: só serve para cliente de fora, que não existe; o frontend sobe junto. Recusada.
 
 ## Consequências
 
-- Moto ou carro tem uma fonte só, o veículo, e a categoria fica só como agrupador de preço, opcional.
-- A coerência veículo e categoria deixa de ser estrutural e passa a ser regra do serviço, coberta por teste e pela trava que já existe em `editar_categoria`.
-- Veículo sem tipo de plano não entra em plano especial restrito a tipos de plano (`PlanoEspecial.categorias`); só nos "para todos". Plano de compra antigo da categoria não muda. Ponto em aberto **T-522 · 6**, com este padrão.
-- A reversa da `0014` só funciona antes do primeiro veículo sem categoria.
-- `modelo-de-dados.md` (Veículo) passa a ter `tipo_veiculo` e `categoria` nula.
+- Moto ou carro tem uma fonte só, o veículo. Não há mais coerência a conferir entre veículo e categoria.
+- O preço de cada veículo é preenchido na tela dele, desde o primeiro dia; o veículo novo fica fora da Nova locação até ter um plano ligado (ponto em aberto 1).
+- O assistente perde um passo, e o funil da plataforma perde uma etapa; a empresa que estava parada nela anda sozinha na migração.
+- `Categoria`, `PrecoCategoria`, `PlanoCompra`, `PlanoEspecial` e `Veiculo.categoria` ficam como dado antigo, lidos só pelas locações de antes da ADR 0041.
+- A reversa da `0014` só funciona antes do primeiro veículo novo.
+- `modelo-de-dados.md` passa a ter `tipo_veiculo` no Veículo, a categoria como dado antigo e a seção Categoria como guardada sem uso.

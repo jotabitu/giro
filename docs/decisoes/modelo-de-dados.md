@@ -233,7 +233,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 ### 8. Categoria de veículo · `veiculos.Categoria` · ativável
 
-> **Desde a ADR 0043 (26 nov 2026):** o moto ou carro é do veículo (`Veiculo.tipo_veiculo`); a categoria é o "Tipo de plano", opcional no veículo, e guarda o `tipo_veiculo` só para filtrar a escolha.
+> **Desde a ADR 0043 (26 nov 2026):** guardada sem uso. Nenhuma tela, API ou regra nova lê ou grava a categoria, o `PrecoCategoria`, o `PlanoCompra` nem o `PlanoEspecial`; só as locações de antes da ADR 0041 os leem. O moto ou carro é do veículo (`Veiculo.tipo_veiculo`). Nada se apaga.
 >
 > **Desde a ADR 0041 (18 nov 2026):** a categoria é o "Tipo de veículo" (nome e moto ou carro). Nenhuma locação, ficha ou Frota lê preço dela. `PrecoCategoria` fica, sem ser apagado, só como modelo de preço do cadastro, da importação e do assistente; a `filial` deixa de ter efeito no preço. O preço é do veículo (9b).
 
@@ -261,7 +261,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `km_atual` | int ≥ 0 | só sobe (`VEI-01`); muda por serviço |
 | `capacidade_tanque_litros` | `Decimal(5,1)`, nulo | base do combustível no acerto (`DEV-01`); seed PNB7C04 = 16.0 |
 | `tipo_veiculo` | enum `moto`, `carro`, sem default | rótulo "Veículo"; decide a CNH (`CLI-02`), a vistoria (`VIS-01`) e os filtros (ADR 0043) |
-| `categoria` | FK → `Categoria`, nulo, `PROTECT` | o "Tipo de plano", opcional; preenchida, do mesmo `tipo_veiculo` (conferido no serviço, ADR 0043) |
+| `categoria` | FK → `Categoria`, nulo, `PROTECT` | dado antigo (ADR 0043): nulo nos veículos novos, fora da API; lido só pela troca das locações antigas com plano especial |
 | `filial` | FK → `Filial` | |
 | `status` | enum `disponivel`, `reservado`, `alugado`, `em_manutencao`, `indisponivel`, `a_venda`, `vendido`, `baixado`, `em_movimentacao` | transições da seção "Veículos" (`REGRA_TRANSICAO` = `VEI`); `em_movimentacao` pela T-286 (`MOV-03`) |
 | `motivo_status` | texto, nulo | bloqueio, baixa |
