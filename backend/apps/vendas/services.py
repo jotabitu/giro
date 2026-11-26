@@ -19,6 +19,7 @@ from django.db import IntegrityError, transaction
 from django_tenants.utils import tenant_context
 
 from apps.clientes import selectors as clientes_selectors
+from apps.clientes import services as clientes_services
 from apps.clientes.models import Cliente, StatusCliente
 from apps.contas import selectors as contas_selectors
 from apps.contratos import selectors as contratos_selectors
@@ -38,7 +39,7 @@ from apps.financeiro.models import (
 from apps.notificacoes import services as notificacoes
 from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import StatusVeiculo, Veiculo
-from comum import aprovacoes, estados, painel, relogio
+from comum import aprovacoes, arquivos, estados, painel, relogio
 from comum.auditoria import ATOR_SISTEMA, Categoria, auditar, usar_ator
 from comum.conexao import conexao
 from comum.dinheiro import formatar_reais
@@ -399,10 +400,9 @@ def _veiculo_para_venda(veiculo_id: Any, usuario: Any, *, travar: bool = False) 
 
 
 def _cliente(cliente_id: Any) -> Cliente:
-    cliente: Cliente | None = Cliente.objects.filter(pk=cliente_id).first()
-    if cliente is None:
-        raise ErroDeValidacao({"cliente_id": ["Cliente não encontrado."]})
-    return cliente
+    """Sempre dentro da transação do criar e do editar: trava o cliente contra o excluir
+    (CLI-13; T-517, Segurança no #679, B2)."""
+    return clientes_services.travar_para_vincular(cliente_id)
 
 
 def _interessado(dados: dict[str, Any]) -> tuple[str, str]:
@@ -665,6 +665,7 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
             raise Conflito("VEN-06", COM_ASSINATURA)
         cliente = venda.cliente
         nome, celular = venda.interessado_nome, venda.interessado_celular
+        quem_antes = (venda.cliente_id, nome, celular)
         if dados.get("cliente_id"):
             cliente = _cliente(dados["cliente_id"])
             nome = celular = ""
@@ -687,11 +688,9 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
             venda.motivo_recusa = ""  # o vendedor refez a proposta (VEN-13)
             venda.ultimo_contato_em = relogio.agora()
             # S-15 (revisão da Segurança no #650): a proposta mudou, e o link e o PDF de antes
-            # (com o cliente e os valores de antes) deixam de valer. O arquivo fica guardado
-            # (ADR 0009); só a venda deixa de apontar para ele.
-            venda.token_proposta_hash = None
-            venda.token_proposta_expira_em = None
-            venda.proposta_pdf = None
+            # (com o cliente e os valores de antes) deixam de valer. Com o mesmo cliente, o
+            # arquivo fica guardado (ADR 0009); só a venda deixa de apontar para ele.
+            _soltar_link_e_pdf(venda)
             venda.save(
                 update_fields=[
                     "cliente",
@@ -706,8 +705,48 @@ def editar(venda: Venda, dados: dict[str, Any], por: Any) -> Venda:
                     "atualizado_em",
                 ]
             )
+        if (venda.cliente_id, nome, celular) != quem_antes:
+            # T-517 (Segurança no #650, b): os PDFs de antes têm o nome do cliente de antes, e a
+            # anonimização dele procura pelas vendas em que ele está. Saem do armazenamento
+            # depois do commit, com as versões antigas (a pasta da venda só guarda a proposta).
+            _apagar_pdfs_de_antes(venda.pk)
         _recalcular_comissao(venda)
     return venda
+
+
+def _apagar_pdfs_de_antes(venda_id: int) -> None:
+    """Só os PDFs que existiam na troca, pelo caminho exato: o PDF novo, gravado pelo "Copiar
+    link" ou pelo reenvio antes de a tarefa rodar, fica (T-517, S1 da Segurança no #683). Sem a
+    listagem (armazenamento fora do ar), a tarefa apaga da pasta só o gravado antes de agora."""
+    from datetime import UTC, datetime
+
+    from comum.tasks import apagar_depois_do_commit
+
+    pasta = pasta_da_venda(venda_id)
+    agora = datetime.now(UTC)  # hora real, como a do armazenamento (não a simulada)
+    try:
+        caminhos = arquivos.provedor().listar(pasta)
+    except Exception:
+        logger.warning("PDFs da venda %s não listados; a remoção vai pela hora.", venda_id)
+        apagar_depois_do_commit([], [pasta], antes_de=agora)
+        return
+    apagar_depois_do_commit(caminhos)
+
+
+def pasta_da_venda(venda_id: int) -> str:
+    """`<schema>/vendas/venda/<id>/`: só os PDFs da proposta (`proposta_pdf`, todas as versões)."""
+    from comum.conexao import schema_atual
+
+    return f"{schema_atual()}/vendas/venda/{venda_id}/"
+
+
+def _soltar_link_e_pdf(venda: Venda) -> tuple[str, ...]:
+    """S-15: a proposta mudou; o link vivo e o PDF de antes deixam de valer (o próximo link grava
+    o PDF de agora). Devolve os campos para o `save`."""
+    venda.token_proposta_hash = None
+    venda.token_proposta_expira_em = None
+    venda.proposta_pdf = None
+    return ("token_proposta_hash", "token_proposta_expira_em", "proposta_pdf")
 
 
 def _marcar_envio(venda: Venda) -> tuple[str, ...]:
@@ -810,6 +849,8 @@ def pedir_desconto(venda: Venda, pct: Decimal, motivo: str, por: Any) -> Venda:
             _conferir_ven_10(venda.veiculo_id, venda.pk)
         antes = venda.status
         _aplicar(venda, conta)
+        # T-517 (Segurança no #650, a): os valores mudaram, como no `editar`.
+        soltos = _soltar_link_e_pdf(venda)
         agora = relogio.agora()
         venda.status_antes_aprovacao = antes
         venda.motivo_recusa = ""
@@ -830,6 +871,7 @@ def pedir_desconto(venda: Venda, pct: Decimal, motivo: str, por: Any) -> Venda:
                     "motivo_recusa",
                     "entrou_negociacao_em",
                     "ultimo_contato_em",
+                    *soltos,
                 ),
             )
 

@@ -669,10 +669,12 @@ def test_aud_06_anonimizar_apaga_o_pdf_da_proposta_e_anula_o_link(
         )
     empresa = Empresa.objects.get(schema_name="empresa_a")
     pedido = titular.Pedido(dono=dono, motivo="Chamado 4522: pedido da titular")
-    apagados = titular.anonimizar(empresa, paula.pk, pedido, "Paula Souza")
+    # Os arquivos saem depois do commit, pela tarefa com nova tentativa (T-517).
+    with django_capture_on_commit_callbacks(execute=True):
+        agendados = titular.anonimizar(empresa, paula.pk, pedido, "Paula Souza")
     connection.set_tenant(empresa)
 
-    assert apagados >= 2
+    assert agendados == 1  # a pasta da venda, com as duas versões do PDF
     assert not arquivos.provedor().existe(primeiro_pdf)
     assert not arquivos.provedor().existe(pdf_do_link)
     salva = Venda.objects.get(pk=venda["id"])

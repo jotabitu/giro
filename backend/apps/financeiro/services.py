@@ -28,6 +28,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.auditoria.models import EventoAuditoria
+from apps.clientes import services as clientes_services
 from apps.filiais.models import Filial
 from apps.filiais.selectors import gerentes
 from apps.notificacoes.services import avisar
@@ -121,6 +122,9 @@ def criar_contas(
     `aguarda_retirada`: a locação confirmada e não retirada (LOC-05, ADR 0035)."""
     criadas = []
     with transaction.atomic():
+        if any(nova.valor_centavos > 0 for nova in contas):
+            # CLI-13: o excluir não passa entre a conferência do histórico e a conta (T-517, B2).
+            clientes_services.travar_para_vincular(cliente_id)
         for nova in contas:
             if nova.valor_centavos <= 0:
                 continue

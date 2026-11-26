@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 from django.core import mail
+from django.core.cache import cache
 from django.db import connection
 from django_tenants.utils import schema_context, tenant_context
 
@@ -744,3 +745,32 @@ def test_plt_13_cartao_novo_avisa_o_administrador(
 def test_contrato_do_modelo_guarda_o_canal():
     assert set(CanalDoToken.values) == {"whatsapp_email", "copiado"}
     assert Contrato._meta.get_field("token_assinatura_canal").max_length == 15
+
+
+# --- PLT-12 de verdade na página pública (T-517, Segurança no #650, item 2) ---
+
+
+def _ramo(atividade: str) -> None:
+    """Na empresa da conexão: o ramo tira o módulo de operação que ela não usa (ADR 0024)."""
+    from apps.empresas.models import ConfiguracaoEmpresa
+    from apps.empresas.services import criar_configuracao_padrao
+
+    criar_configuracao_padrao()
+    ConfiguracaoEmpresa.objects.update(atividade=atividade)
+    cache.clear()
+
+
+def test_plt_12_recibo_publico_sem_o_recurso_de_locacao_404(
+    cenario,
+    lucas,
+    django_capture_on_commit_callbacks,
+):
+    devolucao = _concluida(cenario, django_capture_on_commit_callbacks)
+    token = _do_link(_copiar_recibo(cenario, devolucao["id"]).json()["link"], "recibo")
+    assert _abrir_recibo(token).status_code == 200
+    _ramo("vende")  # a empresa deixa de alugar: sai `locacoes_vistoria`
+    recusa = _abrir_recibo(token)
+    assert recusa.status_code == 404
+    assert "PLT-12" not in recusa.content.decode()
+    _ramo("ambos")
+    assert _abrir_recibo(token).status_code == 200

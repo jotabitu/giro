@@ -23,7 +23,13 @@ from comum import arquivos, relogio
 from comum.empresa import nome_da_empresa
 from comum.erros import ErroDeValidacao
 from comum.limites import LIMITES_DA_PROPOSTA_PUBLICA, LIMITES_DO_LINK_PROPOSTA
-from comum.permissoes import TODAS_AS_FILIAIS, com_padrao, exige_perfil, filial_pedida
+from comum.permissoes import (
+    TODAS_AS_FILIAIS,
+    ModuloDoPlanoOu404,
+    com_padrao,
+    exige_perfil,
+    filial_pedida,
+)
 from comum.rede import ip_do_cliente
 
 from .. import envio, metas, resumo, services
@@ -233,7 +239,7 @@ class ConsultarPropostaView(APIView):
     por IP e por token, como o recibo da devolução (T-411)."""
 
     authentication_classes: list[Any] = []
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny, ModuloDoPlanoOu404]  # PLT-12 de verdade, com 404 (T-517)
     throttle_classes = LIMITES_DA_PROPOSTA_PUBLICA
     recurso_do_plano = Recurso.VENDAS_COMISSOES
 
