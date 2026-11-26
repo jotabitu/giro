@@ -1,6 +1,11 @@
 // Tipos do contrato docs/api/veiculos.md. TEMPORÁRIO: sai quando o cliente gerado do OpenAPI existir.
 import type { components } from "./schema";
 
+/** VEI-22: `acoes.excluir` da ficha (docs/api/veiculos.md). */
+export type ExcluirVeiculo = components["schemas"]["ExcluirVeiculo"];
+/** Resposta de `POST /api/veiculos/{id}/excluir/`: o aviso da Frota vem pronto. */
+export type VeiculoExcluido = { id: number; mensagem: string };
+
 export type StatusVeiculo = "disponivel" | "alugado" | "reservado" | "em_manutencao" | "a_venda" | "indisponivel" | "vendido" | "baixado";
 export type TipoVeiculo = "moto" | "carro";
 
@@ -142,6 +147,8 @@ export type Veiculo = {
     motivo_trocar_tipo?: string | null;
     /** VEI-10 (T-414): administrador e gerente, com o veículo fora de vendido e baixado. */
     editar_fotos: boolean;
+    /** VEI-22 (T-515): só na ficha; `null` para quem não exclui. A confirmação ou o aviso com o histórico vêm prontos. */
+    excluir?: ExcluirVeiculo | null;
   };
 };
 

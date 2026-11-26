@@ -10,7 +10,7 @@ import {
   type ListaClientes,
   type LocacoesDoCliente,
   type EdicaoCliente,
-
+  type ExcluirCliente,
   type NovoCliente,
   type RespostaDoDesbloqueio,
   type StatusCliente,
@@ -40,7 +40,48 @@ type Registro = {
   motivoBloqueio?: "atraso" | "manual";
   /** Dados do cadastro completo (nascimento, CNH, endereço...). Sem eles a API devolve `null`. */
   extra?: Partial<NovoCliente>;
+  /** CLI-13 (T-515): o que o cliente já teve. Sem a chave, locação e conta; o cadastro novo nasce com `[]`. */
+  historico?: HistoricoDoCliente[];
+  excluido?: boolean;
 };
+
+type HistoricoDoCliente = ExcluirCliente["historico"][number];
+const NOME_DO_HISTORICO: Record<HistoricoDoCliente, string> = { locacao: "locação", venda: "venda", conta: "conta", contrato: "contrato", aprovacao: "pedido de aprovação" };
+const juntar = (l: string[]) => (l.length <= 1 ? (l[0] ?? "") : `${l.slice(0, -1).join(", ")} e ${l[l.length - 1]}`);
+const historicoDe = (r: Registro): HistoricoDoCliente[] => r.historico ?? ["locacao", "conta"];
+const motivoDoCli13 = (r: Registro) => `Este cliente já tem ${juntar(historicoDe(r).map((h) => NOME_DO_HISTORICO[h]))} na empresa. O cadastro fica guardado e não pode ser excluído.`;
+const MSG_BLOQUEADO = "Desbloqueie o cliente antes de excluir.";
+
+/** CLI-13: `acoes.excluir` como a API manda (docs/api/clientes.md); `null` para o vendedor. */
+function excluirDoFalso(r: Registro): ExcluirCliente | null {
+  const p = perfilAtualFalso();
+  if (p !== "administrador" && p !== "gerente") return null;
+  const naoPode = "Este cliente não pode ser excluído";
+  const h = historicoDe(r);
+  if (h.length > 0) {
+    const inativo = r.status === "inativo";
+    const caminho = inativo ? "O cadastro já está inativo." : "Para ele não fazer novas locações nem compras, inative o cadastro.";
+    const titular = p === "administrador" ? " Se o cliente pediu para apagar os dados dele, peça à equipe Giro para anonimizar o cadastro." : "";
+    return { permitido: false, titulo: naoPode, texto: null, motivo: motivoDoCli13(r), caminho: caminho + titular, inativar: !inativo, historico: h };
+  }
+  if (r.status === "bloqueado") return { permitido: false, titulo: naoPode, texto: null, motivo: MSG_BLOQUEADO, caminho: null, inativar: false, historico: [] };
+  const doc = r.tipo === "pj" ? "o CNPJ" : "o CPF";
+  return {
+    permitido: true,
+    titulo: `Excluir o cadastro de ${r.nome}?`,
+    texto: `Use só para um cadastro feito por engano. O cliente sai da lista, os dados pessoais e os documentos enviados são apagados, e ${doc} fica livre para um novo cadastro. Não dá para desfazer.`,
+    motivo: null,
+    caminho: null,
+    inativar: false,
+    historico: [],
+  };
+}
+
+/** Só dos testes: o histórico chega depois de a ficha abrir (a corrida que a API resolve com o 409 CLI-13). */
+export function definirHistoricoDoClienteFalso(id: number, historico: HistoricoDoCliente[]) {
+  const r = REGISTROS.find((x) => x.id === id);
+  if (r) r.historico = historico;
+}
 
 /** "Hoje" do seed (07 out 2026): a idade que a API devolve é calculada contra ele. */
 const HOJE_DO_SEED = "2026-10-07";
@@ -81,7 +122,7 @@ const CADASTRO_ORIGINAL = REGISTROS.map((x) => structuredClone({ id: x.id, nome:
 export function reiniciarClientesFalsos() {
   for (const o of SITUACAO_ORIGINAL) {
     const x = REGISTROS.find((y) => y.id === o.id);
-    if (x) Object.assign(x, { status: o.status, motivoBloqueio: o.motivoBloqueio });
+    if (x) Object.assign(x, { status: o.status, motivoBloqueio: o.motivoBloqueio, historico: undefined, excluido: undefined });
   }
   // O PATCH (T-516) muda o cadastro: volta o que ele toca.
   for (const o of CADASTRO_ORIGINAL) {
@@ -269,7 +310,8 @@ function validarCorpo(tipo: "pf" | "pj", c: Partial<NovoCliente>, ignorar?: numb
   if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
   if (c.documento === undefined) return;
   const doc = digitos(c.documento);
-  const existente = REGISTROS.find((r) => r.documento === doc && r.id !== ignorar);
+  // CLI-01: o cliente excluído (CLI-13) não conta.
+  const existente = REGISTROS.find((r) => !r.excluido && r.documento === doc && r.id !== ignorar);
   if (existente) {
     throw new ErroApi(409, "CLI-01", tipo === "pf" ? "Já existe um cliente com este CPF" : "Já existe um cliente com este CNPJ", { cliente_id: existente.id, nome: existente.nome });
   }
@@ -316,10 +358,10 @@ export const clientesFalso = {
   async obter(id: number): Promise<ClienteResumo | ClienteCompleto> {
     await pausa(150);
     semAcessoDoVistoriador();
-    const r = REGISTROS.find((x) => x.id === id);
+    const r = REGISTROS.find((x) => x.id === id && !x.excluido);
     if (!r) throw new ErroApi(404, "nao_encontrado", "Cliente não encontrado");
     if (perfilAtualFalso() === "financeiro") return fichaDoFinanceiro(r);
-    return podeVerCompleto() ? completo(r) : resumo(r);
+    return podeVerCompleto() ? { ...completo(r), acoes: { excluir: excluirDoFalso(r) } } : resumo(r);
   },
 
   /** Leitura do próprio falso para montar vistoria e locação: a regra de quem vê o quê é da rota, não do serviço. */
@@ -377,6 +419,7 @@ export const clientesFalso = {
       pendencias,
       anexos: [],
       extra: c,
+      historico: [],
     };
     REGISTROS.push(r);
     return completo(r);
@@ -434,6 +477,18 @@ export const clientesFalso = {
     if (reg.status !== "inativo") throw new ErroApi(409, "transicao_cliente", "O cliente não está inativo.");
     reg.status = reg.pendencias.length > 0 ? "incompleto" : "ativo";
     return completo(reg);
+  },
+
+  /** CLI-13: gerente e administrador; com histórico, 409 com a lista; bloqueado, 409 `transicao_cliente`; o excluído some (404). */
+  async excluir(id: number): Promise<{ id: number; mensagem: string }> {
+    await pausa(60);
+    exigirGestor();
+    const reg = REGISTROS.find((x) => x.id === id && !x.excluido);
+    if (!reg) throw new ErroApi(404, "nao_encontrado", "Cliente não encontrado");
+    if (historicoDe(reg).length > 0) throw new ErroApi(409, "CLI-13", motivoDoCli13(reg), { historico: historicoDe(reg) });
+    if (reg.status === "bloqueado") throw new ErroApi(409, "transicao_cliente", MSG_BLOQUEADO, { de: "bloqueado", para: "excluido" });
+    reg.excluido = true;
+    return { id, mensagem: "Cliente excluído." };
   },
 
   async enviarDocumento(id: number, tipo: TipoDocumentoCliente, arquivo: File): Promise<ClienteCompleto> {

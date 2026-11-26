@@ -20,6 +20,8 @@ import { tomDoStatus } from "@/lib/tom";
 import { textoDoPagamento } from "@/lib/locacoes";
 import { useSessao } from "@/lib/sessao";
 import { AcoesDoCliente } from "./AcoesDoCliente";
+import { ExcluirCliente } from "./ExcluirCliente";
+import { Confirmacao } from "@/components/financeiro/Comuns";
 import { AnaliseDoCadastro } from "./AnaliseDoCadastro";
 import { ROTULO_DOCUMENTO } from "./BotaoDocumento";
 import { FichaDoFinanceiro } from "./FichaDoFinanceiro";
@@ -202,6 +204,7 @@ const dataDoDocumento = (c: ClienteCompleto, tipo: TipoDocumentoCliente) => {
 
 function DesktopCompleto({ c, locacoes, docs, podeLocar, podeEditar, administrador }: Dados & { c: ClienteCompleto }) {
   const [mostrar, setMostrar] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
   const fin = c.financeiro;
   const lista = locacoes.data;
   const atual = lista?.resultados.find((l) => l.id === c.locacao_atual?.id);
@@ -244,6 +247,7 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, podeEditar, administrad
               Iniciar locação
             </Link>
           )}
+          <ExcluirCliente c={c} aoAvisar={setAviso} />
         </div>
       </header>
 
@@ -266,6 +270,7 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, podeEditar, administrad
           <span>{textoDePendencias(c.pendencias)}</span>
         </p>
       )}
+      {aviso && <Confirmacao>{aviso}</Confirmacao>}
       <AcoesDoCliente c={c} />
 
       <div className="flex flex-wrap items-start gap-6">
@@ -429,6 +434,7 @@ function CartaoDoCelular({ titulo, children }: { titulo: string; children: React
 const KPI_DO_CELULAR = "[&_.wl-kpi]:px-4 [&_.wl-kpi]:py-[14px] [&_.wl-kpi__value]:text-[28px] [&_.wl-kpi__value]:leading-8 [&_.wl-kpi__meta]:text-[13px]";
 
 function CelularCompleto({ c, locacoes, docs, podeLocar, podeEditar }: Dados & { c: ClienteCompleto }) {
+  const [aviso, setAviso] = useState<string | null>(null);
   const fin = c.financeiro;
   const lista = locacoes.data;
   const atual = lista?.resultados.find((l) => l.id === c.locacao_atual?.id);
@@ -579,6 +585,10 @@ function CelularCompleto({ c, locacoes, docs, podeLocar, podeEditar }: Dados & {
           Iniciar locação
         </Link>
       )}
+
+      {/* CLI-13: no fim da ficha, depois da última seção. */}
+      {aviso && <Confirmacao>{aviso}</Confirmacao>}
+      <ExcluirCliente c={c} celular aoAvisar={setAviso} />
     </div>
   );
 }

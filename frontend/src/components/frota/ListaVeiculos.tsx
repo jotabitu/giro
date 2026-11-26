@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, Bike, Car, ChevronsUpDown, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { AluguelDesativado } from "./AluguelDesativado";
 import { CelulaDupla, DataTable, Icone, SearchField, SegmentedControl, StatusBadge, type ColunaTabela } from "@/design-system";
 import { FiltroChips, type OpcaoChip } from "@/components/lista/FiltroChips";
@@ -15,6 +16,8 @@ import { diaria, diasEmEstoque, fatoDoVeiculo } from "@/lib/frota";
 import { useBuscaNaUrl, useFiltrosNaUrl } from "@/lib/filtros-url";
 import { tomDoStatus } from "@/lib/tom";
 import { useSessao } from "@/lib/sessao";
+import { avisoDaLista, esquecerAvisoDaLista } from "@/lib/aviso-da-lista";
+import { Confirmacao } from "@/components/financeiro/Comuns";
 
 const STATUS: { valor: string; rotulo: string; chave: keyof Lista["contagens"] }[] = [
   { valor: "todos", rotulo: "Todos", chave: "todos" },
@@ -166,6 +169,9 @@ export function ListaVeiculos() {
   const router = useRouter();
   const { eu } = useSessao();
   const { valor, definir, paginacao } = useFiltrosNaUrl();
+  // VEI-22: a frase que a ficha deixou depois de excluir ("Veículo SAK-1D39 excluído."), como a API mandou.
+  const [aviso] = useState(() => avisoDaLista("/veiculos"));
+  useEffect(() => esquecerAvisoDaLista("/veiculos"), []);
   const status = valor("status") ?? "todos";
   const tipo = (valor("tipo") ?? "todos") as TipoVeiculo | "todos";
   const cursor = valor("cursor") ?? undefined;
@@ -215,6 +221,8 @@ export function ListaVeiculos() {
           )}
         </div>
       </header>
+
+      {aviso && <Confirmacao>{aviso}</Confirmacao>}
 
       <section className="wl-panel">
         <div className="mb-5 flex flex-wrap items-center gap-3">

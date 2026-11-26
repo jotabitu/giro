@@ -1,4 +1,5 @@
 // Tipos do contrato docs/api/clientes.md. TEMPORÁRIO: sai quando o cliente gerado do OpenAPI existir.
+import type { components } from "./schema";
 import type { TomApi } from "./tipos-frota";
 
 export type StatusCliente = "ativo" | "incompleto" | "bloqueado" | "inativo";
@@ -103,7 +104,14 @@ export type ClienteCompleto = ClienteResumo & {
   documentos: DocumentoDoCliente[];
   pendencias: string[];
   analise: AnaliseCadastro;
+  /** CLI-13 (T-515): `excluir` vem `null` para o vendedor; a confirmação ou o aviso com o histórico vêm prontos. */
+  acoes?: { excluir: ExcluirCliente | null };
 };
+
+/** CLI-13: `acoes.excluir` da ficha (docs/api/clientes.md). */
+export type ExcluirCliente = components["schemas"]["ExcluirCliente"];
+/** Resposta de `POST /api/clientes/{id}/excluir/`: "Cliente excluído.", sem o nome. */
+export type ClienteExcluido = { id: number; mensagem: string };
 
 /** Preço, parcelas e caução da locação em andamento, lidos do detalhe dela (`GET /api/locacoes/{id}/`). Só a locação atual os traz. */
 export type DetalheDaLocacaoAtual = {

@@ -21,6 +21,7 @@ import type {
   TipoVeiculo,
   Veiculo,
   VeiculoDetalhe,
+  VeiculoExcluido,
 } from "./tipos-frota";
 
 const ROTULO_DOCUMENTO: Record<string, string> = { crlv: "CRLV", seguro: "Seguro", ipva: "IPVA", rastreador: "Rastreador" };
@@ -121,6 +122,11 @@ export const veiculosApi = {
 
   obter(id: number): Promise<VeiculoDetalhe> {
     return http.get<VeiculoDetalhe>(`/api/veiculos/${id}/`);
+  },
+
+  /** VEI-22: 409 `VEI-22` com `detalhes.historico` quando o veículo tem histórico; 403 para quem não exclui. */
+  excluir(id: number): Promise<VeiculoExcluido> {
+    return http.post<VeiculoExcluido>(`/api/veiculos/${id}/excluir/`, {});
   },
 
   async documentos(id: number): Promise<DocumentoVeiculo[]> {
