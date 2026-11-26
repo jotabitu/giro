@@ -340,9 +340,13 @@ def test_cli_13_ficha_manda_a_confirmacao_pronta(cenario: Cenario) -> None:
 
 def test_cli_13_sem_historico_exclui_apaga_os_dados_e_some(cenario: Cenario) -> None:
     juliana = _juliana(cenario)
-    caminhos = list(
-        DocumentoCliente.objects.filter(cliente_id=juliana).values_list("arquivo", flat=True)
-    )
+    caminhos: list[str] = [
+        str(caminho)
+        for caminho in DocumentoCliente.objects.filter(cliente_id=juliana).values_list(
+            "arquivo", flat=True
+        )
+        if caminho
+    ]
     assert len(caminhos) == 4
     antes = cenario.moto.api().get(CLIENTES).json()["contagens"]
 
