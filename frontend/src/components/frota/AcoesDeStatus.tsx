@@ -190,7 +190,7 @@ export function ColocarAVenda({ v, celular, aoFechar, aoConcluir, inicial }: Com
     >
       {recusa && <Aviso tom="critico">{recusa}</Aviso>}
       <Texto>{t.texto}</Texto>
-      <CampoDeDinheiro rotulo="Valor de venda" prefixo mono cheio placeholder="R$ 0,00" value={valor} onChange={(e) => setValor(e.target.value)} erro={faltaValor ? "Informe o valor de venda." : doCampo("valor_venda_centavos")} />
+      <CampoDeDinheiro rotulo="Valor de venda" prefixo mono cheio placeholder="R$ 0,00" value={valor} onChange={(e) => (setValor(e.target.value), setFaltaValor(false))} erro={faltaValor ? "Informe o valor de venda." : doCampo("valor_venda_centavos")} />
       <CampoDeDinheiro rotulo="Referência FIPE" prefixo mono cheio placeholder="R$ 0,00" value={fipe} onChange={(e) => setFipe(e.target.value)} erro={doCampo("referencia_fipe_centavos")} dica="Opcional. Aparece ao lado do valor de venda." />
     </Janela>
   );
