@@ -48,11 +48,11 @@ describe("tela de preços do veículo", () => {
   const h = pagina(PRECOS_POP);
   const t = texto(h);
 
-  it("T-514: Cancelar e Salvar preços ficam na barra flutuante do pé, só para quem edita", () => {
+  it("T-519: Cancelar e Salvar preços ficam no cabeçalho (desktop) e de novo na barra flutuante, só para quem edita", () => {
     const h = pagina(PRECOS_POP);
     expect(h).toContain("sticky bottom-[88px]");
-    expect(h.match(/>Salvar preços</g)).toHaveLength(1);
-    expect(h.match(/>Cancelar</g)).toHaveLength(1);
+    expect(h.match(/>Salvar preços</g)).toHaveLength(2);
+    expect(h.match(/>Cancelar</g)).toHaveLength(2);
     expect(pagina(gerente)).not.toContain("Salvar preços");
   });
 

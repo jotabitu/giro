@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
 import Link from "next/link";
-import { BarraDeAcoes, Icone, TextField } from "@/design-system";
+import { BarraDeAcoes, Button, Icone, TextField, useBlocoVisivel } from "@/design-system";
 import { marca as marcaApi, type MarcaEmpresa } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { CORES_DE_ATALHO } from "@/lib/marca-edicao";
@@ -22,6 +22,7 @@ const DICA_DO_LIMITE = "Acima disso, o veículo à venda aparece como parado e o
 export function FormularioDaMarca({ guardada }: { guardada: MarcaEmpresa }) {
   const m = useEdicaoDaMarca(guardada);
   const limite = useLimiteDoEstoque();
+  const blocos = useBlocoVisivel();
   const salvando = m.salvar.isPending || limite.salvar.isPending;
   const mudou = m.mudou || limite.mudou;
   // A cor salva vem na frente, como a bolinha marcada da tela de referência.
@@ -84,6 +85,22 @@ export function FormularioDaMarca({ guardada }: { guardada: MarcaEmpresa }) {
               />
             </section>
           )}
+
+          <div ref={blocos.ref()} className="flex items-center justify-end gap-2">
+            <Button
+              variante="quieto"
+              disabled={!mudou || salvando}
+              onClick={() => {
+                m.descartar();
+                limite.descartar();
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" variante="solido" disabled={!mudou || salvando}>
+              {salvando ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
         </div>
 
         <aside className="wl-panel flex min-w-0 flex-col gap-4 md:flex-[1_1_320px]" aria-labelledby="previa-titulo">
@@ -95,6 +112,7 @@ export function FormularioDaMarca({ guardada }: { guardada: MarcaEmpresa }) {
       </div>
 
       <BarraDeAcoes
+        blocos={blocos}
         cancelar={{
           disabled: !mudou || salvando,
           aoClicar: () => {

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { BarraDeAcoes, CampoDeDinheiro, Icone, Panel, SelectField, StatusBadge, TextField } from "@/design-system";
+import { BarraDeAcoes, CampoDeDinheiro, Icone, Panel, SelectField, StatusBadge, TextField, useBlocoVisivel } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo, type VeiculoDetalhe } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa as placaComHifen } from "@/lib/formatos";
@@ -30,6 +30,7 @@ const CAMPOS_EDITAVEIS: Nome[] = ["marca", "modelo", "ano_fabricacao", "ano_mode
 function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
   const router = useRouter();
   const cliente = useQueryClient();
+  const blocos = useBlocoVisivel();
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const enviando = useRef(false);
   // Corrigir placa ou chassi é do administrador. A API ainda não manda uma ação para isso em `acoes`; até lá vale a flag `pode.administracao` (T-284).
@@ -160,6 +161,15 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
             <span>· {[v.marca, v.modelo].filter(Boolean).join(" ")} · {v.ano_modelo} · {ficha.filial.nome}</span>
           </div>
         </div>
+        <div ref={blocos.ref()} className="flex gap-2">
+          <Link href={`/veiculos/${ficha.id}`} className="wl-btn wl-btn--quiet">
+            Cancelar
+          </Link>
+          {/* O botão fica no cabeçalho e o formulário mais abaixo: o atributo form liga os dois. */}
+          <button type="submit" form="editar-veiculo" disabled={ocupado} className="wl-btn wl-btn--solid">
+            {ocupado ? "Salvando…" : "Salvar alterações"}
+          </button>
+        </div>
       </header>
 
       {aviso && (
@@ -251,8 +261,8 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
 
       <DocumentosDoVeiculo id={ficha.id} />
 
-      {/* A página é longa: Salvar também no pé, fixo ao rolar (no celular fica acima da barra de navegação). */}
-      <BarraDeAcoes cancelar={{ href: `/veiculos/${ficha.id}` }} principal={{ rotulo: "Salvar alterações", form: "editar-veiculo", ocupado }} />
+      {/* A página é longa: a barra com Salvar aparece no pé, fixa ao rolar, quando os botões do cabeçalho saem da tela (no celular fica acima da barra de navegação). */}
+      <BarraDeAcoes blocos={blocos} cancelar={{ href: `/veiculos/${ficha.id}` }} principal={{ rotulo: "Salvar alterações", form: "editar-veiculo", ocupado }} />
       {/* Fora do form: Enter nos campos do diálogo não pode salvar a edição. */}
       {corrigindo && <CorrigirIdentificacao ficha={ficha} aoFechar={() => setCorrigindo(false)} aoConcluir={setAviso} />}
     </div>

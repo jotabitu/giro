@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cx } from "../../cx";
+import type { BlocoDosBotoes } from "./useBlocoVisivel";
 
 export type PrincipalDaBarra = {
   /** Texto do botão: o que a tela já usa ("Cadastrar veículo", "Salvar alterações"). */
@@ -22,11 +23,23 @@ export type CancelarDaBarra = { rotulo?: string; /** Só vale com `aoClicar`: o 
  * Barra flutuante de ações no pé de uma tela de página inteira que cria ou edita (T-514): cartão branco com sombra,
  * fixo ao rolar, "Cancelar" quieto e o botão principal sólido à direita. No celular fica acima da barra de navegação
  * de baixo (`bottom-[88px]`). A barra fica no fim do conteúdo da página, então nada fica escondido atrás dela.
+ * Com `blocos` (T-519), a tela tem o bloco fixo de botões e a barra só aparece quando ele sai da tela; escondida, ela continua
+ * ocupando o lugar (sem pular o layout) e fica inerte para o foco e para o leitor de tela.
  */
-export function BarraDeAcoes({ aEsquerda, cancelar, principal, className }: { aEsquerda?: ReactNode; cancelar: CancelarDaBarra; principal: PrincipalDaBarra; className?: string }) {
+export function BarraDeAcoes({ aEsquerda, cancelar, principal, blocos, className }: { aEsquerda?: ReactNode; cancelar: CancelarDaBarra; principal: PrincipalDaBarra; blocos?: BlocoDosBotoes; className?: string }) {
   const rotuloCancelar = cancelar.rotulo ?? "Cancelar";
+  const escondida = blocos?.visivel === true;
   return (
-    <div className={cx("sticky bottom-[88px] z-20 flex flex-wrap items-center gap-2 rounded-lg bg-surface p-3 shadow-pop md:bottom-4", className)}>
+    <div
+      aria-hidden={escondida || undefined}
+      inert={escondida || undefined}
+      className={cx(
+        "sticky bottom-[88px] z-20 flex flex-wrap items-center gap-2 rounded-lg bg-surface p-3 shadow-pop md:bottom-4",
+        blocos && "transition-[opacity,transform] duration-200 motion-reduce:transition-none",
+        escondida && "pointer-events-none translate-y-2 opacity-0",
+        className,
+      )}
+    >
       {aEsquerda && <div className="min-w-0 basis-full text-caption text-ink-muted md:flex-1 md:basis-0">{aEsquerda}</div>}
       <div className="ml-auto flex shrink-0 gap-2">
         {cancelar.href !== undefined ? (

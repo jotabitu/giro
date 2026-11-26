@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { BarraDeAcoes, Panel, SegmentedControl, TextField } from "@/design-system";
+import { BarraDeAcoes, Panel, SegmentedControl, TextField, useBlocoVisivel } from "@/design-system";
 import { clientes, filiais, ErroApi, type ClienteCompleto, type TipoDocumentoCliente } from "@/lib/api";
 import { esquemaCliente, paraCorpo, paraCorpoDeEdicao, valoresDoCliente, VALORES_INICIAIS, type ValoresCliente } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
@@ -33,6 +33,7 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
 export function NovoClienteForm({ cliente }: { cliente?: ClienteCompleto }) {
   const router = useRouter();
   const cache = useQueryClient();
+  const blocos = useBlocoVisivel();
   const editando = cliente !== undefined;
   const [iniciais] = useState<ValoresCliente>(() => (cliente ? valoresDoCliente(cliente) : VALORES_INICIAIS));
   const [erroGeral, setErroGeral] = useState<string | null>(null);
@@ -303,22 +304,33 @@ export function NovoClienteForm({ cliente }: { cliente?: ClienteCompleto }) {
               <span>O cliente autorizou o uso dos dados para locação e cobrança, conforme a política de privacidade da empresa.</span>
             </label>
           </section>
+          <section ref={blocos.ref()} className="wl-panel flex flex-col gap-3">
+            {editando ? (
+              <button type="submit" disabled={ocupado} className="wl-btn wl-btn--solid">
+                {ocupado ? "Salvando…" : "Salvar alterações"}
+              </button>
+            ) : (
+              <>
+                <button type="button" disabled={ocupado} onClick={() => void salvarEAlugar()} className="wl-btn wl-btn--solid">
+                  Salvar e iniciar locação
+                </button>
+                <button type="submit" disabled={ocupado} className="wl-btn wl-btn--quiet">
+                  Salvar cliente
+                </button>
+              </>
+            )}
+            <Link href={editando ? `/clientes/${cliente.id}` : "/clientes"} className="wl-btn wl-btn--quiet">
+              Cancelar
+            </Link>
+          </section>
         </aside>
       </div>
 
-      {editando ? (
-        <BarraDeAcoes cancelar={{ href: `/clientes/${cliente.id}` }} principal={{ rotulo: "Salvar alterações", ocupado }} />
-      ) : (
-        <BarraDeAcoes
-          aEsquerda={
-            <button type="submit" disabled={ocupado} className="wl-btn wl-btn--quiet">
-              Salvar cliente
-            </button>
-          }
-          cancelar={{ href: "/clientes" }}
-          principal={{ rotulo: "Salvar e iniciar locação", ocupado: false, disabled: ocupado, aoClicar: () => void salvarEAlugar() }}
-        />
-      )}
+      <BarraDeAcoes
+        blocos={blocos}
+        cancelar={{ href: editando ? `/clientes/${cliente.id}` : "/clientes" }}
+        principal={editando ? { rotulo: "Salvar alterações", ocupado } : { rotulo: "Salvar e iniciar locação", ocupado: false, disabled: ocupado, aoClicar: () => void salvarEAlugar() }}
+      />
     </form>
   );
 }

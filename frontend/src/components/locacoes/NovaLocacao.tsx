@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
-import { BarraDeAcoes, Button, Icone, Panel, TextField } from "@/design-system";
+import { BarraDeAcoes, Button, Icone, Panel, TextField, useBlocoVisivel } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { clientes, ErroApi, locacoes, veiculos, type EntradaDaLocacao, type Periodicidade } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
@@ -78,6 +78,7 @@ function Plano({ ativo, nome, detalhe, linhas, onClick }: { ativo: boolean; nome
 export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, tipoInicial, planoInicial }: { clienteInicial?: number; veiculoInicial?: number; rascunhoInicial?: number; tipoInicial?: "comum" | "intencao_compra"; planoInicial?: number }) {
   const router = useRouter();
   const cache = useQueryClient();
+  const blocos = useBlocoVisivel();
   const [escolhendo, setEscolhendo] = useState<"cliente" | "veiculo" | null>(null);
   const [rascunhoId, setRascunhoId] = useState<number | null>(rascunhoInicial ?? null);
   const agoraDaPagina = useAgora();
@@ -471,8 +472,8 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
             )}
           </Panel>
 
-          {salvar.isError && (
-            <section className="wl-panel">
+          <section ref={blocos.ref()} className="wl-panel flex flex-col gap-3">
+            {salvar.isError && (
               <p role="alert" className="text-body text-critical">
                 {mensagemDoErro(salvar.error)}{" "}
                 {linkDoErro && (
@@ -481,17 +482,19 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, t
                   </Link>
                 )}
               </p>
-            </section>
-          )}
+            )}
+            <Button variante="solido" disabled={!pronto} onClick={() => enviar("vistoria")}>
+              {salvar.isPending ? "Salvando…" : "Continuar para vistoria"}
+            </Button>
+            <Button variante="quieto" disabled={!pronto} onClick={() => enviar("reserva")}>
+              Salvar como reserva
+            </Button>
+          </section>
         </aside>
       </div>
 
       <BarraDeAcoes
-        aEsquerda={
-          <Button variante="quieto" disabled={!pronto} onClick={() => enviar("reserva")}>
-            Salvar como reserva
-          </Button>
-        }
+        blocos={blocos}
         cancelar={{ href: "/locacoes" }}
         principal={{ rotulo: "Continuar para vistoria", disabled: !pronto, ocupado: salvar.isPending, aoClicar: () => enviar("vistoria") }}
       />
