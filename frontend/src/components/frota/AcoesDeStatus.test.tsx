@@ -63,6 +63,8 @@ async function ficha(id: number): Promise<{ desktop: string; celular: string }> 
 
 /** O cabeçalho do desktop: do título até os indicadores. */
 const cabecalho = (desktop: string) => texto(desktop.slice(0, desktop.indexOf("Ocupação")));
+/** O painel "Ações" da coluna lateral: Movimentar, Transferir, oficina e, por último, Dar baixa e Excluir. */
+const painel = (desktop: string) => (desktop.includes(">Ações</h2>") ? texto(desktop.slice(desktop.indexOf(">Ações</h2>"), desktop.indexOf(">Dados</h2>"))) : "");
 
 const falha = async (p: Promise<unknown>): Promise<ErroApi> => {
   try {
@@ -87,24 +89,31 @@ describe("VEI-23: as ações que a API libera, por perfil e estado", () => {
   it("test_ven_01_gerente_ve_colocar_a_venda_no_disponivel_e_voltar_para_a_frota_no_a_venda_sem_dar_baixa", async () => {
     await entrar(GERENTE);
     const disponivel = await ficha(DISPONIVEL);
-    ordem(cabecalho(disponivel.desktop), ["Editar", "Movimentar", "Mandar para oficina", "Colocar à venda", "Excluir"]);
-    expect(cabecalho(disponivel.desktop)).not.toMatch(/Voltar para a frota|Dar baixa/);
+    ordem(cabecalho(disponivel.desktop), ["Editar", "Colocar à venda"]);
+    ordem(painel(disponivel.desktop), ["Movimentar", "Mandar para oficina", "Excluir"]);
+    expect(cabecalho(disponivel.desktop) + painel(disponivel.desktop)).not.toMatch(/Voltar para a frota|Dar baixa/);
     // O botão funciona: nada de "Ainda não está disponível".
     expect(disponivel.desktop).toMatch(/<button type="button" class="wl-btn wl-btn--solid">(<svg.*?<\/svg>)?Colocar à venda<\/button>/);
     expect(disponivel.desktop + disponivel.celular).not.toContain("Ainda não está disponível\">Colocar");
     const aVenda = await ficha(A_VENDA);
-    ordem(cabecalho(aVenda.desktop), ["Editar", "Voltar para a frota", "Excluir"]);
-    expect(cabecalho(aVenda.desktop)).not.toMatch(/Colocar à venda|Dar baixa/);
+    ordem(cabecalho(aVenda.desktop), ["Editar", "Voltar para a frota"]);
+    ordem(painel(aVenda.desktop), ["Excluir"]);
+    expect(cabecalho(aVenda.desktop) + painel(aVenda.desktop)).not.toMatch(/Colocar à venda|Dar baixa/);
   });
 
   it("test_mov_03_administrador_ve_dar_baixa_menos_no_alugado", async () => {
     await entrar(ADMIN);
-    ordem(cabecalho((await ficha(DISPONIVEL)).desktop), ["Colocar à venda", "Dar baixa", "Excluir"]);
-    ordem(cabecalho((await ficha(A_VENDA)).desktop), ["Voltar para a frota", "Dar baixa", "Excluir"]);
-    const alugado = cabecalho((await ficha(ALUGADO)).desktop);
+    const disponivel = (await ficha(DISPONIVEL)).desktop;
+    const aVenda = (await ficha(A_VENDA)).desktop;
+    ordem(cabecalho(disponivel), ["Colocar à venda"]);
+    ordem(painel(disponivel), ["Dar baixa", "Excluir"]);
+    ordem(cabecalho(aVenda), ["Voltar para a frota"]);
+    ordem(painel(aVenda), ["Dar baixa", "Excluir"]);
+    const alugadoHtml = (await ficha(ALUGADO)).desktop;
+    const alugado = cabecalho(alugadoHtml) + painel(alugadoHtml);
     expect(alugado).not.toMatch(/Dar baixa|Colocar à venda|Voltar para a frota/);
-    // Dar baixa é um botão de texto no tom de perigo, como o Excluir.
-    expect((await ficha(DISPONIVEL)).desktop).toContain('<button type="button" class="wl-btn bg-transparent text-critical-ink">Dar baixa</button>');
+    // Dar baixa é uma linha de perigo no painel "Ações", como o Excluir.
+    expect(disponivel).toMatch(/<button type="button" class="wl-acao wl-acao--perigo"[^>]*>.*?class="wl-acao__nome">Dar baixa<\/span>/);
   });
 
   it("test_ven_01_vendedor_e_financeiro_nao_veem_nenhuma_acao_de_status", async () => {
@@ -201,7 +210,8 @@ describe("VEN-01: Colocar à venda", () => {
     expect(depois.status).toBe("a_venda");
     expect(avisoDeSucesso("colocar_a_venda", depois)).toBe("A SAK-1D39 está à venda por R$ 9.000,00.");
     // Relida, a ficha troca o botão: agora é Voltar para a frota.
-    ordem(cabecalho((await ficha(DISPONIVEL)).desktop), ["Editar", "Voltar para a frota", "Excluir"]);
+    ordem(cabecalho((await ficha(DISPONIVEL)).desktop), ["Editar", "Voltar para a frota"]);
+    ordem(painel((await ficha(DISPONIVEL)).desktop), ["Excluir"]);
   });
 
   it("test_vei_15_colocar_a_venda_sem_plano_mostra_a_recusa_da_api_no_dialogo", async () => {
@@ -249,7 +259,8 @@ describe("VEI-15, VEI-18: Voltar para a frota", () => {
     const depois = await veiculos.voltarParaFrota(A_VENDA);
     expect(depois.status).toBe("disponivel");
     expect(avisoDeSucesso("voltar_para_frota", depois)).toBe("A QYB-5H60 voltou para a frota.");
-    ordem(cabecalho((await ficha(A_VENDA)).desktop), ["Editar", "Colocar à venda", "Excluir"]);
+    ordem(cabecalho((await ficha(A_VENDA)).desktop), ["Editar", "Colocar à venda"]);
+    ordem(painel((await ficha(A_VENDA)).desktop), ["Excluir"]);
     desfazer.pop()?.();
     ajustar(A_VENDA, { semPlano: true });
     const semPreco = await veiculos.voltarParaFrota(A_VENDA);

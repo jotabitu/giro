@@ -1,11 +1,14 @@
 "use client";
 
 // Exemplos do preview. Os dados são de demonstração (Moto Rápida); telas reais mostram o que a API devolve.
-import { ArrowUpRight, Menu as IconeMenu, BarChart3, Bell, CarFront, FileText, LayoutGrid, Plus, Receipt, Settings, SlidersHorizontal, Tag, Users, Wrench } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, Truck, ArrowUpRight, Menu as IconeMenu, BarChart3, Bell, CarFront, FileText, LayoutGrid, Plus, Receipt, Settings, SlidersHorizontal, Tag, Users, Wrench } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import {
   AlertCard,
   BarraDeAcoes,
+  LinhaDeAcao,
+  PainelDeAcoes,
+  SeparadorDeAcoes,
   useBlocoVisivel,
   Button,
   CodigoVerificacao,
@@ -314,6 +317,19 @@ function ExemploLinhaDeLista() {
         <LinhaDeLista titulo="Sem ação" apoio="Linha só informativa" />
       </ListaDeLinhas>
     </Panel>
+  );
+}
+
+function ExemploPainelDeAcoes() {
+  return (
+    <div className="max-w-[360px]">
+      <PainelDeAcoes>
+        <LinhaDeAcao rotulo="Transferir" detalhe="Mudar de filial, com vistoria rápida" icone={<Icone de={ArrowLeftRight} />} onClick={() => undefined} />
+        <LinhaDeAcao rotulo="Movimentar" detalhe="Veículo alugado não se movimenta." icone={<Icone de={Truck} />} disabled />
+        <SeparadorDeAcoes />
+        <LinhaDeAcao perigo rotulo="Dar baixa" detalhe="Tirar da frota de vez" icone={<Icone de={ArrowDownToLine} />} onClick={() => undefined} />
+      </PainelDeAcoes>
+    </div>
   );
 }
 
@@ -703,6 +719,7 @@ const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "linha-de-lista": ExemploLinhaDeLista,
   "barra-de-acoes": ExemploBarraDeAcoes,
   "lista-com-rolagem": ExemploListaComRolagem,
+  "painel-de-acoes": ExemploPainelDeAcoes,
   "progress-bar": ExemploProgressBar,
   "search-field": ExemploSearchField,
   "segmented-control": ExemploSegmentedControl,

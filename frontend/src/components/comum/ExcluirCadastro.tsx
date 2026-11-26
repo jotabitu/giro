@@ -90,6 +90,8 @@ type Props = {
   celular?: boolean;
   /** "Excluir" no desktop; "Excluir veículo" ou "Excluir cliente" no celular. */
   rotulo: string;
+  /** Troca o botão de abrir por outro (a linha do painel "Ações" da ficha). */
+  botao?: (abrir: () => void) => ReactNode;
   coisa: string;
   executar: () => Promise<{ mensagem: string }>;
   /** A ficha que a recusa (409) manda reler. */
@@ -106,7 +108,7 @@ type Props = {
 };
 
 /** A janela aberta: o roteador e a gravação só existem enquanto ela está na tela. */
-function JanelaAberta({ acao, celular, coisa, executar, chaveDaFicha, chavesDasListas, lista, caminho, aoSair }: Omit<Props, "rotulo" | "estiloDoBotao" | "abertoDeInicio"> & { aoSair: () => void }) {
+function JanelaAberta({ acao, celular, coisa, executar, chaveDaFicha, chavesDasListas, lista, caminho, aoSair }: Omit<Props, "rotulo" | "estiloDoBotao" | "abertoDeInicio" | "botao"> & { aoSair: () => void }) {
   const cache = useQueryClient();
   const router = useRouter();
   const excluir = useMutation({
@@ -123,13 +125,13 @@ function JanelaAberta({ acao, celular, coisa, executar, chaveDaFicha, chavesDasL
   return <JanelaDeExcluir acao={acao} celular={celular} coisa={coisa} enviando={excluir.isPending} erro={erro} aoConfirmar={() => excluir.mutate()} aoFechar={fechar} caminho={caminho?.(fechar)} />;
 }
 
-export function ExcluirCadastro({ rotulo, estiloDoBotao, abertoDeInicio = false, ...janela }: Props) {
+export function ExcluirCadastro({ rotulo, estiloDoBotao, abertoDeInicio = false, botao, ...janela }: Props) {
   const [aberto, setAberto] = useState(abertoDeInicio);
   return (
     <>
-      <button type="button" className={`${DE_TEXTO} ${janela.celular ? "w-full justify-center" : ""}`} style={estiloDoBotao} onClick={() => setAberto(true)}>
+      {botao ? botao(() => setAberto(true)) : <button type="button" className={`${DE_TEXTO} ${janela.celular ? "w-full justify-center" : ""}`} style={estiloDoBotao} onClick={() => setAberto(true)}>
         {rotulo}
-      </button>
+      </button>}
       {aberto && <JanelaAberta {...janela} aoSair={() => setAberto(false)} />}
     </>
   );

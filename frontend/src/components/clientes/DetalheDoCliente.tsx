@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tan
 import { Bike, Camera, Car, Check, ChevronLeft, Download, Eye, EyeOff, MessageCircle, Pencil, Info } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, type ReactNode } from "react";
-import { Button, DataTable, CelulaDupla, Icone, KpiGrid, KpiTile, ListaComRolagem, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
+import { Button, DataTable, CelulaDupla, Icone, KpiGrid, KpiTile, LinhaDeAcao, ListaComRolagem, Panel, PainelDeAcoes, SeparadorDeAcoes, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   clientes,
   type ClienteCompleto,
@@ -233,21 +233,19 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, podeEditar, administrad
             </span>
           </div>
         </div>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <BotaoWhatsApp c={c} altura />
+        <div className="wl-acoes-topo">
           {podeEditar && (
-            <Link href={`/clientes/${c.id}/editar`} className="wl-btn no-underline" style={{ height: 56 }}>
+            <Link href={`/clientes/${c.id}/editar`} className="wl-btn">
               <Icone de={Pencil} />
               Editar
             </Link>
           )}
           {podeLocar && (
-            <Link href={`/locacoes/nova?cliente=${c.id}`} className="wl-btn wl-btn--solid no-underline" style={{ height: 56, padding: "0 28px" }}>
+            <Link href={`/locacoes/nova?cliente=${c.id}`} className="wl-btn wl-btn--solid">
               <Icone de={Bike} />
               Iniciar locação
             </Link>
           )}
-          <ExcluirCliente c={c} aoAvisar={setAviso} />
         </div>
       </header>
 
@@ -329,6 +327,11 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, podeEditar, administrad
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
+          <PainelDeAcoes>
+            <LinhaDeAcao rotulo="WhatsApp" detalhe="Abrir a conversa com o cliente" icone={<Icone de={MessageCircle} />} href={linkWhatsApp(c)} externo />
+            {c.acoes?.excluir && <SeparadorDeAcoes />}
+            <ExcluirCliente c={c} noPainel aoAvisar={setAviso} />
+          </PainelDeAcoes>
           <section className="wl-panel">
             <div className="mb-1 flex items-center justify-between">
               <h2 className="text-[20px] font-semibold leading-[26px]">Dados pessoais</h2>

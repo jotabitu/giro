@@ -58,7 +58,7 @@ describe("detalhe do cliente, gerente: Juliana Rocha", () => {
 
   it("desktop: seções e rótulos na ordem da referência", () => {
     const t = texto(desktop);
-    ordem(t, ["Clientes", "Juliana Rocha", "Em dia", "Cadastro completo", "Pessoa física · cliente desde mar 2026", "WhatsApp", "Editar", "Iniciar locação"]);
+    ordem(t, ["Clientes", "Juliana Rocha", "Em dia", "Cadastro completo", "Pessoa física · cliente desde mar 2026", "Editar", "Iniciar locação", "Total pago", "Ações", "WhatsApp", "Dados pessoais"]);
     ordem(t, ["Total pago", "R$ 2.674", "em 3 locações", "Em aberto", "R$ 0", "nenhuma parcela vencida", "Caução em garantia", "R$ 300", "LOC-2836", "Atrasos", "0", "em pagamentos e devoluções"]);
     ordem(t, ["Locação atual", "Devolução em 14 out às 18:00", "Yamaha Factor 150", "PNB-7C04", "LOC-2836 · Semanal R$ 329,00 · 30 set → 14 out 18:00 · 2 de 2 semanas pagas", "Ver locação", "Receber devolução"]);
     ordem(t, ["Locações", "3 no total · nenhuma com atraso", "Contrato", "Veículo", "Situação", "Pagamento", "Pago", "Caução R$ 300,00 · paga", "LOC-2760", "Mensal · 01 ago → 31 ago", "Pago", "LOC-2701", "Honda CG 160 Fan · QXA-4B21"]);
