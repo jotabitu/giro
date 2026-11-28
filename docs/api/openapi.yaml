@@ -6559,10 +6559,6 @@ paths:
         schema:
           type: string
       - in: query
-        name: categoria
-        schema:
-          type: integer
-      - in: query
         name: em_movimentacao
         schema:
           type: boolean
@@ -16234,10 +16230,6 @@ components:
           $ref: '#/components/schemas/RefDaMovimentacao'
         transferencia:
           type: boolean
-        categoria_destino:
-          allOf:
-          - $ref: '#/components/schemas/RefDaMovimentacao'
-          nullable: true
         rota:
           type: string
         levado_por:
@@ -16284,7 +16276,6 @@ components:
       - acoes
       - agendada_para
       - cancelada_em
-      - categoria_destino
       - codigo
       - concluida_em
       - destino
@@ -17855,10 +17846,6 @@ components:
           $ref: '#/components/schemas/RefDaMovimentacao'
         transferencia:
           type: boolean
-        categoria_destino:
-          allOf:
-          - $ref: '#/components/schemas/RefDaMovimentacao'
-          nullable: true
         rota:
           type: string
         levado_por:
@@ -17913,7 +17900,6 @@ components:
       - acoes
       - agendada_para
       - cancelada_em
-      - categoria_destino
       - chegada
       - codigo
       - concluida_em
@@ -18182,9 +18168,6 @@ components:
             $ref: '#/components/schemas/NovaParada'
         destino_filial_id:
           type: integer
-        categoria_destino_id:
-          type: integer
-          nullable: true
         levado_por_id:
           type: integer
         agendada_para:
@@ -19008,9 +18991,6 @@ components:
             $ref: '#/components/schemas/NovaParada'
         destino_filial_id:
           type: integer
-        categoria_destino_id:
-          type: integer
-          nullable: true
         levado_por_id:
           type: integer
         agendada_para:
@@ -19331,8 +19311,8 @@ components:
           oneOf:
           - $ref: '#/components/schemas/CombustivelVeiculoEnum'
           - $ref: '#/components/schemas/NullEnum'
-        categoria_id:
-          type: integer
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
         capacidade_tanque_litros:
           type: string
           format: decimal
@@ -20758,22 +20738,6 @@ components:
       required:
       - cancela_em
       - ultimo_dia
-    Preco:
-      type: object
-      properties:
-        diaria_centavos:
-          type: integer
-        semanal_centavos:
-          type: integer
-        mensal_centavos:
-          type: integer
-        caucao_centavos:
-          type: integer
-      required:
-      - caucao_centavos
-      - diaria_centavos
-      - mensal_centavos
-      - semanal_centavos
     PrecoComData:
       type: object
       properties:
@@ -23688,8 +23652,6 @@ components:
           - $ref: '#/components/schemas/NullEnum'
         tipo_veiculo:
           $ref: '#/components/schemas/TipoVeiculoEnum'
-        categoria:
-          $ref: '#/components/schemas/IdNome'
         filial:
           $ref: '#/components/schemas/IdNome'
         status:
@@ -23707,10 +23669,6 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
-          nullable: true
-        preco_vigente:
-          allOf:
-          - $ref: '#/components/schemas/Preco'
           nullable: true
         valor_venda_centavos:
           type: integer
@@ -23769,7 +23727,6 @@ components:
       - ano_modelo
       - aviso_preco
       - capacidade_tanque_litros
-      - categoria
       - chassi
       - combustivel
       - cor
@@ -23826,8 +23783,8 @@ components:
         km_atual:
           type: integer
           minimum: 0
-        categoria_id:
-          type: integer
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
         filial_id:
           type: integer
         capacidade_tanque_litros:
@@ -23873,13 +23830,13 @@ components:
       required:
       - ano_fabricacao
       - ano_modelo
-      - categoria_id
       - chassi
       - cor
       - filial_id
       - marca
       - modelo
       - placa
+      - tipo_veiculo
     VeiculoComDadosDoDocumento:
       type: object
       description: A ficha e as respostas do `POST` e do `PATCH` (VEI-09); a lista
@@ -23911,8 +23868,6 @@ components:
           - $ref: '#/components/schemas/NullEnum'
         tipo_veiculo:
           $ref: '#/components/schemas/TipoVeiculoEnum'
-        categoria:
-          $ref: '#/components/schemas/IdNome'
         filial:
           $ref: '#/components/schemas/IdNome'
         status:
@@ -23930,10 +23885,6 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
-          nullable: true
-        preco_vigente:
-          allOf:
-          - $ref: '#/components/schemas/Preco'
           nullable: true
         valor_venda_centavos:
           type: integer
@@ -24000,7 +23951,6 @@ components:
       - anotacoes
       - aviso_preco
       - capacidade_tanque_litros
-      - categoria
       - chassi
       - combustivel
       - cor
@@ -24128,8 +24078,6 @@ components:
           - $ref: '#/components/schemas/NullEnum'
         tipo_veiculo:
           $ref: '#/components/schemas/TipoVeiculoEnum'
-        categoria:
-          $ref: '#/components/schemas/IdNome'
         filial:
           $ref: '#/components/schemas/IdNome'
         status:
@@ -24147,10 +24095,6 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
-          nullable: true
-        preco_vigente:
-          allOf:
-          - $ref: '#/components/schemas/Preco'
           nullable: true
         valor_venda_centavos:
           type: integer
@@ -24237,7 +24181,6 @@ components:
       - anotacoes
       - aviso_preco
       - capacidade_tanque_litros
-      - categoria
       - chassi
       - combustivel
       - cor
@@ -24319,8 +24262,8 @@ components:
         km_atual:
           type: integer
           minimum: 0
-        categoria_id:
-          type: integer
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
         filial_id:
           type: integer
         capacidade_tanque_litros:
@@ -24350,13 +24293,13 @@ components:
       required:
       - ano_fabricacao
       - ano_modelo
-      - categoria_id
       - chassi
       - cor
       - filial_id
       - marca
       - modelo
       - placa
+      - tipo_veiculo
     VeiculoExcluido:
       type: object
       description: 'Resposta do `POST .../excluir/` (VEI-22): o aviso da Frota, "Veículo

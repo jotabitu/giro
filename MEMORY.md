@@ -4,6 +4,9 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-11-28] Tipo no veículo e campo antigo fora da auditoria (T-522 B1, ADR 0043)
+Moto ou carro é `Veiculo.tipo_veiculo` (sem default); nada lê `veiculo.categoria` fora das locações antigas. Campo de negócio que vira dado antigo sai do retrato da auditoria declarando `FORA_DO_RETRATO = ("campo",)` no model (`comum.auditoria.retrato`). Nos testes, a frota (`tests/aceitacao/frota.py`) não tem categoria: use o grupo da tabela (`criar_veiculo(n, "Urbana 110–125", filial)`, `com_planos_do_grupo`, `frota.grupos`).
+
 ### [2026-11-26] Remover arquivo de dado pessoal depois do commit (T-517)
 O arquivo que o registro soltou (documento do cliente no excluir e na anonimização, PDF da proposta na troca de cliente) sai por `comum.tasks.apagar_depois_do_commit(caminhos, pastas)`. Ela agenda a tarefa `arquivos_apagar` no `on_commit`, com nova tentativa (12 vezes, de 60 s até 1 h), e a resposta não depende dela. Não chame `arquivos.provedor().apagar` direto depois do `atomic`: com o armazenamento fora do ar, isso dava 500 e deixava o arquivo órfão. Nos testes, envolva a chamada com `django_capture_on_commit_callbacks(execute=True)`.
 Quem cria registro ligado ao cliente (locação, venda, conta) chama `clientes.services.travar_para_vincular(cliente_id)` dentro da transação (CLI-13, corrida com o excluir).
