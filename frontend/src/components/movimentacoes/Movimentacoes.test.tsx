@@ -197,7 +197,7 @@ describe("formulário da Nova movimentação (MOV-01)", () => {
       veiculo_id: 503,
       paradas: [{ local_id: 5, servico: "Revisão", valor_previsto_centavos: 12000 }],
       destino_filial_id: 1,
-      categoria_destino_id: null,
+     
       levado_por_id: 4,
       sair_agora: false,
       agendada_para: "2026-10-08T11:00:00.000Z",
@@ -216,7 +216,7 @@ describe("formulário da Nova movimentação (MOV-01)", () => {
 
 describe("camada de exemplo do contrato (provisória)", () => {
   it("mov_03: uma movimentação aberta por veículo (409 MOV-03)", async () => {
-    const corpo = { veiculo_id: 503, paradas: [], destino_filial_id: 1, categoria_destino_id: null, levado_por_id: 4, sair_agora: true, agendada_para: null, vistoria_rapida: false };
+    const corpo = { veiculo_id: 503, paradas: [], destino_filial_id: 1, levado_por_id: 4, sair_agora: true, agendada_para: null, vistoria_rapida: false };
     await expect(movimentacoes.criar(corpo)).rejects.toMatchObject({ status: 409, codigo: "MOV-03", message: "O veículo já está na MOV-0003." });
   });
 
@@ -256,7 +256,7 @@ describe("paradas: cheguei e saída (MOV-04, Movimentacao-Parada-*)", () => {
       veiculo_id: 510,
       paradas: [{ local_id: 3, servico: "Lavagem completa", valor_previsto_centavos: 3500 }],
       destino_filial_id: 1,
-      categoria_destino_id: null,
+     
       levado_por_id: 4,
       sair_agora: true,
       agendada_para: null,

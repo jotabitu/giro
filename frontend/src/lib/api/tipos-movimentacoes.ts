@@ -42,9 +42,8 @@ export type FiltroDeMovimentacoes = { filial?: number; busca?: string; levando?:
 /** `categoria` fica de fora: a API aplica o padrão (`outros`, e `manutencao` na oficina, MOV-04). */
 export type NovaParada = { local_id: number; servico: string; valor_previsto_centavos: number; categoria?: CategoriaDaDespesa };
 
-export type NovaMovimentacao = Omit<S["NovaMovimentacao"], "paradas" | "categoria_destino_id" | "agendada_para"> & {
+export type NovaMovimentacao = Omit<S["NovaMovimentacao"], "paradas" | "agendada_para"> & {
   paradas: NovaParada[];
-  categoria_destino_id: number | null;
   /** ISO em UTC; obrigatório e no futuro quando `sair_agora` é falso. */
   agendada_para: string | null;
 };

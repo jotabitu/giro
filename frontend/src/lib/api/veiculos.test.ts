@@ -4,7 +4,7 @@ import { definirAccess } from "./http";
 import type { NovoVeiculo } from "./tipos-frota";
 import { veiculosApi } from "./veiculos";
 
-const NOVO: NovoVeiculo = { placa: "TST2B34", chassi: "9C2JC00001RRT0777", marca: "Honda", modelo: "Biz 125", ano_fabricacao: 2024, ano_modelo: 2024, cor: "preta", km_atual: 10, categoria_id: 1, filial_id: 1 };
+const NOVO: NovoVeiculo = { placa: "TST2B34", chassi: "9C2JC00001RRT0777", marca: "Honda", modelo: "Biz 125", ano_fabricacao: 2024, ano_modelo: 2024, cor: "preta", km_atual: 10, tipo_veiculo: "moto", filial_id: 1 };
 
 let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
@@ -41,7 +41,7 @@ describe("veiculosApi.criar com o CRLV-e (VEI-08)", () => {
     const corpo = init.body as FormData;
     expect(corpo).toBeInstanceOf(FormData);
     expect(corpo.get("placa")).toBe("TST2B34");
-    expect(corpo.get("categoria_id")).toBe("1");
+    expect(corpo.get("tipo_veiculo")).toBe("moto");
     expect(corpo.get("combustivel")).toBe("flex");
     expect((corpo.get("crlv_arquivo") as File).name).toBe("crlv.pdf");
     expect(corpo.get("crlv_validade")).toBe("2027-10-31");

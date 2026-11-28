@@ -17,7 +17,7 @@ const NOVO: NovoVeiculo = {
   ano_modelo: 2026,
   cor: "Preta",
   km_atual: 0,
-  categoria_id: 1,
+  tipo_veiculo: "moto",
   filial_id: 1,
 };
 
@@ -33,12 +33,10 @@ async function falha(p: Promise<unknown>): Promise<ErroApi> {
 describe("POST /api/veiculos/ no falso", () => {
   beforeAll(() => entrarComo("rodrigo@motorapida.com.br"));
 
-  it("test_vei_01_cria_disponivel_e_aparece_na_frota", async () => {
+  it("test_vei_15_cria_sem_preco_e_aparece_na_frota (ADR 0043)", async () => {
     const criado = await veiculosFalso.criar({ ...NOVO, placa: "tbc-5h21", valor_compra_centavos: 1349000 });
     expect(criado.placa).toBe("TBC5H21");
-    expect(criado.status).toBe("disponivel");
-    expect(criado.categoria.nome).toBe("Urbana 110");
-    expect(criado.preco_vigente?.diaria_centavos).toBe(3990);
+    expect([criado.status, criado.motivo_status, criado.tipo_veiculo]).toEqual(["indisponivel", "Sem preço · ligue um plano", "moto"]);
     expect(criado.valor_compra_centavos).toBe(1349000);
     const lista = await veiculosFalso.listar({ busca: "TBC5H21" });
     expect(lista.resultados.map((x) => x.id)).toContain(criado.id);
@@ -64,10 +62,10 @@ describe("POST /api/veiculos/ no falso", () => {
     expect(Object.keys(e.campos ?? {}).sort()).toEqual(["chassi", "placa"]);
   });
 
-  it("categoria de outra filial e ano do modelo menor que o de fabricação voltam 400", async () => {
-    const e = await falha(veiculosFalso.criar({ ...NOVO, placa: "ABC1D24", chassi: "9C2JC7500TR000001", categoria_id: 4, ano_modelo: 2025 }));
+  it("test_vei_01_sem_tipo_e_ano_do_modelo_menor_que_o_de_fabricacao_voltam_400", async () => {
+    const e = await falha(veiculosFalso.criar({ ...NOVO, placa: "ABC1D24", chassi: "9C2JC7500TR000001", tipo_veiculo: "" as "moto", ano_modelo: 2025 }));
     expect(e.status).toBe(400);
-    expect(e.campos).toMatchObject({ categoria_id: expect.any(String), ano_modelo: expect.any(String) });
+    expect(e.campos).toMatchObject({ tipo_veiculo: "Escolha moto ou carro.", ano_modelo: expect.any(String) });
   });
 
   it("test_plt_03_limite_do_plano_422", async () => {

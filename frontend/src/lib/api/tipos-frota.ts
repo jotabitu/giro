@@ -95,8 +95,10 @@ export type Veiculo = {
   ano_fabricacao: number;
   ano_modelo: number;
   cor: string;
+  /** VEI-11 (ADR 0043): moto ou carro, do próprio veículo. */
   tipo_veiculo: TipoVeiculo;
-  categoria: { id: number; nome: string };
+  /** @deprecated ADR 0043 (T-522): a API não manda mais; a F1 tira das telas e da API falsa. */
+  categoria?: { id: number; nome: string };
   filial: { id: number; nome: string };
   status: StatusVeiculo;
   motivo_status: string | null;
@@ -107,8 +109,9 @@ export type Veiculo = {
   km_atual: number;
   km_atualizado_em: string;
   capacidade_tanque_litros: string | null;
-  /** Estes cinco campos vêm ausentes para o vistoriador (D-25, USR-09): a tela esconde o que não vier. */
+  /** @deprecated ADR 0043 (T-522): o preço da categoria saiu da API; a tela esconde a coluna "Diária" sem ele. */
   preco_vigente?: PrecoVigente;
+  /** Estes quatro campos vêm ausentes para o vistoriador (D-25, USR-09): a tela esconde o que não vier. */
   valor_venda_centavos?: number | null;
   referencia_fipe_centavos?: number | null;
   valor_compra_centavos?: number | null;
@@ -252,7 +255,8 @@ export type EdicaoVeiculo = {
   ano_fabricacao?: number;
   ano_modelo?: number;
   cor?: string;
-  categoria_id?: number;
+  /** VEI-11 (ADR 0043): com locação aberta, a troca dá 409 `tipo_com_locacao_aberta`. */
+  tipo_veiculo?: TipoVeiculo;
   capacidade_tanque_litros?: string | null;
   valor_compra_centavos?: number | null;
   data_compra?: string | null;
@@ -275,7 +279,8 @@ export type NovoVeiculo = {
   ano_modelo: number;
   cor: string;
   km_atual: number;
-  categoria_id: number;
+  /** VEI-11 (ADR 0043): obrigatório; sem ele, 400 "Escolha moto ou carro.". */
+  tipo_veiculo: TipoVeiculo;
   filial_id: number;
   capacidade_tanque_litros?: string;
   valor_compra_centavos?: number;

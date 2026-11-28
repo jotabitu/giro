@@ -75,7 +75,7 @@ describe("ficha do veículo, gerente", () => {
     expect(t).toContain("próxima: troca de óleo aos 19.900 km");
     ordem(t, ["Contrato", "Cliente", "Período", "Situação", "LOC-2841", "Carlos Menezes", "23 set → 28 out", "Em andamento", "LOC-2702", "LOC-2640"]);
     ordem(t, ["Serviço", "Data", "Km", "Custo", "Troca de óleo", "12 set", "18.900 km", "R$ 48,00", "Pastilha de freio", "R$ 95,00", "Revisão 15 mil", "R$ 210,00"]);
-    ordem(t, ["Chassi", "9C2KC2210PR004401", "Renavam", "01289934410", "Compra", "mar 2023 · R$ 13.900", "Valor de venda (FIPE)", "R$ 12.400", "Tipo de plano", "Street 150–160", "Preço de hoje", "Semanal R$ 329,00"]);
+    ordem(t, ["Chassi", "9C2KC2210PR004401", "Renavam", "01289934410", "Compra", "mar 2023 · R$ 13.900", "Valor de venda (FIPE)", "R$ 12.400", "Preço de hoje", "Semanal R$ 329,00"]);
     ordem(t, ["CRLV 2026", "Em dia", "IPVA 2026", "Pago", "Seguro", "Vence em 18 dias", "Rastreador", "Online"]);
   });
 

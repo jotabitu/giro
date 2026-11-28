@@ -696,7 +696,7 @@ async function simularCompra(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
   exigirCria();
   const [cliente, veiculo] = await Promise.all([clientesFalso.interno(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
   const campos: Record<string, string> = {};
-  const plano = planoDeCompraDe(e, veiculo.categoria.id);
+  const plano = planoDeCompraDe(e, veiculo.categoria?.id ?? 0);
   if (!plano || !plano.ativo) campos.plano_compra_id = "Este veículo não tem locação com compra ligada.";
   if ((e.extras ?? []).length > 0) campos.extras = "A locação com intenção de compra usa o valor do plano.";
   if (Number(e.desconto_pct) !== 0) campos.desconto_pct = "A locação com intenção de compra usa o valor do plano.";
@@ -757,7 +757,7 @@ async function semente(id: number, e: EntradaDaLocacao, status: StatusLocacao, a
     eventos: anterior?.eventos ?? [[AGORA_DO_SEED, "Locação criada", ""]],
     entrada: e,
     ...(e.tipo === "intencao_compra" && sim.compra
-      ? { compra: { plano: { id: planoDeCompraDe(e, veiculo.categoria.id)?.id ?? 0, nome: planoDeCompraDe(e, veiculo.categoria.id)?.nome ?? "" }, total: sim.compra.parcelas_total, valorCentavos: sim.compra.valor_parcela_centavos, ultimaCentavos: sim.compra.ultima_parcela_centavos } }
+      ? { compra: { plano: { id: planoDeCompraDe(e, veiculo.categoria?.id ?? 0)?.id ?? 0, nome: planoDeCompraDe(e, veiculo.categoria?.id ?? 0)?.nome ?? "" }, total: sim.compra.parcelas_total, valorCentavos: sim.compra.valor_parcela_centavos, ultimaCentavos: sim.compra.ultima_parcela_centavos } }
       : {}),
   };
 }

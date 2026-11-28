@@ -19,7 +19,7 @@ import type {
 } from "@/lib/api/tipos-movimentacoes";
 
 /** Campos que a API sempre manda (podem ser `null`). */
-const CAMPOS_VAZIOS = { categoria_destino: null, cancelada_em: null, motivo_cancelamento: null, fotos_chegada: [] };
+const CAMPOS_VAZIOS = { cancelada_em: null, motivo_cancelamento: null, fotos_chegada: [] };
 const SEM_ACOES = { editar: false, iniciar: false, cancelar: false, chegar_parada: false, sair_parada: false, registrar_chegada: false };
 const CENTRO = { id: 1, nome: "Filial Centro" };
 const CAUCAIA = { id: 2, nome: "Filial Caucaia" };
@@ -73,7 +73,6 @@ function semente(): { lista: Movimentacao[]; resumos: Record<number, string> } {
     filial_saida: CENTRO,
     destino: CAUCAIA,
     transferencia: true,
-    categoria_destino: { id: 7, nome: "Street 150–160" },
     rota: "Centro → Lava Rápido Aldeota → Filial Caucaia",
     levado_por: JOAO,
     agendada_para: null,

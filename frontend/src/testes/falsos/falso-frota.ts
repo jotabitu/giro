@@ -441,13 +441,14 @@ export const veiculosFalso = {
     return perfilAtualFalso() === "vistoriador" ? lista.map((c) => ({ ...c, preco_vigente: undefined }) as unknown as CategoriaVeiculo) : lista;
   },
 
-  /** POST /api/veiculos/ (VEI-01, PLT-03). O veículo entra `disponivel`. */
+  /** POST /api/veiculos/ (VEI-01, VEI-15, PLT-03). O veículo entra `indisponivel` "sem preço" (ADR 0043). */
   async criar(v: NovoVeiculo): Promise<VeiculoDetalhe> {
     await pausa(300);
     if (!podeEditar()) throw new ErroApi(403, "sem_permissao", "Você não tem permissão para cadastrar veículos");
     const placa = v.placa.toUpperCase().replace(/[^A-Z0-9]/g, "");
     const chassi = v.chassi.toUpperCase().replace(/\s/g, "");
-    const categoria = CATEGORIAS.find((c) => c.id === v.categoria_id);
+    // VEI-11 (ADR 0043): o tipo é do veículo, obrigatório; a categoria saiu do cadastro.
+    const tipo = v.tipo_veiculo === "moto" || v.tipo_veiculo === "carro" ? v.tipo_veiculo : null;
     const filial = FILIAIS.find((f) => f.id === v.filial_id);
     const campos: Record<string, string> = {};
     if (!PLACA.test(placa)) campos.placa = "Placa inválida. Use ABC1234 ou ABC1D23";
@@ -460,11 +461,10 @@ export const veiculosFalso = {
     else if (!Number.isInteger(v.ano_modelo) || v.ano_modelo < v.ano_fabricacao || v.ano_modelo > ano + 1) campos.ano_modelo = "O ano do modelo não pode ser menor que o de fabricação";
     if (!Number.isInteger(v.km_atual) || v.km_atual < 0) campos.km_atual = "Informe o km do veículo";
     if (!filial) campos.filial_id = "Escolha a filial";
-    if (!categoria) campos.categoria_id = "Escolha a categoria";
-    else if (categoria.filial && categoria.filial.id !== v.filial_id) campos.categoria_id = "Esta categoria é de outra filial";
+    if (!tipo) campos.tipo_veiculo = "Escolha moto ou carro.";
     if (v.renavam && !/^\d{9,11}$/.test(v.renavam)) campos.renavam = "Renavam deve ter de 9 a 11 números";
     Object.assign(campos, validarVei09(v));
-    if (Object.keys(campos).length > 0 || !categoria) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
+    if (Object.keys(campos).length > 0 || !tipo) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
     // Qualquer estado conta, inclusive vendido e baixado (VEI-01); o seed não tem esses dois.
     const mesma = SEMENTES.find((s) => s.placa === placa);
     if (mesma) throw new ErroApi(409, "VEI-01", "Já existe um veículo com esta placa", { campo: "placa", veiculo_id: mesma.id });
@@ -479,14 +479,16 @@ export const veiculosFalso = {
       ano: v.ano_modelo,
       anoFabricacao: v.ano_fabricacao,
       cor: v.cor.trim().toLowerCase(),
-      tipo: categoria.tipo_veiculo,
-      categoria: categoria.nome,
-      categoriaId: categoria.id,
+      tipo,
+      categoria: "",
       filialId: v.filial_id,
-      status: "disponivel",
+      // ADR 0043, item 5: nasce "sem preço" (VEI-15), com os planos desligados.
+      status: "indisponivel",
+      motivoStatus: "Sem preço · ligue um plano",
+      semPlano: true,
       km: v.km_atual,
-      diaria: categoria.preco_vigente.diaria_centavos,
-      semanal: categoria.preco_vigente.semanal_centavos,
+      diaria: 0,
+      semanal: 0,
       proximaKm: v.km_atual + 1000,
       chassi,
       renavam: v.renavam,
@@ -600,27 +602,19 @@ export const veiculosFalso = {
     if (v.ano_fabricacao !== undefined && (!Number.isInteger(fabricacao) || fabricacao < 1990 || fabricacao > ano + 1)) campos.ano_fabricacao = "Ano de fabricação inválido";
     else if (v.ano_modelo !== undefined && (!Number.isInteger(modelo) || modelo < fabricacao || modelo > ano + 1)) campos.ano_modelo = "O ano do modelo não pode ser menor que o de fabricação";
     if (v.renavam && !/^\d{9,11}$/.test(v.renavam)) campos.renavam = "Renavam deve ter de 9 a 11 números";
-    const categoria = v.categoria_id !== undefined ? CATEGORIAS.find((c) => c.id === v.categoria_id) : undefined;
-    if (v.categoria_id !== undefined) {
-      if (!categoria) campos.categoria_id = "Escolha a categoria";
-      else if (categoria.filial && categoria.filial.id !== (s.filialId ?? 1)) campos.categoria_id = "Esta categoria é de outra filial";
-    }
+    if (v.tipo_veiculo !== undefined && v.tipo_veiculo !== "moto" && v.tipo_veiculo !== "carro") campos.tipo_veiculo = "Escolha moto ou carro.";
     Object.assign(campos, validarVei09(v));
     if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
-    // VEI-11: o tipo vem da categoria; com locação aberta, a troca de tipo é recusada.
+    // VEI-11 (ADR 0043): o tipo é do veículo; com locação aberta, a troca de tipo é recusada.
     const travado = motivoDeNaoTrocarTipo(s);
-    if (categoria && categoria.tipo_veiculo !== s.tipo && travado) throw new ErroApi(409, "tipo_com_locacao_aberta", travado);
+    if (v.tipo_veiculo !== undefined && v.tipo_veiculo !== s.tipo && travado) throw new ErroApi(409, "tipo_com_locacao_aberta", travado);
     gravarVei09(s, v);
     if (v.marca !== undefined) s.marca = v.marca.trim();
     if (v.modelo !== undefined) s.modelo = v.modelo.trim();
     if (v.ano_fabricacao !== undefined) s.anoFabricacao = v.ano_fabricacao;
     if (v.ano_modelo !== undefined) s.ano = v.ano_modelo;
     if (v.cor !== undefined) s.cor = v.cor.trim().toLowerCase();
-    if (categoria) {
-      s.categoriaId = categoria.id;
-      s.categoria = categoria.nome;
-      s.tipo = categoria.tipo_veiculo;
-    }
+    if (v.tipo_veiculo !== undefined) s.tipo = v.tipo_veiculo;
     if (v.renavam !== undefined) s.renavam = v.renavam ?? undefined;
     if (v.capacidade_tanque_litros !== undefined) s.tanque = v.capacidade_tanque_litros;
     if (v.valor_compra_centavos !== undefined) s.compraCentavos = v.valor_compra_centavos;

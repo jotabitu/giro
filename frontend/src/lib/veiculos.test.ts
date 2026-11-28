@@ -14,10 +14,10 @@ describe("centavosDoTexto", () => {
 });
 
 describe("paraCorpoVeiculo (VEI-01)", () => {
-  const v = { ...VALORES_INICIAIS_VEICULO, placa: "tbc-5h21", marca: " Honda ", modelo: "Pop 110i ES", ano_fabricacao: "2026", ano_modelo: "2026", chassi: "9c2jc7500tr012345", cor: "Preta", km_atual: "0", filial_id: "1", categoria_id: "1" };
+  const v = { ...VALORES_INICIAIS_VEICULO, placa: "tbc-5h21", marca: " Honda ", modelo: "Pop 110i ES", ano_fabricacao: "2026", ano_modelo: "2026", chassi: "9c2jc7500tr012345", cor: "Preta", km_atual: "0", filial_id: "1" };
 
   it("manda placa e chassi limpos e em maiúsculas, números como número", () => {
-    expect(paraCorpoVeiculo(v)).toEqual({ placa: "TBC5H21", chassi: "9C2JC7500TR012345", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: 2026, ano_modelo: 2026, cor: "Preta", km_atual: 0, categoria_id: 1, filial_id: 1 });
+    expect(paraCorpoVeiculo(v)).toEqual({ placa: "TBC5H21", chassi: "9C2JC7500TR012345", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: 2026, ano_modelo: 2026, cor: "Preta", km_atual: 0, tipo_veiculo: "moto", filial_id: 1 });
   });
 
   it("opcionais preenchidos entram; valor de compra vira centavos", () => {
@@ -27,7 +27,7 @@ describe("paraCorpoVeiculo (VEI-01)", () => {
 });
 
 describe("corpo com os campos da VEI-09 (T-421)", () => {
-  const v = { ...VALORES_INICIAIS_VEICULO, placa: "TBC5H21", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: "2026", ano_modelo: "2026", chassi: "9C2JC7500TR012345", cor: "Preta", km_atual: "0", filial_id: "1", categoria_id: "1" };
+  const v = { ...VALORES_INICIAIS_VEICULO, placa: "TBC5H21", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: "2026", ano_modelo: "2026", chassi: "9C2JC7500TR012345", cor: "Preta", km_atual: "0", filial_id: "1" };
 
   it("test_vei_09_cadastro_sem_nada_nao_manda_blocos (CA-421-06)", () => {
     const c = paraCorpoVeiculo(v);
@@ -84,8 +84,8 @@ describe("esquemaVeiculo", () => {
     const r = esquemaVeiculo.safeParse(VALORES_INICIAIS_VEICULO);
     expect(r.success).toBe(false);
     const campos = r.success ? [] : r.error.issues.map((i) => i.path[0]);
-    expect(campos).toEqual(expect.arrayContaining(["placa", "marca", "modelo", "chassi", "cor", "filial_id", "categoria_id"]));
-    expect(esquemaVeiculo.safeParse({ ...VALORES_INICIAIS_VEICULO, placa: "x", marca: "x", modelo: "x", ano_fabricacao: "1", ano_modelo: "1", chassi: "curto", cor: "x", filial_id: "1", categoria_id: "1" }).success).toBe(true);
+    expect(campos).toEqual(expect.arrayContaining(["placa", "marca", "modelo", "chassi", "cor", "filial_id"]));
+    expect(esquemaVeiculo.safeParse({ ...VALORES_INICIAIS_VEICULO, placa: "x", marca: "x", modelo: "x", ano_fabricacao: "1", ano_modelo: "1", chassi: "curto", cor: "x", filial_id: "1" }).success).toBe(true);
   });
 
   it("valor de compra que não é valor é recusado no campo", () => {

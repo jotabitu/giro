@@ -8,25 +8,24 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { BarraDeAcoes, CampoDeDinheiro, Icone, Panel, SelectField, StatusBadge, TextField, useBlocoVisivel } from "@/design-system";
-import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo, type VeiculoDetalhe } from "@/lib/api";
+import { ErroApi, veiculos, type ModeloDoCatalogo, type TipoVeiculo, type VeiculoDetalhe } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
-import { CAMPOS_VEI_09, categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoEdicao, semCategoriaDoTipo, temMotorEObservacoes, valoresDaLeitura, valoresDoVeiculo, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
+import { CAMPOS_VEI_09, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoEdicao, temMotorEObservacoes, valoresDaLeitura, valoresDoVeiculo, type CampoLido, type ValoresVeiculo } from "@/lib/veiculos";
 import { CampoDoModelo } from "./CampoDoModelo";
 import { CamposDoDocumento } from "./CamposDoDocumento";
 import { CorrigirIdentificacao } from "./CorrigirIdentificacao";
 import { DocumentosDoVeiculo } from "./DocumentosDoVeiculo";
 import { GaleriaDoEditar } from "./GaleriaDoEditar";
-import { Preco, Selecao } from "./NovoVeiculoForm";
 import { PreencherPeloCrlv, type CrlvLido } from "./PreencherPeloCrlv";
 
 // Referência: Veiculo-Novo-Desktop|Mobile com os dados preenchidos (T-243; a edição não tem tela própria).
 // PATCH /api/veiculos/{id}/ (VEI-01): placa, chassi, km e filial aparecem só para leitura; a API valida e o erro volta no campo.
 
 type Nome = FieldPath<ValoresVeiculo>;
-const CAMPOS_EDITAVEIS: Nome[] = ["marca", "modelo", "ano_fabricacao", "ano_modelo", "renavam", "cor", "capacidade_tanque_litros", "categoria_id", "data_compra", "valor_compra", "combustivel", ...CAMPOS_VEI_09.map((c) => c.nome)];
+const CAMPOS_EDITAVEIS: Nome[] = ["marca", "modelo", "ano_fabricacao", "ano_modelo", "renavam", "cor", "capacidade_tanque_litros", "tipo", "data_compra", "valor_compra", "combustivel", ...CAMPOS_VEI_09.map((c) => c.nome)];
 
 function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
   const router = useRouter();
@@ -56,27 +55,11 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
   } = useForm<ValoresVeiculo>({ resolver: zodResolver(esquemaVeiculo), defaultValues: valoresDoVeiculo(ficha) });
   const v = watch();
 
-  // VEI-11: o tipo é o da categoria. Com locação aberta, a API manda a frase que trava o campo.
+  // VEI-11 (ADR 0043): o tipo é do veículo e vai no Salvar. Com locação aberta, a API manda a frase que trava o campo.
   const tipoTravado = ficha.acoes.motivo_trocar_tipo ?? null;
-  const categorias = useQuery({
-    queryKey: ["categorias", { filial: String(ficha.filial.id), tipo: v.tipo }],
-    queryFn: () => veiculos.categorias({ filial: ficha.filial.id, tipo_veiculo: v.tipo }),
-  });
-  // A categoria de hoje fica na lista do tipo dela mesmo que a consulta não a traga (sem preço vigente, por exemplo).
-  const lista: CategoriaVeiculo[] = categorias.data ?? [];
-  const opcoes = lista.map((c) => ({ valor: String(c.id), rotulo: c.nome }));
-  if (v.tipo === ficha.tipo_veiculo && !opcoes.some((o) => o.valor === String(ficha.categoria.id))) opcoes.unshift({ valor: String(ficha.categoria.id), rotulo: ficha.categoria.nome });
-  const categoria = lista.find((c) => String(c.id) === v.categoria_id);
-  const semCategoria = categorias.data && opcoes.length === 0 ? semCategoriaDoTipo(v.tipo) : undefined;
-
-  // Trocar o tipo esvazia a categoria; voltar ao tipo de antes devolve a que estava. Tipo e categoria vão juntos no Salvar.
-  const guardadas = useRef<CategoriasPorTipo>({});
   function trocarTipo(para: TipoVeiculo) {
-    const troca = categoriaAoTrocarTipo(guardadas.current, v.tipo, v.categoria_id, para);
-    guardadas.current = troca.guardadas;
     setValue("tipo", para, { shouldDirty: true });
-    setValue("categoria_id", troca.categoria, { shouldDirty: true });
-    clearErrors("categoria_id");
+    clearErrors("tipo");
   }
 
   const salvar = useMutation({ mutationFn: (valores: ValoresVeiculo) => veiculos.atualizar(ficha.id, paraCorpoEdicao(valores, { comMotorEObservacoes, leitura: crlv?.leitura.leitura })) });
@@ -197,7 +180,6 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
               <div className="text-heading font-semibold">{titulo}</div>
               <div className="wl-mono text-ink-muted">{resumo}</div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <span className="wl-badge wl-badge--sm">{opcoes.find((o) => o.valor === v.categoria_id)?.rotulo ?? ficha.categoria.nome}</span>
                 <span className="wl-badge wl-badge--sm">{ficha.filial.nome}</span>
               </div>
             </div>
@@ -242,16 +224,7 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
               ) : (
                 <SelectField cheio rotulo="Moto ou carro" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} erro={erro("tipo")} />
               )}
-              <Selecao id="categoria" rotulo="Tipo de plano" vazio={categorias.isPending ? "Carregando…" : "Escolha"} opcoes={opcoes} dica={semCategoria ?? "Trocar o tipo de plano não muda os planos deste veículo. Os preços ficam em Planos e preços."} erro={erro("categoria_id")} {...register("categoria_id")} value={v.categoria_id} />
             </div>
-            {categoria && (
-              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-                <Preco rotulo="Diária" centavos={categoria.preco_vigente.diaria_centavos} />
-                <Preco rotulo="Semanal" centavos={categoria.preco_vigente.semanal_centavos} />
-                <Preco rotulo="Mensal" centavos={categoria.preco_vigente.mensal_centavos} />
-                <Preco rotulo="Caução" centavos={categoria.preco_vigente.caucao_centavos} />
-              </div>
-            )}
           </Panel>
 
           <Panel titulo="Compra e valores">

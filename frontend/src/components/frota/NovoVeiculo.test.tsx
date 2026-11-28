@@ -38,7 +38,7 @@ describe("tela Cadastrar veículo", () => {
   it("mostra os campos do contrato e as filiais da pessoa", () => {
     sessao.veiculos = "editar";
     const h = html(<NovoVeiculoForm />);
-    for (const t of ["Placa", "Marca", "Modelo", "Chassi", "Renavam", "Km atual", "Tipo de plano", "Salvar veículo", "Salvar e cadastrar outro"]) expect(h).toContain(t);
+    for (const t of ["Placa", "Marca", "Modelo", "Chassi", "Renavam", "Km atual", "Moto ou carro", "Salvar veículo", "Salvar e cadastrar outro"]) expect(h).toContain(t);
     expect(h).toContain("Nunca diminui depois de salvo");
     expect(h).toContain(">Filial Centro</option>");
   });
@@ -52,16 +52,16 @@ describe("tela Cadastrar veículo", () => {
     for (const flex of ['<option value="flex">Flex</option>', '<option value="gasolina">Gasolina</option>']) expect(h).toContain(flex);
   });
 
-  it("test_vei_11_tipo_antes_da_categoria_com_moto_marcado (CA-438-01)", () => {
+  it("test_vei_11_tipo_do_veiculo_com_moto_marcado_e_sem_tipo_de_plano (CA-438-01, ADR 0043)", () => {
     sessao.veiculos = "editar";
     const h = html(<NovoVeiculoForm />);
     const tipo = h.indexOf(">Moto ou carro</label>");
     expect(tipo).toBeGreaterThan(h.indexOf(">Filial</label>"));
-    expect(tipo).toBeLessThan(h.indexOf(">Tipo de plano</label>"));
     expect(h).toMatch(/<option value="moto" selected="">Moto<\/option>/);
     expect(h).toContain('<option value="carro">Carro</option>');
-    // O controle de tipo saiu do cabeçalho: um só campo de tipo na tela.
-    expect(h.match(/Tipo de plano/g)).toHaveLength(1);
+    // ADR 0043: o tipo de plano e a prévia dos preços da categoria saíram do cadastro.
+    expect(h).not.toContain("Tipo de plano");
+    expect(h).not.toContain("Preços da categoria");
   });
 
   it("a leitura do CRLV-e está ligada e a FIPE segue desativada (VEI-08)", () => {

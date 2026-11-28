@@ -1,17 +1,17 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bike, Car, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { BarraDeAcoes, CampoDeDinheiro, Icone, Panel, SelectField, TextField, useBlocoVisivel } from "@/design-system";
-import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo } from "@/lib/api";
+import { ErroApi, veiculos, type ModeloDoCatalogo, type TipoVeiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
-import { categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoVeiculo, semCategoriaDoTipo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
+import { esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoVeiculo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type ValoresVeiculo } from "@/lib/veiculos";
 import { useAvisoDeSaida } from "./AvisoDeSaida";
 import { CampoDoModelo } from "./CampoDoModelo";
 import { CamposDoDocumento } from "./CamposDoDocumento";
@@ -91,27 +91,10 @@ export function NovoVeiculoForm() {
   } = useForm<ValoresVeiculo>({ resolver: zodResolver(esquemaVeiculo), defaultValues: valoresIniciais });
   const v = watch();
 
-  const categorias = useQuery({
-    queryKey: ["categorias", { filial: v.filial_id, tipo: v.tipo }],
-    queryFn: () => veiculos.categorias({ filial: v.filial_id ? Number(v.filial_id) : undefined, tipo_veiculo: v.tipo }),
-  });
-  const lista: CategoriaVeiculo[] = categorias.data ?? [];
-  const categoria = lista.find((c) => String(c.id) === v.categoria_id);
-  const semCategoria = categorias.data?.length === 0 ? semCategoriaDoTipo(v.tipo) : undefined;
-
-  // Trocar a filial pode tirar a categoria escolhida da lista.
-  useEffect(() => {
-    if (categorias.data && v.categoria_id && !categorias.data.some((c) => String(c.id) === v.categoria_id)) setValue("categoria_id", "");
-  }, [categorias.data, v.categoria_id, setValue]);
-
-  // VEI-11: trocar o tipo esvazia a categoria; voltar ao tipo anterior devolve a que estava.
-  const guardadas = useRef<CategoriasPorTipo>({});
+  // VEI-11 (ADR 0043): moto ou carro é do próprio veículo; o veículo nasce "sem preço" (VEI-15).
   function trocarTipo(para: TipoVeiculo) {
-    const troca = categoriaAoTrocarTipo(guardadas.current, v.tipo, v.categoria_id, para);
-    guardadas.current = troca.guardadas;
     setValue("tipo", para, { shouldDirty: true });
-    setValue("categoria_id", troca.categoria, { shouldDirty: true });
-    clearErrors("categoria_id");
+    clearErrors("tipo");
   }
 
 
@@ -216,7 +199,6 @@ export function NovoVeiculoForm() {
           void cliente.invalidateQueries({ queryKey: ["veiculos"] });
           if (outro) {
             reset({ ...valoresIniciais, tipo: valores.tipo, filial_id: valores.filial_id });
-            guardadas.current = {};
             tirarCrlv();
           }
           const descricao = `${criado.marca} ${criado.modelo}, placa ${placaComHifen(criado.placa)}, entrou na frota.`;
@@ -341,31 +323,8 @@ export function NovoVeiculoForm() {
           <Panel titulo="Uso na frota">
             <div className="grid gap-4 md:grid-cols-2">
               <Selecao id="filial" rotulo="Filial" vazio="Escolha" opcoes={filiais} erro={erro("filial_id")} {...register("filial_id")} />
-              <SelectField cheio rotulo="Moto ou carro" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} />
-              <Selecao
-                id="categoria"
-                rotulo="Tipo de plano"
-                vazio={categorias.isPending ? "Carregando…" : "Escolha"}
-                opcoes={lista.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
-                dica={semCategoria ?? "Modelo de preço dos planos deste veículo; depois você ajusta em Planos e preços"}
-                erro={erro("categoria_id")}
-                {...register("categoria_id")}
-                value={v.categoria_id}
-              />
+              <SelectField cheio rotulo="Moto ou carro" opcoes={OPCOES_DE_TIPO} value={v.tipo} erro={erro("tipo")} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} />
             </div>
-            {categoria && (
-              <>
-                <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <Preco rotulo="Diária" centavos={categoria.preco_vigente.diaria_centavos} />
-                  <Preco rotulo="Semanal" centavos={categoria.preco_vigente.semanal_centavos} />
-                  <Preco rotulo="Mensal" centavos={categoria.preco_vigente.mensal_centavos} />
-                  <Preco rotulo="Caução" centavos={categoria.preco_vigente.caucao_centavos} />
-                </div>
-                <p className="mt-3 text-body text-ink-muted">
-                  Preços da categoria {categoria.nome}. Para mudar, edite a tabela de preços.
-                </p>
-              </>
-            )}
           </Panel>
 
           <Panel titulo="Compra e valores">
@@ -413,7 +372,6 @@ export function NovoVeiculoForm() {
               <div className="text-heading font-semibold">{titulo}</div>
               {resumo && <div className="wl-mono text-ink-muted">{resumo}</div>}
               <div className="mt-3 flex flex-wrap gap-2">
-                {categoria && <span className="wl-badge wl-badge--sm">{categoria.nome}</span>}
                 {nomeDaFilial && <span className="wl-badge wl-badge--sm">{nomeDaFilial}</span>}
               </div>
             </div>

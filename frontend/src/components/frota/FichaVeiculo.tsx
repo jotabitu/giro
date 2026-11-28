@@ -373,7 +373,6 @@ function FichaDesktop({ v, docs, locacoes, manutencoes, abrir }: { v: VeiculoDet
               )}
               {v.referencia_fipe_centavos != null && <Linha rotulo="Valor de venda (FIPE)">{dinheiroSemZeros(v.referencia_fipe_centavos)}</Linha>}
               {v.valor_venda_centavos != null && <Linha rotulo="À venda por">{dinheiroSemZeros(v.valor_venda_centavos)}</Linha>}
-              <Linha rotulo="Tipo de plano">{v.categoria.nome}</Linha>
               {/* VEI-21: com o aluguel desligado, a ficha não mostra preço de aluguel. */}
               {v.preco_vigente && v.aluguel_ligado !== false && <Linha rotulo="Preço de hoje">Semanal {dinheiro(v.preco_vigente.semanal_centavos)}</Linha>}
             </dl>
