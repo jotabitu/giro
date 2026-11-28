@@ -335,14 +335,13 @@ def carregar(
     parcelas: dict[str, list[dict[str, str]]] = defaultdict(list)
     for linha in _ler("parcelas.csv"):
         parcelas[linha["codigo"]].append(linha)
-    livres: dict[str, list[Veiculo]] = {
-        nome: list(
-            Veiculo.objects.filter(categoria=categoria, status="alugado")
-            .exclude(placa__in=placas.values())
-            .order_by("placa")
-        )
-        for nome, categoria in frota.categorias.items()
-    }
+    livres: dict[str, list[Veiculo]] = defaultdict(list)
+    for veiculo in (
+        Veiculo.objects.filter(pk__in=frota.grupos, status="alugado")
+        .exclude(placa__in=placas.values())
+        .order_by("placa")
+    ):
+        livres[frota.grupos[veiculo.pk]].append(veiculo)
     locacoes = {}
     for numero, linha in enumerate(_ler("locacoes.csv"), start=1):
         codigo = linha["codigo"]
@@ -441,7 +440,6 @@ def _reservas(frota: Frota, vendedora: Any, gerente: Any) -> dict[str, Locacao]:
         Veiculo.objects.filter(status="reservado"),
         key=lambda v: (v.placa != RESERVADO_PRIMEIRO, v.placa),
     )
-    nomes_das_categorias = {c.pk: n for n, c in frota.categorias.items()}
     reservas = {}
     for posicao, veiculo in enumerate(reservados):
         veiculos_services.transicionar(
@@ -450,7 +448,7 @@ def _reservas(frota: Frota, vendedora: Any, gerente: Any) -> dict[str, Locacao]:
             origem=veiculos_services.OrigemDaMudanca("seed", 0, "seed"),
             motivo="Antes da confirmação da reserva",
         )
-        scooter = nomes_das_categorias[veiculo.categoria_id] == "Scooter premium"
+        scooter = frota.grupos.get(veiculo.pk) == "Scooter premium"
         vendedor = gerente if posicao % VENDE_O_GERENTE == 0 else vendedora
         with como(vendedor):
             locacao = locacoes_services.criar_rascunho(

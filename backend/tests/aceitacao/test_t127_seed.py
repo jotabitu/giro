@@ -90,8 +90,9 @@ def test_seed_127_01_cria_a_empresa_de_exemplo(semeado):
     contagens = _contagens()
     assert contagens["filiais"] == 1
     assert contagens["usuarios"] == 5
-    assert contagens["categorias"] == 4
-    assert contagens["precos"] == 5  # a Street tem o preço de antes de 01 out
+    # ADR 0043: o seed não cria categorias nem os preços delas; o preço é de cada veículo.
+    assert contagens["categorias"] == 0
+    assert contagens["precos"] == 0
     assert contagens["veiculos"] == CONTAGENS_FROTA_SEED["todos"] == 86
     assert contagens["locacoes"] == 42 + 9  # as 42 abertas e uma reserva por veículo reservado
     assert contagens["clientes"] == 42 + 9

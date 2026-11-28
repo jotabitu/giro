@@ -73,7 +73,7 @@ def _caucao_paga(locacao: Locacao, valor: int, quando: datetime) -> ContaReceber
 
 def _saida(locacao: Locacao, quando: datetime) -> None:
     """Vistoria de saída concluída: tanque cheio, no km do veículo (DEV-08)."""
-    veiculo = Veiculo.objects.select_related("categoria").get(pk=locacao.veiculo_id)
+    veiculo = Veiculo.objects.get(pk=locacao.veiculo_id)
     Vistoria.objects.create(
         locacao=locacao,
         veiculo=veiculo,

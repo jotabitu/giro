@@ -132,7 +132,7 @@ def _exigir_rascunho(vistoria: Vistoria) -> None:
 
 def itens_iniciais(locacao: Locacao, veiculo: Veiculo) -> list[dict[str, Any]]:
     """A lista do ramo e os extras da locação como itens ("Capacete extra")."""
-    padrao = ITENS_PADRAO[veiculo.categoria.tipo_veiculo]
+    padrao = ITENS_PADRAO[veiculo.tipo_veiculo]
     extras = [(f"extra_{e.pk}", e.nome) for e in locacao.extras.order_by("id")]
     return [
         {"codigo": codigo, "rotulo": rotulo, "ok": None, "observacao": None}
@@ -158,7 +158,7 @@ def criar(
     """A vistoria em `rascunho` do veículo atual (ou do novo, na troca), com a lista pronta. Se
     já existe rascunho do mesmo tipo, devolve ele (`criada = False`): quem vistoria continua de
     onde parou."""
-    veiculo = Veiculo.objects.select_related("categoria").get(pk=veiculo_id or locacao.veiculo_id)
+    veiculo = Veiculo.objects.get(pk=veiculo_id or locacao.veiculo_id)
     existente = _rascunho(locacao, veiculo, tipo)
     if existente is not None:
         return existente, False
@@ -358,7 +358,7 @@ def impedimentos_da_retirada(locacao: Locacao, veiculo: Veiculo) -> list[Pendenc
     pendencias = [
         Pendencia(i["codigo"], i["mensagem"], "cliente")
         for i in clientes_selectors.impedimentos_para_retirada(
-            locacao.cliente, veiculo.categoria.tipo_veiculo, hoje
+            locacao.cliente, veiculo.tipo_veiculo, hoje
         )
     ]
     vencidos = veiculos.documentos_vencidos_que_bloqueiam(veiculo, hoje)
@@ -394,7 +394,7 @@ def concluir(vistoria: Vistoria, usuario: Any) -> Vistoria:
         travada = _travar(vistoria)
         _exigir_rascunho(travada)
         locacao = Locacao.objects.select_related("cliente", "filial").get(pk=travada.locacao_id)
-        veiculo = Veiculo.objects.select_related("categoria").get(pk=travada.veiculo_id)
+        veiculo = Veiculo.objects.get(pk=travada.veiculo_id)
         saida = travada.tipo == TipoVistoria.SAIDA
         troca = locacoes.troca_pendente(locacao)
         if troca is not None and not _da_troca(travada, troca):

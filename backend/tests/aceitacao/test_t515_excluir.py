@@ -138,7 +138,7 @@ def test_vei_22_vei_01_placa_e_chassi_livres_para_um_cadastro_novo(cenario: Cena
         "ano_modelo": 2026,
         "cor": "vermelha",
         "km_atual": 0,
-        "categoria_id": sak.categoria_id,
+        "tipo_veiculo": sak.tipo_veiculo,
         "filial_id": sak.filial_id,
     }
     repetido = cenario.moto.api().post(VEICULOS, novo, format="json")

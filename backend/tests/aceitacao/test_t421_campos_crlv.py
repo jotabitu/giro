@@ -82,7 +82,7 @@ def _novo(frota: Frota, **extras: Any) -> dict[str, Any]:
         "ano_modelo": 2026,
         "cor": "vermelha",
         "km_atual": 0,
-        "categoria_id": frota.categorias["Urbana 110–125"].pk,
+        "tipo_veiculo": "moto",
         "filial_id": frota.centro.pk,
         **extras,
     }
@@ -327,7 +327,7 @@ def test_vei_08_corrigidos_com_campos_novos(moto, frota) -> None:
         "rastreador.empresa": "Rastreia Fácil",
         "anotacoes": "Retrovisor trocado",
         "km_atual": 0,
-        "categoria_id": frota.categorias["Urbana 110–125"].pk,
+        "tipo_veiculo": "moto",
         "filial_id": frota.centro.pk,
         "crlv_arquivo": _pdf(conteudo),
         "crlv_validade": "2027-10-31",

@@ -55,7 +55,7 @@ def motivo(achados: list[str]) -> str:
 
 
 def _e_moto(veiculo: Veiculo) -> bool:
-    return bool(veiculo.categoria.tipo_veiculo == TipoVeiculo.MOTO)
+    return bool(veiculo.tipo_veiculo == TipoVeiculo.MOTO)
 
 
 def caminho(veiculo: Veiculo, perfil: str) -> str:

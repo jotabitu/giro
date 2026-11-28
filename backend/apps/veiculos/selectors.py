@@ -155,16 +155,6 @@ def valores_do_preco(preco: PrecoCategoria | None, com_data: bool = False) -> di
     }
 
 
-def precos_vigentes(categorias_ids: set[int], data: date) -> dict[int, PrecoCategoria]:
-    """Um preço por categoria, numa query, para a lista."""
-    vigentes: dict[int, PrecoCategoria] = {}
-    for preco in PrecoCategoria.objects.filter(
-        categoria_id__in=categorias_ids, vigente_desde__lte=data
-    ).order_by("categoria_id", "-vigente_desde"):
-        vigentes.setdefault(preco.categoria_id, preco)
-    return vigentes
-
-
 def historico_de_precos(categoria: Categoria) -> list[dict[str, Any]]:
     return [
         {
@@ -290,13 +280,10 @@ def filtrar(
     qs: QuerySet[Veiculo],
     *,
     status: str | None = None,
-    categoria: str | None = None,
     busca: str | None = None,
 ) -> QuerySet[Veiculo]:
     """`vendido` e `baixado` só aparecem com o filtro explícito (histórico)."""
     qs = qs.filter(status=status) if status in S.values else qs.exclude(status__in=FORA_DA_FROTA)
-    if categoria and categoria.isdigit():
-        qs = qs.filter(categoria_id=int(categoria))
     texto = (busca or "").strip()
     if texto:
         placa = normalizar_placa(texto)
@@ -326,7 +313,7 @@ def com_movimentacao(
 
 def do_tipo(qs: QuerySet[Veiculo], tipo_veiculo: str | None) -> QuerySet[Veiculo]:
     if tipo_veiculo in TipoVeiculo.values:
-        return qs.filter(categoria__tipo_veiculo=tipo_veiculo)
+        return qs.filter(tipo_veiculo=tipo_veiculo)  # VEI-11: o tipo é do veículo (ADR 0043)
     return qs
 
 
@@ -341,9 +328,9 @@ def contagens(qs: QuerySet[Veiculo]) -> dict[str, int]:
     )
     por_tipo = dict(
         na_frota.order_by()
-        .values_list("categoria__tipo_veiculo")
+        .values_list("tipo_veiculo")
         .annotate(total=Count("id"))
-        .values_list("categoria__tipo_veiculo", "total")
+        .values_list("tipo_veiculo", "total")
     )
     return {
         "todos": sum(por_status.values()),
@@ -489,7 +476,6 @@ def representacao(
     veiculo: Veiculo,
     usuario: Any,
     *,
-    precos: dict[int, PrecoCategoria] | None = None,
     documentos: dict[int, dict[str, Any] | None] | None = None,
     detalhe: bool = False,
     com_dados_do_documento: bool = False,
@@ -498,8 +484,6 @@ def representacao(
     """`com_dados_do_documento`: os blocos da VEI-09 nas respostas do `POST` e do `PATCH`; a
     ficha (`detalhe`) sempre os traz, e a Frota nunca. `limite_parado`: o da VEI-19, lido uma
     vez para a página da Frota."""
-    if precos is None:
-        precos = precos_vigentes({veiculo.categoria_id}, relogio.hoje())
     if documentos is None:
         documentos = resumos_de_documentos({veiculo.pk}, relogio.hoje())
     gestao = getattr(usuario, "perfil", "") in GESTAO
@@ -515,15 +499,13 @@ def representacao(
         "ano_modelo": veiculo.ano_modelo,
         "cor": veiculo.cor,
         "combustivel": veiculo.combustivel,
-        "tipo_veiculo": veiculo.categoria.tipo_veiculo,
-        "categoria": {"id": veiculo.categoria_id, "nome": veiculo.categoria.nome},
+        "tipo_veiculo": veiculo.tipo_veiculo,
         "filial": {"id": veiculo.filial_id, "nome": veiculo.filial.nome},
         "status": veiculo.status,
         "motivo_status": veiculo.motivo_status or None,
         "km_atual": veiculo.km_atual,
         "km_atualizado_em": veiculo.km_atualizado_em,
         "capacidade_tanque_litros": veiculo.capacidade_tanque_litros,
-        "preco_vigente": valores_do_preco(precos.get(veiculo.categoria_id)),
         "valor_venda_centavos": veiculo.valor_venda_centavos,
         "referencia_fipe_centavos": veiculo.referencia_fipe_centavos,
         # Dados de compra só para administrador e gerente.

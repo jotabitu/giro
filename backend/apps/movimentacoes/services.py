@@ -19,7 +19,6 @@ from apps.locacoes import selectors as locacoes_selectors
 from apps.veiculos import services as veiculos
 from apps.veiculos.models import (
     MOVIMENTAVEIS,
-    Categoria,
     Origem,
     StatusVeiculo,
     TipoDocumento,
@@ -247,28 +246,12 @@ def _paradas(dados: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return limpas
 
 
-def _categoria_destino(veiculo: Veiculo, destino: Filial, categoria_id: int | None) -> Categoria:
-    """VEI-04: a categoria só da filial de saída pede a categoria no destino (CA-246-09)."""
-    if categoria_id is None and veiculo.categoria.filial_id is not None:
-        raise ErroDeValidacao(
-            {"categoria_destino_id": [f"Escolha a categoria do veículo na {destino.nome}."]}
-        )
-    try:
-        return veiculos.categoria_no_destino(veiculo, destino, categoria_id)
-    except ErroDeValidacao as erro:
-        raise ErroDeValidacao({"categoria_destino_id": next(iter(erro.campos.values()))}) from erro
-
-
 def _destino_e_mais(veiculo: Veiculo, dados: dict[str, Any]) -> dict[str, Any]:
     destino = Filial.ativos.filter(pk=dados.get("destino_filial_id")).first()
     if destino is None:
         raise ErroDeValidacao({"destino_filial_id": ["Escolha uma filial ativa como destino."]})
+    # MOV-06, ADR 0043: a transferência só muda a filial; a categoria no destino não existe mais.
     transferencia = destino.pk != veiculo.filial_id
-    categoria = (
-        _categoria_destino(veiculo, destino, dados.get("categoria_destino_id"))
-        if transferencia
-        else None
-    )
     levado_por = _pessoa_da_filial(
         dados.get("levado_por_id"),
         veiculo.filial_id,
@@ -278,7 +261,9 @@ def _destino_e_mais(veiculo: Veiculo, dados: dict[str, Any]) -> dict[str, Any]:
     )
     return {
         "destino": destino,
-        "categoria_destino": categoria,
+        # Dado antigo: a agendada editada perde a categoria de antes (e não fere a constraint
+        # `mov_categoria_so_na_transferencia` se deixar de ser transferência).
+        "categoria_destino": None,
         "levado_por": levado_por,
         # Na transferência a vistoria rápida é obrigatória (MOV-05).
         "vistoria_rapida": True if transferencia else bool(dados.get("vistoria_rapida")),
@@ -306,7 +291,7 @@ def _gravar_paradas(movimentacao: Movimentacao, paradas: list[dict[str, Any]]) -
 def criar(dados: dict[str, Any], usuario: Any) -> Movimentacao:
     """`sair_agora` nasce `em_transito` com os efeitos de Iniciar; senão, `agendada` (MOV-01 a
     MOV-03, MOV-06)."""
-    veiculo = Veiculo.objects.select_related("categoria").filter(pk=dados.get("veiculo_id")).first()
+    veiculo = Veiculo.objects.filter(pk=dados.get("veiculo_id") or 0).first()
     if veiculo is None or veiculo.filial_id not in filiais_permitidas(usuario):
         raise ErroDeValidacao({"veiculo_id": ["Veículo não encontrado."]})
     exigir_gestao(usuario, veiculo.filial_id)
@@ -367,7 +352,7 @@ def editar(movimentacao: Movimentacao, dados: dict[str, Any], usuario: Any) -> M
     exigir_gestao(usuario, movimentacao.filial_saida_id)
     if movimentacao.status != S.AGENDADA:
         raise _transicao(movimentacao.status, S.AGENDADA)
-    veiculo = Veiculo.objects.select_related("categoria").get(pk=movimentacao.veiculo_id)
+    veiculo = Veiculo.objects.get(pk=movimentacao.veiculo_id)
     campos = _destino_e_mais(veiculo, dados)
     agendada_para = _agendada_para(dados)
     paradas = campos.pop("paradas")
@@ -668,7 +653,6 @@ def concluir(movimentacao: Movimentacao, dados: dict[str, Any], usuario: Any) ->
                 veiculo,
                 travada.destino_id,
                 travada.codigo,
-                categoria_id=travada.categoria_destino_id,
                 origem=origem,
             )
     return travada

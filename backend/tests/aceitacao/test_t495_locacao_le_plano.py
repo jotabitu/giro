@@ -37,7 +37,7 @@ from apps.veiculos.models import (
 from comum import relogio as relogio_do_giro
 from comum.erros import Conflito
 
-from .frota import criar_veiculo
+from .frota import com_planos_do_grupo, criar_categorias, criar_veiculo
 from .test_t015_locacoes import INICIO, LISTA, SIMULAR, Cenario, _assinar, _vistoriar
 from .test_t015_locacoes import cenario as cenario
 
@@ -343,13 +343,13 @@ def pop(cenario: Cenario) -> Veiculo:
     locação com compra ligada (dados-de-teste.md), com o modelo da compra publicado."""
     veiculo = criar_veiculo(
         900,
-        cenario.frota.categorias[URBANA],
+        URBANA,
         cenario.frota.centro,
         placa="TBC5H21",
         chassi="9C2JC7110RR000900",
         valor_compra_centavos=1349000,
     )
-    veiculos_services.aplicar_modelo_de_preco([veiculo], "cadastro")
+    com_planos_do_grupo(veiculo, URBANA)
     Despesa.objects.create(
         filial=cenario.frota.centro,
         data=date(2026, 8, 12),
@@ -474,7 +474,7 @@ def test_vei_16_cadastro_antigo_de_plano_de_compra_responde_410(cenario: Cenario
     antigo = services.criar_plano_compra(
         {
             "nome": "Compra Street 24 meses",
-            "categoria_id": cenario.frota.categorias[STREET].pk,
+            "categoria_id": criar_categorias(None)[STREET].pk,  # dado antigo (ADR 0043)
             "periodicidade": "mensal",
             "parcelas": 24,
             "valor_parcela_centavos": 119000,
@@ -513,7 +513,10 @@ def _migracao() -> Any:
 def test_loc_16_migracao_copia_o_plano_de_compra_da_categoria(cenario: Cenario) -> None:
     """O plano ativo mais recente da Street vai, desligado e no modo digitar, para cada Street
     sem plano de compra, com a caução da categoria; rodar de novo não duplica nem sobrescreve."""
-    street = cenario.frota.categorias[STREET]
+    street = criar_categorias(None)[STREET]  # dado antigo (ADR 0043): as Street da categoria
+    Veiculo.objects.filter(
+        pk__in=[pk for pk, grupo in cenario.frota.grupos.items() if grupo == STREET]
+    ).update(categoria=street)
     for nome, parcela in (("Compra antiga", 99000), ("Compra Street 24 meses", 119000)):
         services.criar_plano_compra(
             {

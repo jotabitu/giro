@@ -1,6 +1,6 @@
 """T-204 · Seed e critérios das decisões de 14 out 2026: horas e números da tela Aprovações
-(`APR-12`, `APR-01`, `APR-02`, `APR-03`, `APR-04`, CA-APR-01 a 05, 10 e 11) e o evento da troca
-da tabela de preço em 01 out às 17:42 por Mariana (`AUD-02`, `LOC-15`, CA-018-09).
+(`APR-12`, `APR-01`, `APR-02`, `APR-03`, `APR-04`, CA-APR-01 a 05, 10 e 11) e, desde a ADR 0043,
+o seed sem o evento da troca da tabela de preço da categoria (`AUD-02`, `LOC-15`).
 
 Caso "Números da tela Aprovações em 07 out" (CA-APR-01): aluguel do ponto pedido por Lúcia em
 05 out 08:30 e aprovado por Rodrigo às 09:10 (40 min); rastreadores pedidos em 02 out 10:00 e
@@ -16,11 +16,14 @@ from apps.financeiro.models import Caixa, Despesa
 from apps.locacoes.models import Locacao
 from apps.veiculos.models import Veiculo
 from comum import relogio as comum_relogio
+from seed.frota import DISTRIBUICAO
 
 from .test_t019_seed_completo import _api, _sp
 from .test_t019_seed_completo import seed as seed
 from .test_t127_seed import _seed_do_modulo, semeado  # noqa: F401 - fixtures
 
+# Sem categorias (ADR 0043), a Street do seed é achada pelos modelos do grupo.
+MODELOS_STREET = [modelo for _, modelo in DISTRIBUICAO["Street 150–160"][1]]
 APROVACOES = "/api/aprovacoes/"
 LOCACOES = "/api/locacoes/"
 
@@ -36,7 +39,7 @@ def _desconto_street_de_8(seed: Any, relogio: Any, quando: str = "2026-10-08 09:
     relogio.em(quando)
     juliana = Cliente.objects.get(nome="Juliana Rocha")
     moto = (
-        Veiculo.objects.filter(categoria__nome="Street 150–160", status="disponivel")
+        Veiculo.objects.filter(modelo__in=MODELOS_STREET, status="disponivel")
         .order_by("placa")
         .first()
     )
@@ -109,8 +112,10 @@ def test_apr_12_seed_pendentes_sao_pneus_e_loc_2812(seed: Any):
     assert _sp(pneus.criado_em) == "2026-10-07 09:00"
 
 
-def test_aud_02_loc_15_seed_evento_de_01_out_17_42_por_mariana_na_lista(seed: Any):
-    """Evento da troca da Street em 01 out às 17:42 por Mariana Costa na consulta de 7 dias."""
+def test_aud_02_loc_15_seed_sem_evento_de_categoria(seed: Any):
+    """ADR 0043: o seed não cria mais as categorias nem a troca da tabela da Street em 01 out
+    (o `categoria.definir_preco` de Mariana às 17:42); o preço é de cada veículo, e os valores
+    das locações (LOC-15) continuam os mesmos."""
     corpo = (
         _api(seed, "Mariana")
         .get(
@@ -119,24 +124,7 @@ def test_aud_02_loc_15_seed_evento_de_01_out_17_42_por_mariana_na_lista(seed: An
         )
         .json()
     )
-    trocas = [
-        e
-        for e in corpo["resultados"]
-        if e["acao"] == "categoria.definir_preco" and e["resumo"] == "Mudou a tabela de preço"
-    ]
-    assert len(trocas) == 1
-    item = trocas[0]
-    assert item["ocorrido_em"] == "2026-10-01T20:42:00Z"  # 01 out 17:42 em São Paulo
-    assert item["ator"]["nome"] == "Mariana Costa" and item["ator"]["iniciais"] == "MC"
-    assert (item["categoria"], item["regra"], item["tom"], item["suporte"]) == (
-        "configuracoes",
-        "LOC-15",
-        "info",
-        None,
-    )
-    assert item["detalhe"] == "Street 150–160 · semanal R$ 299,40 → R$ 329,00"
-    # O preço inicial de 01 set fica fora dos últimos 7 dias em 07 out.
-    assert not [e for e in corpo["resultados"] if e["ocorrido_em"].startswith("2026-09-")]
+    assert not [e for e in corpo["resultados"] if e["acao"].startswith("categoria.")]
 
 
 def test_apr_12_ca_apr_01_mariana_e_rodrigo_veem_os_mesmos_numeros_e_abas(seed: Any):

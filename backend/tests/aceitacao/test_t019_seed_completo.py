@@ -32,7 +32,7 @@ from apps.financeiro import leituras as financeiro_leituras
 from apps.financeiro.models import Caixa, ContaReceber, Despesa, PendenciaPagamento, Reembolso
 from apps.locacoes.models import Locacao, PlanoEspecial
 from apps.plataforma.models import Empresa, UsoEmpresa
-from apps.veiculos.models import Categoria, PrecoCategoria, Veiculo
+from apps.veiculos.models import Categoria, PlanoVeiculo, RegrasVeiculo, Veiculo
 from apps.vistorias.models import Devolucao, Vistoria
 from comum.autenticacao import AMR_SENHA_E_CODIGO, emitir_tokens
 from seed.carteira import PASTA, pessoa
@@ -281,31 +281,43 @@ def test_plt_01_seed_019_07_plataforma(seed):
 # --- Preços e configuração, frota ---
 
 
-def test_loc_01_seed_019_08_tabela_e_configuracao(seed):
+# O grupo da tabela do seed pelo modelo (ADR 0043: o seed não tem categorias).
+GRUPO_DO_MODELO = {
+    "Pop 110i": "Urbana 110–125",
+    "Biz 125": "Urbana 110–125",
+    "CG 160 Fan": "Street 150–160",
+    "Factor 150": "Street 150–160",
+    "NMax 160": "Scooter premium",
+    "Kwid": "Carro compacto",
+    "Mobi": "Carro compacto",
+}
+
+
+def test_vei_12_seed_019_08_precos_por_veiculo_e_configuracao(seed):
+    """ADR 0043: sem categorias nem planos especiais; cada veículo tem os planos do seu grupo,
+    ligados, com a caução do grupo, e o dia de atraso e a multa mínima iguais à diária."""
     esperado = {
         "Urbana 110–125": (4490, 29940, 109000, 30000),
         "Street 150–160": (5490, 32900, 119000, 30000),
         "Scooter premium": (7990, 44900, 159000, 50000),
         "Carro compacto": (10900, 64900, 229000, 80000),
     }
-    for categoria in Categoria.objects.all():
-        preco = categoria.precos.order_by("-vigente_desde").first()
-        assert preco is not None
+    assert not Categoria.objects.exists()
+    assert not PlanoEspecial.objects.exists()
+    for veiculo in Veiculo.objects.all():
+        planos = {p.tipo: p for p in PlanoVeiculo.ativos.filter(veiculo=veiculo)}
+        diaria, semanal, mensal, caucao = esperado[GRUPO_DO_MODELO[veiculo.modelo]]
         assert (
-            preco.diaria_centavos,
-            preco.semanal_centavos,
-            preco.mensal_centavos,
-            preco.caucao_centavos,
-        ) == esperado[categoria.nome]
-    street = Categoria.objects.get(nome="Street 150–160")
-    assert sorted(
-        (str(p.vigente_desde), p.semanal_centavos)
-        for p in PrecoCategoria.objects.filter(categoria=street)
-    ) == [("2026-09-01", 29940), ("2026-10-01", 32900)]
-    entregador = PlanoEspecial.objects.get(nome="Entregador")
-    assert (entregador.periodicidade, entregador.preco_centavos) == ("semanal", 27900)
-    fidelidade = PlanoEspecial.objects.get(nome="Mensal fidelidade")
-    assert (str(fidelidade.desconto_pct), fidelidade.a_partir_do_periodo) == ("10.00", 3)
+            planos["diaria"].valor_centavos,
+            planos["semanal"].valor_centavos,
+            planos["mensal"].valor_centavos,
+            planos["semanal"].caucao_centavos,
+        ) == (diaria, semanal, mensal, caucao), veiculo.placa
+        assert all(p.ligado for p in planos.values()), veiculo.placa
+        regras = RegrasVeiculo.objects.get(veiculo=veiculo)
+        if veiculo.placa not in ("TBC5H21", "PVE1A07", "PVF2B18", "PVG3C29"):
+            assert regras.dia_atraso_centavos == regras.multa_minima_centavos == diaria
+        assert veiculo.tipo_veiculo == ("carro" if diaria == 10900 else "moto"), veiculo.placa
     config = ConfiguracaoEmpresa.objects.get()
     assert config.tolerancia_atraso_minutos == 60
     assert (str(config.multa_atraso_pct), str(config.juros_mes_pct)) == ("2.00", "1.00")
@@ -315,8 +327,8 @@ def test_loc_01_seed_019_08_tabela_e_configuracao(seed):
 
 def test_vei_01_seed_019_09_frota_de_86(seed):
     total: dict[str, dict[str, int]] = {}
-    for veiculo in Veiculo.objects.select_related("categoria"):
-        por_status = total.setdefault(veiculo.categoria.nome, {})
+    for veiculo in Veiculo.objects.all():
+        por_status = total.setdefault(GRUPO_DO_MODELO[veiculo.modelo], {})
         por_status[veiculo.status] = por_status.get(veiculo.status, 0) + 1
     assert total == {
         "Urbana 110–125": {
@@ -1143,7 +1155,7 @@ def test_vei_16_seed_pop_tbc_5h21_locacao_com_compra(seed):
     R$ 3.968,96; juros no prazo R$ 1.868,96. A Pop está disponível, na frota de 86."""
     pop = Veiculo.objects.get(placa="TBC5H21")
     assert (pop.modelo, pop.status) == ("Pop 110i", "disponivel")
-    assert pop.categoria.nome == "Urbana 110–125"
+    assert (pop.tipo_veiculo, pop.categoria_id) == ("moto", None)
     precos = _precos("TBC5H21", seed)
     assert precos["pago_na_moto"]["total_centavos"] == 1380000
     compra = precos["plano_compra"]

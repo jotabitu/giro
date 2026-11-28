@@ -80,11 +80,7 @@ def test_vei_20_dados_de_entrada_do_estoque_seed(seed):  # noqa: F811
         ("Honda", "CG 160 Fan", 2023),
         ("Yamaha", "Factor 150", 2023),
     ]
-    assert [v.categoria.nome for v in (biz, cg, factor)] == [
-        "Urbana 110–125",
-        "Street 150–160",
-        "Street 150–160",
-    ]
+    assert [(v.tipo_veiculo, v.categoria_id) for v in (biz, cg, factor)] == [("moto", None)] * 3
     assert [v.valor_compra_centavos for v in (biz, cg, factor)] == [1120000, 1390000, 1280000]
     assert [v.valor_venda_centavos for v in (biz, cg, factor)] == [1290000, 1550000, 1320000]
     assert all(v.filial.nome == "Filial Centro" for v in (biz, cg, factor))

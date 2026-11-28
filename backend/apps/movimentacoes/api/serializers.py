@@ -92,7 +92,6 @@ class _BaseSerializer(serializers.Serializer[Any]):
     filial_saida = RefSerializer()
     destino = RefSerializer()
     transferencia = serializers.BooleanField()
-    categoria_destino = RefSerializer(allow_null=True)
     rota = serializers.CharField()
     levado_por = RefSerializer()
     agendada_para = serializers.DateTimeField(allow_null=True)
@@ -151,7 +150,6 @@ class NovaParadaSerializer(serializers.Serializer[Any]):
 class EdicaoSerializer(serializers.Serializer[Any]):
     paradas = NovaParadaSerializer(many=True, required=False, default=list)
     destino_filial_id = serializers.IntegerField()
-    categoria_destino_id = serializers.IntegerField(required=False, allow_null=True)
     levado_por_id = serializers.IntegerField()
     agendada_para = serializers.DateTimeField(required=False, allow_null=True)
     vistoria_rapida = serializers.BooleanField(required=False, default=False)

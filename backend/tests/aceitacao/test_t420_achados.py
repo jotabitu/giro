@@ -15,6 +15,7 @@ from apps.auditoria.models import EventoAuditoria
 from apps.financeiro import services as financeiro
 from apps.locacoes import services
 from apps.locacoes.models import Locacao, PlanoCompra
+from apps.veiculos.models import Categoria
 from comum import relogio
 from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.auditoria import registrar_evento
@@ -168,10 +169,11 @@ def test_aud_loc_16_quitar_e_encerrar_por_atraso_em_portugues(cenario: Cenario) 
 def test_aud_loc_16_plano_de_compra_em_portugues(compra: Cenario) -> None:
     """Os eventos do plano de compra da categoria (as locações de antes da T-495; o cadastro
     novo responde 410) continuam em português."""
+    street = Categoria.objects.create(nome="Street 150–160", tipo_veiculo="moto")
     antigo = services.criar_plano_compra(
         {
             "nome": "Compra Street 24 meses",
-            "categoria_id": compra.frota.categorias["Street 150–160"].pk,
+            "categoria_id": street.pk,
             "periodicidade": "mensal",
             "parcelas": 24,
             "valor_parcela_centavos": 119000,

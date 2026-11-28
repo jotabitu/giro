@@ -33,7 +33,7 @@ from apps.veiculos.models import (
 from comum.erros import TransicaoInvalida
 
 from .conftest import cliente as cliente_http
-from .frota import Frota, criar_veiculo, montar_frota
+from .frota import Frota, com_planos_do_grupo, criar_categorias, criar_veiculo, montar_frota
 from .test_t012_filiais import HOST, MotoRapida
 
 VEICULOS = "/api/veiculos/"
@@ -80,13 +80,13 @@ def _pop(moto: MotoRapida, frota: Frota) -> Veiculo:
     não entra no pago na moto, FIN-17)."""
     pop = criar_veiculo(
         900,
-        frota.categorias["Urbana 110–125"],
+        "Urbana 110–125",
         frota.centro,
         placa="TBC5H21",
         chassi="9C2JC7110RR000900",
         valor_compra_centavos=1349000,
     )
-    services.aplicar_modelo_de_preco([pop], "cadastro")
+    com_planos_do_grupo(pop, "Urbana 110–125")
     for valor, status in ((31000, "paga"), (50000, "recusada")):
         Despesa.objects.create(
             filial=frota.centro,
@@ -125,7 +125,8 @@ def test_vei_12_migracao_copia_a_categoria_e_e_idempotente(moto, frota) -> None:
     """O veículo sem regras ganha diária, semanal e mensal da Street, ligados, à vista, com as
     quatro formas; regras com dia de atraso e multa mínima = diária; histórico `migracao`. Rodar
     de novo não duplica nem sobrescreve o que a locadora editou."""
-    novo = criar_veiculo(901, frota.categorias["Street 150–160"], frota.centro)
+    street = criar_categorias(moto.pessoas["Mariana"])["Street 150–160"]
+    novo = criar_veiculo(901, "Street 150–160", frota.centro, categoria=street)
     _migracao().copiar(django_apps, None)
     planos = {p.tipo: p for p in PlanoVeiculo.ativos.filter(veiculo=novo)}
     assert set(planos) == {"diaria", "semanal", "mensal"}
@@ -152,7 +153,7 @@ def test_vei_12_migracao_copia_a_categoria_e_e_idempotente(moto, frota) -> None:
 
 def test_vei_12_migracao_preco_futuro_vira_agendado(moto, frota) -> None:
     """O primeiro preço futuro da categoria entra como o agendado de cada plano, com a data."""
-    street = frota.categorias["Street 150–160"]
+    street = criar_categorias(moto.pessoas["Mariana"])["Street 150–160"]
     PrecoCategoria.objects.create(
         categoria=street,
         vigente_desde=date(2099, 1, 1),
@@ -161,7 +162,7 @@ def test_vei_12_migracao_preco_futuro_vira_agendado(moto, frota) -> None:
         mensal_centavos=129000,
         caucao_centavos=35000,
     )
-    novo = criar_veiculo(902, street, frota.centro)
+    novo = criar_veiculo(902, "Street 150–160", frota.centro, categoria=street)
     _migracao().copiar(django_apps, None)
     semanal = _plano(novo, "semanal")
     assert semanal.valor_centavos == 32900
@@ -174,7 +175,7 @@ def test_vei_12_migracao_categoria_sem_preco_nasce_desligada(moto, frota) -> Non
     from apps.veiculos.models import Categoria
 
     vazia = Categoria.objects.create(nome="Sem tabela", tipo_veiculo="moto")
-    novo = criar_veiculo(903, vazia, frota.centro)
+    novo = criar_veiculo(903, "Urbana 110–125", frota.centro, categoria=vazia)
     _migracao().copiar(django_apps, None)
     assert not PlanoVeiculo.objects.filter(veiculo=novo, ligado=True).exists()
     assert services.tem_plano_ligado(novo) is False
@@ -449,7 +450,7 @@ def test_vei_15_bloqueio_nao_volta_sozinho(moto, frota) -> None:
 def test_vei_15_colocar_a_venda_sem_plano(moto, frota) -> None:
     """Veículo `disponivel` sem nenhum plano (tabela não preenchida, como na migração de uma
     categoria sem preço): "Colocar à venda" responde 409 `VEI-15` (VEN-01)."""
-    sak = criar_veiculo(905, frota.categorias["Street 150–160"], frota.centro)
+    sak = criar_veiculo(905, "Street 150–160", frota.centro)
     assert sak.status == "disponivel" and not services.tem_plano_ligado(sak)
     resposta = moto.api("Rodrigo").post(
         f"{VEICULOS}{sak.pk}/colocar-a-venda/", {"valor_venda_centavos": 1500000}, format="json"
@@ -601,7 +602,7 @@ def test_vei_12_consolidacao_liga_plano_que_so_tinha_o_agendado(moto, frota) -> 
         mensal_centavos=129000,
         caucao_centavos=35000,
     )
-    novo = criar_veiculo(904, futura, frota.centro)
+    novo = criar_veiculo(904, "Urbana 110–125", frota.centro, categoria=futura)
     _migracao().copiar(django_apps, None)
     assert not services.tem_plano_ligado(novo)
     services.consolidar_precos_agendados(date(2099, 1, 1))

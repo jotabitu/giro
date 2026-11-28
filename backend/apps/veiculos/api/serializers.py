@@ -123,7 +123,16 @@ class VeiculoEntradaSerializer(ComBlocosDaVei09, serializers.Serializer[Any]):
         choices=Combustivel.choices, required=False, allow_null=True
     )
     km_atual = serializers.IntegerField(min_value=0, required=False)
-    categoria_id = serializers.IntegerField()
+    # VEI-11 (ADR 0043): obrigatório, sem padrão; a falta é 400 com a frase da regra.
+    tipo_veiculo = serializers.ChoiceField(
+        choices=TipoVeiculo.choices,
+        error_messages={
+            "required": "Escolha moto ou carro.",
+            "null": "Escolha moto ou carro.",
+            "blank": "Escolha moto ou carro.",
+            "invalid_choice": "Escolha moto ou carro.",
+        },
+    )
     filial_id = serializers.IntegerField()
     capacidade_tanque_litros = serializers.DecimalField(
         max_digits=5, decimal_places=1, required=False, allow_null=True, min_value=0
@@ -250,7 +259,11 @@ class VeiculoEdicaoSerializer(ComBlocosDaVei09, serializers.Serializer[Any]):
     combustivel = serializers.ChoiceField(
         choices=Combustivel.choices, required=False, allow_null=True
     )
-    categoria_id = serializers.IntegerField(required=False)
+    tipo_veiculo = serializers.ChoiceField(
+        choices=TipoVeiculo.choices,
+        required=False,
+        error_messages={"invalid_choice": "Escolha moto ou carro."},
+    )
     capacidade_tanque_litros = serializers.DecimalField(
         max_digits=5, decimal_places=1, required=False, allow_null=True, min_value=0
     )
@@ -424,7 +437,6 @@ class VeiculoSerializer(serializers.Serializer[Any]):
     cor = serializers.CharField()
     combustivel = serializers.ChoiceField(choices=Combustivel.choices, allow_null=True)
     tipo_veiculo = serializers.ChoiceField(choices=TipoVeiculo.choices)
-    categoria = IdNomeSerializer()
     filial = IdNomeSerializer()
     status = serializers.ChoiceField(choices=StatusVeiculo.choices)
     motivo_status = serializers.CharField(allow_null=True)
@@ -434,7 +446,6 @@ class VeiculoSerializer(serializers.Serializer[Any]):
         max_digits=5, decimal_places=1, allow_null=True
     )
     # Ausentes para o vistoriador, que não vê valores (D-25, USR-09).
-    preco_vigente = PrecoSerializer(allow_null=True, required=False)
     valor_venda_centavos = serializers.IntegerField(allow_null=True, required=False)
     referencia_fipe_centavos = serializers.IntegerField(allow_null=True, required=False)
     valor_compra_centavos = serializers.IntegerField(allow_null=True, required=False)
