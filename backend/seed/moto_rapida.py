@@ -1,9 +1,9 @@
 """Seed parcial da Moto Rápida (T-127): o que não depende do financeiro da T-017.
 
 Cria, pelos serviços de domínio e de forma idempotente (cada passo confere o que já existe):
-empresa com subdomínio, Filial Centro, uma pessoa por perfil, as 4 categorias com os preços, as
-86 motos e carros, os clientes e as 42 locações abertas de 07 out 2026 (LOC-2836 pela confirmação
-de verdade). O financeiro de 07 out (caixa, despesas, caução) vem de `seed/financeiro.py` (T-019).
+empresa com subdomínio, Filial Centro, uma pessoa por perfil, as 86 motos e carros com os preços
+de cada um, os clientes e as 42 locações abertas de 07 out 2026 (LOC-2836 pela confirmação de
+verdade). O financeiro de 07 out (caixa, despesas, caução) vem de `seed/financeiro.py` (T-019).
 """
 
 from dataclasses import dataclass
@@ -30,12 +30,11 @@ from apps.filiais import services as filiais_services
 from apps.filiais.models import Filial
 from apps.financeiro import services as financeiro_services
 from apps.financeiro.models import Caixa, ContaReceber, StatusConta
-from apps.locacoes import services as locacoes_services
-from apps.locacoes.models import Locacao, PlanoEspecial
+from apps.locacoes.models import Locacao
 from apps.plataforma.models import Empresa, Plano
 from apps.plataforma.services import Administrador, criar_empresa, registrar_passo_implantacao
 from apps.veiculos import services as veiculos_services
-from apps.veiculos.models import Categoria, Veiculo
+from apps.veiculos.models import Veiculo
 from comum.estados import transicionar
 
 from . import carteira, estoque, fotos, frota, precos
@@ -300,18 +299,17 @@ def carregar_negocio(
             if frota.garantir_dados_do_crlv():
                 criado.append("dados do CRLV-e do QXA-4B21")
     with transaction.atomic():
-        categorias = {c.nome: c for c in Categoria.objects.all()}
-        if estoque.garantir_estoque_parado(empresa, centro, categorias, pessoas, relogio):
+        if estoque.garantir_estoque_parado(empresa, centro, pessoas, relogio):
             criado.append("estoque à venda parado")
     with transaction.atomic():
-        if precos.garantir_precos_dos_veiculos(empresa, centro, categorias, pessoas, relogio):
+        if precos.garantir_precos_dos_veiculos(empresa, centro, pessoas, relogio):
             criado.append("preços da Pop TBC-5H21 e do QXA-4B21")
     with transaction.atomic():
         # VEI-15 (ADR 0041, item 3, passo 6): o disponível sem plano ligado fica sem preço.
         alinhados = veiculos_services.alinhar_veiculos_sem_preco()
         if alinhados["sem_preco"] or alinhados["com_preco"]:
             criado.append("veículos sem preço alinhados")
-    _configuracao(criado)
+    _configuracao()
     if not Caixa.objects.exists():
         with transaction.atomic():
             financeiro_do_seed.carregar(centro, pessoas, relogio)
@@ -327,34 +325,10 @@ def carregar_negocio(
 PASSOS_FEITOS_NO_DEV = ("marca", "ramo", "precos", "contrato", "recebimentos", "importar", "equipe")
 
 
-def _configuracao(criado: list[str]) -> None:
-    """Planos especiais da tabela (Entregador R$ 279,00 por semana, Mensal fidelidade −10% a
-    partir do 3º mês) e os passos do assistente de implantação (IMP-01): a Moto Rápida já passou
-    por todos, e a Mariana entra no painel geral."""
-    if not PlanoEspecial.objects.exists():
-        urbana = Categoria.objects.get(nome="Urbana 110–125")
-        locacoes_services.criar_plano(
-            {
-                "nome": "Entregador",
-                "periodicidade": "semanal",
-                "regra": "preco_fixo",
-                "preco_centavos": 27900,
-                "categorias": [urbana.pk],
-                "condicoes": "Km livre e troca de óleo inclusa",
-            }
-        )
-        locacoes_services.criar_plano(
-            {
-                "nome": "Mensal fidelidade",
-                "periodicidade": "mensal",
-                "regra": "desconto",
-                "desconto_pct": "10.00",
-                "a_partir_do_periodo": 3,
-                "categorias": [],
-                "condicoes": "10% a partir do 3º mês seguido",
-            }
-        )
-        criado.append("planos especiais")
+def _configuracao() -> None:
+    """Os passos do assistente de implantação (IMP-01): a Moto Rápida já passou por todos, e a
+    Mariana entra no painel geral. Os planos especiais saíram com a categoria (ADR 0043): não há
+    mais tela nem locação nova que os leia; um banco antigo fica com os seus."""
     for passo in PASSOS_FEITOS_NO_DEV:
         registrar_passo_implantacao(passo)
 

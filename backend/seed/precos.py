@@ -27,7 +27,7 @@ from apps.filiais.models import Filial
 from apps.plataforma.models import Empresa
 from apps.plataforma.services import recalcular_uso
 from apps.veiculos import services as veiculos_services
-from apps.veiculos.models import Categoria, PlanoCompraVeiculo, Veiculo
+from apps.veiculos.models import PlanoCompraVeiculo, Veiculo
 
 from .ator import administradora, como
 from .estoque import _lancar_e_pagar
@@ -79,17 +79,16 @@ def _planos_da_tabela(categoria: str) -> list[dict[str, Any]]:
     ]
 
 
-def _pop(
-    centro: Filial, categorias: dict[str, Categoria], lucia: Usuario, relogio: RelogioDoSeed
-) -> bool:
+def _pop(centro: Filial, lucia: Usuario, relogio: RelogioDoSeed) -> bool:
     if Veiculo.objects.filter(placa=POP).exists():
         return False
     relogio.em(f"{POP_COMPRA_EM} 09:00")
     pop = cadastrar_veiculo(
         NUMERO_DA_POP,
-        categorias[URBANA],
+        URBANA,
         centro,
         "disponivel",
+        com_precos=False,
         placa=POP,
         chassi="9C2JC7110RR000950",
         marca="Honda",
@@ -136,13 +135,12 @@ def _qxa(relogio: RelogioDoSeed) -> bool:
 def garantir_precos_dos_veiculos(
     empresa: Empresa,
     centro: Filial,
-    categorias: dict[str, Categoria],
     pessoas: dict[str, Usuario],
     relogio: RelogioDoSeed,
 ) -> bool:
     """A Pop TBC-5H21 com a locação com compra ligada e o plano de compra do QXA-4B21 (T-495).
     Devolve se criou algo."""
-    criou = _pop(centro, categorias, pessoas["Lúcia Freitas"], relogio)
+    criou = _pop(centro, pessoas["Lúcia Freitas"], relogio)
     criou = _qxa(relogio) or criou
     if criou:
         recalcular_uso(empresa)

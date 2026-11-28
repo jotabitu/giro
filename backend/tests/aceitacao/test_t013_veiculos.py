@@ -1,4 +1,4 @@
-"""T-013 · Veículos, categorias, documentos, histórico de status (docs/qa/criterios/T-013.md).
+"""T-013 · Veículos, documentos, histórico de status (docs/qa/criterios/T-013.md).
 
 Roda na `empresa_a` (host `empresa-a.localhost`) com o plano Profissional, as pessoas do seed e a
 frota da Moto Rápida (`frota.py`), com o relógio em 07 out 2026, 10:00.
@@ -21,7 +21,6 @@ from apps.plataforma.models import Empresa, UsoEmpresa
 from apps.plataforma.services import recalcular_uso
 from apps.veiculos import selectors, services
 from apps.veiculos.models import (
-    Categoria,
     DocumentoVeiculo,
     HistoricoStatusVeiculo,
     LeituraKm,
@@ -33,7 +32,7 @@ from comum import arquivos, eventos, leituras
 from comum.erros import Conflito, ErroDeValidacao, TransicaoInvalida
 from seed.ator import como
 
-from .apoio import CONTAGENS_FROTA_SEED, PRECOS_SEED
+from .apoio import CONTAGENS_FROTA_SEED
 from .frota import Frota, criar_veiculo, montar_frota
 from .test_t012_filiais import MotoRapida, _filial
 
@@ -84,7 +83,7 @@ def _novo(**campos: Any) -> dict[str, Any]:
 
 def _cadastro(frota: Frota, **campos: Any) -> dict[str, Any]:
     padrao = {
-        "categoria_id": frota.categorias["Urbana 110–125"].pk,
+        "tipo_veiculo": "moto",
         "filial_id": frota.centro.pk,
     }
     return _novo(**{**padrao, **campos})
@@ -94,12 +93,6 @@ def _vender(veiculo: Veiculo) -> None:
     origem = services.OrigemDaMudanca("venda", 177, "VEN-0177")
     services.transicionar(veiculo, "a_venda", origem=origem)
     services.transicionar(veiculo, "vendido", origem=origem)
-
-
-def _vigente(categoria: Categoria, data: date) -> Any:
-    preco = selectors.preco_vigente(categoria, data)
-    assert preco is not None
-    return preco
 
 
 def _veiculos_no_plano(moto: MotoRapida) -> int:
@@ -120,7 +113,7 @@ def test_vei_06_ca_013_01_contagens_do_seed(moto, frota):
     assert len(disponiveis["resultados"]) == 16
     assert {v["status"] for v in disponiveis["resultados"]} == {"disponivel"}
 
-    urbana = frota.categorias["Urbana 110–125"]
+    urbana = "Urbana 110–125"
     _vender(criar_veiculo(900, urbana, frota.centro))
     services.baixar(criar_veiculo(901, urbana, frota.centro, "indisponivel"), "sucata", "")
     corpo = api.get("/api/veiculos/?tamanho=100").json()
@@ -142,7 +135,7 @@ def test_vei_01_ca_013_02_busca(moto, frota):
         assert [(v["marca"], v["modelo"], v["cor"], v["placa"]) for v in resultados] == [
             ("Honda", "CG 160 Fan", "vermelha", "SAK1D39")
         ], busca
-        assert resultados[0]["preco_vigente"]["diaria_centavos"] == 5490
+        assert resultados[0]["tipo_veiculo"] == "moto"
 
 
 def test_vei_01_ca_013_03_valor_de_compra_so_para_gestao(moto, frota):
@@ -177,21 +170,18 @@ def test_usr_09_vistoriador_ve_veiculo_sem_valores(moto, frota):
     joao = moto.api("João")
     lista = joao.get("/api/veiculos/").json()
     ficha = joao.get(_url(sak)).json()
-    categorias = joao.get("/api/categorias/").json()
-    for corpo in (lista, ficha, categorias):
+    for corpo in (lista, ficha):
         chaves = _chaves(corpo)
         assert not [c for c in chaves if c.endswith("_centavos")]
         assert not SO_VALORES & chaves
     assert ficha["placa"] == "SAK1D39" and ficha["km_atual"] == sak.km_atual
     assert lista["contagens"]["todos"] > 0
-    assert joao.get(f"/api/categorias/{sak.categoria_id}/precos/").status_code == 403
     assert joao.get("/api/extras/").status_code == 403
 
-    # Os demais perfis continuam com a diária (coluna da Frota).
+    # Os demais perfis continuam com o valor de venda e os extras.
     for nome in ("Mariana", "Rodrigo", "Bruna", "Lúcia"):
         api = moto.api(nome)
-        assert api.get(_url(sak)).json()["preco_vigente"]["diaria_centavos"] == 5490, nome
-        assert api.get(f"/api/categorias/{sak.categoria_id}/precos/").status_code == 200
+        assert "valor_venda_centavos" in api.get(_url(sak)).json(), nome
         assert api.get("/api/extras/").status_code == 200
 
 
@@ -221,7 +211,6 @@ def test_usr_09_vendedor_sem_custo_do_veiculo(moto, frota):
         "ocupacao",
         "km_atual",
         "documentos_resumo",
-        "preco_vigente",
         "valor_venda_centavos",
         "historico_status",
     ):
@@ -235,7 +224,7 @@ def test_vei_01_ca_013_04_escopo_de_filial(moto, frota):
     caucaia = _caucaia(moto)
     de_caucaia = criar_veiculo(
         500,
-        frota.categorias["Street 150–160"],
+        "Street 150–160",
         caucaia,
         placa="CAU1A00",
         chassi="9C2CAUCAIA0000001",
@@ -260,14 +249,17 @@ def test_vei_01_ca_013_05_cadastrar(moto, frota):
     resposta = moto.api("Rodrigo").post("/api/veiculos/", _cadastro(frota), format="json")
     assert resposta.status_code == 201, resposta.json()
     corpo = resposta.json()
-    assert (corpo["placa"], corpo["status"], corpo["km_atual"]) == ("QAB1C23", "disponivel", 0)
-    assert corpo["categoria"]["nome"] == "Urbana 110–125"
+    # ADR 0043, item 5: nasce "sem preço" (VEI-15), com o tipo escolhido.
+    assert (corpo["placa"], corpo["status"], corpo["km_atual"]) == ("QAB1C23", "indisponivel", 0)
+    assert corpo["motivo_status"] == services.MOTIVO_SEM_PRECO
+    assert corpo["tipo_veiculo"] == "moto"
+    assert "categoria" not in corpo and "preco_vigente" not in corpo
     assert corpo["filial"]["nome"] == "Filial Centro"
-    assert corpo["preco_vigente"]["diaria_centavos"] == 4490
     assert corpo["entrou_na_frota_em"] == "2026-10-07"
     veiculo = Veiculo.objects.get(placa="QAB1C23")
+    assert veiculo.categoria_id is None
     assert list(veiculo.historico.values_list("de", "para", "origem_tipo")) == [
-        ("", "disponivel", "cadastro")
+        ("", "indisponivel", "cadastro")
     ]
     assert list(veiculo.leituras_km.values_list("km", "correcao")) == [(0, False)]
     assert EventoAuditoria.objects.filter(acao="veiculo.cadastrar", objeto_id=veiculo.pk).exists()
@@ -289,7 +281,7 @@ def test_vei_01_ca_013_06_placa_e_chassi_unicos_em_qualquer_estado(moto, frota):
         "detalhes": {"campo": "placa", "veiculo_id": sak.pk},
     }
 
-    urbana = frota.categorias["Urbana 110–125"]
+    urbana = "Urbana 110–125"
     vendido = criar_veiculo(700, urbana, frota.centro)
     _vender(vendido)
     baixado = criar_veiculo(701, urbana, frota.centro)
@@ -306,14 +298,10 @@ def test_vei_01_ca_013_06_placa_e_chassi_unicos_em_qualquer_estado(moto, frota):
 
 def test_vei_01_ca_013_07_formato(moto, frota):
     api = moto.api("Rodrigo")
-    caucaia = _caucaia(moto)
-    so_de_caucaia = Categoria.objects.create(
-        nome="Street Caucaia", tipo_veiculo="moto", filial=caucaia
-    )
     recusados = {
         "chassi": _cadastro(frota, chassi="9C2JC4820TR00012"),
         "placa": _cadastro(frota, placa="AB1234"),
-        "categoria_id": _cadastro(frota, categoria_id=so_de_caucaia.pk),
+        "tipo_veiculo": _cadastro(frota, tipo_veiculo="bicicleta"),
     }
     for campo, corpo in recusados.items():
         resposta = api.post("/api/veiculos/", corpo, format="json")
@@ -330,7 +318,7 @@ def test_vei_01_ca_013_07_formato(moto, frota):
 
 
 def test_plt_03_ca_013_08_limite_de_veiculos(moto, frota):
-    urbana = frota.categorias["Urbana 110–125"]
+    urbana = "Urbana 110–125"
     for numero in range(200, 264):  # 86 + 64 = 150
         criar_veiculo(numero, urbana, frota.centro)
     recalcular_uso(moto.empresa)
@@ -506,7 +494,7 @@ def test_vei_02_ca_013_11_acoes_combina_perfil_e_estado(moto, frota):
 
 
 def test_vei_07_ca_013_12_servico_de_transicao(moto, frota):
-    urbana = frota.categorias["Urbana 110–125"]
+    urbana = "Urbana 110–125"
     venda = services.OrigemDaMudanca("venda", 177, "VEN-0177")
 
     cancelada = criar_veiculo(800, urbana, frota.centro)
@@ -528,7 +516,7 @@ def test_vei_07_ca_013_12_servico_de_transicao(moto, frota):
         "9C2TROCA000000001",
         {
             **_novo(placa="TRC1A23"),
-            "categoria_id": urbana.pk,
+            "tipo_veiculo": "moto",
             "filial_id": frota.centro.pk,
             "venda_id": 181,
             "venda_codigo": "VEN-0181",
@@ -577,10 +565,8 @@ def test_vei_04_ca_013_13_transferencia_so_disponivel(moto, frota):
     )
     assert transferencia.por_id == moto.pessoas["Rodrigo"].pk
     assert EventoAuditoria.objects.filter(acao="veiculo.transferir", regra="VEI-04").exists()
-    # Categoria da empresa passa direto (CA-013-27): continua na Street 150–160.
-    street = frota.categorias["Street 150–160"]
-    assert sak.categoria_id == street.pk
-    assert (transferencia.categoria_origem, transferencia.categoria_destino) == (street, street)
+    # ADR 0043 (FIL-04, MOV-06): só a filial muda; a categoria deixa de ser gravada.
+    assert (transferencia.categoria_origem_id, transferencia.categoria_destino_id) == (None, None)
 
     with pytest.raises(Conflito) as erro:
         _transferir(moto, qxa, caucaia.pk)
@@ -598,73 +584,23 @@ def test_vei_04_ca_013_13_transferencia_so_disponivel(moto, frota):
     assert pop.filial_id == frota.centro.pk
 
 
-def _categoria_de_filial(moto: MotoRapida, nome: str, filial: Filial, diaria: int) -> int:
-    corpo = {
-        "nome": nome,
-        "tipo_veiculo": "moto",
-        "filial_id": filial.pk,
-        "preco": {
-            "diaria_centavos": diaria,
-            "semanal_centavos": diaria * 6,
-            "mensal_centavos": diaria * 22,
-            "caucao_centavos": 30000,
-        },
-    }
-    resposta = moto.api("Mariana").post("/api/categorias/", corpo, format="json")
-    assert resposta.status_code == 201, resposta.json()
-    return int(resposta.json()["id"])
-
-
-def test_vei_04_fil_04_ca_013_27_categoria_so_da_filial_na_transferencia(moto, frota):
+def test_fil_04_transferencia_sem_categoria(moto, frota):
+    """ADR 0043 (FIL-04, MOV-06, VEI-04): o veículo de categoria nula vai para a outra filial com
+    o tipo e os planos dele; nada pede categoria no destino, e o evento não fala de categoria."""
     caucaia = _caucaia(moto, "Rodrigo")
     sak = frota.veiculos["SAK1D39"]
-    street_centro = _categoria_de_filial(moto, "Street Centro", frota.centro, 4490)
-    street_caucaia = _categoria_de_filial(moto, "Street Caucaia", caucaia, 4990)
-    caucaia_inativa = _categoria_de_filial(moto, "Street Caucaia antiga", caucaia, 3990)
-    desativar = moto.api("Mariana").post(
-        f"/api/categorias/{caucaia_inativa}/desativar/", {}, format="json"
-    )
-    assert desativar.status_code == 200, desativar.json()
-    resposta = moto.api("Rodrigo").patch(_url(sak), {"categoria_id": street_centro}, format="json")
-    assert resposta.status_code == 200, resposta.json()
+    assert sak.categoria_id is None
+    planos = sorted(sak.planos.values_list("tipo", "valor_centavos", "ligado"))
+    _transferir(moto, sak, caucaia.pk, motivo="Falta moto na Caucaia")
     sak.refresh_from_db()
-
-    # Sem a categoria no destino: recusa em `categoria_id`, e o veículo não sai da Centro.
-    with pytest.raises(ErroDeValidacao) as erro:
-        _transferir(moto, sak, caucaia.pk)
-    assert "categoria_id" in erro.value.campos
-    invalidas = [street_centro, caucaia_inativa, frota.categorias["Carro compacto"].pk]
-    for categoria_id in invalidas:
-        with pytest.raises(ErroDeValidacao) as erro:
-            _transferir(moto, sak, caucaia.pk, categoria_id=categoria_id)
-        assert "categoria_id" in erro.value.campos, categoria_id
-    sak.refresh_from_db()
-    assert (sak.filial_id, sak.categoria_id) == (frota.centro.pk, street_centro)
-    assert not TransferenciaVeiculo.objects.filter(veiculo=sak).exists()
-
-    # Com a Street Caucaia: vai, com o preço dela.
-    _transferir(moto, sak, caucaia.pk, categoria_id=street_caucaia)
-    ficha = moto.api("Rodrigo").get(_url(sak)).json()
-    assert ficha["filial"]["id"] == caucaia.pk
-    assert ficha["categoria"] == {"id": street_caucaia, "nome": "Street Caucaia"}
-    assert ficha["preco_vigente"]["diaria_centavos"] == 4990
-    transferencia = TransferenciaVeiculo.objects.get(veiculo=sak)
-    assert (transferencia.categoria_origem_id, transferencia.categoria_destino_id) == (
-        street_centro,
-        street_caucaia,
-    )
+    assert (sak.filial_id, sak.tipo_veiculo, sak.categoria_id) == (caucaia.pk, "moto", None)
+    assert sorted(sak.planos.values_list("tipo", "valor_centavos", "ligado")) == planos
+    ficha = moto.api("Mariana").get(_url(sak)).json()
+    assert (ficha["filial"]["id"], ficha["tipo_veiculo"]) == (caucaia.pk, "moto")
+    assert "categoria" not in ficha
     evento = EventoAuditoria.objects.get(acao="veiculo.transferir", objeto_id=sak.pk)
-    assert (evento.antes["categoria_id"], evento.depois["categoria_id"]) == (
-        street_centro,
-        street_caucaia,
-    )
-
-    # De volta para a Centro com a Street 150–160, da empresa: diária 5490.
-    empresa = frota.categorias["Street 150–160"].pk
-    _transferir(moto, sak, frota.centro.pk, categoria_id=empresa)
-    ficha = moto.api("Rodrigo").get(_url(sak)).json()
-    assert ficha["categoria"]["nome"] == "Street 150–160"
-    assert ficha["preco_vigente"]["diaria_centavos"] == 5490
+    assert "categoria_id" not in evento.antes and "categoria_id" not in evento.depois
+    assert (evento.antes["filial_id"], evento.depois["filial_id"]) == (frota.centro.pk, caucaia.pk)
 
 
 def test_fil_06_ca_013_14_veto_a_desativacao_da_filial(moto, frota):
@@ -993,138 +929,10 @@ def test_aud_05_ca_013_20_arquivo_privado(moto, frota, relogio):
     assert resposta.status_code == 403
 
 
-# --- Categorias e preços (LOC-01, LOC-15) ---
-
-
-def test_loc_01_ca_013_21_tabela_do_seed(moto, frota):
-    for nome in ("Mariana", "Bruna", "Lúcia"):  # o vistoriador vê sem preço (USR-09)
-        corpo = moto.api(nome).get("/api/categorias/", {"filial": frota.centro.pk}).json()
-        tabela = {
-            c["nome"]: (
-                c["veiculos"],
-                c["preco_vigente"]["diaria_centavos"],
-                c["preco_vigente"]["semanal_centavos"],
-                c["preco_vigente"]["mensal_centavos"],
-                c["preco_vigente"]["caucao_centavos"],
-            )
-            for c in corpo["resultados"]
-        }
-        assert tabela == PRECOS_SEED, nome
-        assert {c["preco_vigente"]["vigente_desde"] for c in corpo["resultados"]} == {"2026-10-01"}
-    street = next(c for c in corpo["resultados"] if c["nome"] == "Street 150–160")
-    assert street["modelos_resumo"] == "CG 160 Fan, Factor 150"
-    assert street["proximo_preco"] is None
-
-
-def test_loc_15_ca_013_22_preco_vigente_na_data(moto, frota):
-    street = frota.categorias["Street 150–160"]
-    assert _vigente(street, date(2026, 9, 30)).semanal_centavos == 29940
-    assert _vigente(street, date(2026, 10, 1)).semanal_centavos == 32900
-
-    historico = moto.api("Bruna").get(f"/api/categorias/{street.pk}/precos/").json()
-    assert [
-        (p["vigente_desde"], p["semanal_centavos"], p["alterado_por"])
-        for p in historico["resultados"]
-    ] == [("2026-10-01", 32900, "Mariana"), ("2026-09-01", 29940, "Mariana")]
-
-    mudancas = moto.api("Mariana").get("/api/precos/historico/").json()["resultados"]
-    assert {
-        "categoria": {"id": street.pk, "nome": "Street 150–160"},
-        "vigente_desde": "2026-10-01",
-        "campo": "semanal_centavos",
-        "antes_centavos": 29940,
-        "depois_centavos": 32900,
-    }.items() <= next(m for m in mudancas if m["antes_centavos"]).items()
-    assert len(mudancas) == 4 * 4 + 1  # o primeiro preço de cada categoria e a Street nova
-    assert moto.api("Rodrigo").get("/api/precos/historico/").status_code == 403
-
-
-def test_loc_15_ca_013_23_preco_novo_nao_reescreve_o_passado(moto, frota, relogio):
-    urbana = frota.categorias["Urbana 110–125"]
-    api = moto.api("Mariana")
-    url = f"/api/categorias/{urbana.pk}/precos/"
-    valores = {
-        "diaria_centavos": 4990,
-        "semanal_centavos": 29940,
-        "mensal_centavos": 109000,
-        "caucao_centavos": 30000,
-    }
-    passado = api.post(url, {**valores, "vigente_desde": "2026-10-06"}, format="json")
-    assert passado.status_code == 400
-    ja_existe = api.post(url, {**valores, "vigente_desde": "2026-10-01"}, format="json")
-    assert ja_existe.status_code == 409
-    assert ja_existe.json()["codigo"] == "preco_ja_definido"
-    assert moto.api("Rodrigo").post(url, valores, format="json").status_code == 403
-
-    leituras.registrar_contador(services.ALVO_CATEGORIA, "locacoes_em_andamento", lambda _: 20)
-    try:
-        novo = api.post(url, {**valores, "vigente_desde": "2026-11-01"}, format="json")
-    finally:
-        leituras.remover_contador(services.ALVO_CATEGORIA, "locacoes_em_andamento")
-    assert novo.status_code == 201, novo.json()
-    assert (novo.json()["diaria_centavos"], novo.json()["locacoes_em_andamento_mantidas"]) == (
-        4990,
-        20,
-    )
-    categoria = next(
-        c for c in api.get("/api/categorias/").json()["resultados"] if c["id"] == urbana.pk
-    )
-    assert categoria["preco_vigente"]["diaria_centavos"] == 4490
-    assert categoria["proximo_preco"]["vigente_desde"] == "2026-11-01"
-    assert categoria["proximo_preco"]["diaria_centavos"] == 4990
-    assert _vigente(urbana, date(2026, 10, 7)).diaria_centavos == 4490
-
-    # O preço futuro pode ser trocado até 31 out.
-    agendado = f"{url}2026-11-01/"
-    relogio.em("2026-10-31 18:00")
-    moto._tokens.clear()  # a sessão segue o relógio dos testes
-    api = moto.api("Mariana")
-    trocado = api.put(agendado, {**valores, "diaria_centavos": 4890}, format="json")
-    assert trocado.status_code == 200, trocado.json()
-    assert trocado.json()["diaria_centavos"] == 4890
-    relogio.em("2026-11-01 08:00")
-    moto._tokens.clear()
-    api = moto.api("Mariana")
-    assert api.put(agendado, valores, format="json").status_code == 409
-    assert _vigente(urbana, date(2026, 11, 1)).diaria_centavos == 4890
-
-
-def test_loc_01_ca_013_24_categoria(moto, frota):
-    api = moto.api("Mariana")
-    preco = {
-        "diaria_centavos": 5490,
-        "semanal_centavos": 32900,
-        "mensal_centavos": 119000,
-        "caucao_centavos": 30000,
-    }
-    repetida = {"nome": "street 150–160", "tipo_veiculo": "moto", "preco": preco}
-    resposta = api.post("/api/categorias/", repetida, format="json")
-    assert resposta.status_code == 409
-    assert resposta.json()["codigo"] == "categoria_nome_em_uso"
-
-    street = frota.categorias["Street 150–160"]
-    resposta = api.patch(f"/api/categorias/{street.pk}/", {"tipo_veiculo": "carro"}, format="json")
-    assert resposta.status_code == 422
-    assert resposta.json()["codigo"] == "categoria_com_veiculos"
-    resposta = api.post(f"/api/categorias/{street.pk}/desativar/")
-    assert resposta.status_code == 422
-    assert resposta.json()["codigo"] == "categoria_com_veiculos"
-
-    rodrigo = moto.api("Rodrigo")
-    nova = {"nome": "Trail 300", "tipo_veiculo": "moto", "preco": preco}
-    assert rodrigo.post("/api/categorias/", nova, format="json").status_code == 403
-    renomear = rodrigo.patch(f"/api/categorias/{street.pk}/", {"nome": "X"}, format="json")
-    assert renomear.status_code == 403
-
-    criada = api.post("/api/categorias/", nova, format="json")
-    assert criada.status_code == 201, criada.json()
-    trail = criada.json()
-    assert (trail["veiculos"], trail["preco_vigente"]["vigente_desde"]) == (0, "2026-10-07")
-    vazia = api.post(f"/api/categorias/{trail['id']}/desativar/")
-    assert vazia.status_code == 200
-    assert vazia.json()["ativo"] is False
-    cadastro = _cadastro(frota, categoria_id=trail["id"])
-    assert rodrigo.post("/api/veiculos/", cadastro, format="json").status_code == 400
+# --- Extras (LOC-02) ---
+#
+# Os testes da tabela de preços por categoria (LOC-01, LOC-15, CA-013-21 a 24) saíram com a
+# categoria do seed (ADR 0043): o preço é de cada veículo (ADR 0041, `test_t494_precos_veiculo`).
 
 
 def test_loc_02_ca_013_25_extras(moto, frota):
@@ -1166,7 +974,7 @@ def _historico(veiculo: Veiculo, relogio, passos: list[tuple[int, str]]) -> None
 
 
 def test_vei_06_ca_013_26_ocupacao_de_90_dias(moto, frota, relogio):
-    urbana = frota.categorias["Urbana 110–125"]
+    urbana = "Urbana 110–125"
     antigo = criar_veiculo(600, urbana, frota.centro, "a_venda")
     _historico(
         antigo,
@@ -1201,7 +1009,7 @@ def test_vei_06_ca_013_26_ocupacao_de_90_dias(moto, frota, relogio):
 def test_vei_06_ca_013_29_ocupacao_com_fracao_de_dia(moto, frota, relogio):
     """Na frota desde 27 set, alugado em 02 out às 14:00, relógio em 07 out 00:00: 44,17%."""
     relogio.em("2026-10-07 00:00")
-    urbana = frota.categorias["Urbana 110–125"]
+    urbana = "Urbana 110–125"
     api = moto.api("Rodrigo")
 
     def _historico_em(veiculo: Veiculo, passos: list[tuple[str, str]]) -> None:
@@ -1260,4 +1068,3 @@ def test_vei_01_veiculo_da_empresa_a_nao_aparece_na_b(moto, frota):
     assert Veiculo.objects.count() == 86
     connection.set_tenant(Empresa.objects.get(schema_name="empresa_b"))
     assert not Veiculo.objects.exists()
-    assert not Categoria.objects.exists()

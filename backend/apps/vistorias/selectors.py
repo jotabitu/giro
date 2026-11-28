@@ -46,7 +46,7 @@ MESES = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "
 
 def base() -> QuerySet[Vistoria]:
     return Vistoria.objects.select_related(
-        "locacao", "locacao__cliente", "locacao__filial", "veiculo__categoria", "responsavel"
+        "locacao", "locacao__cliente", "locacao__filial", "veiculo", "responsavel"
     )
 
 
@@ -92,7 +92,7 @@ def _cliente(vistoria: Vistoria) -> dict[str, Any]:
     liberada = None
     if vistoria.tipo == TipoVistoria.SAIDA:
         liberada = not clientes_selectors.impedimentos_para_retirada(
-            cliente, vistoria.veiculo.categoria.tipo_veiculo, relogio.hoje()
+            cliente, vistoria.veiculo.tipo_veiculo, relogio.hoje()
         )
     return {
         "nome": cliente.nome,

@@ -19,7 +19,6 @@ export const esquemaMovimentacao = z
       }),
     ),
     destino_filial_id: z.string().min(1, "Escolha a filial de destino."),
-    categoria_destino_id: z.string(),
     levado_por_id: z.string().min(1, "Escolha quem leva."),
     quando: z.enum(["agora", "agendar"]),
     dia: z.string(),
@@ -38,7 +37,6 @@ export const VALORES_INICIAIS_MOVIMENTACAO: ValoresMovimentacao = {
   veiculo_id: "",
   paradas: [],
   destino_filial_id: "",
-  categoria_destino_id: "",
   levado_por_id: "",
   quando: "agora",
   dia: "",
@@ -55,7 +53,6 @@ export function paraCorpoMovimentacao(v: ValoresMovimentacao): NovaMovimentacao 
     veiculo_id: Number(v.veiculo_id),
     paradas: v.paradas.map((p) => ({ local_id: Number(p.local_id), servico: p.servico.trim(), valor_previsto_centavos: centavosDoTexto(p.valor_previsto) ?? 0 })),
     destino_filial_id: Number(v.destino_filial_id),
-    categoria_destino_id: v.categoria_destino_id ? Number(v.categoria_destino_id) : null,
     levado_por_id: Number(v.levado_por_id),
     sair_agora: v.quando === "agora",
     agendada_para: agendada,
@@ -67,6 +64,6 @@ export function paraCorpoMovimentacao(v: ValoresMovimentacao): NovaMovimentacao 
 export function campoDoFormulario(campo: string): string {
   const parada = /^paradas\[(\d+)\]\.(local_id|servico|valor_previsto_centavos)$/.exec(campo);
   if (parada) return `paradas.${parada[1]}.${parada[2] === "valor_previsto_centavos" ? "valor_previsto" : parada[2]}`;
-  const simples: Record<string, string> = { veiculo_id: "veiculo_id", destino_filial_id: "destino_filial_id", categoria_destino_id: "categoria_destino_id", levado_por_id: "levado_por_id", agendada_para: "dia" };
+  const simples: Record<string, string> = { veiculo_id: "veiculo_id", destino_filial_id: "destino_filial_id", levado_por_id: "levado_por_id", agendada_para: "dia" };
   return simples[campo] ?? "";
 }

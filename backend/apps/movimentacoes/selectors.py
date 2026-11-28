@@ -40,7 +40,7 @@ ROTULO_DA_ABERTA = {
 
 def base() -> QuerySet[Movimentacao]:
     return Movimentacao.objects.select_related(
-        "veiculo", "filial_saida", "destino", "categoria_destino", "levado_por", "recebido_por"
+        "veiculo", "filial_saida", "destino", "levado_por", "recebido_por"
     )
 
 
@@ -158,11 +158,6 @@ def _comum(movimentacao: Movimentacao, usuario: Any) -> dict[str, Any]:
         },
         "destino": {"id": movimentacao.destino_id, "nome": movimentacao.destino.nome},
         "transferencia": movimentacao.transferencia,
-        "categoria_destino": (
-            {"id": movimentacao.categoria_destino_id, "nome": movimentacao.categoria_destino.nome}
-            if movimentacao.categoria_destino is not None
-            else None
-        ),
         "rota": rota(movimentacao),
         "levado_por": _pessoa(movimentacao.levado_por),
         "agendada_para": movimentacao.agendada_para,

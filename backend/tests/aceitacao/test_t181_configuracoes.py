@@ -17,6 +17,7 @@ from apps.filiais.models import Filial
 from apps.plataforma.models import Empresa, UsoEmpresa
 from apps.relatorios import configuracoes as textos
 
+from .frota import criar_categorias
 from .test_t014_clientes import _suporte
 from .test_t015_locacoes import (
     _plano,
@@ -73,6 +74,9 @@ def moto_rapida(cenario, settings):  # noqa: F811
     )
     UsoEmpresa.objects.filter(empresa=cenario.moto.empresa).update(usuarios=5)
     _passos("conta", "filial", "primeira_locacao")
+    # O resumo "Tabelas de preço" ainda conta as categorias antigas, até sair na T-522 B2
+    # (ADR 0043); o cenário não as cria mais, então elas entram aqui, como dado de antes.
+    criar_categorias(cenario.pessoas["Mariana"])
     return cenario
 
 

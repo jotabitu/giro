@@ -100,9 +100,7 @@ def _entrada_da_query(classe: type[Serializer[Any]], request: Request) -> dict[s
 
 def _veiculo(request: Request, pk: int) -> Veiculo:
     """Só no escopo de filiais da pessoa; fora dele, 404 (USR-07)."""
-    return get_object_or_404(
-        selectors.no_escopo(request.user).select_related("categoria", "filial"), pk=pk
-    )
+    return get_object_or_404(selectors.no_escopo(request.user).select_related("filial"), pk=pk)
 
 
 def _representacao(
@@ -110,7 +108,7 @@ def _representacao(
 ) -> Response:
     """A ficha (`detalhe`) ou a resposta do `POST` e do `PATCH`, as duas com os blocos da
     VEI-09 (T-421)."""
-    veiculo = Veiculo.objects.select_related("categoria", "filial").get(pk=veiculo.pk)
+    veiculo = Veiculo.objects.select_related("filial").get(pk=veiculo.pk)
     dados = selectors.representacao(
         veiculo, request.user, detalhe=detalhe, com_dados_do_documento=True
     )
@@ -142,7 +140,6 @@ class VeiculosView(APIView):
         parameters=[
             OpenApiParameter("status", str),
             OpenApiParameter("tipo_veiculo", enum=["moto", "carro"]),
-            OpenApiParameter("categoria", int),
             OpenApiParameter("busca", str),
             OpenApiParameter("ordem", enum=list(selectors.ORDENS)),
             OpenApiParameter("em_movimentacao", bool),
@@ -157,10 +154,9 @@ class VeiculosView(APIView):
         contagens = selectors.contagens(da_filial)
         qs = selectors.filtrar(
             selectors.anotar_entrada_no_estoque(
-                selectors.anotar_tem_plano_ligado(da_filial.select_related("categoria", "filial"))
+                selectors.anotar_tem_plano_ligado(da_filial.select_related("filial"))
             ),
             status=parametros.get("status"),
-            categoria=parametros.get("categoria"),
             busca=parametros.get("busca"),
         )
         qs = selectors.com_movimentacao(
@@ -177,13 +173,10 @@ class VeiculosView(APIView):
         paginacao.ordering = ordenacao  # type: ignore[assignment]
         pagina = paginacao.paginate_queryset(qs, request, view=self) or []
         hoje = relogio.hoje()
-        precos = selectors.precos_vigentes({v.categoria_id for v in pagina}, hoje)
         documentos = selectors.resumos_de_documentos({v.pk for v in pagina}, hoje)
         limite = selectors.limite_dias_parado()
         dados = [
-            selectors.representacao(
-                v, request.user, precos=precos, documentos=documentos, limite_parado=limite
-            )
+            selectors.representacao(v, request.user, documentos=documentos, limite_parado=limite)
             for v in pagina
         ]
         return paginacao.get_paginated_response(

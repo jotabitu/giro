@@ -5,7 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { contas, veiculos, type Eu } from "@/lib/api";
 import { definirAccess } from "@/lib/api/http";
 import { veiculosApi } from "@/lib/api/veiculos";
-import { categoriaAoTrocarTipo, esquemaVeiculo, paraCorpoEdicao, semCategoriaDoTipo, textoDeCentavos, valoresDoVeiculo } from "@/lib/veiculos";
+import { esquemaVeiculo, paraCorpoEdicao, textoDeCentavos, valoresDoVeiculo } from "@/lib/veiculos";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} }), usePathname: () => "/veiculos/501/editar", useSearchParams: () => new URLSearchParams() }));
 
@@ -53,7 +53,7 @@ describe("editar veículo, gerente", () => {
     const t = texto(html);
     expect(t).toContain("Editar veículo");
     // Os campos livres são não controlados (sem `value` na marcação do servidor): os valores iniciais aparecem no cartão ao lado e em `valoresDoVeiculo`.
-    ordem(t, ["Honda CG 160 Fan", "QXA-4B21 · 2023 · 18.950 km", "Street 150–160", "Filial Centro"]);
+    ordem(t, ["Honda CG 160 Fan", "QXA-4B21 · 2023 · 18.950 km", "Filial Centro"]);
     for (const rotulo of ["Placa", "Chassi", "Km atual", "Filial"]) {
       const campo = html.match(new RegExp(`<label[^>]*>${rotulo}</label>.*?<input[^>]*>`, "s"))?.[0] ?? "";
       expect(campo, rotulo).toContain("readOnly");
@@ -70,7 +70,7 @@ describe("editar veículo, gerente", () => {
     const campo = html.match(/<label[^>]*>Moto ou carro<\/label>.*?<\/select>/s)?.[0] ?? "";
     expect(campo).not.toContain("disabled");
     expect(campo).toMatch(/<option value="moto" selected="">Moto<\/option>/);
-    expect(html.indexOf(">Moto ou carro</label>")).toBeLessThan(html.indexOf(">Tipo de plano</label>"));
+    expect(html).not.toContain("Tipo de plano"); // ADR 0043
   });
 
   it("test_vei_11_tipo_travado_com_locacao_aberta (CA-438-08)", async () => {
@@ -106,17 +106,13 @@ describe("PATCH /api/veiculos/{id}/ no falso (VEI-01)", () => {
     await expect(veiculos.atualizar(504, { renavam: "12" })).rejects.toMatchObject({ status: 400, campos: { renavam: expect.any(String) } });
   });
 
-  it("test_vei_11_tipo_vem_da_categoria_e_recusa_com_locacao_aberta (CA-438-04, 07, 08)", async () => {
-    const categorias = await veiculos.categorias({});
-    const carro = categorias.find((c) => c.tipo_veiculo === "carro")!;
+  it("test_vei_11_tipo_e_do_veiculo_e_recusa_com_locacao_aberta (CA-438-04, 07, 08; ADR 0043)", async () => {
     // QXA-4B21 alugado na LOC-2841: 409 com a frase, e continua moto.
-    await expect(veiculos.atualizar(501, { categoria_id: carro.id })).rejects.toMatchObject({ status: 409, codigo: "tipo_com_locacao_aberta", message: "Este veículo está na LOC-2841. Troque o tipo depois da devolução." });
+    await expect(veiculos.atualizar(501, { tipo_veiculo: "carro" })).rejects.toMatchObject({ status: 409, codigo: "tipo_com_locacao_aberta", message: "Este veículo está na LOC-2841. Troque o tipo depois da devolução." });
     expect((await veiculos.obter(501)).tipo_veiculo).toBe("moto");
-    // SAK-1D39 disponível: o tipo vem da categoria nova.
-    const sak = await veiculos.atualizar(504, { categoria_id: carro.id });
-    expect(sak.tipo_veiculo).toBe("carro");
-    const moto = categorias.find((c) => c.tipo_veiculo === "moto")!;
-    expect((await veiculos.atualizar(504, { categoria_id: moto.id })).tipo_veiculo).toBe("moto");
+    // SAK-1D39 disponível: o tipo muda pelo próprio campo.
+    expect((await veiculos.atualizar(504, { tipo_veiculo: "carro" })).tipo_veiculo).toBe("carro");
+    expect((await veiculos.atualizar(504, { tipo_veiculo: "moto" })).tipo_veiculo).toBe("moto");
   });
 
   it("vendedor recebe 403", async () => {
@@ -133,27 +129,14 @@ describe("corpo do PATCH", () => {
     const valores = valoresDoVeiculo(ficha);
     expect(valores.valor_compra).toBe("13.900,00");
     const corpo = paraCorpoEdicao({ ...valores, renavam: "", data_compra: "", valor_compra: "", capacidade_tanque_litros: "" });
-    expect(corpo).toMatchObject({ renavam: null, data_compra: null, valor_compra_centavos: null, capacidade_tanque_litros: null, marca: "Honda", categoria_id: ficha.categoria.id });
+    expect(corpo).toMatchObject({ renavam: null, data_compra: null, valor_compra_centavos: null, capacidade_tanque_litros: null, marca: "Honda", tipo_veiculo: "moto" });
     for (const fora of ["placa", "chassi", "km_atual", "filial_id", "status"]) expect(fora in corpo, fora).toBe(false);
   });
 
-  it("test_vei_11_trocar_o_tipo_esvazia_a_categoria_e_voltar_devolve (CA-438-03, 05)", () => {
-    const ida = categoriaAoTrocarTipo({}, "moto", "2", "carro");
-    expect(ida.categoria).toBe("");
-    const volta = categoriaAoTrocarTipo(ida.guardadas, "carro", "", "moto");
-    expect(volta.categoria).toBe("2");
-    // Escolhida uma categoria de carro, ela também volta quando a pessoa marca Carro de novo.
-    const deNovo = categoriaAoTrocarTipo(volta.guardadas, "moto", "2", "carro");
-    expect(categoriaAoTrocarTipo(deNovo.guardadas, "carro", "4", "moto").guardadas.carro).toBe("4");
-    expect(categoriaAoTrocarTipo({}, "moto", "2", "moto").categoria).toBe("2");
-  });
-
-  it("test_vei_11_sem_categoria_do_tipo_e_categoria_obrigatoria (CA-438-06, 12)", () => {
-    expect(semCategoriaDoTipo("carro")).toBe("Nenhum tipo de plano de carro nesta filial.");
-    expect(semCategoriaDoTipo("moto")).toBe("Nenhum tipo de plano de moto nesta filial.");
-    const vazio = esquemaVeiculo.shape.categoria_id.safeParse("");
+  it("test_vei_11_tipo_obrigatorio (ADR 0043)", () => {
+    const vazio = esquemaVeiculo.shape.tipo.safeParse("");
     expect(vazio.success).toBe(false);
-    expect(vazio.error?.issues[0]?.message).toBe("Escolha o tipo de plano.");
+    expect(vazio.error?.issues[0]?.message).toBe("Escolha moto ou carro.");
   });
 
   it("textoDeCentavos", () => {

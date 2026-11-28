@@ -5,7 +5,7 @@ const texto = z.string().trim();
 
 /** Só o que a API exige para salvar; formato de placa, chassi e anos é conferido pela API e o erro volta no campo. */
 export const esquemaVeiculo = z.object({
-  tipo: z.enum(["moto", "carro"]),
+  tipo: z.enum(["moto", "carro"], { message: "Escolha moto ou carro." }), // VEI-11 (ADR 0043)
   placa: texto.min(1, "Informe a placa"),
   marca: texto.min(1, "Informe a marca"),
   modelo: texto.min(1, "Informe o modelo"),
@@ -16,7 +16,6 @@ export const esquemaVeiculo = z.object({
   cor: texto.min(1, "Informe a cor"),
   km_atual: texto.min(1, "Informe o km"),
   filial_id: texto.min(1, "Escolha a filial"),
-  categoria_id: texto.min(1, "Escolha o tipo de plano."), // VEI-11
   capacidade_tanque_litros: texto,
   data_compra: texto,
   crlv_validade: texto,
@@ -50,7 +49,6 @@ export const VALORES_INICIAIS_VEICULO: ValoresVeiculo = {
   cor: "",
   km_atual: "0",
   filial_id: "",
-  categoria_id: "",
   capacidade_tanque_litros: "",
   data_compra: "",
   valor_compra: "",
@@ -112,6 +110,7 @@ type CampoVei09 = (typeof CAMPOS_VEI_09)[number];
 /** Chave da API (`documento.potencia_cv`, `valor_compra_centavos`) → campo da tela, para mostrar o erro 400 no campo certo. */
 export const NOME_DO_CAMPO_DA_API: Record<string, keyof ValoresVeiculo> = {
   valor_compra_centavos: "valor_compra",
+  tipo_veiculo: "tipo",
   ...Object.fromEntries(CAMPOS_VEI_09.map((c) => [c.chave, c.nome])),
 };
 
@@ -167,7 +166,7 @@ export function paraCorpoVeiculo(v: ValoresVeiculo): NovoVeiculo {
     ano_modelo: Number(v.ano_modelo),
     cor: v.cor.trim(),
     km_atual: Number(v.km_atual.replace(/\./g, "")),
-    categoria_id: Number(v.categoria_id),
+    tipo_veiculo: v.tipo,
     filial_id: Number(v.filial_id),
   };
   if (v.renavam) corpo.renavam = v.renavam.replace(/\D/g, "");
@@ -204,7 +203,6 @@ export function valoresDoVeiculo(v: VeiculoDetalhe): ValoresVeiculo {
     cor: v.cor,
     km_atual: String(v.km_atual),
     filial_id: String(v.filial.id),
-    categoria_id: String(v.categoria.id),
     capacidade_tanque_litros: v.capacidade_tanque_litros ?? "",
     data_compra: v.data_compra ?? "",
     valor_compra: v.valor_compra_centavos != null ? textoDeCentavos(v.valor_compra_centavos) : "",
@@ -239,7 +237,7 @@ export function paraCorpoEdicao(v: ValoresVeiculo, opcoes: { comMotorEObservacoe
     ano_fabricacao: Number(v.ano_fabricacao),
     ano_modelo: Number(v.ano_modelo),
     cor: v.cor.trim(),
-    categoria_id: Number(v.categoria_id),
+    tipo_veiculo: v.tipo,
     renavam: v.renavam ? v.renavam.replace(/\D/g, "") : null,
     capacidade_tanque_litros: v.capacidade_tanque_litros ? v.capacidade_tanque_litros.replace(",", ".") : null,
     data_compra: v.data_compra || null,
@@ -277,17 +275,3 @@ export const OPCOES_DE_TIPO: { valor: TipoVeiculo; rotulo: string }[] = [
   { valor: "moto", rotulo: "Moto" },
   { valor: "carro", rotulo: "Carro" },
 ];
-
-/** Categoria guardada por tipo, para voltar ao tipo anterior antes de salvar devolver a categoria que estava. */
-export type CategoriasPorTipo = Partial<Record<TipoVeiculo, string>>;
-
-/** Trocar o tipo esvazia a categoria (ou devolve a que estava nesse tipo) e guarda a do tipo de antes. A API é quem diz se a troca vale. */
-export function categoriaAoTrocarTipo(guardadas: CategoriasPorTipo, de: TipoVeiculo, categoria: string, para: TipoVeiculo): { categoria: string; guardadas: CategoriasPorTipo } {
-  if (de === para) return { categoria, guardadas };
-  return { categoria: guardadas[para] ?? "", guardadas: { ...guardadas, [de]: categoria } };
-}
-
-/** A lista de categorias do tipo veio vazia: a frase da VEI-11. */
-export function semCategoriaDoTipo(tipo: TipoVeiculo): string {
-  return `Nenhum tipo de plano de ${tipo} nesta filial.`;
-}

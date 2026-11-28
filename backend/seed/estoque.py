@@ -21,7 +21,7 @@ from apps.financeiro import services as financeiro
 from apps.plataforma.models import Empresa
 from apps.plataforma.services import recalcular_uso
 from apps.veiculos import services as veiculos_services
-from apps.veiculos.models import Categoria, Veiculo
+from apps.veiculos.models import Veiculo
 
 from .ator import administradora, como
 from .financeiro import _nota
@@ -166,10 +166,9 @@ def _despesa_recusada(
 
 
 def _preencher_tabela(veiculo: Veiculo, categoria: str) -> None:
-    """VEI-15 (T-494): "Colocar à venda" pede um plano ligado. Os três chegaram antes do preço
-    vigente da categoria (a Urbana vale desde 01 out, a Street desde 01 set), e o cadastro os
-    deixou com os planos desligados e o preço de 01 out agendado. A Mariana preenche a tabela da
-    moto com os valores da tabela do seed, pela tela de preços; nada muda nos números do
+    """VEI-15 (T-494): "Colocar à venda" pede um plano ligado. O cadastro deixou os três "sem
+    preço", com os planos em R$ 0,00 desligados (ADR 0043, item 5). A Mariana preenche a tabela
+    da moto com os valores da tabela do seed, pela tela de preços; nada muda nos números do
     estoque (`dados-de-teste.md`)."""
     if veiculos_services.tem_plano_ligado(veiculo):
         return
@@ -190,7 +189,6 @@ def _preencher_tabela(veiculo: Veiculo, categoria: str) -> None:
 def garantir_estoque_parado(
     empresa: Empresa,
     centro: Filial,
-    categorias: dict[str, Categoria],
     pessoas: dict[str, Usuario],
     relogio: RelogioDoSeed,
 ) -> bool:
@@ -210,9 +208,10 @@ def garantir_estoque_parado(
         relogio.em(f"{dados.compra_em} 09:00")
         veiculo = cadastrar_veiculo(
             NUMERO_BASE + posicao,
-            categorias[dados.categoria],
+            dados.categoria,
             centro,
             "disponivel",
+            com_precos=False,
             placa=dados.placa,
             chassi=dados.chassi,
             marca=dados.marca,

@@ -162,11 +162,6 @@ function FormularioDaMovimentacao({ aoFechar }: { aoFechar: () => void }) {
   }, [outraFilial, v.destino_filial_id, setValue]);
   const quemLeva = useQuery({ queryKey: ["movimentacoes", "levam", filialDeSaida], queryFn: async () => (await movimentacoes.pessoas(filialDeSaida ?? 0)).resultados, enabled: filialDeSaida !== undefined });
   const transferencia = veiculo !== null && v.destino_filial_id !== "" && Number(v.destino_filial_id) !== filialDeSaida;
-  const categoriasDoDestino = useQuery({
-    queryKey: ["categorias", { filial: v.destino_filial_id, tipo: veiculo?.tipo_veiculo }],
-    queryFn: () => veiculos.categorias({ filial: Number(v.destino_filial_id), tipo_veiculo: veiculo?.tipo_veiculo }),
-    enabled: transferencia,
-  });
 
   const criar = useMutation({ mutationFn: (valores: ValoresMovimentacao) => movimentacoes.criar(paraCorpoMovimentacao(valores)) });
 
@@ -259,15 +254,6 @@ function FormularioDaMovimentacao({ aoFechar }: { aoFechar: () => void }) {
                   )}
                 </div>
                 <CampoSelecao rotulo="Filial de destino" vazio="Escolha a filial" opcoes={(minhas.data?.resultados ?? []).map((f) => ({ valor: String(f.id), rotulo: f.nome }))} erro={erro("destino_filial_id")} {...register("destino_filial_id")} />
-                {transferencia && (
-                  <CampoSelecao
-                    rotulo="Categoria do veículo na filial de destino"
-                    vazio="Manter a categoria atual"
-                    opcoes={(categoriasDoDestino.data ?? []).map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
-                    erro={erro("categoria_destino_id")}
-                    {...register("categoria_destino_id")}
-                  />
-                )}
                 <p className="m-0 text-caption text-ink-muted">O destino é sempre uma filial. Em outra filial, o veículo passa a ser dela na chegada.</p>
               </div>
             </div>

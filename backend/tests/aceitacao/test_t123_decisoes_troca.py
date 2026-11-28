@@ -20,7 +20,7 @@ from apps.financeiro.models import ContaReceber, Reembolso
 from apps.locacoes import leituras as locacoes_leituras
 from apps.locacoes import services as locacoes_services
 from apps.locacoes.models import Locacao, TrocaVeiculo
-from apps.veiculos.models import PrecoCategoria, Veiculo
+from apps.veiculos.models import PlanoVeiculo, Veiculo
 from apps.vistorias.models import Devolucao, Vistoria
 from comum import relogio as relogio_do_giro
 from comum.documentos import placa_com_hifen
@@ -212,14 +212,11 @@ def test_loc_09_preco_guardado_no_pedido(cenario, juliana, relogio):
     )
     assert troca.preco_do_dia == date(2026, 10, 7)
     assert _caucao_da_troca(juliana).valor_centavos == 20000
-    PrecoCategoria.objects.create(
-        categoria=cenario.frota.categorias[SCOOTER],
-        vigente_desde=date(2026, 10, 8),
-        diaria_centavos=8990,
-        semanal_centavos=49900,
-        mensal_centavos=179000,
-        caucao_centavos=60000,
-    )
+    # O preço da NMax muda depois do pedido (ADR 0043: o preço é do veículo, sem categoria).
+    for tipo, valor in (("diaria", 8990), ("semanal", 49900), ("mensal", 179000)):
+        PlanoVeiculo.objects.filter(veiculo=nmax, tipo=tipo).update(
+            valor_centavos=valor, caucao_centavos=60000
+        )
 
     _ir_para(cenario, relogio, "2026-10-08 10:00")
     locacoes_services.concluir_troca(troca, km_saida=nmax.km_atual, momento=relogio_do_giro.agora())

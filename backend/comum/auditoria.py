@@ -91,11 +91,13 @@ CAMPOS_IGNORADOS = frozenset({"atualizado_em"})
 
 def retrato(objeto: models.Model) -> dict[str, Any]:
     """Valores reais dos campos. A classificação (omitir, mascarar) é aplicada ao gravar.
-    Arquivo entra pelo caminho no armazenamento, nunca pelo conteúdo."""
+    Arquivo entra pelo caminho no armazenamento, nunca pelo conteúdo. O model pode tirar do
+    retrato um dado antigo que ninguém mais lê (`FORA_DO_RETRATO`, ADR 0043)."""
+    fora = CAMPOS_IGNORADOS | frozenset(getattr(objeto, "FORA_DO_RETRATO", ()))
     return {
         campo.attname: _valor(getattr(objeto, campo.attname))
         for campo in objeto._meta.concrete_fields
-        if campo.name not in CAMPOS_IGNORADOS
+        if campo.name not in fora
     }
 
 

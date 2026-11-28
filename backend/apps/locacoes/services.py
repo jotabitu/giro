@@ -221,9 +221,7 @@ def _cliente(cliente_id: Any) -> Cliente:
 
 
 def _veiculo(veiculo_id: Any) -> Veiculo:
-    veiculo: Veiculo | None = (
-        Veiculo.objects.select_related("categoria").filter(pk=veiculo_id).first()
-    )
+    veiculo: Veiculo | None = Veiculo.objects.filter(pk=veiculo_id).first()
     if veiculo is None:
         raise ErroDeValidacao({"veiculo_id": ["Veículo não encontrado."]})
     return veiculo
@@ -328,7 +326,7 @@ def impedimentos(
     `inicio_vencido` da LOC-12). Desde a T-410, o veículo `reservado` não serve: ele é de uma
     locação `aguardando_retirada` ou de uma troca pendente."""
     lista = clientes_selectors.impedimentos_para_nova_locacao(cliente)
-    tipo = veiculo.categoria.tipo_veiculo
+    tipo = veiculo.tipo_veiculo
     if cliente.cnh_categoria not in clientes_selectors.CATEGORIA_POR_TIPO[tipo]:
         exigida = clientes_selectors.EXIGIDA_POR_TIPO[tipo]
         lista.append(
@@ -1560,7 +1558,7 @@ def _plano_depois_da_troca(locacao: Locacao, veiculo: Veiculo) -> int | None:
 
 def _impedimento_da_troca(locacao: Locacao, veiculo: Veiculo) -> ErroDeRegra | None:
     """422 `CLI-02` (CNH sem a categoria), `FIL-05` (de outra filial) e `LOC-03` (indisponível)."""
-    tipo = veiculo.categoria.tipo_veiculo
+    tipo = veiculo.tipo_veiculo
     if locacao.cliente.cnh_categoria not in clientes_selectors.CATEGORIA_POR_TIPO[tipo]:
         exigida = clientes_selectors.EXIGIDA_POR_TIPO[tipo]
         return ErroDeRegra("CLI-02", f"A CNH do cliente não tem a categoria {exigida}.")
@@ -1775,7 +1773,7 @@ def concluir_troca(troca: TrocaVeiculo, *, km_saida: int, momento: datetime) -> 
         troca = TrocaVeiculo.objects.select_for_update(of=("self",)).get(pk=troca.pk)
         if troca.status != StatusTroca.PENDENTE:
             return troca
-        veiculo = Veiculo.objects.select_related("categoria").get(pk=troca.veiculo_novo_id)
+        veiculo = Veiculo.objects.get(pk=troca.veiculo_novo_id)
         preco = preco_guardado(troca)
         antiga = _entrada_congelada(travada, Decimal(travada.desconto_pct))
         nova = replace(antiga, preco_periodo_centavos=preco.periodo_centavos)

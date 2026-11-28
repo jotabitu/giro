@@ -70,12 +70,17 @@ def _avulsa(cenario: Cenario, cliente_id: int) -> Any:
 
 
 def test_vei_22_categorias_nao_contam_o_excluido(cenario: Cenario) -> None:
-    """A lista conta os veículos pelo join, que não passa pelo manager."""
+    """A lista conta os veículos pelo join, que não passa pelo manager. A categoria é dado
+    antigo (ADR 0043), gravada aqui à mão; a rota sai na T-522 B2."""
+    from apps.veiculos.models import Categoria, Veiculo
+
+    antiga = Categoria.objects.create(nome="Street antiga", tipo_veiculo="moto")
+    Veiculo.objects.filter(pk=cenario.sak.pk).update(categoria=antiga)
 
     def contagem() -> int:
         corpo = cenario.moto.api("Mariana").get("/api/categorias/").json()
         lista = corpo["resultados"] if isinstance(corpo, dict) else corpo
-        return int(next(c["veiculos"] for c in lista if c["id"] == cenario.sak.categoria_id))
+        return int(next(c["veiculos"] for c in lista if c["id"] == antiga.pk))
 
     antes = contagem()
     resposta = cenario.moto.api("Mariana").post(

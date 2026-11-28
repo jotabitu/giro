@@ -158,7 +158,7 @@ def _compra_da_simulacao(montagem: services.Montagem) -> dict[str, Any] | None:
 def base() -> QuerySet[Any]:
     qs = Locacao.objects.select_related(
         "cliente",
-        "veiculo__categoria",
+        "veiculo",
         "plano_especial",
         "plano_compra",
         "plano_veiculo",
@@ -473,7 +473,7 @@ def linha(locacao: Locacao) -> dict[str, Any]:
             "id": locacao.veiculo_id,
             "modelo": f"{locacao.veiculo.marca} {locacao.veiculo.modelo}",
             "placa": locacao.veiculo.placa,
-            "tipo": locacao.veiculo.categoria.tipo_veiculo,
+            "tipo": locacao.veiculo.tipo_veiculo,
         },
         "periodicidade": locacao.periodicidade,
         "plano_especial": {"id": plano.pk, "nome": plano.nome} if plano else None,
@@ -902,7 +902,7 @@ def _impedimentos_da_retirada(locacao: Locacao) -> list[str]:
     frases = [
         i["mensagem"]
         for i in clientes_selectors.impedimentos_para_retirada(
-            locacao.cliente, veiculo.categoria.tipo_veiculo, hoje
+            locacao.cliente, veiculo.tipo_veiculo, hoje
         )
     ]
     vencidos = veiculos_services.documentos_vencidos_que_bloqueiam(veiculo, hoje)

@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 24 nov 2026 (T-507, aluguel ligado ou desligado, `VEI-21`); 18 nov 2026 (T-494, preços do veículo, `VEI-12` a `VEI-17`, ADR 0041); 05 nov 2026 (T-422, referência FIPE, ADR 0038); 03 nov 2026 (T-414, fotos do veículo, `VEI-10`, ADR 0036; T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-10, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026, 0036, 0038 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
+**Dono:** arquiteto · **Versão:** 28 nov 2026 (T-522 B1: `tipo_veiculo` do veículo, sem categoria no cadastro, no editar, na ficha e na transferência; nascimento "sem preço"; ADR 0043); 24 nov 2026 (T-507, aluguel ligado ou desligado, `VEI-21`); 18 nov 2026 (T-494, preços do veículo, `VEI-12` a `VEI-17`, ADR 0041); 05 nov 2026 (T-422, referência FIPE, ADR 0038); 03 nov 2026 (T-414, fotos do veículo, `VEI-10`, ADR 0036; T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-10, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026, 0036, 0038 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -31,12 +31,10 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   "renavam": "01289934410",
   "marca": "Honda", "modelo": "CG 160 Fan", "ano_fabricacao": 2025, "ano_modelo": 2025, "cor": "vermelha", "combustivel": "gasolina",
   "tipo_veiculo": "moto",
-  "categoria": { "id": 2, "nome": "Street 150–160" },
   "filial": { "id": 1, "nome": "Filial Centro" },
   "status": "disponivel",
   "motivo_status": null,
   "km_atual": 3120, "km_atualizado_em": "2026-10-07T11:00:00Z", "capacidade_tanque_litros": "16.0",
-  "preco_vigente": { "diaria_centavos": 5490, "semanal_centavos": 32900, "mensal_centavos": 119000, "caucao_centavos": 30000 },
   "valor_venda_centavos": null, "referencia_fipe_centavos": null,
   "valor_compra_centavos": 1390000, "data_compra": "2025-03-10",
   "entrou_na_frota_em": "2025-03-12",
@@ -62,7 +60,7 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   - Para o vistoriador, os três campos ficam **ausentes** (não nulos), como os valores.
   - A tela só mostra: "53 dias", "1 dia", "Hoje" com 0, e o tom de alerta quando `parado`.
 - `placa` sai sem hífen no campo, e a tela põe o hífen; dentro de um texto montado pela API, sai com hífen (`docs/api/README.md`, Convenções, T-340). Aceita padrão antigo (`ABC1234`) e Mercosul (`ABC1D23`). `chassi` com 17 letras e números.
-- `preco_vigente`: preço da categoria vigente hoje (`LOC-15`). A coluna "Diária" da Frota usa `diaria_centavos`; veículo `a_venda` mostra `valor_venda_centavos`.
+- `tipo_veiculo` (`VEI-11`, ADR 0043): `moto` ou `carro`, do próprio veículo. Decide a CNH exigida (`CLI-02`), os itens da vistoria (`VIS-01`), os filtros Moto e Carro e os textos "desta moto" ou "deste carro". `categoria` e `preco_vigente` (o preço da categoria) saíram da lista e da ficha na T-522: o preço é de cada veículo (seção "Preços do veículo").
 - `situacao`: a API decide. Base no `status` do veículo; um bloco com `alerta` (ADR 0015) sobrepõe, ex.: "Atrasado" (`perigo`) quando a locação atual está `devolucao_atrasada`.
 - `situacao.desde` (T-449, `LOC-10`, "Data e dias do atraso na tela"): data (`"2026-10-14"`, em `America/Sao_Paulo`) do "desde" do card "Agora" da ficha, copiada de `locacao_atual.desde`. Na devolução atrasada, é a data do fim previsto ("Atrasado desde 14 out"); com a locação `ativa` ou `aguardando_retirada`, a do início ("Alugado desde 30 set", "Reservado na LOC-2856 desde 05 nov"). Sem locação aberta, `null`, e a tela mostra só o `rotulo`. A tela não usa `inicio` nem `fim_previsto` para montar esse texto.
 - `acoes`: combina perfil, `status` e a tabela de transições; o frontend mostra só o que vier `true`. `corrigir_km` vem `true` também para o vistoriador, que pede a correção (`APR-06`).
@@ -149,7 +147,7 @@ Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
 
 ### GET /api/veiculos/
 Perfis: todos (escopo de filial).
-Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (placa, modelo, chassi), `?ordem=placa|-km_atual|modelo|em_estoque`. A filial vem do `X-Filial` (`filiais.md`).
+Query: `?status=`, `?tipo_veiculo=moto|carro` (pelo tipo do veículo), `?busca=` (placa, modelo, chassi), `?ordem=placa|-km_atual|modelo|em_estoque`. A filial vem do `X-Filial` (`filiais.md`).
 - `?ordem=em_estoque` (T-486, `VEI-18`): do mais parado para o menos (a entrada mais antiga primeiro, com data e hora), depois a placa; os veículos sem o número (fora do estoque ou sem entrada) vão para o fim. Com `?status=a_venda` e sem `?ordem`, essa é a ordem padrão.
 200:
 ```json
@@ -235,25 +233,27 @@ O que a ficha de referência mostra e a representação não trazia. Tudo só no
 
 ### POST /api/veiculos/
 Perfis: administrador, gerente.
-Corpo: `{ placa, chassi, renavam?, marca, modelo, ano_fabricacao, ano_modelo, cor, combustivel?, km_atual, categoria_id, filial_id, capacidade_tanque_litros?, valor_compra_centavos?, data_compra?, entrou_na_frota_em?, documento?, rastreador?, anotacoes? }` (os três últimos da `VEI-09`, formato abaixo; todos opcionais, `VEI-01`). Com o CRLV lido (`VEI-08`), o mesmo corpo vai em `multipart/form-data`, com o bloco do documento ("Preencher pelo CRLV-e", abaixo). Sem `capacidade_tanque_litros`, o combustível do acerto é informado à mão (`DEV-01`).
-201: representação (status `disponivel`).
-400 `validacao`: placa ou chassi fora do formato, categoria de outra filial, ano inválido.
+Corpo: `{ placa, chassi, renavam?, marca, modelo, ano_fabricacao, ano_modelo, cor, combustivel?, km_atual, tipo_veiculo, filial_id, capacidade_tanque_litros?, valor_compra_centavos?, data_compra?, entrou_na_frota_em?, documento?, rastreador?, anotacoes? }` (os três últimos da `VEI-09`, formato abaixo; todos opcionais, `VEI-01`). Com o CRLV lido (`VEI-08`), o mesmo corpo vai em `multipart/form-data`, com o bloco do documento ("Preencher pelo CRLV-e", abaixo). Sem `capacidade_tanque_litros`, o combustível do acerto é informado à mão (`DEV-01`).
+`tipo_veiculo` (`moto` | `carro`, o "Veículo" da tela) é obrigatório e não tem padrão (ADR 0043): sem ele, ou com outro valor, 400 `{ "tipo_veiculo": ["Escolha moto ou carro."] }`. `categoria_id` saiu do corpo; enviado, é ignorado, como qualquer campo fora do contrato. A leitura do CRLV-e não preenche o tipo.
+201: representação, com status `indisponivel` e `motivo_status` "Sem preço · ligue um plano" (`VEI-15`, ponto T-522 · 1, padrão A): o veículo nasce com os planos `diaria`, `semanal` e `mensal` em R$ 0,00, desligados (seção "Veículo novo"). O primeiro plano ligado na tela de preços o leva a `disponivel`.
+400 `validacao`: placa ou chassi fora do formato, tipo do veículo ausente ou inválido, ano inválido.
 409 `{ "codigo": "VEI-01", "mensagem": "Já existe um veículo com esta placa", "detalhes": { "campo": "placa", "veiculo_id": 77 } }`; o mesmo para `chassi`. Vale para veículo em qualquer estado, inclusive `vendido` e `baixado`.
 422 `PLT-03`: limite de veículos do plano.
-Efeitos: grava a primeira `LeituraKm` e o `HistoricoStatusVeiculo` inicial; `atualizar_uso("veiculos", +1)`.
+Efeitos: grava a primeira `LeituraKm` e o `HistoricoStatusVeiculo` inicial (`"" → indisponivel`); `atualizar_uso("veiculos", +1)`.
 Recompra numa troca (`VEN-05`, `VEI-07`) não passa por aqui: a venda chama `veiculos.services.receber_na_troca(chassi, ...)`, que acha o cadastro pelo chassi e leva o veículo de `vendido` para `indisponivel`.
-Regras: VEI-01, PLT-03.
+Recebido numa troca com chassi novo, `receber_na_troca` exige `tipo_veiculo` nos dados, como o cadastro, e o veículo nasce `indisponivel`.
+Regras: VEI-01, VEI-11, VEI-15, PLT-03.
 
 ### PATCH /api/veiculos/{id}/
-Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `combustivel`, `categoria_id`, `capacidade_tanque_litros`, `valor_compra_centavos`, `data_compra`, `documento`, `rastreador`, `anotacoes` (`VEI-09`), e `leitura?`, o comprovante da leitura no editar (abaixo).
+Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `combustivel`, `tipo_veiculo`, `capacidade_tanque_litros`, `valor_compra_centavos`, `data_compra`, `documento`, `rastreador`, `anotacoes` (`VEI-09`), e `leitura?`, o comprovante da leitura no editar (abaixo).
 Não mudam por aqui: `placa` e `chassi` (corrigir é ação do administrador, abaixo), `status`, `km_atual`, `filial`.
-Mudar a categoria vale para locações novas; locação em andamento mantém o preço congelado (`LOC-15`).
+`categoria_id` saiu (ADR 0043); enviado, é ignorado.
 
-**Tipo do veículo** (`VEI-11`, T-438): o tipo é o `tipo_veiculo` da categoria; não há campo de tipo no veículo. Para trocar de moto para carro (ou o contrário), o `PATCH` manda só o `categoria_id` de uma categoria do tipo novo, e a resposta traz o `tipo_veiculo` dela. Um `tipo_veiculo` no corpo é ignorado.
-- **409 `tipo_com_locacao_aberta`**: a categoria nova é de outro tipo e o veículo tem locação aberta (`reservado` ou `alugado`, locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada`, ou troca de veículo pedida, `LOC-09`). Nada é gravado. `{ "codigo": "tipo_com_locacao_aberta", "mensagem": "Este veículo está na LOC-2841. Troque o tipo depois da devolução.", "detalhes": null }`. A mesma frase vem antes em `acoes.motivo_trocar_tipo`.
-- Trocar de categoria **sem** mudar o tipo continua livre em qualquer estado em que o veículo se edita.
-- **Auditoria** (`AUD-01`): no `veiculo.editar`, a troca de categoria leva `categoria_id` e `categoria_nome` de antes e depois; com troca de tipo, também `tipo_veiculo` (`"moto"` → `"carro"`).
-- Testes: `test_vei_11_*` em `tests/aceitacao/test_t438_tipo_do_veiculo.py` (CA-438-04, 07 a 11, 13 e 14).
+**Tipo do veículo** (`VEI-11`, ADR 0043): o `PATCH` manda `tipo_veiculo` (`moto` | `carro`); outro valor dá 400 "Escolha moto ou carro.".
+- **409 `tipo_com_locacao_aberta`**: o tipo muda e o veículo tem locação aberta (`reservado` ou `alugado`, locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada`, ou troca de veículo pedida, `LOC-09`). Nada é gravado. `{ "codigo": "tipo_com_locacao_aberta", "mensagem": "Este veículo está na LOC-2841. Troque o tipo depois da devolução.", "detalhes": null }`. A mesma frase vem antes em `acoes.motivo_trocar_tipo`.
+- Mandar o mesmo tipo de hoje não é troca e passa em qualquer estado em que o veículo se edita.
+- **Auditoria** (`AUD-01`): no `veiculo.editar`, a troca leva `tipo_veiculo` de antes e depois (`"moto"` → `"carro"`). A categoria saiu do retrato dos eventos novos; os antigos não mudam.
+- Testes: `test_vei_11_*` em `tests/aceitacao/test_t438_tipo_do_veiculo.py` e `tests/aceitacao/test_t522_tipo_no_veiculo.py`.
 
 ### POST /api/veiculos/{id}/corrigir-identificacao/
 Perfil: administrador. Corpo: `{ placa?, chassi?, motivo }`. Para erro de digitação. 409 `VEI-01` se colidir. Auditoria `operacao`, com antes e depois.
@@ -374,7 +374,7 @@ Só no `GET /api/veiculos/{id}/` (não vem na Frota). `null` para quem não excl
 O aviso com histórico mostra `motivo` e, em seguida, `caminho`; o botão "Colocar à venda" do aviso segue `acoes.colocar_a_venda`. Os botões ("Excluir veículo", "Manter veículo", "Fechar") são da tela.
 
 ### POST /api/veiculos/{id}/transferir/ (saiu)
-**Saiu do contrato com as movimentações (T-286, ADR 0028, item 6; rota removida na T-288 parte 2).** "Transferir" na ficha abre a Nova movimentação (`MOV-06`), e a transferência acontece na chegada, por `veiculos.services.transferir` com a origem `movimentacao`. O `POST` responde 404. O serviço segue com as regras da `VEI-04` (categoria no destino, `TransferenciaVeiculo`, auditoria com a categoria de antes e a de depois) para a chegada, a importação e o seed.
+**Saiu do contrato com as movimentações (T-286, ADR 0028, item 6; rota removida na T-288 parte 2).** "Transferir" na ficha abre a Nova movimentação (`MOV-06`), e a transferência acontece na chegada, por `veiculos.services.transferir` com a origem `movimentacao`. O `POST` responde 404. O serviço segue com as regras da `VEI-04` (`TransferenciaVeiculo` e auditoria) para a chegada, a importação e o seed. Desde a T-522 (ADR 0043, `FIL-04`, `MOV-06`), a transferência só muda a filial: não há categoria no destino, e `categoria_origem` e `categoria_destino` da `TransferenciaVeiculo` deixam de ser gravadas (ficam só nas antigas).
 
 ## Km
 
@@ -737,7 +737,7 @@ Telas `Veiculo-Precos-Desktop` (`/veiculos/[id]/precos`) e o componente "Preços
 - `plano_compra` `null` enquanto o veículo não tem um; `resultado` `null` sem valor de venda ou com entrada maior ou igual a ele. O "recebe pela moto" usa a parcela arredondada × `n` + entrada (padrão A: Pop R$ 17.768,96). A parcela nas 4 periodicidades usa o mesmo prazo em meses; a parcela da moto e o adicional se arredondam cada um.
 - `alertas`: `{ "codigo": "venda_abaixo_do_pago", "mensagem": "Valor de venda abaixo do que foi pago: o lucro vem só dos juros." }` e, com juros acima de 1% ao mês, `{ "codigo": "VEI-16", "mensagem": "Locadora não é financeira: juros acima de 1% ao mês (12% ao ano) pedem confirmação. Valide o contrato com seu advogado." }`.
 - `aviso_preco`: o mesmo da representação do veículo, calculado sobre o documento mostrado.
-- `aluguel_ligado` e `aviso_aluguel` (`VEI-21`): com o aluguel desligado, `aviso_aluguel` traz "O aluguel desta moto está desativado. O administrador ativa em Planos e preços." ("deste carro" no carro, pelo tipo da categoria); ligado, `null`. A Nova locação mostra esse texto no lugar dos planos de aluguel.
+- `aluguel_ligado` e `aviso_aluguel` (`VEI-21`): com o aluguel desligado, `aviso_aluguel` traz "O aluguel desta moto está desativado. O administrador ativa em Planos e preços." ("deste carro" no carro, pelo tipo do veículo); ligado, `null`. A Nova locação mostra esse texto no lugar dos planos de aluguel.
 - `pode_editar`: `true` só para o administrador; `false` para o suporte Giro, nos dois modos.
 
 ### PUT /api/veiculos/{id}/precos/
@@ -823,7 +823,7 @@ Um por plano. Quem lê o preço pergunta pelo dia: o agendado vale a partir de `
 
 ### Veículo novo e migração
 
-- O veículo cadastrado (tela, CRLV, importação, troca) nasce com `diaria`, `semanal` e `mensal` pelo preço vigente da categoria (`veiculos.services.aplicar_modelo_de_preco`), ligados quando há valor e caução; o primeiro preço futuro da categoria vira o agendado; regras com dia de atraso e multa mínima iguais à diária e 5% sem aprovação.
+- O veículo cadastrado (tela, CRLV, importação, troca) nasce com `diaria`, `semanal` e `mensal` em R$ 0,00, desligados, sem caução, com o "como paga" padrão do período e as quatro formas (`veiculos.services.aplicar_modelo_de_preco`, ADR 0043, item 5); regras com dia de atraso, multa mínima e km excedente em R$ 0,00, 5% sem aprovação e prazo da caução vazio; custos vazios; histórico com a origem `cadastro` ou `importacao`. Não lê categoria. O cadastro e a importação nascem `indisponivel` "sem preço" (`VEI-15`); a troca na venda, `indisponivel`.
 - A migration `veiculos 0010` faz o mesmo para os veículos que já existem (origem `migracao`), uma vez por veículo (sem `RegrasVeiculo`); um segundo preço futuro da categoria não cabe e sai listado no `migrate`.
 
 ### Interface interna
@@ -841,6 +841,8 @@ Um por plano. Quem lê o preço pergunta pelo dia: o agendado vale a partir de `
 ---
 
 ## Categorias e preços (Precos)
+
+> **Saem na T-522 B2** (ADR 0043): o veículo não lê mais a categoria, e o seed não tem categorias. As rotas abaixo seguem de pé só até a B2, que as remove.
 
 ### GET /api/categorias/
 Perfis: todos (para escolher na locação e no cadastro). Query: `?filial=<id>` (categorias da empresa + as dessa filial), `?tipo_veiculo=`, `?ativo=`.

@@ -43,7 +43,7 @@ const arquivo = (nome: string, bytes = 10) => new File([new Uint8Array(bytes)], 
 const nomes = (l: { arquivo: File }[]) => l.map((f) => f.arquivo.name);
 
 // Honda Pop 110i, placa TBC-5H21, na Urbana 110–125 (Filial Centro).
-const TBC: NovoVeiculo = { placa: "TBC5H21", chassi: "9C2JC7500TR012345", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: 2026, ano_modelo: 2026, cor: "Preta", km_atual: 0, categoria_id: 1, filial_id: 1 };
+const TBC: NovoVeiculo = { placa: "TBC5H21", chassi: "9C2JC7500TR012345", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: 2026, ano_modelo: 2026, cor: "Preta", km_atual: 0, tipo_veiculo: "moto", filial_id: 1 };
 
 describe("antes de salvar (escolha)", () => {
   it("test_vei_10_cadastro_escolher_sem_enviar (CA-437-01): três escolhidas, a 1ª é a capa, e nada é chamado na API", () => {

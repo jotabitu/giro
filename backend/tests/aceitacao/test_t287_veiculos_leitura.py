@@ -83,7 +83,7 @@ def test_usr_09_vendedor_e_financeiro_nao_escrevem_no_veiculo(moto, frota):
         "ano_modelo": 2026,
         "cor": "branca",
         "km_atual": 0,
-        "categoria_id": frota.categorias["Urbana 110–125"].pk,
+        "tipo_veiculo": "moto",
         "filial_id": frota.centro.pk,
     }
     for nome in LEEM:

@@ -32,7 +32,6 @@ from apps.locacoes.api.serializers import PlanoEspecialEntradaSerializer
 from apps.locacoes.models import Locacao, PlanoEspecial
 from apps.notificacoes.models import Notificacao
 from apps.plataforma.models import Empresa
-from apps.veiculos import selectors as veiculos_selectors
 from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import PlanoVeiculo, Veiculo
 from comum import eventos, relogio
@@ -40,7 +39,7 @@ from comum.codigos import ajustar_sequencia
 from comum.erros import ErroDeValidacao
 
 from . import carteira
-from .frota import Frota, criar_veiculo, montar_frota
+from .frota import Frota, com_planos_do_grupo, criar_veiculo, montar_frota
 from .test_t012_filiais import MotoRapida
 from .test_t013_veiculos import _caucaia
 from .test_t014_clientes import ANA, CARLOS, DIEGO, JULIANA, PATRICIA, RAFAEL
@@ -84,7 +83,10 @@ class Cenario:
         self, categoria: str, status: str = "disponivel", exceto: tuple[str, ...] = ()
     ) -> Veiculo:
         veiculo = (
-            Veiculo.objects.filter(categoria=self.frota.categorias[categoria], status=status)
+            Veiculo.objects.filter(
+                pk__in=[pk for pk, grupo in self.frota.grupos.items() if grupo == categoria],
+                status=status,
+            )
             .exclude(placa__in=exceto)
             .order_by("placa")
             .first()
@@ -517,8 +519,8 @@ def test_imp_04_ca_015_09_sem_modelo_de_contrato_publicado(cenario):
 
 def test_fil_05_ca_015_09_veiculo_de_outra_filial(cenario):
     caucaia = _caucaia(cenario.moto)
-    de_caucaia = criar_veiculo(900, cenario.frota.categorias["Street 150–160"], caucaia)
-    veiculos_services.aplicar_modelo_de_preco([de_caucaia], "cadastro")  # VEI-15
+    de_caucaia = criar_veiculo(900, "Street 150–160", caucaia)
+    com_planos_do_grupo(de_caucaia, "Street 150–160")  # VEI-15
     corpo = _recusada(cenario, "FIL-05", veiculo=de_caucaia)
     assert corpo["mensagem"] == "O veículo é de outra filial. Transfira antes de alugar."
 
@@ -613,24 +615,20 @@ def test_loc_ca_015_14_so_a_parcela_paga_nao_ativa(cenario):
 
 
 def test_loc_06_ca_015_15_total_pago_loc_2836(cenario, com_carteira):
-    """LOC-2836: início em 30 set, confirmada em 01 out; o semanal sai da tabela vigente em 01 out,
-    e a parcela 1 (vencida desde a confirmação) é paga na retirada sem multa nem juros."""
+    """LOC-2836: início em 30 set, confirmada em 01 out; o semanal é o do veículo em 01 out
+    (R$ 329,00, ADR 0043: sem tabela de categoria), e a parcela 1 (vencida desde a confirmação)
+    é paga na retirada sem multa nem juros."""
     locacao = com_carteira["LOC-2836"]
-    preco = veiculos_selectors.preco_vigente(locacao.veiculo.categoria_id, date(2026, 10, 1))
-    anterior = veiculos_selectors.preco_vigente(locacao.veiculo.categoria_id, date(2026, 9, 30))
-    assert preco is not None and anterior is not None
-    assert anterior.semanal_centavos != preco.semanal_centavos  # a data da confirmação importa
+    semanal, caucao_street = 32900, 30000
     assert locacao.precos_de == date(2026, 10, 1)
-    assert locacao.valor_periodo_centavos == preco.semanal_centavos == 32900
+    assert locacao.valor_periodo_centavos == semanal
 
     detalhe = cenario.detalhe(locacao.pk)
-    assert detalhe["total_pago_centavos"] == (
-        2 * preco.semanal_centavos + preco.caucao_centavos
-    )  # 32900 + 32900 + 30000
+    assert detalhe["total_pago_centavos"] == 2 * semanal + caucao_street  # 32900 + 32900 + 30000
     assert detalhe["total_pago_centavos"] == 95800
     pagas = [p for p in detalhe["parcelas"] if p["tipo"] == "parcela"]
     assert [(p["numero"], p["status"]) for p in pagas] == [(1, "paga"), (2, "paga")]
-    assert [p["valor_centavos"] for p in pagas] == [preco.semanal_centavos] * 2
+    assert [p["valor_centavos"] for p in pagas] == [semanal] * 2
     caucao = next(p for p in detalhe["parcelas"] if p["tipo"] == "caucao")
     assert caucao["observacao"] == "Devolver na entrega"
 

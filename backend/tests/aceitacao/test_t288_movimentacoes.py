@@ -62,7 +62,6 @@ def _corpo(cenario: Cenario, placa: str = "SAK1D39", **campos: Any) -> dict[str,
         "veiculo_id": _veiculo(cenario, placa).pk,
         "paradas": [],
         "destino_filial_id": cenario.frota.centro.pk,
-        "categoria_destino_id": None,
         "levado_por_id": cenario.pessoas["João"].pk,
         "sair_agora": True,
         "agendada_para": None,
@@ -289,27 +288,23 @@ def test_mov_04_apr_03_ca_246_08_despesa_acima_de_500(cenario):
 # --- CA-246-09, 10: transferência e documento vencido ---
 
 
-def test_mov_05_mov_06_vei_04_ca_246_09_transferencia_na_chegada(cenario):
+def test_mov_06_transferencia_sem_categoria(cenario):
+    """CA-246-09 depois da ADR 0043 (MOV-06, FIL-04, VEI-04): a transferência não pede categoria
+    no destino; uma categoria antiga só da filial de saída (dado antigo) não trava nem muda, e
+    `categoria_destino_id` enviado é ignorado."""
     caucaia = _caucaia(cenario.moto, "Rodrigo")
     so_da_centro = Categoria.objects.create(
         nome="Street Centro", tipo_veiculo="moto", filial=cenario.frota.centro
     )
     Veiculo.objects.filter(placa="SAK1D39").update(categoria=so_da_centro)
-    sem_categoria = _criar(cenario, paradas=_lavagem(cenario), destino_filial_id=caucaia.pk)
-    assert sem_categoria.status_code == 400
-    assert sem_categoria.json()["campos"]["categoria_destino_id"] == [
-        "Escolha a categoria do veículo na Filial Caucaia."
-    ]
-    street = cenario.frota.categorias["Street 150–160"]
-    local = LocalApoio.objects.get().pk
     mov = _criada(
         cenario,
-        paradas=[
-            {"local_id": local, "servico": "Lavagem completa", "valor_previsto_centavos": 3500}
-        ],
+        paradas=_lavagem(cenario),
         destino_filial_id=caucaia.pk,
-        categoria_destino_id=street.pk,
+        categoria_destino_id=999,
     )
+    assert "categoria_destino" not in mov
+    assert Movimentacao.objects.get(pk=mov["id"]).categoria_destino_id is None
     assert (mov["transferencia"], mov["vistoria_rapida"]) == (True, True)
     assert mov["rota"] == "Centro → Lava Rápido Aldeota → Filial Caucaia"
     _passar_pela_parada(cenario, mov, 3500)
@@ -367,8 +362,13 @@ def test_mov_05_mov_06_vei_04_ca_246_09_transferencia_na_chegada(cenario):
     assert chegou.status_code == 200, chegou.json()
     assert len(chegou.json()["chegada"]["fotos"]) == 4
     sak = _veiculo(cenario, "SAK1D39")
-    assert (sak.status, sak.filial_id, sak.categoria_id) == ("disponivel", caucaia.pk, street.pk)
+    assert (sak.status, sak.filial_id, sak.categoria_id) == (
+        "disponivel",
+        caucaia.pk,
+        so_da_centro.pk,
+    )
     transferencia = TransferenciaVeiculo.objects.get(veiculo=sak)
+    assert (transferencia.categoria_origem_id, transferencia.categoria_destino_id) == (None, None)
     assert (transferencia.filial_origem_id, transferencia.filial_destino_id) == (
         cenario.frota.centro.pk,
         caucaia.pk,

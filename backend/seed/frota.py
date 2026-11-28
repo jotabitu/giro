@@ -1,9 +1,13 @@
 """Frota e tabela de preços da Moto Rápida (seed de T-013): seed de desenvolvimento e testes.
 
-86 veículos na Filial Centro, nas 4 categorias da tabela (42/32/6/6), com as contagens de
+86 veículos na Filial Centro, nos 4 grupos da tabela (42/32/6/6), com as contagens de
 `CONTAGENS_FROTA_SEED` e os alugados na proporção da carteira de outubro (Urbana 20, Street 16,
 Scooter 3, Carro 3; `docs/qa/carteira-outubro/`). Os veículos citados nos critérios têm os dados
 do seed; os outros levam placa e chassi gerados.
+
+Sem categorias (ADR 0043): o grupo da tabela (Urbana, Street, Scooter, Carro) só organiza o seed.
+Cada veículo nasce com o tipo (`tipo_veiculo`) e recebe os planos do grupo pela tela de preços
+(`salvar_precos`, ADR 0041), com os mesmos valores de sempre (`dados-de-teste.md`).
 """
 
 from dataclasses import dataclass, field
@@ -14,13 +18,13 @@ from typing import Any
 from apps.filiais.models import Filial
 from apps.plataforma.services import recalcular_uso
 from apps.veiculos import services as veiculos_services
-from apps.veiculos.models import Categoria, Veiculo
+from apps.veiculos.models import Veiculo
 
 from .ator import administradora, como
 from .relogio import RelogioDoSeed
 
-# Tabela de preços da Filial Centro (T-013):
-# categoria → (veículos, diária, semanal, mensal, caução).
+# Tabela de preços da Filial Centro (T-013), por grupo da tabela:
+# grupo → (veículos, diária, semanal, mensal, caução).
 PRECOS_SEED = {
     "Urbana 110–125": (42, 4490, 29940, 109000, 30000),
     "Street 150–160": (32, 5490, 32900, 119000, 30000),
@@ -32,10 +36,8 @@ ORIGEM = veiculos_services.OrigemDaMudanca("seed", 0, "seed")
 VIGENTE_DESDE = date(2026, 10, 1)
 STREET_ANTES = date(2026, 9, 1)  # até 30 set, semanal 29940 (LOC-15, LOC-2841)
 STREET_SEMANAL_ANTES = 29940
-# A troca de preço da Street é o evento "Mudou a tabela de preço" da auditoria (T-201, CA-018-09).
-STREET_TROCA = "17:42"
 
-# categoria → (tipo, modelos [(marca, modelo)], {status: quantos}).
+# grupo → (tipo do veículo, modelos [(marca, modelo)], {status: quantos}).
 DISTRIBUICAO: dict[str, tuple[str, list[tuple[str, str]], dict[str, int]]] = {
     "Urbana 110–125": (
         "moto",
@@ -225,49 +227,46 @@ def chassi_do_seed(numero: int) -> str:
 @dataclass
 class Frota:
     centro: Filial
-    categorias: dict[str, Categoria]
     veiculos: dict[str, Veiculo] = field(default_factory=dict)
+    grupos: dict[int, str] = field(default_factory=dict)  # id do veículo → grupo da tabela
 
     def veiculo(self, placa: str) -> Veiculo:
         return Veiculo.objects.get(placa=placa)
 
 
-def criar_categorias(relogio: RelogioDoSeed) -> dict[str, Categoria]:
-    """As 4 categorias com os preços vigentes desde 01 out, pelos serviços (LOC-15): o preço vale
-    a partir do dia em que é gravado, então a Street nasce com o antigo em 01 set e ganha o novo
-    em 01 out."""
-    categorias = {}
-    for nome, (_, diaria, semanal, mensal, caucao) in PRECOS_SEED.items():
-        tipo = DISTRIBUICAO[nome][0]
-        preco = {
-            "diaria_centavos": diaria,
-            "semanal_centavos": semanal,
-            "mensal_centavos": mensal,
-            "caucao_centavos": caucao,
-        }
-        if nome == "Street 150–160":
-            relogio.em(f"{STREET_ANTES} 09:00")
-            categoria = veiculos_services.criar_categoria(
-                {"nome": nome, "tipo_veiculo": tipo},
-                {**preco, "semanal_centavos": STREET_SEMANAL_ANTES},
-            )
-            relogio.em(f"{VIGENTE_DESDE} {STREET_TROCA}")
-            with como(administradora()):
-                veiculos_services.criar_preco(categoria, preco)
-        else:
-            relogio.em(f"{VIGENTE_DESDE} 09:00")
-            categoria = veiculos_services.criar_categoria(
-                {"nome": nome, "tipo_veiculo": tipo}, preco
-            )
-        categorias[nome] = categoria
-    return categorias
+def planos_do_grupo(grupo: str) -> dict[str, Any]:
+    """O documento da tela de preços (ADR 0041) com os planos diária, semanal e mensal ligados,
+    nos valores do grupo, e o dia de atraso e a multa mínima iguais à diária (VEI-14), como a
+    tabela da Filial Centro dava antes da ADR 0043."""
+    _, diaria, semanal, mensal, caucao = PRECOS_SEED[grupo]
+    return {
+        "planos": [
+            {
+                "tipo": tipo,
+                "valor_centavos": valor,
+                "caucao_centavos": caucao,
+                "ligado": True,
+                "agendado": None,
+            }
+            for tipo, valor in (("diaria", diaria), ("semanal", semanal), ("mensal", mensal))
+        ],
+        "regras": {"dia_atraso_centavos": diaria, "multa_minima_centavos": diaria},
+    }
 
 
 def cadastrar_veiculo(
-    numero: int, categoria: Categoria, filial: Filial, status: str = "disponivel", **dados: Any
+    numero: int,
+    grupo: str,
+    filial: Filial,
+    status: str = "disponivel",
+    *,
+    com_precos: bool = True,
+    **dados: Any,
 ) -> Veiculo:
-    """Veículo pelo serviço de cadastro (nasce `disponivel`) e, se for o caso, a transição de
-    status com a origem `seed`."""
+    """Veículo pelo serviço de cadastro, com o tipo do grupo (nasce `indisponivel` "sem preço",
+    VEI-15); com `com_precos`, a Mariana preenche os planos do grupo na tela de preços (o
+    veículo fica `disponivel`) e, se for o caso, vem a transição de status com a origem `seed`.
+    Sem `com_precos`, quem chama preenche os preços depois (estoque parado, Pop da compra)."""
     ano = ANOS[numero % len(ANOS)]
     padrao: dict[str, Any] = {
         "placa": placa_do_seed(numero),
@@ -280,9 +279,14 @@ def cadastrar_veiculo(
         "km_atual": 1500 + (numero * 1373) % 28000,
         "entrou_na_frota_em": date(ano + 1 if ano < 2025 else ano, 1 + numero % 9, 10),
     }
+    tipo = DISTRIBUICAO[grupo][0]
     veiculo = veiculos_services.cadastrar(
-        {**padrao, **dados, "categoria_id": categoria.pk, "filial_id": filial.pk}
+        {**padrao, **dados, "tipo_veiculo": tipo, "filial_id": filial.pk}
     )
+    if not com_precos:
+        return veiculo
+    with como(administradora()):
+        veiculos_services.salvar_precos(veiculo, planos_do_grupo(grupo))
     if status != "disponivel":
         veiculos_services.transicionar(veiculo, status, origem=ORIGEM, motivo="Importação do seed")
     return veiculo
@@ -304,21 +308,19 @@ def garantir_dados_do_crlv() -> bool:
 
 
 def montar_frota(centro: Filial, empresa: Any, relogio: RelogioDoSeed) -> Frota:
-    """A tabela de preços e os 86 veículos da Filial Centro, tudo pelos serviços de domínio."""
-    frota = Frota(centro=centro, categorias=criar_categorias(relogio))
+    """Os 86 veículos da Filial Centro e os preços de cada um, tudo pelos serviços de domínio."""
+    frota = Frota(centro=centro)
     relogio.em("2026-10-07 07:00")
     numero = 0
     for nome, (_, modelos, por_status) in DISTRIBUICAO.items():
-        categoria = frota.categorias[nome]
         nomeados = [p for p, d in NOMEADOS_DA_CONFERENCIA.items() if d["categoria"] == nome]
         faltam = dict(por_status)
         for placa in nomeados:
             dados = {k: v for k, v in NOMEADOS_DA_CONFERENCIA[placa].items() if k != "categoria"}
             faltam[dados["status"]] -= 1
             status = dados.pop("status")
-            frota.veiculos[placa] = cadastrar_veiculo(
-                0, categoria, centro, status, placa=placa, **dados
-            )
+            frota.veiculos[placa] = cadastrar_veiculo(0, nome, centro, status, placa=placa, **dados)
+            frota.grupos[frota.veiculos[placa].pk] = nome
         # O estoque parado (T-499, `seed/estoque.py`) ocupa parte dos `a_venda` da categoria: os
         # últimos números ficam sem veículo, para os outros manterem a placa de sempre.
         trocados = {
@@ -331,9 +333,12 @@ def montar_frota(centro: Filial, empresa: Any, relogio: RelogioDoSeed) -> Frota:
                 if posicao >= quantos - trocados.get(status, 0):
                     continue
                 marca, modelo = modelos[numero % len(modelos)]
-                tanque = {"capacidade_tanque_litros": TANQUE[nome]} if nome in TANQUE else {}
-                cadastrar_veiculo(
-                    numero, categoria, centro, status, marca=marca, modelo=modelo, **tanque
+                tanque: dict[str, Any] = (
+                    {"capacidade_tanque_litros": TANQUE[nome]} if nome in TANQUE else {}
                 )
+                veiculo = cadastrar_veiculo(
+                    numero, nome, centro, status, marca=marca, modelo=modelo, **tanque
+                )
+                frota.grupos[veiculo.pk] = nome
     recalcular_uso(empresa)
     return frota

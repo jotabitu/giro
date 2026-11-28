@@ -247,9 +247,10 @@ def test_imp_02_83_prontos_3_com_erro_e_86_depois_de_corrigir(
     }
     assert Veiculo.objects.count() == 86
     qxa = Veiculo.objects.get(placa="QXA4B21")
-    assert qxa.status == "disponivel"
+    # ADR 0043, item 5: nasce "sem preço", com o tipo e sem categoria.
+    assert (qxa.status, qxa.motivo_status) == ("indisponivel", "Sem preço · ligue um plano")
     assert qxa.filial_id == moto.filial.pk
-    assert qxa.categoria.nome == "Urbana 110–125"
+    assert (qxa.tipo_veiculo, qxa.categoria_id) == ("moto", None)
     historico = HistoricoStatusVeiculo.objects.get(veiculo=qxa)
     assert (historico.origem_tipo, historico.origem_id) == ("importacao", imp)
     linha_14 = _linhas(api, imp, "importada")[12]
@@ -280,7 +281,7 @@ def test_imp_02_correcao_que_ainda_tem_erro_continua_com_erro(
 
 
 def test_imp_02_ja_cadastrado_e_erro_nao_atualizacao(moto, django_capture_on_commit_callbacks):
-    existente = criar_veiculo(1, moto.categorias["Urbana 110–125"], moto.filial, cor="Vermelha")
+    existente = criar_veiculo(1, "Urbana 110–125", moto.filial, cor="Vermelha")
     linhas = _frota(3)
     linhas[0][0] = existente.placa
     linhas[1][1] = existente.chassi

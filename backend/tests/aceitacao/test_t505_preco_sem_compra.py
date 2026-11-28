@@ -13,10 +13,9 @@ import pytest
 
 from apps.empresas import selectors as empresas_selectors
 from apps.empresas.models import ConfiguracaoEmpresa
-from apps.veiculos import services
 from apps.veiculos.models import Veiculo
 
-from .frota import Frota, criar_veiculo
+from .frota import Frota, com_planos_do_grupo, criar_veiculo
 from .test_t012_filiais import MotoRapida
 from .test_t494_precos_veiculo import COMPRA_POP, VEICULOS, _pop, _precos
 from .test_t494_precos_veiculo import frota as frota
@@ -36,13 +35,13 @@ def _biz(frota: Frota) -> Veiculo:
     """A Biz 125 ADJ-4T71, Urbana, sem valor de compra (semanal R$ 299,40)."""
     biz = criar_veiculo(
         901,
-        frota.categorias["Urbana 110–125"],
+        "Urbana 110–125",
         frota.centro,
         placa="ADJ4T71",
         chassi="9C2JC4110RR000901",
         modelo="Biz 125",
     )
-    services.aplicar_modelo_de_preco([biz], "cadastro")
+    com_planos_do_grupo(biz, "Urbana 110–125")
     return biz
 
 

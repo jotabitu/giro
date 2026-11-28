@@ -206,7 +206,12 @@ class Veiculo(MaquinaDeEstados, ModeloBase):
     capacidade_tanque_litros = models.DecimalField(
         max_digits=5, decimal_places=1, null=True, blank=True
     )  # DEV-01
-    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, related_name="veiculos")
+    # VEI-11 (ADR 0043): moto ou carro é do próprio veículo; sem default (a falta é erro).
+    tipo_veiculo = models.CharField(max_length=10, choices=TipoVeiculo.choices)
+    # Dado antigo (ADR 0043): nulo no veículo novo; só as locações antigas ainda o leem.
+    categoria = models.ForeignKey(
+        Categoria, on_delete=models.PROTECT, null=True, blank=True, related_name="veiculos"
+    )
     filial = models.ForeignKey("filiais.Filial", on_delete=models.PROTECT, related_name="+")
     status = models.CharField(max_length=15, choices=StatusVeiculo.choices, default=S.DISPONIVEL)
     motivo_status = models.CharField(max_length=200, blank=True, default="")
@@ -252,15 +257,30 @@ class Veiculo(MaquinaDeEstados, ModeloBase):
     # VEI-09: dados do veículo, não de pessoa; a auditoria da empresa é lida só pelo
     # administrador (modelo de dados, item 9).
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
-        "inteiro": [*CAMPOS_DA_VEI_09.values(), "aluguel_ligado", "excluido_em", "excluido_por"]
+        "inteiro": [
+            *CAMPOS_DA_VEI_09.values(),
+            "aluguel_ligado",
+            "excluido_em",
+            "excluido_por",
+            "tipo_veiculo",
+        ]
     }
+    # ADR 0043: a categoria é dado antigo e sai do retrato dos eventos novos.
+    FORA_DO_RETRATO: ClassVar[tuple[str, ...]] = ("categoria",)
 
     class Meta:
         verbose_name = "veículo"
         ordering = ["placa"]
         default_manager_name = "objects"
-        indexes = [models.Index(fields=["filial", "status"], name="veiculo_filial_status")]
+        indexes = [
+            models.Index(fields=["filial", "status"], name="veiculo_filial_status"),
+            models.Index(fields=["filial", "tipo_veiculo"], name="veiculo_filial_tipo"),
+        ]
         constraints = [
+            models.CheckConstraint(
+                condition=models.Q(tipo_veiculo__in=["moto", "carro"]),
+                name="veiculo_tipo_valido",
+            ),
             # VEI-01: placa e chassi únicos em qualquer estado, menos no excluído (VEI-22).
             models.UniqueConstraint(
                 fields=["placa"],

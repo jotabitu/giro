@@ -445,18 +445,11 @@ def _validar_identificacao(
             erros["chassi"] = ["O chassi tem 17 letras e números."]
 
 
-def _categoria_para(
-    categoria_id: Any, filial_id: int, erros: dict[str, list[str]]
-) -> Categoria | None:
-    categoria: Categoria | None = Categoria.ativos.filter(pk=categoria_id).first()
-    if categoria is None or categoria.filial_id not in (None, filial_id):
-        erros["categoria_id"] = ["Escolha uma categoria ativa desta filial."]
-        return None
-    return categoria
+MENSAGEM_TIPO_VEICULO = "Escolha moto ou carro."
 
 
 def _validar_dados(
-    dados: dict[str, Any], filial_id: int, erros: dict[str, list[str]], limpos: dict[str, Any]
+    dados: dict[str, Any], erros: dict[str, list[str]], limpos: dict[str, Any]
 ) -> None:
     for campo in ("marca", "modelo", "cor"):
         if campo in dados:
@@ -479,8 +472,10 @@ def _validar_dados(
         erros["ano_modelo"] = ["O ano do modelo é o de fabricação ou o seguinte."]
     if "combustivel" in dados:
         limpos["combustivel"] = dados["combustivel"] or None  # VEI-08; o enum vem do serializer
-    if "categoria_id" in dados:
-        limpos["categoria"] = _categoria_para(dados["categoria_id"], filial_id, erros)
+    if "tipo_veiculo" in dados:  # VEI-11 (ADR 0043): moto ou carro, do próprio veículo
+        limpos["tipo_veiculo"] = dados["tipo_veiculo"]
+        if dados["tipo_veiculo"] not in TipoVeiculo.values:
+            erros["tipo_veiculo"] = [MENSAGEM_TIPO_VEICULO]
     for campo in (
         "capacidade_tanque_litros",
         "valor_compra_centavos",
@@ -592,14 +587,14 @@ OBRIGATORIOS_DO_CADASTRO = (
     "ano_fabricacao",
     "ano_modelo",
     "cor",
-    "categoria_id",
+    "tipo_veiculo",
     "filial_id",
 )
 
 
 def _limpar_cadastro(dados: dict[str, Any]) -> dict[str, Any]:
     erros: dict[str, list[str]] = {
-        campo: ["Campo obrigatório."]
+        campo: [MENSAGEM_TIPO_VEICULO if campo == "tipo_veiculo" else "Campo obrigatório."]
         for campo in OBRIGATORIOS_DO_CADASTRO
         if dados.get(campo) in (None, "")
     }
@@ -610,7 +605,7 @@ def _limpar_cadastro(dados: dict[str, Any]) -> dict[str, Any]:
     limpos["filial"] = filial
     presentes = {chave: valor for chave, valor in dados.items() if valor not in (None, "")}
     _validar_identificacao(presentes, erros, limpos)
-    _validar_dados(presentes, filial.pk if filial else 0, erros, limpos)
+    _validar_dados(presentes, erros, limpos)
     km = dados.get("km_atual") or 0
     if int(km) < 0:
         erros["km_atual"] = ["O km não pode ser negativo."]
@@ -625,12 +620,15 @@ def _criar(
     status: str,
     origem: OrigemDaMudanca,
     extras_do_evento: dict[str, Any] | None = None,
+    motivo: str = "",
 ) -> Veiculo:
     agora = relogio.agora()
     limpos.setdefault("entrou_na_frota_em", relogio.hoje())
     try:
         with transaction.atomic():
-            veiculo = Veiculo.objects.create(**limpos, status=status, km_atualizado_em=agora)
+            veiculo = Veiculo.objects.create(
+                **limpos, status=status, motivo_status=motivo, km_atualizado_em=agora
+            )
     except IntegrityError as erro:  # placa ou chassi numa corrida
         _conferir_unicos(limpos.get("placa"), limpos.get("chassi"))
         raise Conflito("VEI-01", "Já existe um veículo com esta placa ou chassi") from erro
@@ -640,7 +638,7 @@ def _criar(
     LeituraKm.objects.create(
         veiculo=veiculo, km=veiculo.km_atual, lido_em=agora, por_id=_quem(), **_origem(origem)
     )
-    # ADR 0041, item 2: o veículo novo nasce com os planos do modelo (o preço da categoria).
+    # ADR 0043, item 5: o veículo novo nasce com os planos em R$ 0,00, desligados.
     aplicar_modelo_de_preco(
         [veiculo],
         OrigemPreco.IMPORTACAO if origem.tipo == Origem.IMPORTACAO else OrigemPreco.CADASTRO,
@@ -659,14 +657,20 @@ def _criar(
 
 def cadastrar(dados: dict[str, Any], *, origem: OrigemDaMudanca | None = None) -> Veiculo:
     """POST /api/veiculos/: 400 nos campos, 409 `VEI-01` na placa ou no chassi, 422 `PLT-03`
-    no limite. Nasce `disponivel`, com o histórico inicial e a primeira leitura de km.
+    no limite. Nasce `indisponivel` "sem preço" (VEI-15, ADR 0043, item 5), com os planos em
+    R$ 0,00 desligados, o histórico inicial e a primeira leitura de km.
 
     A importação por planilha (IMP-02) passa `origem=OrigemDaMudanca("importacao", id)`."""
     limpos = _limpar_cadastro(dados)
     with transaction.atomic():
         _conferir_unicos(limpos["placa"], limpos["chassi"])
         exigir_limite("veiculos")
-        return _criar(limpos, S.DISPONIVEL, origem or OrigemDaMudanca(Origem.CADASTRO))
+        return _criar(
+            limpos,
+            S.INDISPONIVEL,
+            origem or OrigemDaMudanca(Origem.CADASTRO),
+            motivo=MOTIVO_SEM_PRECO,
+        )
 
 
 MENSAGEM_CRLV_ARQUIVO = "Envie o PDF do CRLV-e, até 2 MB."
@@ -725,7 +729,13 @@ def cadastrar_com_crlv(
         with transaction.atomic():
             _conferir_unicos(limpos["placa"], limpos["chassi"])
             exigir_limite("veiculos")
-            veiculo = _criar(limpos, S.DISPONIVEL, OrigemDaMudanca(Origem.CADASTRO), extras)
+            veiculo = _criar(
+                limpos,
+                S.INDISPONIVEL,
+                OrigemDaMudanca(Origem.CADASTRO),
+                extras,
+                motivo=MOTIVO_SEM_PRECO,
+            )
             documento = DocumentoVeiculo.objects.create(
                 veiculo=veiculo,
                 tipo=TipoDocumento.CRLV,
@@ -802,7 +812,7 @@ CAMPOS_EDITAVEIS = (
     "ano_modelo",
     "cor",
     "combustivel",
-    "categoria_id",
+    "tipo_veiculo",
     "capacidade_tanque_litros",
     "valor_compra_centavos",
     "data_compra",
@@ -853,8 +863,8 @@ def editar(
     leitura: str | None = None,
     usuario: Any = None,
 ) -> Veiculo:
-    """PATCH: placa, chassi, status, km e filial não mudam por aqui. A categoria nova vale para
-    locações novas; a locação em andamento mantém o preço congelado (LOC-15).
+    """PATCH: placa, chassi, status, km e filial não mudam por aqui. O tipo (`tipo_veiculo`,
+    VEI-11) não muda com locação aberta (409 `tipo_com_locacao_aberta`).
 
     Os blocos da VEI-09 mudam por chave (`{"documento": {"lotacao": 1}}` só muda a lotação), e
     o evento leva as chaves pontuadas. Com o comprovante `leitura` da leitura no editar, o evento
@@ -862,7 +872,7 @@ def editar(
     entrada = {campo: dados[campo] for campo in CAMPOS_EDITAVEIS if campo in dados}
     erros: dict[str, list[str]] = {}
     limpos: dict[str, Any] = {}
-    _validar_dados(entrada, veiculo.filial_id, erros, limpos)
+    _validar_dados(entrada, erros, limpos)
     if "ano_fabricacao" in limpos or "ano_modelo" in limpos:
         fabricacao = limpos.get("ano_fabricacao", veiculo.ano_fabricacao)
         modelo = limpos.get("ano_modelo", veiculo.ano_modelo)
@@ -870,9 +880,8 @@ def editar(
             erros["ano_modelo"] = ["O ano do modelo é o de fabricação ou o seguinte."]
     if erros:
         raise ErroDeValidacao(erros)
-    categoria_antes = veiculo.categoria
-    nova = limpos.get("categoria")
-    if nova is not None and nova.tipo_veiculo != categoria_antes.tipo_veiculo:
+    novo_tipo = limpos.get("tipo_veiculo")
+    if novo_tipo is not None and novo_tipo != veiculo.tipo_veiculo:
         motivo = motivo_de_nao_trocar_tipo(veiculo)
         if motivo:
             raise Conflito("tipo_com_locacao_aberta", motivo)
@@ -882,12 +891,6 @@ def editar(
             setattr(veiculo, campo, valor)
         veiculo.save()
         mudou_antes, mudou_depois = diferenca(antes, retrato(veiculo))
-        if "categoria_id" in mudou_depois:  # VEI-11: o nome e o tipo, para a auditoria se ler
-            mudou_antes["categoria_nome"] = categoria_antes.nome
-            mudou_depois["categoria_nome"] = veiculo.categoria.nome
-            if veiculo.categoria.tipo_veiculo != categoria_antes.tipo_veiculo:
-                mudou_antes["tipo_veiculo"] = categoria_antes.tipo_veiculo
-                mudou_depois["tipo_veiculo"] = veiculo.categoria.tipo_veiculo
         lidos, corrigidos = _lidos_no_editar(veiculo, leitura, usuario)
         registrar_evento(
             "veiculo.editar",
@@ -962,45 +965,16 @@ def receber_na_troca(chassi: str, dados: dict[str, Any]) -> Veiculo:
 # --- Transferência (VEI-04, FIL-05) ---
 
 
-def categoria_no_destino(veiculo: Veiculo, destino: Filial, categoria_id: int | None) -> Categoria:
-    """VEI-04, FIL-04: categoria só da filial de origem pede a categoria no destino (ativa, do
-    mesmo tipo, da empresa ou do destino). Categoria da empresa passa direto e continua; com
-    `categoria_id` válido, o veículo vai para ela."""
-    atual = veiculo.categoria
-    if categoria_id is None:
-        if atual.filial_id is None:
-            return atual
-        raise ErroDeValidacao(
-            {
-                "categoria_id": [
-                    "A categoria atual é só desta filial. Escolha a categoria no destino."
-                ]
-            }
-        )
-    erros: dict[str, list[str]] = {}
-    categoria = _categoria_para(categoria_id, destino.pk, erros)
-    if categoria is None or categoria.tipo_veiculo != atual.tipo_veiculo:
-        raise ErroDeValidacao(
-            {
-                "categoria_id": [
-                    "Escolha uma categoria ativa do mesmo tipo, da empresa ou da filial de destino."
-                ]
-            }
-        )
-    return categoria
-
-
 def transferir(
     veiculo: Veiculo,
     filial_destino_id: int,
     motivo: str = "",
-    categoria_id: int | None = None,
     *,
     origem: OrigemDaMudanca = MANUAL,
 ) -> Veiculo:
-    """Só `disponivel` (VEI-04), então nenhuma locação aberta muda de preço: a categoria nova
-    vale a partir da próxima locação (LOC-01). Pela chegada da movimentação (origem
-    `movimentacao`, MOV-06), também `indisponivel`, `em_manutencao` e `a_venda` (ADR 0028)."""
+    """Só `disponivel` (VEI-04); só a filial muda, porque o preço é do veículo (ADR 0041 e
+    0043). Pela chegada da movimentação (origem `movimentacao`, MOV-06), também `indisponivel`,
+    `em_manutencao` e `a_venda` (ADR 0028)."""
     pela_movimentacao = origem.tipo == Origem.MOVIMENTACAO
     with transaction.atomic():
         travado = _travar(veiculo)
@@ -1012,8 +986,7 @@ def transferir(
         aceitos = MOVIMENTAVEIS if pela_movimentacao else {S.DISPONIVEL}
         if travado.status not in aceitos:
             raise Conflito("VEI-04", "Só é possível transferir um veículo disponível")
-        categoria = categoria_no_destino(travado, destino, categoria_id)
-        origem_id, categoria_origem_id = travado.filial_id, travado.categoria_id
+        origem_id = travado.filial_id
         with auditar(
             travado,
             "veiculo.transferir",
@@ -1022,14 +995,11 @@ def transferir(
             regra="VEI-04",
         ):
             travado.filial = destino
-            travado.categoria = categoria
-            travado.save(update_fields=["filial", "categoria", "atualizado_em"])
+            travado.save(update_fields=["filial", "atualizado_em"])
         TransferenciaVeiculo.objects.create(
             veiculo=travado,
             filial_origem_id=origem_id,
             filial_destino=destino,
-            categoria_origem_id=categoria_origem_id,
-            categoria_destino=categoria,
             em=relogio.agora(),
             por_id=_quem(),
             motivo=motivo.strip()[:200],
@@ -1864,7 +1834,7 @@ MENSAGEM_VENDA_PARA_COMPRA = "Informe o valor de venda para ligar a locação co
 
 def aviso_aluguel_desativado(veiculo: Veiculo) -> str:
     """VEI-21: o texto da recusa (e do aviso da Nova locação) com o aluguel desligado."""
-    deste = "deste carro" if veiculo.categoria.tipo_veiculo == TipoVeiculo.CARRO else "desta moto"
+    deste = "deste carro" if veiculo.tipo_veiculo == TipoVeiculo.CARRO else "desta moto"
     return f"O aluguel {deste} está desativado. O administrador ativa em Planos e preços."
 
 
@@ -2057,30 +2027,16 @@ def _valores(objeto: Any, campos: tuple[str, ...]) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class ModeloDePreco:
-    """O preço da categoria que pré-preenche o veículo novo: o vigente no dia e o primeiro
-    futuro, que vira o agendado de cada plano."""
+    """Os valores com que o veículo novo nasce (ADR 0043, item 5): o padrão é tudo em R$ 0,00,
+    sem caução e desligado. O dia de atraso e a multa mínima seguem a diária."""
 
-    diaria: int
-    semanal: int
-    mensal: int
-    caucao: int | None
-    futuro: PrecoCategoria | None
+    diaria: int = 0
+    semanal: int = 0
+    mensal: int = 0
+    caucao: int | None = None
 
 
-def planos_do_modelo(categoria: Categoria | int, dia: date) -> ModeloDePreco:
-    categoria_id = categoria if isinstance(categoria, int) else categoria.pk
-    precos_da_categoria = PrecoCategoria.objects.filter(categoria_id=categoria_id)
-    vigente = precos_da_categoria.filter(vigente_desde__lte=dia).order_by("-vigente_desde").first()
-    futuro = precos_da_categoria.filter(vigente_desde__gt=dia).order_by("vigente_desde").first()
-    if vigente is None:
-        return ModeloDePreco(0, 0, 0, None, futuro)
-    return ModeloDePreco(
-        int(vigente.diaria_centavos),
-        int(vigente.semanal_centavos),
-        int(vigente.mensal_centavos),
-        int(vigente.caucao_centavos),
-        futuro,
-    )
+SEM_PRECO = ModeloDePreco()
 
 
 PADRAO_DO_TIPO = (
@@ -2090,12 +2046,14 @@ PADRAO_DO_TIPO = (
 )
 
 
-def aplicar_modelo_de_preco(veiculos: list[Veiculo], origem: str) -> None:
-    """Planos `diaria`, `semanal` e `mensal` com o preço da categoria (ligados com valor maior que
-    zero e caução), regras com o dia de atraso e a multa mínima iguais à diária, custos vazios e
-    o histórico, para veículos que ainda não têm regras. Só na criação do veículo."""
-    hoje = relogio.hoje()
-    modelos: dict[int, ModeloDePreco] = {}
+def aplicar_modelo_de_preco(
+    veiculos: list[Veiculo], origem: str, modelo: "ModeloDePreco | None" = None
+) -> None:
+    """Planos `diaria`, `semanal` e `mensal` com os valores do `modelo` (ligados com valor maior
+    que zero e caução), regras com o dia de atraso e a multa mínima iguais à diária, custos
+    vazios e o histórico, para veículos que ainda não têm regras. Só na criação do veículo. O
+    padrão (ADR 0043, item 5) é tudo em R$ 0,00 e desligado, sem ler categoria."""
+    modelo = modelo or SEM_PRECO
     ja_tem = set(
         RegrasVeiculo.objects.filter(veiculo__in=veiculos).values_list("veiculo_id", flat=True)
     )
@@ -2108,13 +2066,9 @@ def aplicar_modelo_de_preco(veiculos: list[Veiculo], origem: str) -> None:
     for veiculo in veiculos:
         if veiculo.pk in ja_tem:
             continue
-        if veiculo.categoria_id not in modelos:
-            modelos[veiculo.categoria_id] = planos_do_modelo(veiculo.categoria_id, hoje)
-        modelo = modelos[veiculo.categoria_id]
         lote = _Lote(veiculo, origem, por_id, uuid.uuid4(), agora, [])
         for tipo, periodo, nome in PADRAO_DO_TIPO:
             valor = getattr(modelo, nome)
-            futuro = modelo.futuro
             plano = PlanoVeiculo(
                 veiculo=veiculo,
                 tipo=tipo,
@@ -2124,9 +2078,6 @@ def aplicar_modelo_de_preco(veiculos: list[Veiculo], origem: str) -> None:
                 valor_centavos=valor,
                 caucao_centavos=modelo.caucao,
                 ligado=valor > 0 and modelo.caucao is not None,
-                valor_agendado_centavos=getattr(futuro, f"{nome}_centavos") if futuro else None,
-                caucao_agendada_centavos=futuro.caucao_centavos if futuro else None,
-                agendado_para=futuro.vigente_desde if futuro else None,
             )
             planos.append(plano)
             for campo in ("valor_centavos", "caucao_centavos", "ligado", "agendado_para"):

@@ -50,7 +50,7 @@ def test_vei_08_falha_depois_de_gravar_o_arquivo_devolve_o_erro_certo(
     corpo = {
         **{k: v for k, v in lido["campos"].items() if v is not None},
         "km_atual": 0,
-        "categoria_id": frota.categorias["Urbana 110–125"].pk,
+        "tipo_veiculo": "moto",
         "filial_id": frota.centro.pk,
         "crlv_arquivo": _pdf(conteudo),
         "crlv_validade": "2027-10-31",

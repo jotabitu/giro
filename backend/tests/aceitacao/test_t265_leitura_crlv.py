@@ -303,13 +303,12 @@ def test_vei_08_salva_com_o_documento(moto, frota) -> None:
     """CA-247-03: a cor corrigida vale, e o evento diz o que veio do documento."""
     conteudo = pdfs.CRLV_TBC5H21.pdf()
     lido = _ler(moto, conteudo).json()
-    urbana = frota.categorias["Urbana 110–125"]
     antes = Veiculo.objects.count()
     corpo = {
         **{k: v for k, v in lido["campos"].items() if v is not None},
         "cor": "preta",
         "km_atual": 0,
-        "categoria_id": urbana.pk,
+        "tipo_veiculo": "moto",
         "filial_id": frota.centro.pk,
         "crlv_arquivo": _pdf(conteudo, "crlv-antonio-ficticio.pdf"),
         "crlv_validade": "2027-10-31",
@@ -349,7 +348,7 @@ def test_vei_08_comprovante_de_outra_pessoa_ou_de_outro_arquivo(moto, frota) -> 
             "ano_fabricacao": 2025,
             "ano_modelo": 2026,
             "cor": "vermelha",
-            "categoria_id": frota.categorias["Urbana 110–125"].pk,
+            "tipo_veiculo": "moto",
             "filial_id": frota.centro.pk,
             "crlv_arquivo": _pdf(arquivo),
             "crlv_validade": "2027-10-31",
@@ -388,7 +387,7 @@ def test_vei_08_validacoes_de_sempre(moto, frota) -> None:
     antes = (Veiculo.objects.count(), DocumentoVeiculo.objects.count())
     corpo = {
         **{k: v for k, v in lido["campos"].items() if v is not None},
-        "categoria_id": frota.categorias["Urbana 110–125"].pk,
+        "tipo_veiculo": "moto",
         "filial_id": frota.centro.pk,
         "crlv_arquivo": _pdf(conteudo),
         "crlv_validade": "2027-10-31",
@@ -409,7 +408,7 @@ def test_vei_08_salvar_sem_validade_ou_com_arquivo_que_nao_e_pdf(moto, frota) ->
         "ano_fabricacao": 2025,
         "ano_modelo": 2026,
         "cor": "vermelha",
-        "categoria_id": frota.categorias["Urbana 110–125"].pk,
+        "tipo_veiculo": "moto",
         "filial_id": frota.centro.pk,
     }
     sem_validade = {**base, "crlv_arquivo": _pdf(pdfs.CRLV_TBC5H21.pdf())}

@@ -1,6 +1,6 @@
 # Movimentações de veículos
 
-**Dono:** arquiteto · **Versão:** 16 out 2026 (T-286; T-300: quem leva e quem recebe; T-311: baixa do veículo) · **App:** `movimentacoes` (schema da empresa, ADR 0028) · **Regras:** MOV-01 a MOV-06, VEI-01 a VEI-04, VEI-06, FIN-05, FIN-06, APR-03, AUD-05, USR-07 · **ADRs:** 0011, 0015, 0028 · **Telas:** Movimentacoes (desktop e celular), Movimentacao-Nova (desktop e celular), Movimentacao-Chegada-Mobile · **Critérios:** `docs/qa/criterios/T-246.md` (CA-246-01 a 16)
+**Dono:** arquiteto · **Versão:** 28 nov 2026 (T-522: transferência sem categoria, ADR 0043); 16 out 2026 (T-286; T-300: quem leva e quem recebe; T-311: baixa do veículo) · **App:** `movimentacoes` (schema da empresa, ADR 0028) · **Regras:** MOV-01 a MOV-06, VEI-01 a VEI-04, VEI-06, FIN-05, FIN-06, APR-03, AUD-05, USR-07 · **ADRs:** 0011, 0015, 0028 · **Telas:** Movimentacoes (desktop e celular), Movimentacao-Nova (desktop e celular), Movimentacao-Chegada-Mobile · **Critérios:** `docs/qa/criterios/T-246.md` (CA-246-01 a 16)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 26 e 27 de `docs/decisoes/modelo-de-dados.md`. A despesa da parada está em `financeiro.md`; o status do veículo, a ficha e a Frota, em `veiculos.md`.
 
@@ -32,7 +32,6 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 26 e 27 de `docs/deci
   "veiculo": { "id": 501, "placa": "SAK1D39", "modelo": "Honda CG 160 Fan", "status": "em_movimentacao" },
   "filial_saida": { "id": 1, "nome": "Filial Centro" },
   "destino": { "id": 2, "nome": "Filial Caucaia" }, "transferencia": true,
-  "categoria_destino": { "id": 7, "nome": "Street 150–160" },
   "rota": "Centro → Lava Rápido Aldeota → Filial Caucaia",
   "levado_por": { "id": 4, "nome": "João Silva" },
   "agendada_para": null, "iniciada_em": "2026-10-07T13:02:00Z", "concluida_em": null,
@@ -54,7 +53,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 26 e 27 de `docs/deci
 ```
 
 - `rota`: montada pela API, com o nome curto da filial de saída, os locais na ordem e o destino ("Centro → Lava Rápido Aldeota → Centro").
-- `transferencia`: destino diferente da filial de saída (`MOV-06`). `categoria_destino` só existe na transferência.
+- `transferencia`: destino diferente da filial de saída (`MOV-06`). `categoria_destino` saiu da resposta na T-522 (ADR 0043): a transferência só muda a filial.
 - `km_saida`: o km do veículo ao iniciar. `duracao_minutos`: de `iniciada_em` a `concluida_em`, só na concluída ("1 h 10 min" é formatação da tela).
 - `proxima_etapa`: `parada:<id>` (a próxima parada sem chegada, ou a parada atual em `no_local`), `destino` ou `null` (agendada, concluída, cancelada). A chegada no destino só é aceita depois da saída da última parada.
 - `cancelada_em` e `motivo_cancelamento`: na `cancelada`. O motivo é o digitado no Cancelar, ou "Veículo baixado: roubo" quando veio da baixa (T-311).
@@ -92,13 +91,13 @@ Tela `Movimentacao-Nova`. Corpo:
 ```json
 { "veiculo_id": 501,
   "paradas": [ { "local_id": 3, "servico": "Lavagem completa", "valor_previsto_centavos": 3500, "categoria": "outros" } ],
-  "destino_filial_id": 1, "categoria_destino_id": null,
+  "destino_filial_id": 1,
   "levado_por_id": 4, "sair_agora": true, "agendada_para": null,
   "vistoria_rapida": false }
 ```
 - `paradas`: zero ou mais, na ordem (`MOV-01`). `categoria` da parada é uma das categorias da `FIN-06`; padrão `outros`, e `manutencao` quando o local é `oficina` (`MOV-04`). Local inativo: 400 em `paradas[n].local_id`. Não há campo de OS no MVP (CA-246-07).
 - `destino_filial_id`: uma filial ativa da empresa, a de saída (ida e volta) ou outra (transferência). A filial de saída é sempre a do veículo; não vem no corpo.
-- `categoria_destino_id`: na transferência, pela `VEI-04`: obrigatória quando a categoria do veículo é só da filial de saída (400 `validacao` "Escolha a categoria do veículo na Filial Caucaia."), e tem de ser uma categoria ativa do mesmo tipo de veículo, da empresa ou da filial de destino. Fora da transferência, ignorada.
+- `categoria_destino_id` saiu do corpo na T-522 (ADR 0043, `FIL-04`, `MOV-06`); enviado, é ignorado. Some o 400 "Escolha a categoria do veículo na <filial>". A coluna `categoria_destino` fica guardada nas movimentações antigas e deixa de ser gravada; a agendada editada fica sem ela.
 - `vistoria_rapida`: na transferência é sempre `true` (a API grava `true` mesmo que venha `false`); na volta à mesma filial, a escolha da tela (`MOV-05`).
 - `levado_por_id`: usuário ativo ligado à filial de saída, de qualquer perfil menos o financeiro (400 `validacao` em `levado_por_id`). A escolha vem de `GET /api/movimentacoes/pessoas/?filial=<filial do veículo>` ("Quem leva e quem recebe").
 - `sair_agora: true` nasce `em_transito` (com os efeitos de Iniciar, abaixo); senão, `agendada_para` é obrigatório e no futuro, e nasce `agendada`.
@@ -144,7 +143,7 @@ Vistoria rápida (`MOV-05`). `multipart/form-data`: `posicao` (`frente`, `trasei
 - `km`: obrigatório, nunca menor que o atual: 422 `{ "codigo": "VEI-01", "mensagem": "O km informado é menor que o atual (3.120).", "detalhes": { "km_atual": 3120 } }` (CA-246-03). Atualiza o veículo e grava a `LeituraKm` com a origem (`veiculos.services.atualizar_km`, `VEI-02`).
 - Com `vistoria_rapida`: `combustivel` (enum da vistoria) e as 4 fotos são obrigatórios. Falta algo: 400 `{ "codigo": "validacao", "campos": { "combustivel": ["Informe o combustível."], "fotos": ["Faltam 2 fotos."] } }` (CA-246-09). Sem vistoria rápida, só o km (CA-246-03).
 - `recebido_por_id`: na transferência, obrigatório, um usuário ativo ligado à filial de destino (400 em `recebido_por_id`); fora dela, ignorado. A escolha vem de `GET /api/movimentacoes/{id}/recebedores/`.
-Numa transação, com a linha do veículo travada: a movimentação fica `concluida` com `concluida_em`; o veículo `em_movimentacao` vai para `disponivel`, ou para `indisponivel` com o motivo do documento (ex.: "CRLV vencido") se o CRLV ou o seguro está vencido no dia da chegada (`VEI-03`, CA-246-10); os outros status não mudam. Na transferência, `veiculos.services.transferir` com a categoria pedida na criação e a origem `movimentacao` (`MOV-06`, ADR 0028): o veículo passa a ser da filial de destino, com a `TransferenciaVeiculo` gravada (CA-246-09).
+Numa transação, com a linha do veículo travada: a movimentação fica `concluida` com `concluida_em`; o veículo `em_movimentacao` vai para `disponivel`, ou para `indisponivel` com o motivo do documento (ex.: "CRLV vencido") se o CRLV ou o seguro está vencido no dia da chegada (`VEI-03`, CA-246-10); os outros status não mudam. Na transferência, `veiculos.services.transferir` com a origem `movimentacao`, que só muda a filial (ADR 0043) (`MOV-06`, ADR 0028): o veículo passa a ser da filial de destino, com a `TransferenciaVeiculo` gravada (CA-246-09).
 200: a representação. Regras: MOV-05, MOV-06, VEI-01 a VEI-04.
 
 ## Quem leva e quem recebe (T-300)

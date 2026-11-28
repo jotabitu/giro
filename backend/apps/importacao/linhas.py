@@ -50,6 +50,7 @@ INTERNAS = (CATEGORIA, CATEGORIA_PROPRIA)
 # Campo do erro do serviço → coluna da planilha.
 COLUNA_DO_CAMPO = {
     "categoria_id": "categoria",
+    "tipo_veiculo": "categoria",  # ADR 0043: o tipo vem da escolha por modelo (B2 o renomeia)
     "km_atual": "km",
     "valor_compra_centavos": "valor_compra",
     "endereco.cep": "cep",
@@ -187,6 +188,9 @@ def _veiculo(valores: dict[str, str], contexto: Contexto) -> Resultado:
     categoria = contexto.categoria(valores)
     if categoria is not None:
         dados["categoria_id"] = categoria.pk
+        # ADR 0043: o cadastro não lê mais a categoria; o tipo do veículo sai da escolhida até a
+        # importação passar a perguntar o Veículo por modelo (T-522 B2).
+        dados["tipo_veiculo"] = categoria.tipo_veiculo
 
     texto = valores.get("capacidade_tanque_litros", "")
     if texto:

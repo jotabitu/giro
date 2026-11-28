@@ -84,10 +84,13 @@ def _importar_direto(moto, capturar, imp: int) -> Any:
     return _rodando(capturar, moto.api().post, f"{URL}{imp}/importar/", {}, format="json")
 
 
-def _por_categoria() -> dict[str, int]:
+def _por_tipo() -> dict[str, int]:
+    """ADR 0043: o veículo importado não guarda a categoria; até a T-522 B2, o tipo dele sai da
+    categoria escolhida para o modelo (ou para a linha)."""
     contagem: dict[str, int] = {}
-    for nome in Veiculo.objects.values_list("categoria__nome", flat=True):
-        contagem[nome] = contagem.get(nome, 0) + 1
+    for tipo in Veiculo.objects.values_list("tipo_veiculo", flat=True):
+        contagem[tipo] = contagem.get(tipo, 0) + 1
+    assert not Veiculo.objects.filter(categoria__isnull=False).exists()
     return contagem
 
 
@@ -136,7 +139,7 @@ def test_imp_08_planilha_antiga_ignora_as_colunas(moto, django_capture_on_commit
     assert _escolher(moto, imp, ESCOLHA).status_code == 200
     _importar_direto(moto, django_capture_on_commit_callbacks, imp)
     assert set(Veiculo.objects.values_list("filial_id", flat=True)) == {moto.filial.pk}
-    assert _por_categoria() == {"Urbana 110–125": 3}
+    assert _por_tipo() == {"moto": 3}
 
 
 # --- Filial (CA-440-03, 04) ---
@@ -210,13 +213,10 @@ def test_imp_08_categoria_de_cada_modelo(moto, django_capture_on_commit_callback
     assert escolhida.status_code == 200, escolhida.json()
     assert escolhida.json()["categorias"]["falta_escolher"] is False
     assert _importar_direto(moto, django_capture_on_commit_callbacks, imp).status_code == 202
-    assert Veiculo.objects.filter(status="disponivel", filial=moto.filial).count() == 83
-    assert _por_categoria() == {
-        "Urbana 110–125": 40,
-        "Street 150–160": 31,
-        "Scooter premium": 6,
-        "Carro compacto": 6,
-    }
+    # ADR 0043, item 5: o importado nasce "sem preço" (VEI-15).
+    sem_preco = Veiculo.objects.filter(status="indisponivel", filial=moto.filial)
+    assert sem_preco.filter(motivo_status="Sem preço · ligue um plano").count() == 83
+    assert _por_tipo() == {"moto": 77, "carro": 6}
 
 
 def test_imp_08_corrigidas_seguem_o_modelo(moto, django_capture_on_commit_callbacks):
@@ -235,12 +235,7 @@ def test_imp_08_corrigidas_seguem_o_modelo(moto, django_capture_on_commit_callba
         assert linha.json()["categoria_id"] is not None
     assert _corpo(moto, imp)["categorias"]["falta_escolher"] is False
     assert _importar_direto(moto, django_capture_on_commit_callbacks, imp).status_code == 202
-    assert _por_categoria() == {
-        "Urbana 110–125": 42,
-        "Street 150–160": 32,
-        "Scooter premium": 6,
-        "Carro compacto": 6,
-    }
+    assert _por_tipo() == {"moto": 80, "carro": 6}
     carros = moto.api("Rodrigo").get("/api/veiculos/", {"tipo_veiculo": "carro"}).json()
     assert carros["contagens"]["carros"] == 6
 
@@ -263,7 +258,7 @@ def test_imp_08_modelo_novo_na_correcao(moto, django_capture_on_commit_callbacks
     assert _importar_direto(moto, django_capture_on_commit_callbacks, imp).status_code == 422
     assert _escolher(moto, imp, {"Elite 125": "Urbana 110–125"}).status_code == 200
     assert _importar_direto(moto, django_capture_on_commit_callbacks, imp).status_code == 202
-    assert Veiculo.objects.get(modelo="Elite 125").categoria.nome == "Urbana 110–125"
+    assert Veiculo.objects.get(modelo="Elite 125").tipo_veiculo == "moto"
 
 
 def test_imp_08_excecao_numa_linha(moto, django_capture_on_commit_callbacks):
@@ -286,8 +281,8 @@ def test_imp_08_excecao_numa_linha(moto, django_capture_on_commit_callbacks):
     assert corrigida.json()["categoria_id"] == moto.categorias["Street 150–160"].pk
     _importar_direto(moto, django_capture_on_commit_callbacks, imp)
     cgs = Veiculo.objects.filter(modelo__iexact="CG 160 Fan")
-    assert cgs.get(placa="QAA0043").categoria.nome == "Urbana 110–125"
-    assert {v.categoria.nome for v in cgs.exclude(placa="QAA0043")} == {"Street 150–160"}
+    assert {v.tipo_veiculo for v in cgs} == {"moto"}
+    assert not cgs.filter(categoria__isnull=False).exists()
 
 
 def test_imp_08_uma_categoria_so(moto, django_capture_on_commit_callbacks):
@@ -297,7 +292,7 @@ def test_imp_08_uma_categoria_so(moto, django_capture_on_commit_callbacks):
     categorias = _corpo(moto, imp)["categorias"]
     assert (categorias["pergunta"], categorias["falta_escolher"]) == (False, False)
     assert _importar_direto(moto, django_capture_on_commit_callbacks, imp).status_code == 202
-    assert _por_categoria() == {"Street 150–160": 83}
+    assert _por_tipo() == {"moto": 83}  # o tipo da Street, a única ativa
 
 
 def test_imp_08_categoria_de_outra_filial(moto, django_capture_on_commit_callbacks):
